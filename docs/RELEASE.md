@@ -1,0 +1,181 @@
+# OpenStudio AI PyPI Release Guide
+
+This guide describes how to build and publish the `openstudio-ai` Python
+package.
+
+## Release Prerequisites
+
+1. Confirm the package name is available on PyPI.
+
+   ```bash
+   python -m pip index versions openstudio-ai
+   ```
+
+   If the name is already owned by another project, change `project.name` in
+   `pyproject.toml` before publishing.
+
+2. Create accounts and API tokens:
+
+   - TestPyPI: https://test.pypi.org/
+   - PyPI: https://pypi.org/
+
+3. Install build tools in a clean environment:
+
+   ```bash
+   python -m pip install --upgrade pip
+   python -m pip install build twine
+   ```
+
+4. Verify the working tree is clean except for the intended release changes:
+
+   ```bash
+   git status --short
+   ```
+
+## Local Verification
+
+Run the source checks:
+
+```bash
+python -m py_compile $(find . -path './.venv' -prune -o -name '*.py' -print)
+python -m pytest -q tests
+```
+
+The OpenStudio simulation tests require `OPENSTUDIO_PATH`. If it is not set,
+those tests should be skipped and reported in the release notes.
+
+Run CLI smoke checks:
+
+```bash
+python -m cli version
+python -m cli paths --json
+python -m cli doctor --json
+python -m openstudio_mcp.server --help
+```
+
+`doctor` may return a non-zero code if optional runtime pieces such as
+OpenStudio are not available. Inspect the JSON and confirm the failure is
+expected before release.
+
+## Build Artifacts
+
+Remove old builds:
+
+```bash
+rm -rf dist build *.egg-info
+```
+
+Build source distribution and wheel:
+
+```bash
+python -m build
+```
+
+Validate metadata:
+
+```bash
+python -m twine check dist/*
+```
+
+Inspect wheel contents:
+
+```bash
+python - <<'PY'
+from pathlib import Path
+import zipfile
+
+wheel = next(Path("dist").glob("*.whl"))
+with zipfile.ZipFile(wheel) as zf:
+    names = zf.namelist()
+
+blocked = [name for name in names if name.startswith((".git/", ".venv/", ".idea/"))]
+if blocked:
+    raise SystemExit(f"Blocked paths found in wheel: {blocked[:10]}")
+
+required = [
+    "cli.py",
+    "openstudio_mcp/server.py",
+    "adapters/claude_code_adapter.py",
+    "adapters/codex_adapter.py",
+    "skills/openstudio_vav_reheat_system_creator.md",
+    "knowledge/openstudio_sdk_recipes.md",
+    "prompts/openstudio_agent.md",
+    "resource/sample.osm",
+]
+missing = [name for name in required if name not in names]
+if missing:
+    raise SystemExit(f"Missing required files: {missing}")
+
+print(f"Wheel looks complete: {wheel}")
+PY
+```
+
+## TestPyPI Release
+
+Upload to TestPyPI first:
+
+```bash
+python -m twine upload --repository testpypi dist/*
+```
+
+Create a clean virtual environment and install from TestPyPI:
+
+```bash
+python -m venv /tmp/openstudio-ai-testpypi
+/tmp/openstudio-ai-testpypi/bin/python -m pip install --upgrade pip
+/tmp/openstudio-ai-testpypi/bin/python -m pip install \
+  --index-url https://test.pypi.org/simple/ \
+  --extra-index-url https://pypi.org/simple/ \
+  openstudio-ai
+```
+
+Windows PowerShell equivalent:
+
+```powershell
+py -m venv $env:TEMP\openstudio-ai-testpypi
+& $env:TEMP\openstudio-ai-testpypi\Scripts\python -m pip install --upgrade pip
+& $env:TEMP\openstudio-ai-testpypi\Scripts\python -m pip install `
+  --index-url https://test.pypi.org/simple/ `
+  --extra-index-url https://pypi.org/simple/ `
+  openstudio-ai
+```
+
+Smoke test the installed commands:
+
+```bash
+openstudio-ai version
+openstudio-ai paths
+openstudio-ai doctor
+openstudio-ai-mcp --help
+openstudio-ai export claude --output-dir /tmp/openstudio-ai-claude --runtime-mode marketplace
+openstudio-ai export codex --output-dir /tmp/openstudio-ai-codex --runtime-mode marketplace
+```
+
+## Production PyPI Release
+
+After TestPyPI is validated, upload to PyPI:
+
+```bash
+python -m twine upload dist/*
+```
+
+Then verify from a clean environment:
+
+```bash
+python -m venv /tmp/openstudio-ai-pypi
+/tmp/openstudio-ai-pypi/bin/python -m pip install --upgrade pip
+/tmp/openstudio-ai-pypi/bin/python -m pip install openstudio-ai
+/tmp/openstudio-ai-pypi/bin/openstudio-ai version
+/tmp/openstudio-ai-pypi/bin/openstudio-ai doctor
+```
+
+## Release Notes
+
+For the first release, call out:
+
+- Package name and version.
+- Supported Python versions.
+- Whether OpenStudio simulation tests were run or skipped.
+- Whether TestPyPI install succeeded on macOS and Windows.
+- Known limitation: `openstudio-ai doctor` validates runtime scaffolding, but
+  full simulation readiness still depends on the user installing OpenStudio.

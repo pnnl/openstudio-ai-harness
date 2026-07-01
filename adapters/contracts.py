@@ -4,6 +4,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+RUNTIME_MODES = {"local", "installed", "marketplace"}
+
 
 @dataclass(frozen=True)
 class HarnessPaths:
@@ -19,8 +21,15 @@ class HarnessPaths:
 class HostAdapterConfig:
     host_name: str
     workspace_root: Path
+    runtime_mode: str = "local"
     enable_learning_capture: bool = True
     extra: dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if self.runtime_mode not in RUNTIME_MODES:
+            raise ValueError(
+                f"runtime_mode must be one of {sorted(RUNTIME_MODES)}, got {self.runtime_mode!r}"
+            )
 
 
 @dataclass(frozen=True)
@@ -32,4 +41,3 @@ class HostLaunchPlan:
     blackboard_schema: Path
     learning_event_log: Path
     notes: list[str] = field(default_factory=list)
-

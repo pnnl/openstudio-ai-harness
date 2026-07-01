@@ -4,9 +4,8 @@ This file is the lightweight entry point for OpenStudio Python SDK context. It
 should stay small. Detailed examples live in `knowledge/openstudio_sdk_wiki/` and
 are loaded only when relevant to the user request.
 
-The larger source-review note is
-`OPENSTUDIO_SDK_EXPERIENCE.md`. Treat it as a human
-reference, not default agent context.
+The larger source-review note is `docs/OPENSTUDIO_SDK_EXPERIENCE.md`. Treat it
+as a human reference, not default agent context.
 
 ## Load Order
 

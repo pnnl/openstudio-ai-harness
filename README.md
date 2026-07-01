@@ -3,10 +3,6 @@
 OpenStudio AI Harness packages a local MCP runtime, host adapters, skills,
 knowledge, and workflow-state tools for AI-assisted building-energy modeling.
 
-The migration is in progress. This repository currently contains the OpenStudio
-AI work migrated from `BEM-AI/examples/openstudio_ai` into a standalone,
-root-level harness layout.
-
 ## Current Capabilities
 
 - OpenStudio MCP server for model lifecycle, simulation, results, SDK lookup,
@@ -25,6 +21,14 @@ From this repository root:
 
 ```bash
 python -m pip install -e ".[dev]"
+```
+
+Install the runtime package after it is published:
+
+```bash
+python -m pip install openstudio-ai
+openstudio-ai doctor
+openstudio-ai-mcp --transport stdio
 ```
 
 Run focused tests:
@@ -54,13 +58,26 @@ python -m adapters.codex_adapter export-plugin \
   --output-dir /tmp/openstudio-ai-codex-plugin
 ```
 
+Export marketplace-oriented plugins that expect an installed runtime command:
+
+```bash
+python -m adapters.claude_code_adapter export-plugin \
+  --output-dir /tmp/openstudio-ai-claude-plugin \
+  --runtime-mode marketplace
+
+python -m adapters.codex_adapter export-plugin \
+  --output-dir /tmp/openstudio-ai-codex-plugin \
+  --runtime-mode marketplace
+```
+
 ## Key Docs
 
-- [Harness Details](HARNESS_DETAILS.md)
-- [Packaging North Star](PACKAGING_NORTHSTAR.md)
-- [Developer Guidance](DEVELOPER_GUIDANCE.md)
-- [Task Planning Meeting](TASK_PLANNING_MEETING.md)
-- [Current Handoff](HANDOFF.md)
+- [Harness Details](docs/HARNESS_DETAILS.md)
+- [Packaging North Star](docs/PACKAGING_NORTHSTAR.md)
+- [Runtime Installation Contract](docs/RUNTIME_INSTALLATION_CONTRACT.md)
+- [Marketplace Install Guide](docs/MARKETPLACE_INSTALL_GUIDE.md)
+- [PyPI Release Guide](docs/RELEASE.md)
+- [Developer Guidance](docs/DEVELOPER_GUIDANCE.md)
 
 ## Runtime State
 

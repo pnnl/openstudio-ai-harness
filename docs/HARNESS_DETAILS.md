@@ -23,8 +23,8 @@ Engineering workflows
 
 For developer ownership and roadmap details, see:
 
-- `DEVELOPER_GUIDANCE.md`
-- `TASK_PLANNING_MEETING.md`
+- `docs/DEVELOPER_GUIDANCE.md`
+- `docs/PACKAGING_NORTHSTAR.md`
 
 ## Current Baseline
 
@@ -41,7 +41,7 @@ OpenStudio AI currently includes:
 - runtime learning schemas and candidate folders exported to host agents;
 - manual developer learning pipeline that distills logs into reviewable
   candidates;
-- local JSON blackboard schema and operations for AUTOMA-AI workflows;
+- MCP-backed blackboard schemas and operation helpers;
 - tests covering adapter export, learning, SDK docs, and MCP smoke behavior.
 
 The main deployment gap is runtime packaging: exported `.mcp.json` files still
@@ -334,9 +334,8 @@ Focused test set for the current OpenStudio AI harness:
 - `measures/approved/`: reviewed deterministic measures.
 - `measures/candidates/`: proposed measures pending review.
 - `policy/`: allowlists, run gates, measure registry, and promotion policy.
-- `TASK_PLANNING_MEETING.md`: near-term tickets for MCP distribution and
-  SDK/knowledge/token optimization.
-- `DEVELOPER_GUIDANCE.md`: developer-facing product boundary and roadmap.
+- `docs/PACKAGING_NORTHSTAR.md`: packaging roadmap and distribution plan.
+- `docs/DEVELOPER_GUIDANCE.md`: developer-facing product boundary and roadmap.
 
 ## Near-Term Roadmap
 

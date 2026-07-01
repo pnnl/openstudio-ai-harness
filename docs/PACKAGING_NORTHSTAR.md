@@ -352,27 +352,27 @@ Use this checklist to estimate progress.
 
 ### Foundation In This Repository
 
-- [ ] Runtime installation contract documented.
-- [ ] Adapter `--runtime-mode local` supported.
-- [ ] Adapter `--runtime-mode installed` supported.
-- [ ] Adapter `--runtime-mode marketplace` supported.
-- [ ] Claude export includes setup/doctor/repair commands.
-- [ ] Codex export includes setup/doctor/repair commands.
-- [ ] Installer placeholder scripts exist.
-- [ ] Marketplace install guide exists.
+- [x] Runtime installation contract documented.
+- [x] Adapter `--runtime-mode local` supported.
+- [x] Adapter `--runtime-mode installed` supported.
+- [x] Adapter `--runtime-mode marketplace` supported.
+- [x] Claude export includes setup/doctor/repair commands.
+- [x] Codex export includes setup/doctor/repair commands.
+- [x] Installer placeholder scripts exist.
+- [x] Marketplace install guide exists.
 - [ ] Export tests cover local vs installed vs marketplace modes.
-- [ ] Export tests reject hardcoded developer paths in marketplace mode.
+- [x] Export tests reject hardcoded developer paths in marketplace mode.
 
 ### Runtime Package After Repo Migration
 
 - [ ] Flattened runtime package directories exist at the repository root.
-- [ ] `openstudio-ai-mcp` console script exists.
-- [ ] `openstudio-ai` CLI exists.
+- [x] `openstudio-ai-mcp` console script exists.
+- [x] `openstudio-ai` CLI exists.
 - [ ] `doctor` command validates Python, OpenStudio, SDK index, measures,
       workspace, SQLite, and MCP startup.
-- [ ] `export claude` command exists.
-- [ ] `export codex` command exists.
-- [ ] `validate-export` command exists.
+- [x] `export claude` command exists.
+- [x] `export codex` command exists.
+- [x] `validate-export` command exists.
 - [ ] Runtime data paths use `platformdirs`.
 - [ ] Package can be installed on macOS.
 - [ ] Package can be installed on Windows.

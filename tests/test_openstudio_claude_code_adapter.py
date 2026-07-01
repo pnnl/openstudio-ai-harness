@@ -21,6 +21,16 @@ def _adapter() -> ClaudeCodeAdapter:
     )
 
 
+def _adapter_with_runtime_mode(runtime_mode: str) -> ClaudeCodeAdapter:
+    return ClaudeCodeAdapter(
+        HostAdapterConfig(
+            host_name="claude_code",
+            workspace_root=Path(".").resolve(),
+            runtime_mode=runtime_mode,
+        )
+    )
+
+
 def test_claude_code_adapter_dry_run_generates_project_files(tmp_path: Path) -> None:
     result = _adapter().install(tmp_path, dry_run=True)
 
@@ -96,6 +106,44 @@ def test_claude_code_adapter_exports_plugin_package(tmp_path: Path) -> None:
     marketplace_json = json.loads((tmp_path / ".claude-plugin" / "marketplace.json").read_text(encoding="utf-8"))
     assert marketplace_json["name"] == "openstudio-ai-local"
     assert marketplace_json["plugins"][0]["source"] == "./openstudio-ai"
+
+
+def test_claude_code_adapter_installed_mode_uses_runtime_command(tmp_path: Path) -> None:
+    _adapter_with_runtime_mode("installed").export_plugin(tmp_path, dry_run=False)
+
+    mcp_json = json.loads((tmp_path / "openstudio-ai" / ".mcp.json").read_text(encoding="utf-8"))
+    server = mcp_json["mcpServers"]["openstudio_ai"]
+    assert server["command"] == "openstudio-ai-mcp"
+    assert server["args"] == ["--transport", "stdio"]
+    assert "env" not in server
+    assert not (tmp_path / "openstudio-ai" / "commands" / "setup-openstudio-ai.md").exists()
+
+
+def test_claude_code_adapter_marketplace_mode_exports_runtime_setup(tmp_path: Path) -> None:
+    _adapter_with_runtime_mode("marketplace").export_plugin(tmp_path, dry_run=False)
+
+    plugin_dir = tmp_path / "openstudio-ai"
+    mcp_json = json.loads((plugin_dir / ".mcp.json").read_text(encoding="utf-8"))
+    server = mcp_json["mcpServers"]["openstudio_ai"]
+    assert server == {"command": "openstudio-ai-mcp", "args": ["--transport", "stdio"]}
+    assert (plugin_dir / "commands" / "setup-openstudio-ai.md").exists()
+    assert (plugin_dir / "commands" / "doctor-openstudio-ai.md").exists()
+    assert (plugin_dir / "commands" / "repair-openstudio-ai.md").exists()
+    assert (plugin_dir / "installers" / "install_runtime.py").exists()
+    assert (plugin_dir / "installers" / "doctor_runtime.py").exists()
+
+    setup = (plugin_dir / "commands" / "setup-openstudio-ai.md").read_text(encoding="utf-8")
+    assert "python --version" in setup
+    assert "python3 --version" in setup
+    assert "openstudio-ai-mcp --help" in setup
+    assert "energy-modeler language" in setup
+
+    exported_text = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in tmp_path.rglob("*")
+        if path.is_file() and path.suffix in {".md", ".json", ".py"}
+    )
+    assert "/Users/" not in exported_text
 
 
 def test_claude_code_adapter_exports_command_frontmatter(tmp_path: Path) -> None:

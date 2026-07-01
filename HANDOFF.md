@@ -15,6 +15,36 @@ Migrated components:
 - Local blackboard modules and MCP-backed blackboard tools.
 - Focused regression tests from the BEM-AI repository.
 
+First packaging phase completed:
+
+- Runtime installation contract documented in `docs/RUNTIME_INSTALLATION_CONTRACT.md`.
+- Claude and Codex adapters support `--runtime-mode local`, `installed`, and
+  `marketplace`.
+- Installed and marketplace exports point `.mcp.json` at `openstudio-ai-mcp`.
+- Marketplace exports include setup/doctor/repair command files and
+  `installers/install_runtime.py` plus `installers/doctor_runtime.py`.
+- Energy-modeler marketplace setup guide added in `docs/MARKETPLACE_INSTALL_GUIDE.md`.
+
+Pip release baseline completed:
+
+- Distribution name set to `openstudio-ai`.
+- `openstudio>=3.10.0` is a required runtime dependency because the MCP server
+  depends on the OpenStudio Python package.
+- `openstudio-ai` CLI added with `doctor`, `paths`, `version`,
+  `install-runtime`, `repair`, `export`, and `validate-export`.
+- `openstudio-ai-mcp` console script remains the MCP runtime entrypoint.
+- Runtime assets, skills, knowledge, prompts, resources, and docs are included
+  in the wheel while local folders such as `.venv`, `.git`, `.idea`, and
+  runtime workspaces are excluded.
+- PyPI/TestPyPI release instructions added in `docs/RELEASE.md`.
+
+Documentation cleanup completed:
+
+- Long-form docs and diagrams moved under `docs/`.
+- Root `blackboard_schema.json` removed because active exported schemas live in
+  `blackboard/schemas/`.
+- `docs/README.md` documents the current docs map and schema decision.
+
 ## Verification
 
 Last verified from this repository root with the BEM-AI development virtual
@@ -28,9 +58,14 @@ environment:
 Result:
 
 - `py_compile`: passed.
-- `pytest`: `46 passed, 2 skipped, 1 warning`.
+- `pytest`: `54 passed, 2 skipped, 5 warnings`.
 - The skipped tests require `OPENSTUDIO_PATH` to point to a valid OpenStudio
   executable.
+- `python -m build`: produced `dist/openstudio_ai-0.1.0.tar.gz` and
+  `dist/openstudio_ai-0.1.0-py3-none-any.whl`.
+- `twine check dist/*`: passed in a temporary smoke-test environment.
+- Fresh wheel install smoke test: `openstudio-ai`, `openstudio-ai-mcp`, and
+  marketplace plugin exports worked.
 
 ## Notes
 

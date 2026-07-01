@@ -31,6 +31,22 @@ Preview package files without writing:
   --dry-run
 ```
 
+Runtime modes:
+
+- `--runtime-mode local`: development mode; `.mcp.json` starts the MCP server
+  from this source checkout.
+- `--runtime-mode installed`: assumes `openstudio-ai-mcp` is already installed.
+- `--runtime-mode marketplace`: assumes `openstudio-ai-mcp` is the runtime
+  command and adds setup/doctor/repair commands plus installer helper scripts.
+
+Marketplace export:
+
+```bash
+.venv/bin/python -m adapters.claude_code_adapter export-plugin \
+  --output-dir /tmp/openstudio-ai-plugin \
+  --runtime-mode marketplace
+```
+
 The exported package has this shape:
 
 ```text
@@ -43,6 +59,7 @@ openstudio-ai-plugin/
     ├── README.md
     ├── CONNECTORS.md
     ├── commands/
+    ├── installers/
     ├── skills/
     ├── knowledge/
     ├── instructions/
@@ -68,6 +85,7 @@ Then use the namespaced commands:
 /openstudio-ai:simulate
 /openstudio-ai:query-results
 /openstudio-ai:propose-measure
+/openstudio-ai:setup-openstudio-ai
 ```
 
 ## Claude Code Project Install
@@ -119,6 +137,14 @@ Preview package files without writing:
   --dry-run
 ```
 
+Marketplace export:
+
+```bash
+.venv/bin/python -m adapters.codex_adapter export-plugin \
+  --output-dir /tmp/openstudio-ai-codex-plugin \
+  --runtime-mode marketplace
+```
+
 The exported package has this shape:
 
 ```text
@@ -131,6 +157,8 @@ openstudio-ai-codex-plugin/
         ├── .mcp.json
         ├── README.md
         ├── CONNECTORS.md
+        ├── commands/
+        ├── installers/
         ├── skills/
         ├── knowledge/
         ├── instructions/

@@ -68,10 +68,14 @@ def test_claude_code_adapter_preserves_other_mcp_servers(tmp_path: Path) -> None
     assert "openstudio_ai" in mcp_config["mcpServers"]
 
 
-def test_claude_code_adapter_refuses_unmanaged_instructions_without_force(tmp_path: Path) -> None:
+def test_claude_code_adapter_refuses_unmanaged_instructions_without_force(
+    tmp_path: Path,
+) -> None:
     claude_dir = tmp_path / ".claude"
     claude_dir.mkdir()
-    (claude_dir / "CLAUDE.md").write_text("# Existing project instructions\n", encoding="utf-8")
+    (claude_dir / "CLAUDE.md").write_text(
+        "# Existing project instructions\n", encoding="utf-8"
+    )
 
     with pytest.raises(FileExistsError):
         _adapter().install(tmp_path, dry_run=True)
@@ -91,35 +95,55 @@ def test_claude_code_adapter_exports_plugin_package(tmp_path: Path) -> None:
     assert (plugin_dir / "CONNECTORS.md").exists()
     assert (plugin_dir / "commands" / "add-vav-reheat.md").exists()
     assert (plugin_dir / "commands" / "propose-measure.md").exists()
-    assert (plugin_dir / "skills" / "openstudio-hvac-air-loop-creator" / "SKILL.md").exists()
-    assert not (plugin_dir / "skills" / "HVAC-CHILD-SKILL-MANAGEMENT" / "SKILL.md").exists()
+    assert (
+        plugin_dir / "skills" / "openstudio-hvac-air-loop-creator" / "SKILL.md"
+    ).exists()
+    assert not (
+        plugin_dir / "skills" / "HVAC-CHILD-SKILL-MANAGEMENT" / "SKILL.md"
+    ).exists()
     assert (plugin_dir / "knowledge" / "openstudio_sdk_recipes.md").exists()
-    assert (plugin_dir / "blackboard" / "schemas" / "workflow_state.schema.json").exists()
+    assert (
+        plugin_dir / "blackboard" / "schemas" / "workflow_state.schema.json"
+    ).exists()
     assert (plugin_dir / "learning" / "README.md").exists()
-    assert (plugin_dir / "learning" / "schemas" / "candidate_measure.schema.json").exists()
+    assert (
+        plugin_dir / "learning" / "schemas" / "candidate_measure.schema.json"
+    ).exists()
     assert (plugin_dir / "learning" / "candidates" / ".gitkeep").exists()
 
-    plugin_json = json.loads((plugin_dir / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
+    plugin_json = json.loads(
+        (plugin_dir / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8")
+    )
     assert plugin_json["name"] == "openstudio-ai"
     mcp_json = json.loads((plugin_dir / ".mcp.json").read_text(encoding="utf-8"))
     assert "openstudio_ai" in mcp_json["mcpServers"]
-    marketplace_json = json.loads((tmp_path / ".claude-plugin" / "marketplace.json").read_text(encoding="utf-8"))
+    marketplace_json = json.loads(
+        (tmp_path / ".claude-plugin" / "marketplace.json").read_text(encoding="utf-8")
+    )
     assert marketplace_json["name"] == "openstudio-ai-local"
     assert marketplace_json["plugins"][0]["source"] == "./openstudio-ai"
 
 
-def test_claude_code_adapter_installed_mode_uses_runtime_command(tmp_path: Path) -> None:
+def test_claude_code_adapter_installed_mode_uses_runtime_command(
+    tmp_path: Path,
+) -> None:
     _adapter_with_runtime_mode("installed").export_plugin(tmp_path, dry_run=False)
 
-    mcp_json = json.loads((tmp_path / "openstudio-ai" / ".mcp.json").read_text(encoding="utf-8"))
+    mcp_json = json.loads(
+        (tmp_path / "openstudio-ai" / ".mcp.json").read_text(encoding="utf-8")
+    )
     server = mcp_json["mcpServers"]["openstudio_ai"]
     assert server["command"] == "openstudio-ai-mcp"
     assert server["args"] == ["--transport", "stdio"]
     assert "env" not in server
-    assert not (tmp_path / "openstudio-ai" / "commands" / "setup-openstudio-ai.md").exists()
+    assert not (
+        tmp_path / "openstudio-ai" / "commands" / "setup-openstudio-ai.md"
+    ).exists()
 
 
-def test_claude_code_adapter_marketplace_mode_exports_runtime_setup(tmp_path: Path) -> None:
+def test_claude_code_adapter_marketplace_mode_exports_runtime_setup(
+    tmp_path: Path,
+) -> None:
     _adapter_with_runtime_mode("marketplace").export_plugin(tmp_path, dry_run=False)
 
     plugin_dir = tmp_path / "openstudio-ai"
@@ -132,11 +156,20 @@ def test_claude_code_adapter_marketplace_mode_exports_runtime_setup(tmp_path: Pa
     assert (plugin_dir / "installers" / "install_runtime.py").exists()
     assert (plugin_dir / "installers" / "doctor_runtime.py").exists()
 
-    setup = (plugin_dir / "commands" / "setup-openstudio-ai.md").read_text(encoding="utf-8")
+    setup = (plugin_dir / "commands" / "setup-openstudio-ai.md").read_text(
+        encoding="utf-8"
+    )
     assert "python --version" in setup
     assert "python3 --version" in setup
     assert "openstudio-ai-mcp --help" in setup
     assert "energy-modeler language" in setup
+    installer = (plugin_dir / "installers" / "install_runtime.py").read_text(
+        encoding="utf-8"
+    )
+    assert "OPENSTUDIO_AI_PACKAGE_SPEC" in installer
+    assert '"pip", "install", "--upgrade"' in installer
+    assert '"cli", "install-runtime"' in installer
+    assert "Placeholder installer" not in installer
 
     exported_text = "\n".join(
         path.read_text(encoding="utf-8")
@@ -154,11 +187,14 @@ def test_claude_code_adapter_exports_command_frontmatter(tmp_path: Path) -> None
     )
     assert command.startswith("---\n")
     assert "name: add-vav-reheat\n" in command
-    assert "description: Plan and execute a phased OpenStudio VAV reheat workflow.\n" in command
-    assert "\n---\n\n# Add VAV Reheat" in command
-    propose_measure = (tmp_path / "openstudio-ai" / "commands" / "propose-measure.md").read_text(
-        encoding="utf-8"
+    assert (
+        "description: Plan and execute a phased OpenStudio VAV reheat workflow.\n"
+        in command
     )
+    assert "\n---\n\n# Add VAV Reheat" in command
+    propose_measure = (
+        tmp_path / "openstudio-ai" / "commands" / "propose-measure.md"
+    ).read_text(encoding="utf-8")
     assert "name: propose-measure\n" in propose_measure
     assert "learning/candidates/" in propose_measure
 
@@ -180,7 +216,9 @@ def test_claude_code_adapter_exports_skill_frontmatter(tmp_path: Path) -> None:
     assert "\n---\n\n## Scope" in skill
 
 
-def test_claude_code_adapter_export_plugin_dry_run_does_not_write(tmp_path: Path) -> None:
+def test_claude_code_adapter_export_plugin_dry_run_does_not_write(
+    tmp_path: Path,
+) -> None:
     result = _adapter().export_plugin(tmp_path, dry_run=True)
 
     assert result.dry_run is True
@@ -191,7 +229,9 @@ def test_claude_code_adapter_export_plugin_dry_run_does_not_write(tmp_path: Path
     assert not (tmp_path / "openstudio-ai").exists()
 
 
-def test_claude_code_adapter_export_plugin_requires_force_for_existing_dir(tmp_path: Path) -> None:
+def test_claude_code_adapter_export_plugin_requires_force_for_existing_dir(
+    tmp_path: Path,
+) -> None:
     plugin_dir = tmp_path / "openstudio-ai"
     plugin_dir.mkdir()
 

@@ -28,8 +28,9 @@ First packaging phase completed:
 Pip release baseline completed:
 
 - Distribution name set to `openstudio-ai`.
-- `openstudio>=3.10.0` is a required runtime dependency because the MCP server
-  depends on the OpenStudio Python package.
+- `openstudio>=3.10.0` is a required runtime dependency because generated
+  scripts, measures, and SDK-backed model operations assume the OpenStudio
+  Python package.
 - `openstudio-ai` CLI added with `doctor`, `paths`, `version`,
   `install-runtime`, `repair`, `export`, and `validate-export`.
 - `openstudio-ai-mcp` console script remains the MCP runtime entrypoint.
@@ -47,39 +48,27 @@ Documentation cleanup completed:
 
 Current readiness hardening completed:
 
-- `openstudio-ai doctor` now checks packaged runtime assets, writable runtime
-  storage, SQLite registry creation, MCP server construction,
+- `openstudio-ai doctor` now checks packaged runtime assets, initialized
+  runtime storage, SQLite registry support, MCP server construction,
   `openstudio-ai-mcp --help`, measure registry entrypoints, SDK routing,
   OpenStudio Python SDK import/version, and OpenStudio CLI availability.
 - `doctor` reports separate `mcp_ready`, `simulation_ready`, and `ready` fields
   without depending on packaged sample models.
+- `doctor` no longer creates user data directories as a side effect;
+  `openstudio-ai install-runtime` initializes user-local runtime storage.
+- Marketplace `installers/install_runtime.py` now runs pip for
+  `OPENSTUDIO_AI_PACKAGE_SPEC` or `openstudio-ai`, then runs
+  `python -m cli install-runtime`.
 - `validate-export` now enforces runtime-mode-specific MCP config, marketplace
   setup files, and hardcoded developer path rejection.
 - `platformdirs` is now a runtime dependency for cross-platform user data paths.
 - Roadmap docs were reconciled so installed and marketplace runtime modes are no
   longer described as future work.
+- Installation docs now state the two-part OpenStudio requirement explicitly:
+  the PyPI `openstudio` Python package plus the native OpenStudio application
+  or CLI visible through `OPENSTUDIO_PATH` or `PATH`.
 
 ## Verification
-
-Last verified from this repository root with the BEM-AI development virtual
-environment:
-
-```bash
-/Users/xuwe123/github/BEM-AI/.venv/bin/python -m py_compile $(find . -name '*.py' -print)
-/Users/xuwe123/github/BEM-AI/.venv/bin/python -m pytest -q tests
-```
-
-Result:
-
-- `py_compile`: passed.
-- `pytest`: `54 passed, 2 skipped, 5 warnings`.
-- The skipped tests require `OPENSTUDIO_PATH` to point to a valid OpenStudio
-  executable.
-- `python -m build`: produced `dist/openstudio_ai-0.1.0.tar.gz` and
-  `dist/openstudio_ai-0.1.0-py3-none-any.whl`.
-- `twine check dist/*`: passed in a temporary smoke-test environment.
-- Fresh wheel install smoke test: `openstudio-ai`, `openstudio-ai-mcp`, and
-  marketplace plugin exports worked.
 
 Latest verification from this repository root with `.venv/bin/python`:
 
@@ -93,13 +82,23 @@ OPENSTUDIO_PATH=/Applications/OpenStudio-3.10.0/bin/openstudio .venv/bin/python 
 Result:
 
 - `py_compile`: passed.
-- `pytest` with OpenStudio 3.10.0 configured: `58 passed, 5 warnings`.
+- `pytest` with OpenStudio 3.10.0 configured: `62 passed, 5 warnings`.
 - `python -m build`: produced `dist/openstudio_ai-0.1.0.tar.gz` and
   `dist/openstudio_ai-0.1.0-py3-none-any.whl`.
 - `twine check dist/*`: passed.
 - Wheel content inspection passed for CLI, MCP server, adapters, skills,
   knowledge, prompts, policy, and blackboard schemas. Local sample OSM/EPW
-  resources are intentionally excluded from wheel and sdist release artifacts.
+  resources, `resource/`, and `measures/candidates/` are intentionally excluded
+  from wheel and sdist release artifacts.
+- Wheel metadata inspection passed: `openstudio` is a required base dependency
+  and no `openstudio` optional extra is advertised.
+- Fresh wheel install smoke test with required OpenStudio passed from
+  `/tmp/openstudio-ai-required-smoke`: `pip install dist/*.whl` installed the
+  PyPI `openstudio` package, `openstudio-ai install-runtime` initialized
+  storage, `doctor --json` reported `python_openstudio.ok`, `mcp_ready`, and
+  `simulation_ready` as true with
+  `/Applications/OpenStudio-3.10.0/bin/openstudio`, and Codex marketplace export
+  plus `validate-export` passed.
 - Fresh wheel install smoke test passed from `/tmp/openstudio-ai-wheel-smoke`:
   `openstudio-ai version`, `paths`, `doctor`, `openstudio-ai-mcp --help`,
   Claude marketplace export, Codex marketplace export, and `validate-export`

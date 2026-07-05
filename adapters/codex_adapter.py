@@ -11,7 +11,6 @@ from adapters.base import OpenStudioAiHostAdapter
 from adapters.contracts import RUNTIME_MODES, HostAdapterConfig, HostLaunchPlan
 from harness.registry import discover_harness_assets
 
-
 DEFAULT_PLUGIN_NAME = "openstudio-ai"
 MARKETPLACE_NAME = "openstudio-ai-local"
 SERVER_NAME = "openstudio_ai"
@@ -40,7 +39,9 @@ class CodexAdapter(OpenStudioAiHostAdapter):
             mcp_entrypoint=assets.mcp_entrypoint,
             blackboard_schema=assets.blackboard_schema,
             learning_event_log=assets.learning_event_log,
-            notes=["Export skills, MCP config, knowledge, and instructions as a Codex plugin."],
+            notes=[
+                "Export skills, MCP config, knowledge, and instructions as a Codex plugin."
+            ],
         )
 
     def export_plugin(
@@ -58,7 +59,14 @@ class CodexAdapter(OpenStudioAiHostAdapter):
         marketplace_path = export_root / ".agents" / "plugins" / "marketplace.json"
         plan = self.build_launch_plan()
         runtime_mode = self.config.runtime_mode
-        files = _planned_export_files(export_root, plugin_dir, marketplace_path, plan, workspace_root, runtime_mode)
+        files = _planned_export_files(
+            export_root,
+            plugin_dir,
+            marketplace_path,
+            plan,
+            workspace_root,
+            runtime_mode,
+        )
 
         if dry_run:
             return CodexPluginExportResult(
@@ -70,13 +78,19 @@ class CodexAdapter(OpenStudioAiHostAdapter):
 
         if plugin_dir.exists():
             if not force:
-                raise FileExistsError(f"{plugin_dir} already exists. Use --force to replace it.")
+                raise FileExistsError(
+                    f"{plugin_dir} already exists. Use --force to replace it."
+                )
             shutil.rmtree(plugin_dir)
 
         marketplace_path.parent.mkdir(parents=True, exist_ok=True)
-        marketplace_path.write_text(_render_marketplace_json(plugin_name), encoding="utf-8")
+        marketplace_path.write_text(
+            _render_marketplace_json(plugin_name), encoding="utf-8"
+        )
         (export_root / "INSTALL.md").write_text(
-            _render_install_doc(export_root, marketplace_path, plugin_name, runtime_mode),
+            _render_install_doc(
+                export_root, marketplace_path, plugin_name, runtime_mode
+            ),
             encoding="utf-8",
         )
         _write_plugin_package(plugin_dir, plan, workspace_root, runtime_mode)
@@ -118,11 +132,20 @@ def _planned_export_files(
                 plugin_dir / "installers" / "doctor_runtime.py",
             ]
         )
-    files.extend(plugin_dir / "instructions" / path.name for path in plan.system_prompt_files)
-    files.extend(plugin_dir / "skills" / _skill_dir_name(path) / "SKILL.md" for path in plan.skill_paths)
+    files.extend(
+        plugin_dir / "instructions" / path.name for path in plan.system_prompt_files
+    )
+    files.extend(
+        plugin_dir / "skills" / _skill_dir_name(path) / "SKILL.md"
+        for path in plan.skill_paths
+    )
     files.extend(
         plugin_dir / "learning" / "schemas" / path.name
-        for path in sorted((workspace_root / "learning" / "harness_pipeline" / "schemas").glob("*.json"))
+        for path in sorted(
+            (workspace_root / "learning" / "harness_pipeline" / "schemas").glob(
+                "*.json"
+            )
+        )
     )
 
     knowledge_root = workspace_root / "knowledge"
@@ -155,9 +178,15 @@ def _write_plugin_package(
         _render_plugin_json(),
         encoding="utf-8",
     )
-    (plugin_dir / ".mcp.json").write_text(_render_mcp_config(workspace_root, runtime_mode), encoding="utf-8")
-    (plugin_dir / "README.md").write_text(_render_plugin_readme(plan, runtime_mode), encoding="utf-8")
-    (plugin_dir / "CONNECTORS.md").write_text(_render_connectors_doc(workspace_root, runtime_mode), encoding="utf-8")
+    (plugin_dir / ".mcp.json").write_text(
+        _render_mcp_config(workspace_root, runtime_mode), encoding="utf-8"
+    )
+    (plugin_dir / "README.md").write_text(
+        _render_plugin_readme(plan, runtime_mode), encoding="utf-8"
+    )
+    (plugin_dir / "CONNECTORS.md").write_text(
+        _render_connectors_doc(workspace_root, runtime_mode), encoding="utf-8"
+    )
 
     for command_name, content in _command_docs(runtime_mode).items():
         (plugin_dir / "commands" / command_name).write_text(content, encoding="utf-8")
@@ -173,13 +202,20 @@ def _write_plugin_package(
         target_dir.mkdir(parents=True, exist_ok=True)
         shutil.copy2(skill, target_dir / "SKILL.md")
 
-    shutil.copy2(plan.blackboard_schema, plugin_dir / "blackboard" / "schemas" / plan.blackboard_schema.name)
+    shutil.copy2(
+        plan.blackboard_schema,
+        plugin_dir / "blackboard" / "schemas" / plan.blackboard_schema.name,
+    )
     shutil.copy2(
         workspace_root / "learning" / "harness_pipeline" / "runtime_learning.md",
         plugin_dir / "learning" / "README.md",
     )
-    (plugin_dir / "learning" / "candidates" / ".gitkeep").write_text("", encoding="utf-8")
-    for schema in sorted((workspace_root / "learning" / "harness_pipeline" / "schemas").glob("*.json")):
+    (plugin_dir / "learning" / "candidates" / ".gitkeep").write_text(
+        "", encoding="utf-8"
+    )
+    for schema in sorted(
+        (workspace_root / "learning" / "harness_pipeline" / "schemas").glob("*.json")
+    ):
         shutil.copy2(schema, plugin_dir / "learning" / "schemas" / schema.name)
 
     knowledge_root = workspace_root / "knowledge"
@@ -189,55 +225,66 @@ def _write_plugin_package(
 
 def _render_plugin_json() -> str:
     """Render Codex `.codex-plugin/plugin.json` with validation-required metadata."""
-    return json.dumps(
-        {
-            "name": DEFAULT_PLUGIN_NAME,
-            "version": "0.1.0",
-            "description": (
-                "OpenStudio AI harness for OpenStudio model editing, simulation, "
-                "results, SDK lookup, and reusable workflow skills."
-            ),
-            "author": {
-                "name": "OpenStudio AI",
-            },
-            "license": "BSD-3-Clause",
-            "keywords": ["openstudio", "building-energy-modeling", "mcp", "simulation"],
-            "skills": "./skills/",
-            "mcpServers": "./.mcp.json",
-            "interface": {
-                "displayName": "OpenStudio AI",
-                "shortDescription": "OpenStudio modeling, simulation, SDK lookup, and workflow skills.",
-                "longDescription": (
-                    "OpenStudio AI packages MCP tools, reusable skills, reviewed knowledge, "
-                    "and blackboard contracts for building-energy modeling workflows."
+    return (
+        json.dumps(
+            {
+                "name": DEFAULT_PLUGIN_NAME,
+                "version": "0.1.0",
+                "description": (
+                    "OpenStudio AI harness for OpenStudio model editing, simulation, "
+                    "results, SDK lookup, and reusable workflow skills."
                 ),
-                "developerName": "OpenStudio AI",
-                "category": "Engineering",
-                "capabilities": ["MCP", "Skills", "Workflow Automation"],
-                "defaultPrompt": [
-                    "Inspect this OpenStudio model.",
-                    "Add a VAV reheat system.",
-                    "Run simulation and summarize results.",
+                "author": {
+                    "name": "OpenStudio AI",
+                },
+                "license": "BSD-3-Clause",
+                "keywords": [
+                    "openstudio",
+                    "building-energy-modeling",
+                    "mcp",
+                    "simulation",
                 ],
-                "brandColor": "#2563EB",
+                "skills": "./skills/",
+                "mcpServers": "./.mcp.json",
+                "interface": {
+                    "displayName": "OpenStudio AI",
+                    "shortDescription": "OpenStudio modeling, simulation, SDK lookup, and workflow skills.",
+                    "longDescription": (
+                        "OpenStudio AI packages MCP tools, reusable skills, reviewed knowledge, "
+                        "and blackboard contracts for building-energy modeling workflows."
+                    ),
+                    "developerName": "OpenStudio AI",
+                    "category": "Engineering",
+                    "capabilities": ["MCP", "Skills", "Workflow Automation"],
+                    "defaultPrompt": [
+                        "Inspect this OpenStudio model.",
+                        "Add a VAV reheat system.",
+                        "Run simulation and summarize results.",
+                    ],
+                    "brandColor": "#2563EB",
+                },
             },
-        },
-        indent=2,
-        ensure_ascii=True,
-    ) + "\n"
+            indent=2,
+            ensure_ascii=True,
+        )
+        + "\n"
+    )
 
 
 def _render_mcp_config(workspace_root: Path, runtime_mode: str) -> str:
     """Render Codex MCP config for the selected runtime mode."""
-    return json.dumps(
-        {
-            "mcpServers": {
-                SERVER_NAME: _mcp_server_config(workspace_root, runtime_mode)
-            }
-        },
-        indent=2,
-        ensure_ascii=True,
-    ) + "\n"
+    return (
+        json.dumps(
+            {
+                "mcpServers": {
+                    SERVER_NAME: _mcp_server_config(workspace_root, runtime_mode)
+                }
+            },
+            indent=2,
+            ensure_ascii=True,
+        )
+        + "\n"
+    )
 
 
 def _mcp_server_config(workspace_root: Path, runtime_mode: str) -> dict[str, object]:
@@ -268,30 +315,33 @@ def _mcp_server_config(workspace_root: Path, runtime_mode: str) -> dict[str, obj
 
 def _render_marketplace_json(plugin_name: str) -> str:
     """Render a repo-local Codex marketplace manifest."""
-    return json.dumps(
-        {
-            "name": MARKETPLACE_NAME,
-            "interface": {
-                "displayName": "OpenStudio AI Local",
+    return (
+        json.dumps(
+            {
+                "name": MARKETPLACE_NAME,
+                "interface": {
+                    "displayName": "OpenStudio AI Local",
+                },
+                "plugins": [
+                    {
+                        "name": plugin_name,
+                        "source": {
+                            "source": "local",
+                            "path": f"./plugins/{plugin_name}",
+                        },
+                        "policy": {
+                            "installation": "AVAILABLE",
+                            "authentication": "ON_INSTALL",
+                        },
+                        "category": "Engineering",
+                    }
+                ],
             },
-            "plugins": [
-                {
-                    "name": plugin_name,
-                    "source": {
-                        "source": "local",
-                        "path": f"./plugins/{plugin_name}",
-                    },
-                    "policy": {
-                        "installation": "AVAILABLE",
-                        "authentication": "ON_INSTALL",
-                    },
-                    "category": "Engineering",
-                }
-            ],
-        },
-        indent=2,
-        ensure_ascii=True,
-    ) + "\n"
+            indent=2,
+            ensure_ascii=True,
+        )
+        + "\n"
+    )
 
 
 def _render_install_doc(
@@ -305,7 +355,9 @@ def _render_install_doc(
     validate_ref = "<path-to-this-plugin-json>"
     if runtime_mode != "marketplace":
         export_ref = str(export_root)
-        validate_ref = str(export_root / "plugins" / plugin_name / ".codex-plugin" / "plugin.json")
+        validate_ref = str(
+            export_root / "plugins" / plugin_name / ".codex-plugin" / "plugin.json"
+        )
     return (
         "# Install OpenStudio AI In Codex\n\n"
         "This export is a Codex marketplace containing the OpenStudio AI plugin.\n\n"
@@ -476,24 +528,22 @@ def _marketplace_command_docs() -> dict[str, str]:
 
 def _command_markdown(*, name: str, description: str, body: str) -> str:
     """Render a Codex command file with YAML frontmatter."""
-    return (
-        "---\n"
-        f"name: {name}\n"
-        f"description: {description}\n"
-        "---\n\n"
-        f"{body}"
-    )
+    return "---\n" f"name: {name}\n" f"description: {description}\n" "---\n\n" f"{body}"
 
 
 def _write_installer_assets(installers_dir: Path) -> None:
-    """Write cross-platform runtime installer and doctor placeholder scripts."""
+    """Write cross-platform runtime installer and doctor helper scripts."""
     installers_dir.mkdir(parents=True, exist_ok=True)
-    (installers_dir / "doctor_runtime.py").write_text(_doctor_runtime_script(), encoding="utf-8")
-    (installers_dir / "install_runtime.py").write_text(_install_runtime_script(), encoding="utf-8")
+    (installers_dir / "doctor_runtime.py").write_text(
+        _doctor_runtime_script(), encoding="utf-8"
+    )
+    (installers_dir / "install_runtime.py").write_text(
+        _install_runtime_script(), encoding="utf-8"
+    )
 
 
 def _doctor_runtime_script() -> str:
-    """Return the placeholder runtime doctor script shipped in marketplace exports."""
+    """Return the runtime doctor helper script shipped in marketplace exports."""
     return '''"""Check whether the OpenStudio AI runtime can be used by this plugin."""
 
 from __future__ import annotations
@@ -549,13 +599,24 @@ if __name__ == "__main__":
 
 
 def _install_runtime_script() -> str:
-    """Return the placeholder runtime installer script shipped in marketplace exports."""
-    return '''"""Placeholder installer for the future OpenStudio AI runtime package."""
+    """Return the runtime installer script shipped in marketplace exports."""
+    return '''"""Install or repair the OpenStudio AI runtime package for this plugin."""
 
 from __future__ import annotations
 
+import os
 import shutil
+import subprocess
 import sys
+
+
+DEFAULT_PACKAGE_SPEC = "openstudio-ai"
+
+
+def run(command: list[str]) -> int:
+    print(f"\\n$ {' '.join(command)}")
+    completed = subprocess.run(command, check=False)
+    return completed.returncode
 
 
 def main() -> int:
@@ -564,17 +625,38 @@ def main() -> int:
     print(f"Python executable: {sys.executable}")
     print(f"Python version: {sys.version.split()[0]}")
 
-    if shutil.which("openstudio-ai-mcp"):
-        print("\\nThe openstudio-ai-mcp command is already available.")
-        return 0
+    package_spec = os.getenv("OPENSTUDIO_AI_PACKAGE_SPEC", DEFAULT_PACKAGE_SPEC)
+    if shutil.which("openstudio-ai") and shutil.which("openstudio-ai-mcp"):
+        print("\\nOpenStudio AI commands are already available. Initializing runtime storage.")
+    else:
+        print(f"\\nInstalling runtime package: {package_spec}")
+        print(
+            "Set OPENSTUDIO_AI_PACKAGE_SPEC to a wheel path, internal index spec, "
+            "or pinned version if your organization does not install from PyPI."
+        )
+        code = run([sys.executable, "-m", "pip", "install", "--upgrade", package_spec])
+        if code != 0:
+            print(
+                "\\nRuntime package installation failed. Check Python permissions, "
+                "network access, package index access, or ask your support contact "
+                "for an approved OpenStudio AI package."
+            )
+            return code
 
-    print(
-        "\\nThe runtime package is not installed yet. In the packaged release, "
-        "this script will install OpenStudio AI after user approval. For now, "
-        "install the development package or ask your support contact for the "
-        "OpenStudio AI runtime installer."
-    )
-    return 2
+    code = run([sys.executable, "-m", "cli", "install-runtime"])
+    if code != 0:
+        print("\\nInstalled package, but runtime initialization failed.")
+        return code
+
+    if not shutil.which("openstudio-ai-mcp"):
+        print(
+            "\\nThe package installed, but openstudio-ai-mcp is not on PATH in this shell. "
+            "Restart the AI tool or add Python's scripts directory to PATH, then rerun doctor."
+        )
+        return 3
+
+    print("\\nOpenStudio AI runtime installation completed.")
+    return 0
 
 
 if __name__ == "__main__":
@@ -594,10 +676,14 @@ def _default_workspace_root() -> Path:
 
 def _parse_args() -> argparse.Namespace:
     """Parse CLI arguments for Codex plugin export."""
-    parser = argparse.ArgumentParser(description="Export the OpenStudio AI harness as a Codex plugin.")
+    parser = argparse.ArgumentParser(
+        description="Export the OpenStudio AI harness as a Codex plugin."
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    export = subparsers.add_parser("export-plugin", help="Export a Codex plugin and local marketplace.")
+    export = subparsers.add_parser(
+        "export-plugin", help="Export a Codex plugin and local marketplace."
+    )
     export.add_argument(
         "--output-dir",
         type=Path,
@@ -615,8 +701,14 @@ def _parse_args() -> argparse.Namespace:
         default=_default_workspace_root(),
         help="OpenStudio AI harness root.",
     )
-    export.add_argument("--dry-run", action="store_true", help="Preview package files without writing them.")
-    export.add_argument("--force", action="store_true", help="Replace an existing plugin folder.")
+    export.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Preview package files without writing them.",
+    )
+    export.add_argument(
+        "--force", action="store_true", help="Replace an existing plugin folder."
+    )
     export.add_argument(
         "--runtime-mode",
         choices=sorted(RUNTIME_MODES),

@@ -27,9 +27,14 @@ Install the runtime package after it is published:
 
 ```bash
 python -m pip install openstudio-ai
-OPENSTUDIO_PATH=/path/to/openstudio-3.10-or-newer openstudio-ai doctor
+openstudio-ai install-runtime
+OPENSTUDIO_PATH=/path/to/openstudio openstudio-ai doctor
 openstudio-ai-mcp --transport stdio
 ```
+
+OpenStudio AI requires both the PyPI `openstudio` Python package, installed as
+a dependency of `openstudio-ai`, and the native OpenStudio application/CLI. Set
+`OPENSTUDIO_PATH` when the CLI is not on `PATH`.
 
 Run focused tests:
 

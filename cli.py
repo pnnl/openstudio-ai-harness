@@ -7,6 +7,7 @@ import shutil
 import sqlite3
 import subprocess
 import sys
+import tempfile
 from importlib import metadata
 from pathlib import Path
 from typing import Any
@@ -143,10 +144,72 @@ def _check_runtime_assets(root: Path) -> dict[str, Any]:
         name: {"path": str(path), "exists": path.is_dir()}
         for name, path in required_dirs.items()
     }
-    ok = all(item["exists"] for item in files.values()) and all(
-        item["exists"] for item in dirs.values()
-    )
-    return {"ok": ok, "files": files, "directories": dirs}
+    missing_files = [name for name, item in files.items() if not item["exists"]]
+    missing_dirs = [name for name, item in dirs.items() if not item["exists"]]
+    ok = not missing_files and not missing_dirs
+    result: dict[str, Any] = {
+        "ok": ok,
+        "files": files,
+        "directories": dirs,
+        "missing_files": missing_files,
+        "missing_directories": missing_dirs,
+    }
+    if not ok:
+        result["message"] = (
+            "Packaged runtime assets are missing. Reinstall openstudio-ai, or run "
+            "`openstudio-ai repair` if this is an editable development checkout."
+        )
+    return result
+
+
+def _runtime_storage_status(workspace_dir: Path) -> dict[str, Any]:
+    """Return user runtime storage status without creating directories."""
+    data_dir = workspace_dir.parent
+    status: dict[str, Any] = {
+        "initialized": workspace_dir.is_dir(),
+        "data_dir_exists": data_dir.exists(),
+        "workspace_dir": str(workspace_dir),
+        "writable": None,
+        "ok": False,
+    }
+    if not workspace_dir.exists():
+        status["message"] = (
+            "Runtime storage is not initialized yet. Run `openstudio-ai install-runtime` "
+            "to create user-local storage."
+        )
+        return status
+    if not workspace_dir.is_dir():
+        status["message"] = (
+            f"Runtime workspace path exists but is not a directory: {workspace_dir}"
+        )
+        return status
+    try:
+        probe = workspace_dir / ".write_probe"
+        probe.write_text("ok", encoding="utf-8")
+        probe.unlink()
+        status["writable"] = True
+        status["ok"] = True
+    except OSError as exc:
+        status["writable"] = False
+        status["error"] = str(exc)
+        status["message"] = f"Runtime storage is not writable: {workspace_dir}"
+    return status
+
+
+def _sqlite_registry_probe() -> dict[str, Any]:
+    """Check SQLite support in a temporary directory without touching user data."""
+    try:
+        with tempfile.TemporaryDirectory(prefix="openstudio-ai-doctor-") as tmp:
+            db_path = Path(tmp) / "doctor_registry_probe.sqlite"
+            with sqlite3.connect(str(db_path)) as conn:
+                conn.execute(
+                    "CREATE TABLE IF NOT EXISTS doctor_probe (id INTEGER PRIMARY KEY)"
+                )
+                conn.execute("INSERT INTO doctor_probe DEFAULT VALUES")
+                conn.execute("SELECT COUNT(*) FROM doctor_probe").fetchone()
+        return {"ok": True}
+    except (OSError, sqlite3.Error) as exc:
+        return {"ok": False, "error": str(exc)}
 
 
 def _doctor_payload() -> dict[str, Any]:
@@ -171,8 +234,8 @@ def _doctor_payload() -> dict[str, Any]:
         },
         "imports": {},
         "assets": _check_runtime_assets(harness_root),
-        "runtime_storage": {"writable": False},
-        "sqlite_registry": {"ok": False},
+        "runtime_storage": _runtime_storage_status(workspace_dir),
+        "sqlite_registry": _sqlite_registry_probe(),
         "mcp_startup": {"ok": False},
         "sdk_docs": {},
         "measures": {"ok": False},
@@ -194,35 +257,12 @@ def _doctor_payload() -> dict[str, Any]:
         OpenStudioService = None  # type: ignore[assignment]
         create_server = None  # type: ignore[assignment]
 
-    try:
-        workspace_dir.mkdir(parents=True, exist_ok=True)
-        probe = workspace_dir / ".write_probe"
-        probe.write_text("ok", encoding="utf-8")
-        probe.unlink()
-        checks["runtime_storage"]["writable"] = True
-    except OSError as exc:
-        checks["runtime_storage"]["writable"] = False
-        checks["runtime_storage"]["error"] = str(exc)
-
-    try:
-        with sqlite3.connect(
-            str(workspace_dir / "doctor_registry_probe.sqlite")
-        ) as conn:
-            conn.execute(
-                "CREATE TABLE IF NOT EXISTS doctor_probe (id INTEGER PRIMARY KEY)"
-            )
-            conn.execute("INSERT INTO doctor_probe DEFAULT VALUES")
-            conn.execute("SELECT COUNT(*) FROM doctor_probe").fetchone()
-        (workspace_dir / "doctor_registry_probe.sqlite").unlink(missing_ok=True)
-        (workspace_dir / "doctor_registry_probe.sqlite-wal").unlink(missing_ok=True)
-        (workspace_dir / "doctor_registry_probe.sqlite-shm").unlink(missing_ok=True)
-        checks["sqlite_registry"] = {"ok": True}
-    except (OSError, sqlite3.Error) as exc:
-        checks["sqlite_registry"] = {"ok": False, "error": str(exc)}
-
     if create_server is not None:
         try:
-            create_server(workspace_root=workspace_dir / "doctor_mcp_startup")
+            with tempfile.TemporaryDirectory(
+                prefix="openstudio-ai-mcp-startup-"
+            ) as tmp:
+                create_server(workspace_root=Path(tmp) / "workspace")
             checks["mcp_startup"] = {"ok": True}
         except (
             Exception
@@ -238,24 +278,26 @@ def _doctor_payload() -> dict[str, Any]:
 
     if OpenStudioService is not None:
         try:
-            service = OpenStudioService(workspace_root=workspace_dir / "doctor_service")
-            public_measures = service.measure_registry.list_public_specs()
-            missing_entrypoints = [
-                spec.measure_id
-                for spec in service.measure_registry._measures.values()
-                if spec.allowed and not spec.entrypoint.exists()
-            ]
+            with tempfile.TemporaryDirectory(prefix="openstudio-ai-service-") as tmp:
+                service = OpenStudioService(workspace_root=Path(tmp) / "workspace")
+                public_measures = service.measure_registry.list_public_specs()
+                missing_entrypoints = [
+                    spec.measure_id
+                    for spec in service.measure_registry._measures.values()
+                    if spec.allowed and not spec.entrypoint.exists()
+                ]
+                sdk_docs = {
+                    "configured": service.sdk_docs.docs_dir is not None,
+                    "available": service.sdk_docs.available(),
+                    "route_probe": service.sdk_docs.route(
+                        "create geometry and spaces", limit=2
+                    ),
+                }
+            checks["sdk_docs"] = sdk_docs
             checks["measures"] = {
                 "ok": bool(public_measures) and not missing_entrypoints,
                 "count": len(public_measures),
                 "missing_entrypoints": missing_entrypoints,
-            }
-            checks["sdk_docs"] = {
-                "configured": service.sdk_docs.docs_dir is not None,
-                "available": service.sdk_docs.available(),
-                "route_probe": service.sdk_docs.route(
-                    "create geometry and spaces", limit=2
-                ),
             }
         except (
             Exception
@@ -282,18 +324,19 @@ def _doctor_payload() -> dict[str, Any]:
     checks["mcp_ready"] = (
         checks["imports"].get("openstudio_mcp", {}).get("ok") is True
         and checks["assets"].get("ok") is True
-        and checks["runtime_storage"].get("writable") is True
+        and checks["runtime_storage"].get("ok") is True
         and checks["sqlite_registry"].get("ok") is True
         and checks["mcp_startup"].get("ok") is True
         and checks["commands"]["openstudio_ai_mcp"].get("help_probe", {}).get("ok")
         is True
         and checks["measures"].get("ok") is True
-        and checks["python_openstudio"].get("ok") is True
     )
     checks["simulation_ready"] = (
-        checks["mcp_ready"] and checks["openstudio"].get("ok") is True
+        checks["mcp_ready"]
+        and checks["python_openstudio"].get("ok") is True
+        and checks["openstudio"].get("ok") is True
     )
-    checks["ready"] = checks["simulation_ready"]
+    checks["ready"] = checks["mcp_ready"]
     return checks
 
 
@@ -323,7 +366,7 @@ def _print_json_or_text(payload: dict[str, Any], *, as_json: bool) -> None:
     print("\nChecks:")
     check_rows = [
         ("runtime assets", payload.get("assets", {}).get("ok")),
-        ("runtime storage", payload.get("runtime_storage", {}).get("writable")),
+        ("runtime storage", payload.get("runtime_storage", {}).get("ok")),
         ("sqlite registry", payload.get("sqlite_registry", {}).get("ok")),
         ("mcp startup", payload.get("mcp_startup", {}).get("ok")),
         ("measure registry", payload.get("measures", {}).get("ok")),
@@ -344,11 +387,24 @@ def _print_json_or_text(payload: dict[str, Any], *, as_json: bool) -> None:
             "\nOpenStudio AI can still provide planning, skills, and SDK guidance, "
             "but runtime setup must be fixed before full MCP execution is reliable."
         )
+        storage_message = payload.get("runtime_storage", {}).get("message")
+        if storage_message:
+            print(f"Runtime storage: {storage_message}")
+        asset_message = payload.get("assets", {}).get("message")
+        if asset_message:
+            print(f"Runtime assets: {asset_message}")
     elif payload.get("simulation_ready") is False:
         print(
             "\nThe MCP runtime is available, but OpenStudio execution is not ready. "
             "Install OpenStudio or set OPENSTUDIO_PATH before model edits and simulations."
         )
+        sdk_error = payload.get("python_openstudio", {}).get("error")
+        if sdk_error:
+            print(
+                "OpenStudio Python SDK: the `openstudio` Python package is a required "
+                "dependency for model editing and measures. Reinstall openstudio-ai, "
+                "confirm the native OpenStudio application is installed, and rerun doctor."
+            )
 
 
 def _cmd_doctor(args: argparse.Namespace) -> int:
@@ -376,8 +432,12 @@ def _cmd_version(_: argparse.Namespace) -> int:
 
 
 def _cmd_install_runtime(_: argparse.Namespace) -> int:
+    data_dir = _user_data_dir()
+    workspace_dir = data_dir / "workspace"
+    workspace_dir.mkdir(parents=True, exist_ok=True)
     print("OpenStudio AI runtime installer")
     print("The runtime package is already installed if this command is available.")
+    print(f"Initialized runtime workspace at: {workspace_dir}")
     print("Run `openstudio-ai doctor` to validate MCP readiness.")
     return 0
 

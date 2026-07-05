@@ -94,6 +94,7 @@ exclude = [
     "build",
     ".pytest_cache",
     ".openstudio_mcp_workspace",
+    "measures/candidates",
 ]
 
 [tool.hatch.build.targets.sdist]
@@ -134,4 +135,5 @@ exclude = [
     "build",
     ".pytest_cache",
     ".openstudio_mcp_workspace",
+    "measures/candidates/**",
 ]

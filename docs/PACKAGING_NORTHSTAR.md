@@ -234,16 +234,17 @@ project structure is stabilized.
    - `repair-openstudio-ai.md`
    - `uninstall-openstudio-ai.md`
 
-4. Add cross-platform installer script placeholders.
+4. Add cross-platform installer scripts.
 
    ```text
    installers/install_runtime.py
    installers/doctor_runtime.py
    ```
 
-   During early migration, these can validate prerequisites and explain next
-   steps. As packaging matures, they should install and validate the real
-   package.
+   These should validate prerequisites, install or upgrade the runtime package
+   after user approval, support pinned/internal package specs through
+   `OPENSTUDIO_AI_PACKAGE_SPEC`, initialize runtime storage, and explain
+   failures in normal energy-modeler language.
 
 5. Add export tests.
 
@@ -358,7 +359,8 @@ Use this checklist to estimate progress.
 - [x] Adapter `--runtime-mode marketplace` supported.
 - [x] Claude export includes setup/doctor/repair commands.
 - [x] Codex export includes setup/doctor/repair commands.
-- [x] Installer placeholder scripts exist.
+- [x] Installer scripts exist and perform package installation plus runtime
+      storage initialization.
 - [x] Marketplace install guide exists.
 - [ ] Export tests cover local vs installed vs marketplace modes.
 - [x] Export tests reject hardcoded developer paths in marketplace mode.

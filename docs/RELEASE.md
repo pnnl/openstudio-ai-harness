@@ -49,6 +49,7 @@ Run CLI smoke checks:
 ```bash
 python -m cli version
 python -m cli paths --json
+python -m cli install-runtime
 python -m cli doctor --json
 python -m openstudio_mcp.server --help
 ```
@@ -87,8 +88,14 @@ import zipfile
 wheel = next(Path("dist").glob("*.whl"))
 with zipfile.ZipFile(wheel) as zf:
     names = zf.namelist()
+    metadata_name = next(name for name in names if name.endswith(".dist-info/METADATA"))
+    metadata = zf.read(metadata_name).decode()
 
-blocked = [name for name in names if name.startswith((".git/", ".venv/", ".idea/"))]
+blocked = [
+    name
+    for name in names
+    if name.startswith((".git/", ".venv/", ".idea/", "resource/", "measures/candidates/"))
+]
 if blocked:
     raise SystemExit(f"Blocked paths found in wheel: {blocked[:10]}")
 
@@ -112,6 +119,14 @@ forbidden = [
 included_forbidden = [name for name in forbidden if name in names]
 if included_forbidden:
     raise SystemExit(f"Release wheel includes local test fixtures: {included_forbidden}")
+
+base_openstudio = [
+    line
+    for line in metadata.splitlines()
+    if line.startswith("Requires-Dist: openstudio") and "; extra ==" not in line
+]
+if not base_openstudio:
+    raise SystemExit("OpenStudio Python package must be a required dependency")
 
 print(f"Wheel looks complete: {wheel}")
 PY
@@ -152,11 +167,20 @@ Smoke test the installed commands:
 ```bash
 openstudio-ai version
 openstudio-ai paths
+openstudio-ai install-runtime
 OPENSTUDIO_PATH=/path/to/openstudio openstudio-ai doctor
 openstudio-ai-mcp --help
 openstudio-ai export claude --output-dir /tmp/openstudio-ai-claude --runtime-mode marketplace
 openstudio-ai export codex --output-dir /tmp/openstudio-ai-codex --runtime-mode marketplace
 ```
+
+Model editing, measure execution, and simulation readiness require two
+OpenStudio pieces:
+
+- the PyPI `openstudio` Python package, installed as a required dependency of
+  `openstudio-ai`;
+- the native OpenStudio application/CLI, visible through `OPENSTUDIO_PATH` or
+  `PATH`.
 
 ## Production PyPI Release
 

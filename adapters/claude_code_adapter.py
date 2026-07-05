@@ -11,7 +11,6 @@ from adapters.base import OpenStudioAiHostAdapter
 from adapters.contracts import RUNTIME_MODES, HostAdapterConfig, HostLaunchPlan
 from harness.registry import discover_harness_assets
 
-
 GENERATED_START = "<!-- BEGIN OPENSTUDIO_AI_HARNESS -->"
 GENERATED_END = "<!-- END OPENSTUDIO_AI_HARNESS -->"
 SERVER_NAME = "openstudio_ai"
@@ -60,10 +59,14 @@ class ClaudeCodeAdapter(OpenStudioAiHostAdapter):
             mcp_entrypoint=assets.mcp_entrypoint,
             blackboard_schema=assets.blackboard_schema,
             learning_event_log=assets.learning_event_log,
-            notes=["Map harness files into the host's project instructions and MCP config."],
+            notes=[
+                "Map harness files into the host's project instructions and MCP config."
+            ],
         )
 
-    def build_install_actions(self, target_dir: Path, *, force: bool = False) -> list[InstallAction]:
+    def build_install_actions(
+        self, target_dir: Path, *, force: bool = False
+    ) -> list[InstallAction]:
         """Plan project-local Claude Code files without writing them.
 
         This is the development/debug path. The distributable path is
@@ -96,14 +99,18 @@ class ClaudeCodeAdapter(OpenStudioAiHostAdapter):
         ]
         return actions
 
-    def install(self, target_dir: Path, *, dry_run: bool = True, force: bool = False) -> InstallResult:
+    def install(
+        self, target_dir: Path, *, dry_run: bool = True, force: bool = False
+    ) -> InstallResult:
         """Write or preview project-local Claude Code configuration files."""
         actions = self.build_install_actions(target_dir, force=force)
         if not dry_run:
             for action in actions:
                 action.path.parent.mkdir(parents=True, exist_ok=True)
                 action.path.write_text(action.content, encoding="utf-8")
-        return InstallResult(dry_run=dry_run, target_dir=target_dir.resolve(), actions=actions)
+        return InstallResult(
+            dry_run=dry_run, target_dir=target_dir.resolve(), actions=actions
+        )
 
     def export_plugin(
         self,
@@ -124,7 +131,9 @@ class ClaudeCodeAdapter(OpenStudioAiHostAdapter):
         plugin_dir = (marketplace_dir / plugin_name).resolve()
         plan = self.build_launch_plan()
         runtime_mode = self.config.runtime_mode
-        files = _planned_export_files(marketplace_dir, plugin_dir, plan, workspace_root, runtime_mode)
+        files = _planned_export_files(
+            marketplace_dir, plugin_dir, plan, workspace_root, runtime_mode
+        )
 
         if dry_run:
             return PluginExportResult(
@@ -136,7 +145,9 @@ class ClaudeCodeAdapter(OpenStudioAiHostAdapter):
 
         if plugin_dir.exists():
             if not force:
-                raise FileExistsError(f"{plugin_dir} already exists. Use --force to replace it.")
+                raise FileExistsError(
+                    f"{plugin_dir} already exists. Use --force to replace it."
+                )
             shutil.rmtree(plugin_dir)
 
         (marketplace_dir / ".claude-plugin").mkdir(parents=True, exist_ok=True)
@@ -167,7 +178,11 @@ def _render_mcp_config(
     existing: dict[str, object] = {}
     if existing_path.exists():
         existing = json.loads(existing_path.read_text(encoding="utf-8"))
-    mcp_servers = dict(existing.get("mcpServers", {})) if isinstance(existing.get("mcpServers"), dict) else {}
+    mcp_servers = (
+        dict(existing.get("mcpServers", {}))
+        if isinstance(existing.get("mcpServers"), dict)
+        else {}
+    )
     mcp_servers[SERVER_NAME] = _mcp_server_config(workspace_root, runtime_mode)
     existing["mcpServers"] = mcp_servers
     return json.dumps(existing, indent=2, ensure_ascii=True) + "\n"
@@ -175,15 +190,18 @@ def _render_mcp_config(
 
 def _render_plugin_mcp_config(workspace_root: Path, runtime_mode: str) -> str:
     """Render plugin `.mcp.json` for the selected runtime mode."""
-    return json.dumps(
-        {
-            "mcpServers": {
-                SERVER_NAME: _mcp_server_config(workspace_root, runtime_mode)
-            }
-        },
-        indent=2,
-        ensure_ascii=True,
-    ) + "\n"
+    return (
+        json.dumps(
+            {
+                "mcpServers": {
+                    SERVER_NAME: _mcp_server_config(workspace_root, runtime_mode)
+                }
+            },
+            indent=2,
+            ensure_ascii=True,
+        )
+        + "\n"
+    )
 
 
 def _mcp_server_config(workspace_root: Path, runtime_mode: str) -> dict[str, object]:
@@ -312,48 +330,66 @@ def _planned_export_files(
                 plugin_dir / "installers" / "doctor_runtime.py",
             ]
         )
-    files.extend(plugin_dir / "instructions" / path.name for path in plan.system_prompt_files)
-    files.extend(plugin_dir / "skills" / _skill_dir_name(path) / "SKILL.md" for path in plan.skill_paths)
+    files.extend(
+        plugin_dir / "instructions" / path.name for path in plan.system_prompt_files
+    )
+    files.extend(
+        plugin_dir / "skills" / _skill_dir_name(path) / "SKILL.md"
+        for path in plan.skill_paths
+    )
     files.extend(
         plugin_dir / "learning" / "schemas" / path.name
-        for path in sorted((workspace_root / "learning" / "harness_pipeline" / "schemas").glob("*.json"))
+        for path in sorted(
+            (workspace_root / "learning" / "harness_pipeline" / "schemas").glob(
+                "*.json"
+            )
+        )
     )
     for root in [workspace_root / "knowledge"]:
         if root.exists():
-            files.extend(plugin_dir / "knowledge" / path.relative_to(root) for path in root.rglob("*") if path.is_file())
+            files.extend(
+                plugin_dir / "knowledge" / path.relative_to(root)
+                for path in root.rglob("*")
+                if path.is_file()
+            )
     return sorted(files)
 
 
 def _render_marketplace_json(plugin_name: str) -> str:
     """Render a local marketplace manifest that points at the exported plugin."""
-    return json.dumps(
-        {
-            "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
-            "name": MARKETPLACE_NAME,
-            "version": "0.1.0",
-            "description": "Local marketplace for the OpenStudio AI Claude plugin.",
-            "owner": {
-                "name": "OpenStudio AI",
+    return (
+        json.dumps(
+            {
+                "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+                "name": MARKETPLACE_NAME,
+                "version": "0.1.0",
+                "description": "Local marketplace for the OpenStudio AI Claude plugin.",
+                "owner": {
+                    "name": "OpenStudio AI",
+                },
+                "plugins": [
+                    {
+                        "name": plugin_name,
+                        "description": (
+                            "OpenStudio AI harness for OpenStudio model editing, simulation, "
+                            "results, SDK lookup, and reusable workflow skills."
+                        ),
+                        "version": "0.1.0",
+                        "source": f"./{plugin_name}",
+                        "category": "engineering",
+                    }
+                ],
             },
-            "plugins": [
-                {
-                    "name": plugin_name,
-                    "description": (
-                        "OpenStudio AI harness for OpenStudio model editing, simulation, "
-                        "results, SDK lookup, and reusable workflow skills."
-                    ),
-                    "version": "0.1.0",
-                    "source": f"./{plugin_name}",
-                    "category": "engineering",
-                }
-            ],
-        },
-        indent=2,
-        ensure_ascii=True,
-    ) + "\n"
+            indent=2,
+            ensure_ascii=True,
+        )
+        + "\n"
+    )
 
 
-def _render_install_doc(marketplace_dir: Path, plugin_name: str, runtime_mode: str) -> str:
+def _render_install_doc(
+    marketplace_dir: Path, plugin_name: str, runtime_mode: str
+) -> str:
     """Render install instructions for using the exported package in Claude Code."""
     marketplace_ref = "this exported marketplace folder"
     validation_command = "claude plugin validate <path-to-this-marketplace-folder>"
@@ -429,7 +465,12 @@ def _write_plugin_package(
                     "SDK lookup, and reusable building-energy workflow skills."
                 ),
                 "author": {"name": "OpenStudio AI"},
-                "keywords": ["openstudio", "building-energy-modeling", "mcp", "simulation"],
+                "keywords": [
+                    "openstudio",
+                    "building-energy-modeling",
+                    "mcp",
+                    "simulation",
+                ],
             },
             indent=2,
             ensure_ascii=True,
@@ -441,7 +482,9 @@ def _write_plugin_package(
         _render_plugin_mcp_config(workspace_root, runtime_mode),
         encoding="utf-8",
     )
-    (plugin_dir / "README.md").write_text(_render_plugin_readme(plan, runtime_mode), encoding="utf-8")
+    (plugin_dir / "README.md").write_text(
+        _render_plugin_readme(plan, runtime_mode), encoding="utf-8"
+    )
     (plugin_dir / "CONNECTORS.md").write_text(
         _render_connectors_doc(workspace_root, runtime_mode),
         encoding="utf-8",
@@ -462,13 +505,20 @@ def _write_plugin_package(
         # Claude plugin skills use folder-per-skill layout with SKILL.md.
         shutil.copy2(skill, target_dir / "SKILL.md")
 
-    shutil.copy2(plan.blackboard_schema, plugin_dir / "blackboard" / "schemas" / plan.blackboard_schema.name)
+    shutil.copy2(
+        plan.blackboard_schema,
+        plugin_dir / "blackboard" / "schemas" / plan.blackboard_schema.name,
+    )
     shutil.copy2(
         workspace_root / "learning" / "harness_pipeline" / "runtime_learning.md",
         plugin_dir / "learning" / "README.md",
     )
-    (plugin_dir / "learning" / "candidates" / ".gitkeep").write_text("", encoding="utf-8")
-    for schema in sorted((workspace_root / "learning" / "harness_pipeline" / "schemas").glob("*.json")):
+    (plugin_dir / "learning" / "candidates" / ".gitkeep").write_text(
+        "", encoding="utf-8"
+    )
+    for schema in sorted(
+        (workspace_root / "learning" / "harness_pipeline" / "schemas").glob("*.json")
+    ):
         shutil.copy2(schema, plugin_dir / "learning" / "schemas" / schema.name)
 
     knowledge_root = workspace_root / "knowledge"
@@ -541,31 +591,31 @@ def _command_docs(runtime_mode: str) -> dict[str, str]:
             name="add-vav-reheat",
             description="Plan and execute a phased OpenStudio VAV reheat workflow.",
             body=(
-            "# Add VAV Reheat\n\n"
-            "Use the OpenStudio AI VAV reheat parent workflow skill. Maintain workflow "
-            "state through the blackboard contract, load only the child skill needed "
-            "for the current phase, and use MCP tools for deterministic model lifecycle "
-            "operations when appropriate.\n"
+                "# Add VAV Reheat\n\n"
+                "Use the OpenStudio AI VAV reheat parent workflow skill. Maintain workflow "
+                "state through the blackboard contract, load only the child skill needed "
+                "for the current phase, and use MCP tools for deterministic model lifecycle "
+                "operations when appropriate.\n"
             ),
         ),
         "simulate.md": _command_markdown(
             name="simulate",
             description="Run, poll, and collect artifacts from an OpenStudio simulation.",
             body=(
-            "# Simulate\n\n"
-            "Use the `openstudio_ai` MCP simulation tools to run, poll, and collect "
-            "artifacts from OpenStudio simulations. Do not run simulations through "
-            "ad hoc shell commands when MCP tools are available.\n"
+                "# Simulate\n\n"
+                "Use the `openstudio_ai` MCP simulation tools to run, poll, and collect "
+                "artifacts from OpenStudio simulations. Do not run simulations through "
+                "ad hoc shell commands when MCP tools are available.\n"
             ),
         ),
         "query-results.md": _command_markdown(
             name="query-results",
             description="Query SQL-backed OpenStudio simulation results through MCP tools.",
             body=(
-            "# Query Results\n\n"
-            "Use the `openstudio_ai` MCP result tools for SQL-backed annual, design-day, "
-            "and summary result retrieval. Attribute assumptions and missing outputs "
-            "in the final answer.\n"
+                "# Query Results\n\n"
+                "Use the `openstudio_ai` MCP result tools for SQL-backed annual, design-day, "
+                "and summary result retrieval. Attribute assumptions and missing outputs "
+                "in the final answer.\n"
             ),
         ),
         "propose-measure.md": _command_markdown(
@@ -635,14 +685,18 @@ def _marketplace_command_docs() -> dict[str, str]:
 
 
 def _write_installer_assets(installers_dir: Path) -> None:
-    """Write cross-platform runtime installer and doctor placeholder scripts."""
+    """Write cross-platform runtime installer and doctor helper scripts."""
     installers_dir.mkdir(parents=True, exist_ok=True)
-    (installers_dir / "doctor_runtime.py").write_text(_doctor_runtime_script(), encoding="utf-8")
-    (installers_dir / "install_runtime.py").write_text(_install_runtime_script(), encoding="utf-8")
+    (installers_dir / "doctor_runtime.py").write_text(
+        _doctor_runtime_script(), encoding="utf-8"
+    )
+    (installers_dir / "install_runtime.py").write_text(
+        _install_runtime_script(), encoding="utf-8"
+    )
 
 
 def _doctor_runtime_script() -> str:
-    """Return the placeholder runtime doctor script shipped in marketplace exports."""
+    """Return the runtime doctor helper script shipped in marketplace exports."""
     return '''"""Check whether the OpenStudio AI runtime can be used by this plugin."""
 
 from __future__ import annotations
@@ -698,13 +752,24 @@ if __name__ == "__main__":
 
 
 def _install_runtime_script() -> str:
-    """Return the placeholder runtime installer script shipped in marketplace exports."""
-    return '''"""Placeholder installer for the future OpenStudio AI runtime package."""
+    """Return the runtime installer script shipped in marketplace exports."""
+    return '''"""Install or repair the OpenStudio AI runtime package for this plugin."""
 
 from __future__ import annotations
 
+import os
 import shutil
+import subprocess
 import sys
+
+
+DEFAULT_PACKAGE_SPEC = "openstudio-ai"
+
+
+def run(command: list[str]) -> int:
+    print(f"\\n$ {' '.join(command)}")
+    completed = subprocess.run(command, check=False)
+    return completed.returncode
 
 
 def main() -> int:
@@ -713,17 +778,38 @@ def main() -> int:
     print(f"Python executable: {sys.executable}")
     print(f"Python version: {sys.version.split()[0]}")
 
-    if shutil.which("openstudio-ai-mcp"):
-        print("\\nThe openstudio-ai-mcp command is already available.")
-        return 0
+    package_spec = os.getenv("OPENSTUDIO_AI_PACKAGE_SPEC", DEFAULT_PACKAGE_SPEC)
+    if shutil.which("openstudio-ai") and shutil.which("openstudio-ai-mcp"):
+        print("\\nOpenStudio AI commands are already available. Initializing runtime storage.")
+    else:
+        print(f"\\nInstalling runtime package: {package_spec}")
+        print(
+            "Set OPENSTUDIO_AI_PACKAGE_SPEC to a wheel path, internal index spec, "
+            "or pinned version if your organization does not install from PyPI."
+        )
+        code = run([sys.executable, "-m", "pip", "install", "--upgrade", package_spec])
+        if code != 0:
+            print(
+                "\\nRuntime package installation failed. Check Python permissions, "
+                "network access, package index access, or ask your support contact "
+                "for an approved OpenStudio AI package."
+            )
+            return code
 
-    print(
-        "\\nThe runtime package is not installed yet. In the packaged release, "
-        "this script will install OpenStudio AI after user approval. For now, "
-        "install the development package or ask your support contact for the "
-        "OpenStudio AI runtime installer."
-    )
-    return 2
+    code = run([sys.executable, "-m", "cli", "install-runtime"])
+    if code != 0:
+        print("\\nInstalled package, but runtime initialization failed.")
+        return code
+
+    if not shutil.which("openstudio-ai-mcp"):
+        print(
+            "\\nThe package installed, but openstudio-ai-mcp is not on PATH in this shell. "
+            "Restart the AI tool or add Python's scripts directory to PATH, then rerun doctor."
+        )
+        return 3
+
+    print("\\nOpenStudio AI runtime installation completed.")
+    return 0
 
 
 if __name__ == "__main__":
@@ -733,13 +819,7 @@ if __name__ == "__main__":
 
 def _command_markdown(*, name: str, description: str, body: str) -> str:
     """Render a Claude Code command file with required YAML frontmatter."""
-    return (
-        "---\n"
-        f"name: {name}\n"
-        f"description: {description}\n"
-        "---\n\n"
-        f"{body}"
-    )
+    return "---\n" f"name: {name}\n" f"description: {description}\n" "---\n\n" f"{body}"
 
 
 def _default_workspace_root() -> Path:
@@ -749,10 +829,14 @@ def _default_workspace_root() -> Path:
 
 def _parse_args() -> argparse.Namespace:
     """Parse CLI arguments for project install and plugin export."""
-    parser = argparse.ArgumentParser(description="Install the OpenStudio AI harness into Claude Code.")
+    parser = argparse.ArgumentParser(
+        description="Install the OpenStudio AI harness into Claude Code."
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    install = subparsers.add_parser("install", help="Create or preview Claude Code project config.")
+    install = subparsers.add_parser(
+        "install", help="Create or preview Claude Code project config."
+    )
     install.add_argument(
         "--target-dir",
         type=Path,
@@ -765,8 +849,14 @@ def _parse_args() -> argparse.Namespace:
         default=_default_workspace_root(),
         help="OpenStudio AI harness root.",
     )
-    install.add_argument("--dry-run", action="store_true", help="Preview files without writing them.")
-    install.add_argument("--force", action="store_true", help="Append to an existing unmanaged CLAUDE.md.")
+    install.add_argument(
+        "--dry-run", action="store_true", help="Preview files without writing them."
+    )
+    install.add_argument(
+        "--force",
+        action="store_true",
+        help="Append to an existing unmanaged CLAUDE.md.",
+    )
     install.add_argument(
         "--runtime-mode",
         choices=sorted(RUNTIME_MODES),
@@ -774,7 +864,9 @@ def _parse_args() -> argparse.Namespace:
         help="Runtime connection mode for generated MCP config.",
     )
 
-    export = subparsers.add_parser("export-plugin", help="Export a Claude plugin-style package.")
+    export = subparsers.add_parser(
+        "export-plugin", help="Export a Claude plugin-style package."
+    )
     export.add_argument(
         "--output-dir",
         type=Path,
@@ -792,8 +884,14 @@ def _parse_args() -> argparse.Namespace:
         default=_default_workspace_root(),
         help="OpenStudio AI harness root.",
     )
-    export.add_argument("--dry-run", action="store_true", help="Preview package files without writing them.")
-    export.add_argument("--force", action="store_true", help="Replace an existing plugin folder.")
+    export.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Preview package files without writing them.",
+    )
+    export.add_argument(
+        "--force", action="store_true", help="Replace an existing plugin folder."
+    )
     export.add_argument(
         "--runtime-mode",
         choices=sorted(RUNTIME_MODES),
@@ -814,7 +912,9 @@ def main() -> int:
                 runtime_mode=args.runtime_mode,
             )
         )
-        result = adapter.install(args.target_dir, dry_run=args.dry_run, force=args.force)
+        result = adapter.install(
+            args.target_dir, dry_run=args.dry_run, force=args.force
+        )
         mode = "Would write" if result.dry_run else "Wrote"
         for action in result.actions:
             print(f"{mode} {action.path} ({action.action})")

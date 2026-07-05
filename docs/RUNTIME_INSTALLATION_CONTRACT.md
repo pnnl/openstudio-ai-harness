@@ -38,9 +38,17 @@ openstudio-ai repair
 
 Expected behavior:
 
-- `openstudio-ai doctor`: checks Python, OpenStudio, MCP startup, writable
-  runtime storage, SDK index availability, measure registry availability, and
-  basic simulation readiness.
+- `openstudio-ai doctor`: checks Python, MCP startup, initialized runtime
+  storage, SQLite support, SDK index availability, measure registry
+  availability, OpenStudio Python SDK availability, native OpenStudio CLI
+  availability, and basic simulation readiness.
+
+OpenStudio AI has a two-part OpenStudio prerequisite:
+
+1. the PyPI `openstudio` Python package, installed as a required dependency of
+   `openstudio-ai`;
+2. the native OpenStudio application/CLI, visible through `OPENSTUDIO_PATH` or
+   `PATH`.
 - `openstudio-ai install-runtime`: installs or completes installation of the
   runtime package after user approval.
 - `openstudio-ai repair`: attempts non-destructive fixes such as rebuilding
@@ -84,6 +92,8 @@ The setup command should ask the host agent to:
 5. Run `openstudio-ai doctor` when available.
 6. Explain failures in normal energy-modeler language.
 
-The installer scripts are placeholders until the package is published. They
-should validate prerequisites and produce clear next steps rather than silently
-changing the user's system.
+`install_runtime.py` should install or upgrade the runtime package after the
+host agent has explained the action and received user approval. It should accept
+`OPENSTUDIO_AI_PACKAGE_SPEC` for pinned versions, local wheel paths, or internal
+package indexes, then initialize user-local runtime storage. Installer failures
+should be explained in normal energy-modeler language.

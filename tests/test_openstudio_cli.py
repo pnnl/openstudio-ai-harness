@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import cli
 from cli import main
 
 
@@ -18,6 +19,40 @@ def test_cli_paths_json_reports_runtime_paths(capsys) -> None:
     assert "harness_root" in payload["paths"]
     assert "data_dir" in payload["paths"]
     assert "workspace_dir" in payload["paths"]
+
+
+def test_cli_doctor_json_reports_mcp_readiness(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("OPENSTUDIO_AI_DATA_DIR", str(tmp_path / "runtime-data"))
+    monkeypatch.setenv("OPENSTUDIO_PATH", "/fake/openstudio")
+
+    def fake_command_available(command: str) -> dict:
+        return {"command": command, "available": True, "path": command}
+
+    def fake_run_probe(command: list[str], *, timeout_seconds: int = 10) -> dict:
+        stdout = "3.10.0+test" if command[0] == "/fake/openstudio" else "help"
+        return {"ok": True, "returncode": 0, "stdout": stdout, "stderr": ""}
+
+    monkeypatch.setattr(cli, "_command_available", fake_command_available)
+    monkeypatch.setattr(cli, "_run_probe", fake_run_probe)
+
+    exit_code = main(["doctor", "--json"])
+
+    payload = json.loads(capsys.readouterr().out)
+    assert exit_code == 0
+    assert payload["ready"] is True
+    assert payload["mcp_ready"] is True
+    assert payload["simulation_ready"] is True
+    assert payload["assets"]["ok"] is True
+    assert payload["runtime_storage"]["writable"] is True
+    assert payload["sqlite_registry"]["ok"] is True
+    assert payload["mcp_startup"]["ok"] is True
+    assert payload["python_openstudio"]["ok"] is True
+    assert payload["measures"]["ok"] is True
+    assert payload["measures"]["count"] >= 1
+    assert "route_probe" in payload["sdk_docs"]
+    assert "openstudio" in payload
 
 
 def test_cli_export_claude_marketplace(tmp_path: Path) -> None:
@@ -63,3 +98,27 @@ def test_cli_validate_export(tmp_path: Path) -> None:
 
     plugin_dir = tmp_path / "plugins" / "openstudio-ai"
     assert main(["validate-export", str(plugin_dir)]) == 0
+
+
+def test_cli_validate_export_rejects_missing_marketplace_setup(tmp_path: Path) -> None:
+    assert (
+        main(
+            [
+                "export",
+                "codex",
+                "--output-dir",
+                str(tmp_path),
+                "--workspace-root",
+                str(Path(".").resolve()),
+                "--runtime-mode",
+                "marketplace",
+            ]
+        )
+        == 0
+    )
+
+    plugin_dir = tmp_path / "plugins" / "openstudio-ai"
+    (plugin_dir / "installers" / "doctor_runtime.py").unlink()
+    assert (
+        main(["validate-export", str(plugin_dir), "--runtime-mode", "marketplace"]) == 1
+    )

@@ -52,9 +52,10 @@ pieces are in place:
 
 These are active engineering limits, not product vision gaps:
 
-- Exported plugin `.mcp.json` files still point to the local source checkout and
-  current Python environment. A deployable release should provide an installed
-  package entrypoint or vendored runtime.
+- Local-mode plugin exports still point to the source checkout for developer
+  testing. Installed and marketplace exports now point to `openstudio-ai-mcp`;
+  the remaining deployment limit is proving those paths through clean installs,
+  stronger doctor checks, and host validation.
 - Learning promotion is intentionally gated. Runtime agents can propose
   candidates, but trusted assets still require review, validation, and explicit
   promotion.
@@ -204,7 +205,7 @@ Responsibilities:
 2. Maintain Claude Code and Codex plugin exports from the same harness registry.
 3. Keep MCP imports and package paths stable under
    `openstudio_mcp`.
-4. Replace local-checkout MCP launch config with a deployable runtime entrypoint.
+4. Keep local, installed, and marketplace MCP launch configs validated.
 5. Add validation that exported packages include MCP config, prompts, skills,
    knowledge, schemas, runtime learning assets, and approved measures.
 6. Keep blackboard scope explicit: MCP-owned workflow state for this harness;
@@ -391,18 +392,20 @@ Claude/Codex runtime package.
 
 ## Near-Term Roadmap
 
-### 1. Package The Runtime For Deployment
+### 1. Prove Runtime Packaging For Deployment
 
-Replace local-checkout MCP references with a release entrypoint. The goal is an
-exported plugin that can start `openstudio_ai` without relying on a developer's
-repo path or active virtual environment.
+Installed and marketplace exports now use the `openstudio-ai-mcp` release
+entrypoint. The goal is to prove exported plugins can start OpenStudio AI
+without relying on a developer's repo path or active virtual environment.
 
 Definition of done:
 
-- installable Python package or vendored runtime path exists;
-- exported `.mcp.json` uses the package entrypoint;
+- installable Python package or vendored runtime path passes clean-install
+  verification;
+- installed and marketplace `.mcp.json` files use the package entrypoint;
 - adapter validation fails when required runtime dependencies are missing;
-- Claude Code and Codex exports pass their validators after packaging.
+- Claude Code and Codex exports pass their validators after packaging;
+- OpenStudio-installed MCP smoke checks pass with `OPENSTUDIO_PATH` configured.
 
 ### 2. Harden Adapter Validation
 

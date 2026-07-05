@@ -53,9 +53,9 @@ python -m cli doctor --json
 python -m openstudio_mcp.server --help
 ```
 
-`doctor` may return a non-zero code if optional runtime pieces such as
-OpenStudio are not available. Inspect the JSON and confirm the failure is
-expected before release.
+`doctor` may return a non-zero code if runtime pieces such as the OpenStudio
+Python SDK or OpenStudio CLI are not available. Inspect the JSON and confirm the
+failure is expected before release.
 
 ## Build Artifacts
 
@@ -100,11 +100,18 @@ required = [
     "skills/openstudio_vav_reheat_system_creator.md",
     "knowledge/openstudio_sdk_recipes.md",
     "prompts/openstudio_agent.md",
-    "resource/sample.osm",
 ]
 missing = [name for name in required if name not in names]
 if missing:
     raise SystemExit(f"Missing required files: {missing}")
+
+forbidden = [
+    "resource/sample.osm",
+    "resource/USA_FL_Tampa.Intl.AP.722110_TMY3.epw",
+]
+included_forbidden = [name for name in forbidden if name in names]
+if included_forbidden:
+    raise SystemExit(f"Release wheel includes local test fixtures: {included_forbidden}")
 
 print(f"Wheel looks complete: {wheel}")
 PY
@@ -145,7 +152,7 @@ Smoke test the installed commands:
 ```bash
 openstudio-ai version
 openstudio-ai paths
-openstudio-ai doctor
+OPENSTUDIO_PATH=/path/to/openstudio openstudio-ai doctor
 openstudio-ai-mcp --help
 openstudio-ai export claude --output-dir /tmp/openstudio-ai-claude --runtime-mode marketplace
 openstudio-ai export codex --output-dir /tmp/openstudio-ai-codex --runtime-mode marketplace

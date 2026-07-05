@@ -42,11 +42,14 @@ OpenStudio AI currently includes:
 - manual developer learning pipeline that distills logs into reviewable
   candidates;
 - MCP-backed blackboard schemas and operation helpers;
-- tests covering adapter export, learning, SDK docs, and MCP smoke behavior.
+- tests covering adapter export, learning, SDK docs, CLI behavior, and MCP
+  smoke behavior.
 
-The main deployment gap is runtime packaging: exported `.mcp.json` files still
-point to the local source checkout and active Python environment. The next
-runtime milestone is an installed MCP entrypoint such as `openstudio-ai-mcp`.
+The first runtime packaging phase is complete: the package exposes
+`openstudio-ai-mcp`, and Claude/Codex exports support local, installed, and
+marketplace runtime modes. The main deployment gap is now clean-install proof
+and runtime readiness validation across real environments, including stronger
+`openstudio-ai doctor` checks and OpenStudio-installed MCP verification.
 
 ## Product Boundary
 
@@ -80,9 +83,9 @@ should not be left to free-form agent scripting:
 - `sdk_docs_*`: targeted OpenStudio SDK documentation lookup;
 - approved measures: reviewed deterministic workflows exposed through policy.
 
-Near-term runtime work will package this as an installed command and make SDK
-index and approved measures resolve from installed runtime assets rather than
-from a developer checkout.
+Near-term runtime work should prove the installed command path end to end and
+make `openstudio-ai doctor` validate SDK index, approved measures, runtime
+storage, SQLite registry creation, MCP startup, and OpenStudio readiness.
 
 The MCP server now maintains a lightweight local SQLite registry under the
 configured workspace root. The registry stores metadata for artifacts, jobs,
@@ -341,12 +344,13 @@ Focused test set for the current OpenStudio AI harness:
 
 Runtime distribution:
 
-- add installed MCP entrypoint;
-- update adapters to support local vs installed runtime mode;
-- add `openstudio-ai doctor`;
-- add export validation;
+- harden `openstudio-ai doctor` into the primary runtime readiness check;
+- validate source, editable install, wheel install, and marketplace exports in
+  fresh environments;
+- add CI for package, CLI, and adapter export checks;
+- run OpenStudio-installed MCP verification with `OPENSTUDIO_PATH` configured;
 - package SDK index and approved measures as runtime assets;
-- design MCP-backed blackboard tools.
+- continue MCP-backed blackboard reliability checks for long-running tasks.
 
 SDK and knowledge optimization:
 

@@ -27,7 +27,7 @@ Install the runtime package after it is published:
 
 ```bash
 python -m pip install openstudio-ai
-openstudio-ai doctor
+OPENSTUDIO_PATH=/path/to/openstudio-3.10-or-newer openstudio-ai doctor
 openstudio-ai-mcp --transport stdio
 ```
 

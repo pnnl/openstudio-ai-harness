@@ -4,6 +4,8 @@ import argparse
 import json
 import os
 import shutil
+import sqlite3
+import subprocess
 import sys
 from importlib import metadata
 from pathlib import Path
@@ -12,7 +14,6 @@ from typing import Any
 from adapters.claude_code_adapter import ClaudeCodeAdapter
 from adapters.codex_adapter import CodexAdapter
 from adapters.contracts import RUNTIME_MODES, HostAdapterConfig
-
 
 DIST_NAME = "openstudio-ai"
 FALLBACK_VERSION = "0.1.0"
@@ -32,17 +33,33 @@ def _default_root() -> Path:
 
 
 def _user_data_dir() -> Path:
-    """Return a cross-platform local data directory without adding a dependency."""
+    """Return a cross-platform local data directory."""
     override = os.getenv("OPENSTUDIO_AI_DATA_DIR")
     if override:
         return Path(override).expanduser()
+
+    try:
+        from platformdirs import user_data_path
+
+        return Path(
+            user_data_path(
+                appname="OpenStudioAI",
+                appauthor="PNNL",
+                roaming=False,
+            )
+        )
+    except ImportError:
+        pass
 
     if sys.platform == "darwin":
         return Path.home() / "Library" / "Application Support" / "OpenStudioAI"
     if os.name == "nt":
         base = os.getenv("LOCALAPPDATA") or str(Path.home() / "AppData" / "Local")
         return Path(base) / "PNNL" / "OpenStudioAI"
-    return Path(os.getenv("XDG_DATA_HOME", Path.home() / ".local" / "share")) / "openstudio-ai"
+    return (
+        Path(os.getenv("XDG_DATA_HOME", Path.home() / ".local" / "share"))
+        / "openstudio-ai"
+    )
 
 
 def _command_available(command: str) -> dict[str, Any]:
@@ -60,8 +77,81 @@ def _command_available(command: str) -> dict[str, Any]:
     return {"command": command, "available": path is not None, "path": path}
 
 
+def _run_probe(command: list[str], *, timeout_seconds: int = 10) -> dict[str, Any]:
+    """Run a bounded command probe and return JSON-safe status details."""
+    try:
+        completed = subprocess.run(
+            command,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=timeout_seconds,
+        )
+    except FileNotFoundError:
+        return {"ok": False, "error": "command not found"}
+    except subprocess.TimeoutExpired:
+        return {"ok": False, "error": f"timed out after {timeout_seconds} seconds"}
+    except OSError as exc:
+        return {"ok": False, "error": str(exc)}
+
+    stdout = completed.stdout.strip()
+    stderr = completed.stderr.strip()
+    return {
+        "ok": completed.returncode == 0,
+        "returncode": completed.returncode,
+        "stdout": stdout[:2000],
+        "stderr": stderr[:2000],
+    }
+
+
+def _python_openstudio_probe() -> dict[str, Any]:
+    """Check whether the current Python can import the OpenStudio SDK."""
+    try:
+        import openstudio
+
+        version = None
+        if hasattr(openstudio, "openStudioVersion"):
+            version = str(openstudio.openStudioVersion())
+        return {"ok": True, "version": version}
+    except (
+        Exception
+    ) as exc:  # pragma: no cover - import failures depend on environment.
+        return {"ok": False, "error": str(exc)}
+
+
+def _check_runtime_assets(root: Path) -> dict[str, Any]:
+    """Check package assets that the MCP runtime and exports depend on."""
+    required_files = {
+        "measure_registry": root / "policy" / "measure_registry.yaml",
+        "sdk_recipes": root / "knowledge" / "openstudio_sdk_recipes.md",
+        "blackboard_schema": root
+        / "blackboard"
+        / "schemas"
+        / "workflow_state.schema.json",
+    }
+    required_dirs = {
+        "skills": root / "skills",
+        "knowledge": root / "knowledge",
+        "sdk_index": root / "sdk_index",
+        "approved_measures": root / "measures" / "approved",
+    }
+    files = {
+        name: {"path": str(path), "exists": path.is_file()}
+        for name, path in required_files.items()
+    }
+    dirs = {
+        name: {"path": str(path), "exists": path.is_dir()}
+        for name, path in required_dirs.items()
+    }
+    ok = all(item["exists"] for item in files.values()) and all(
+        item["exists"] for item in dirs.values()
+    )
+    return {"ok": ok, "files": files, "directories": dirs}
+
+
 def _doctor_payload() -> dict[str, Any]:
     """Collect runtime readiness checks without mutating user models or projects."""
+    harness_root = _default_root()
     data_dir = _user_data_dir()
     workspace_dir = data_dir / "workspace"
     checks: dict[str, Any] = {
@@ -71,7 +161,7 @@ def _doctor_payload() -> dict[str, Any]:
             "version": sys.version.split()[0],
         },
         "paths": {
-            "harness_root": str(_default_root()),
+            "harness_root": str(harness_root),
             "data_dir": str(data_dir),
             "workspace_dir": str(workspace_dir),
         },
@@ -80,30 +170,130 @@ def _doctor_payload() -> dict[str, Any]:
             "openstudio": _command_available("openstudio"),
         },
         "imports": {},
-        "writable_runtime_storage": False,
+        "assets": _check_runtime_assets(harness_root),
+        "runtime_storage": {"writable": False},
+        "sqlite_registry": {"ok": False},
+        "mcp_startup": {"ok": False},
+        "sdk_docs": {},
+        "measures": {"ok": False},
+        "python_openstudio": _python_openstudio_probe(),
+        "openstudio": {
+            "ok": False,
+            "required_for": ["model edits", "simulations", "measure execution"],
+        },
     }
 
     try:
-        from openstudio_mcp.server import create_server  # noqa: F401
+        from openstudio_mcp.server import BASE_DIR, OpenStudioService, create_server
 
-        checks["imports"]["openstudio_mcp"] = {"ok": True}
-    except Exception as exc:  # pragma: no cover - exact import failure is environment-specific.
+        checks["imports"]["openstudio_mcp"] = {"ok": True, "base_dir": str(BASE_DIR)}
+    except (
+        Exception
+    ) as exc:  # pragma: no cover - exact import failure is environment-specific.
         checks["imports"]["openstudio_mcp"] = {"ok": False, "error": str(exc)}
+        OpenStudioService = None  # type: ignore[assignment]
+        create_server = None  # type: ignore[assignment]
 
     try:
         workspace_dir.mkdir(parents=True, exist_ok=True)
         probe = workspace_dir / ".write_probe"
         probe.write_text("ok", encoding="utf-8")
         probe.unlink()
-        checks["writable_runtime_storage"] = True
+        checks["runtime_storage"]["writable"] = True
     except OSError as exc:
-        checks["writable_runtime_storage"] = False
-        checks["storage_error"] = str(exc)
+        checks["runtime_storage"]["writable"] = False
+        checks["runtime_storage"]["error"] = str(exc)
 
-    checks["ready"] = (
+    try:
+        with sqlite3.connect(
+            str(workspace_dir / "doctor_registry_probe.sqlite")
+        ) as conn:
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS doctor_probe (id INTEGER PRIMARY KEY)"
+            )
+            conn.execute("INSERT INTO doctor_probe DEFAULT VALUES")
+            conn.execute("SELECT COUNT(*) FROM doctor_probe").fetchone()
+        (workspace_dir / "doctor_registry_probe.sqlite").unlink(missing_ok=True)
+        (workspace_dir / "doctor_registry_probe.sqlite-wal").unlink(missing_ok=True)
+        (workspace_dir / "doctor_registry_probe.sqlite-shm").unlink(missing_ok=True)
+        checks["sqlite_registry"] = {"ok": True}
+    except (OSError, sqlite3.Error) as exc:
+        checks["sqlite_registry"] = {"ok": False, "error": str(exc)}
+
+    if create_server is not None:
+        try:
+            create_server(workspace_root=workspace_dir / "doctor_mcp_startup")
+            checks["mcp_startup"] = {"ok": True}
+        except (
+            Exception
+        ) as exc:  # pragma: no cover - environment-specific startup failures.
+            checks["mcp_startup"] = {"ok": False, "error": str(exc)}
+
+    mcp_command = checks["commands"]["openstudio_ai_mcp"]
+    if mcp_command["available"]:
+        mcp_probe = _run_probe([mcp_command["path"] or "openstudio-ai-mcp", "--help"])
+        mcp_command["help_probe"] = mcp_probe
+    else:
+        mcp_command["help_probe"] = {"ok": False, "error": "command not found"}
+
+    if OpenStudioService is not None:
+        try:
+            service = OpenStudioService(workspace_root=workspace_dir / "doctor_service")
+            public_measures = service.measure_registry.list_public_specs()
+            missing_entrypoints = [
+                spec.measure_id
+                for spec in service.measure_registry._measures.values()
+                if spec.allowed and not spec.entrypoint.exists()
+            ]
+            checks["measures"] = {
+                "ok": bool(public_measures) and not missing_entrypoints,
+                "count": len(public_measures),
+                "missing_entrypoints": missing_entrypoints,
+            }
+            checks["sdk_docs"] = {
+                "configured": service.sdk_docs.docs_dir is not None,
+                "available": service.sdk_docs.available(),
+                "route_probe": service.sdk_docs.route(
+                    "create geometry and spaces", limit=2
+                ),
+            }
+        except (
+            Exception
+        ) as exc:  # pragma: no cover - environment-specific service failures.
+            checks["measures"] = {"ok": False, "error": str(exc)}
+            checks["sdk_docs"] = {"available": False, "error": str(exc)}
+
+    configured_openstudio = os.getenv("OPENSTUDIO_PATH", "").strip()
+    openstudio_command = configured_openstudio or "openstudio"
+    openstudio_status = _command_available(openstudio_command)
+    checks["openstudio"].update(openstudio_status)
+    if openstudio_status["available"]:
+        version_probe = _run_probe(
+            [openstudio_status["path"] or openstudio_command, "--version"]
+        )
+        checks["openstudio"]["version_probe"] = version_probe
+        checks["openstudio"]["ok"] = version_probe["ok"]
+    else:
+        checks["openstudio"]["error"] = (
+            "OpenStudio command not found. Set OPENSTUDIO_PATH or add openstudio to PATH "
+            "before running model edits or simulations."
+        )
+
+    checks["mcp_ready"] = (
         checks["imports"].get("openstudio_mcp", {}).get("ok") is True
-        and checks["writable_runtime_storage"] is True
+        and checks["assets"].get("ok") is True
+        and checks["runtime_storage"].get("writable") is True
+        and checks["sqlite_registry"].get("ok") is True
+        and checks["mcp_startup"].get("ok") is True
+        and checks["commands"]["openstudio_ai_mcp"].get("help_probe", {}).get("ok")
+        is True
+        and checks["measures"].get("ok") is True
+        and checks["python_openstudio"].get("ok") is True
     )
+    checks["simulation_ready"] = (
+        checks["mcp_ready"] and checks["openstudio"].get("ok") is True
+    )
+    checks["ready"] = checks["simulation_ready"]
     return checks
 
 
@@ -114,9 +304,12 @@ def _print_json_or_text(payload: dict[str, Any], *, as_json: bool) -> None:
         return
 
     print(f"OpenStudio AI {payload.get('version', _version())}")
-    if "ready" in payload:
-        status = "ready" if payload["ready"] else "not ready"
-        print(f"Runtime status: {status}")
+    if "mcp_ready" in payload:
+        status = "ready" if payload["mcp_ready"] else "not ready"
+        print(f"MCP runtime status: {status}")
+        if "simulation_ready" in payload:
+            sim_status = "ready" if payload["simulation_ready"] else "not ready"
+            print(f"OpenStudio execution status: {sim_status}")
     if "paths" in payload:
         print("\nPaths:")
         for key, value in payload["paths"].items():
@@ -127,14 +320,34 @@ def _print_json_or_text(payload: dict[str, Any], *, as_json: bool) -> None:
             found = "found" if item["available"] else "missing"
             suffix = f" at {item['path']}" if item.get("path") else ""
             print(f"- {item['command']}: {found}{suffix}")
-    if "imports" in payload:
-        print("\nRuntime imports:")
-        for name, result in payload["imports"].items():
-            print(f"- {name}: {'ok' if result.get('ok') else 'failed'}")
+    print("\nChecks:")
+    check_rows = [
+        ("runtime assets", payload.get("assets", {}).get("ok")),
+        ("runtime storage", payload.get("runtime_storage", {}).get("writable")),
+        ("sqlite registry", payload.get("sqlite_registry", {}).get("ok")),
+        ("mcp startup", payload.get("mcp_startup", {}).get("ok")),
+        ("measure registry", payload.get("measures", {}).get("ok")),
+        ("python openstudio sdk", payload.get("python_openstudio", {}).get("ok")),
+        ("sdk docs configured", payload.get("sdk_docs", {}).get("available")),
+        ("openstudio command", payload.get("openstudio", {}).get("ok")),
+    ]
+    for name, ok in check_rows:
+        if ok is True:
+            status = "ok"
+        elif ok is False:
+            status = "failed"
+        else:
+            status = "not checked"
+        print(f"- {name}: {status}")
     if payload.get("ready") is False:
         print(
             "\nOpenStudio AI can still provide planning, skills, and SDK guidance, "
             "but runtime setup must be fixed before full MCP execution is reliable."
+        )
+    elif payload.get("simulation_ready") is False:
+        print(
+            "\nThe MCP runtime is available, but OpenStudio execution is not ready. "
+            "Install OpenStudio or set OPENSTUDIO_PATH before model edits and simulations."
         )
 
 
@@ -191,7 +404,9 @@ def _cmd_export(args: argparse.Namespace) -> int:
             dry_run=args.dry_run,
             force=args.force,
         )
-        print(f"{'Would export' if result.dry_run else 'Exported'} Claude plugin: {result.plugin_dir}")
+        print(
+            f"{'Would export' if result.dry_run else 'Exported'} Claude plugin: {result.plugin_dir}"
+        )
         return 0
     if args.host == "codex":
         result = CodexAdapter(config).export_plugin(
@@ -200,9 +415,26 @@ def _cmd_export(args: argparse.Namespace) -> int:
             dry_run=args.dry_run,
             force=args.force,
         )
-        print(f"{'Would export' if result.dry_run else 'Exported'} Codex plugin: {result.plugin_dir}")
+        print(
+            f"{'Would export' if result.dry_run else 'Exported'} Codex plugin: {result.plugin_dir}"
+        )
         return 0
     raise ValueError(f"Unsupported export host: {args.host}")
+
+
+def _validate_no_developer_paths(plugin_dir: Path) -> list[str]:
+    """Return text files in an export that contain hardcoded developer paths."""
+    offenders: list[str] = []
+    for path in plugin_dir.rglob("*"):
+        if not path.is_file() or path.suffix not in {".json", ".md", ".py"}:
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            continue
+        if "/Users/" in text or "\\Users\\" in text:
+            offenders.append(str(path.relative_to(plugin_dir)))
+    return offenders
 
 
 def _cmd_validate_export(args: argparse.Namespace) -> int:
@@ -231,8 +463,57 @@ def _cmd_validate_export(args: argparse.Namespace) -> int:
     mcp_config = json.loads((plugin_dir / ".mcp.json").read_text(encoding="utf-8"))
     server = mcp_config.get("mcpServers", {}).get("openstudio_ai")
     if not isinstance(server, dict):
-        print("Export .mcp.json does not define mcpServers.openstudio_ai", file=sys.stderr)
+        print(
+            "Export .mcp.json does not define mcpServers.openstudio_ai", file=sys.stderr
+        )
         return 1
+
+    if args.runtime_mode in {"installed", "marketplace"}:
+        expected = {"command": "openstudio-ai-mcp", "args": ["--transport", "stdio"]}
+        if server != expected:
+            print(
+                "Installed/marketplace exports must point to openstudio-ai-mcp.",
+                file=sys.stderr,
+            )
+            print(f"Expected: {expected}", file=sys.stderr)
+            print(f"Actual: {server}", file=sys.stderr)
+            return 1
+
+    if args.runtime_mode == "local":
+        args_list = server.get("args", [])
+        if server.get("command") != sys.executable or args_list[:2] != [
+            "-m",
+            "openstudio_mcp.server",
+        ]:
+            print(
+                "Local exports must start the source-checkout MCP module.",
+                file=sys.stderr,
+            )
+            return 1
+
+    if args.runtime_mode == "marketplace":
+        marketplace_required = [
+            "commands/setup-openstudio-ai.md",
+            "commands/doctor-openstudio-ai.md",
+            "commands/repair-openstudio-ai.md",
+            "installers/install_runtime.py",
+            "installers/doctor_runtime.py",
+        ]
+        missing_marketplace = [
+            item for item in marketplace_required if not (plugin_dir / item).exists()
+        ]
+        if missing_marketplace:
+            print("Marketplace export is missing setup files:")
+            for item in missing_marketplace:
+                print(f"- {item}")
+            return 1
+
+        developer_paths = _validate_no_developer_paths(plugin_dir)
+        if developer_paths:
+            print("Marketplace export contains hardcoded developer paths:")
+            for item in developer_paths:
+                print(f"- {item}")
+            return 1
 
     print(f"Export looks valid: {plugin_dir}")
     print(f"MCP command: {server.get('command')}")
@@ -241,43 +522,80 @@ def _cmd_validate_export(args: argparse.Namespace) -> int:
 
 def _build_parser() -> argparse.ArgumentParser:
     """Create the OpenStudio AI CLI parser."""
-    parser = argparse.ArgumentParser(prog="openstudio-ai", description="OpenStudio AI runtime CLI")
+    parser = argparse.ArgumentParser(
+        prog="openstudio-ai", description="OpenStudio AI runtime CLI"
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     doctor = subparsers.add_parser("doctor", help="Check runtime readiness.")
-    doctor.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
+    doctor.add_argument(
+        "--json", action="store_true", help="Print machine-readable JSON."
+    )
     doctor.set_defaults(func=_cmd_doctor)
 
     paths = subparsers.add_parser("paths", help="Print runtime paths.")
-    paths.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
+    paths.add_argument(
+        "--json", action="store_true", help="Print machine-readable JSON."
+    )
     paths.set_defaults(func=_cmd_paths)
 
-    version = subparsers.add_parser("version", help="Print installed OpenStudio AI version.")
+    version = subparsers.add_parser(
+        "version", help="Print installed OpenStudio AI version."
+    )
     version.set_defaults(func=_cmd_version)
 
-    install_runtime = subparsers.add_parser("install-runtime", help="Validate or complete runtime installation.")
+    install_runtime = subparsers.add_parser(
+        "install-runtime", help="Validate or complete runtime installation."
+    )
     install_runtime.set_defaults(func=_cmd_install_runtime)
 
-    repair = subparsers.add_parser("repair", help="Run non-destructive runtime repair checks.")
+    repair = subparsers.add_parser(
+        "repair", help="Run non-destructive runtime repair checks."
+    )
     repair.set_defaults(func=_cmd_repair)
 
     export = subparsers.add_parser("export", help="Export host plugin packages.")
-    export.add_argument("host", choices=["claude", "codex"], help="Host plugin format to export.")
-    export.add_argument("--output-dir", type=Path, required=True, help="Directory to write the export into.")
-    export.add_argument("--plugin-name", default="openstudio-ai", help="Plugin folder/name.")
+    export.add_argument(
+        "host", choices=["claude", "codex"], help="Host plugin format to export."
+    )
+    export.add_argument(
+        "--output-dir",
+        type=Path,
+        required=True,
+        help="Directory to write the export into.",
+    )
+    export.add_argument(
+        "--plugin-name", default="openstudio-ai", help="Plugin folder/name."
+    )
     export.add_argument(
         "--workspace-root",
         type=Path,
         default=_default_root(),
         help="Harness root containing skills, knowledge, prompts, and MCP files.",
     )
-    export.add_argument("--runtime-mode", choices=sorted(RUNTIME_MODES), default="installed")
-    export.add_argument("--dry-run", action="store_true", help="Preview files without writing.")
-    export.add_argument("--force", action="store_true", help="Replace an existing plugin folder.")
+    export.add_argument(
+        "--runtime-mode", choices=sorted(RUNTIME_MODES), default="installed"
+    )
+    export.add_argument(
+        "--dry-run", action="store_true", help="Preview files without writing."
+    )
+    export.add_argument(
+        "--force", action="store_true", help="Replace an existing plugin folder."
+    )
     export.set_defaults(func=_cmd_export)
 
-    validate = subparsers.add_parser("validate-export", help="Validate an exported plugin directory.")
-    validate.add_argument("path", type=Path, help="Plugin directory containing .mcp.json.")
+    validate = subparsers.add_parser(
+        "validate-export", help="Validate an exported plugin directory."
+    )
+    validate.add_argument(
+        "path", type=Path, help="Plugin directory containing .mcp.json."
+    )
+    validate.add_argument(
+        "--runtime-mode",
+        choices=sorted(RUNTIME_MODES),
+        default="installed",
+        help="Runtime mode contract to validate against.",
+    )
     validate.set_defaults(func=_cmd_validate_export)
 
     return parser

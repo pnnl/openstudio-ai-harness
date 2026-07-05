@@ -19,6 +19,7 @@ classifiers = [
 dependencies = [
     "mcp>=1.0.0",
     "openstudio>=3.10.0",
+    "platformdirs>=4.0.0",
     "pydantic>=2.12.3",
     "python-dotenv>=1.0.0",
     "pyyaml>=6.0.2",
@@ -76,7 +77,6 @@ only-include = [
     "knowledge",
     "prompts",
     "policy",
-    "resource",
     "measures",
     "specs",
     "evals",
@@ -109,7 +109,6 @@ include = [
     "knowledge/**",
     "prompts/**",
     "policy/**",
-    "resource/**",
     "measures/**",
     "specs/**",
     "evals/**",

@@ -1,190 +1,430 @@
+"""Tests for OpenStudioSdkDocLookup backed by gzip YAML documentation."""
+
+from __future__ import annotations
+
+import gzip
 from pathlib import Path
+
+import pytest
+import yaml
 
 from openstudio_mcp.sdk_docs.lookup import (
     OpenStudioSdkDocLookup,
+    SdkDocsUnavailableError,
 )
 
 
-def test_sdk_doc_lookup_extracts_class_methods_and_method_docs(tmp_path: Path):
-    html_file = tmp_path / "classopenstudio_1_1model_1_1_planar_surface.html"
-    html_file.write_text(
-        """
-<html>
-<head><title>OpenStudio: openstudio::model::PlanarSurface Class Reference</title></head>
-<body>
-<div class="headertitle">
-<div class="title">openstudio::model::PlanarSurface Class Reference</div>
-</div>
-<a id="a0788" name="a0788"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a0788">x</a></span>azimuth()</h2>
-<div class="memitem">
-<div class="memproto"><table class="memname"><tr>
-<td class="memname">double openstudio::model::PlanarSurface::azimuth </td>
-<td>(</td><td class="paramname"></td><td>)</td><td> const</td>
-</tr></table></div>
-<div class="memdoc">
-<p>Returns the surface's azimuth measured clockwise as angle between outward
-normal and local North (radians).</p>
-<p>Throws openstudio::Exception if cannot compute outward normal for this surface.</p>
-</div>
-</div>
-</body>
-</html>
-""",
-        encoding="utf-8",
-    )
-    (tmp_path / "classopenstudio_1_1model_1_1_planar_surface.js").write_text(
-        """
-var classopenstudio_1_1model_1_1_planar_surface =
-[
-    [ "azimuth", "classopenstudio_1_1model_1_1_planar_surface.html#a0788", null ]
-];
-""",
-        encoding="utf-8",
+def _write_classes_gz(path: Path, classes: dict) -> None:
+    """Write a minimal classes.yaml.gz under path/api/classes.yaml.gz."""
+    (path / "api").mkdir(parents=True, exist_ok=True)
+    payload = {
+        "metadata": {"total_classes": len(classes), "openstudio_version": "3.7.0"},
+        "namespaces": {
+            "openstudio::model": {
+                "class_count": len(classes),
+                "classes": classes,
+            }
+        },
+    }
+    (path / "api" / "classes.yaml.gz").write_bytes(
+        gzip.compress(yaml.dump(payload, allow_unicode=True).encode())
     )
 
+
+def _minimal_class(
+    name: str,
+    methods: list[dict] | None = None,
+    description: str | None = None,
+) -> dict:
+    return {
+        "name": name,
+        "namespace": "openstudio::model",
+        "description": description or f"{name} class.",
+        "python": f"openstudio.model.{name}",
+        "parent": None,
+        "derived_classes": [],
+        "is_abstract": False,
+        "file_location": f"{name}.hpp",
+        "public_methods": methods or [],
+        "protected_methods": [],
+        "static_methods": [],
+        "public_types": [],
+    }
+
+
+def test_available_returns_false_when_docs_dir_missing(tmp_path: Path):
+    lookup = OpenStudioSdkDocLookup(tmp_path / "nonexistent")
+    assert not lookup.available()
+
+
+def test_available_returns_false_when_classes_gz_absent(tmp_path: Path):
+    (tmp_path / "api").mkdir()
     lookup = OpenStudioSdkDocLookup(tmp_path)
-
-    assert lookup.find_classes("PlanarSurface")[0]["class_name"] == "PlanarSurface"
-    assert lookup.list_methods("PlanarSurface", keyword="azimuth")["total_matches"] == 1
-
-    method_doc = lookup.get_method("PlanarSurface", "azimuth")
-
-    assert "double openstudio::model::PlanarSurface::azimuth" in method_doc["signature"]
-    assert "radians" in method_doc["documentation"]
-    assert any("radians" in note for note in method_doc["notes"])
+    assert not lookup.available()
 
 
-def test_sdk_doc_route_returns_wiki_packs_for_geometry_request(tmp_path: Path):
-    # The routing graph is deterministic and does not require local SDK docs.
+def test_available_returns_true_when_classes_gz_present(tmp_path: Path):
+    _write_classes_gz(tmp_path, {})
     lookup = OpenStudioSdkDocLookup(tmp_path)
-
-    result = lookup.route("Compute WWR by orientation from exterior wall azimuths")
-
-    assert "sdk_geometry" in result["wiki_packs"]
-    assert "PlanarSurface" in result["classes"]
+    assert lookup.available()
 
 
-def test_sdk_doc_lookup_notes_optional_return_from_signature(tmp_path: Path):
-    html_file = tmp_path / "classopenstudio_1_1model_1_1_space.html"
-    html_file.write_text(
-        """
-<html>
-<head><title>OpenStudio: openstudio::model::Space Class Reference</title></head>
-<body>
-<div class="title">openstudio::model::Space Class Reference</div>
-<a id="adef" name="adef"></a>
-<h2 class="memtitle">defaultScheduleSet()</h2>
-<div class="memproto"><table class="memname"><tr>
-<td class="memname">boost::optional&lt; DefaultScheduleSet &gt; openstudio::model::Space::defaultScheduleSet </td>
-<td>(</td><td class="paramname"></td><td>)</td><td> const</td>
-</tr></table></div>
-<div class="memdoc"><p>Returns the default schedule set.</p></div>
-</body>
-</html>
-""",
-        encoding="utf-8",
-    )
-    (tmp_path / "classopenstudio_1_1model_1_1_space.js").write_text(
-        """
-var classopenstudio_1_1model_1_1_space =
-[
-    [ "defaultScheduleSet", "classopenstudio_1_1model_1_1_space.html#adef", null ]
-];
-""",
-        encoding="utf-8",
-    )
-
-    method_doc = OpenStudioSdkDocLookup(tmp_path).get_method(
-        "Space",
-        "defaultScheduleSet",
-    )
-
-    assert "boost::optional" in method_doc["signature"]
-    assert any("is_initialized()" in note for note in method_doc["notes"])
+def test_find_classes_exact_match(tmp_path: Path):
+    _write_classes_gz(tmp_path, {"PlanarSurface": _minimal_class("PlanarSurface")})
+    lookup = OpenStudioSdkDocLookup(tmp_path)
+    results = lookup.find_classes("PlanarSurface")
+    assert len(results) == 1
+    assert results[0]["class_name"] == "PlanarSurface"
 
 
-def test_sdk_doc_lookup_can_disambiguate_overloaded_methods(tmp_path: Path):
-    class_file = "classopenstudio_1_1model_1_1_controller_outdoor_air"
-    html_file = tmp_path / f"{class_file}.html"
-    html_file.write_text(
-        """
-<html>
-<head><title>OpenStudio: openstudio::model::ControllerOutdoorAir Class Reference</title></head>
-<body>
-<div class="title">openstudio::model::ControllerOutdoorAir Class Reference</div>
-<a id="aone" name="aone"></a>
-<h2 class="memtitle">setEconomizerMaximumLimitDryBulbTemperature()</h2>
-<div class="memproto"><table class="memname"><tr>
-<td class="memname">bool openstudio::model::ControllerOutdoorAir::setEconomizerMaximumLimitDryBulbTemperature </td>
-<td>(</td><td class="paramtype">double&nbsp;</td><td class="paramname">temperature</td><td>)</td>
-</tr></table></div>
-<div class="memdoc"><p>Sets the maximum dry bulb temperature.</p></div>
-<a id="atwo" name="atwo"></a>
-<h2 class="memtitle">setEconomizerMaximumLimitDryBulbTemperature()</h2>
-<div class="memproto"><table class="memname"><tr>
-<td class="memname">bool openstudio::model::ControllerOutdoorAir::setEconomizerMaximumLimitDryBulbTemperature </td>
-<td>(</td><td class="paramtype">const Quantity &amp;&nbsp;</td><td class="paramname">temperature</td><td>)</td>
-</tr></table></div>
-<div class="memdoc"><p>Sets the maximum dry bulb temperature from a quantity.</p></div>
-</body>
-</html>
-""",
-        encoding="utf-8",
-    )
-    (tmp_path / f"{class_file}.js").write_text(
-        """
-var classopenstudio_1_1model_1_1_controller_outdoor_air =
-[
-    [ "setEconomizerMaximumLimitDryBulbTemperature", "classopenstudio_1_1model_1_1_controller_outdoor_air.html#aone", null ],
-    [ "setEconomizerMaximumLimitDryBulbTemperature", "classopenstudio_1_1model_1_1_controller_outdoor_air.html#atwo", null ]
-];
-""",
-        encoding="utf-8",
+def test_find_classes_substring_match(tmp_path: Path):
+    _write_classes_gz(
+        tmp_path,
+        {
+            "AirLoopHVAC": _minimal_class("AirLoopHVAC"),
+            "AirLoopHVACOutdoorAirSystem": _minimal_class(
+                "AirLoopHVACOutdoorAirSystem"
+            ),
+            "Space": _minimal_class("Space"),
+        },
     )
     lookup = OpenStudioSdkDocLookup(tmp_path)
+    results = lookup.find_classes("AirLoop")
+    names = [r["class_name"] for r in results]
+    assert "AirLoopHVAC" in names
+    assert "AirLoopHVACOutdoorAirSystem" in names
+    assert "Space" not in names
 
-    first = lookup.get_method(
-        "ControllerOutdoorAir",
-        "setEconomizerMaximumLimitDryBulbTemperature",
+
+def test_find_classes_returns_empty_for_unknown(tmp_path: Path):
+    _write_classes_gz(tmp_path, {"Space": _minimal_class("Space")})
+    lookup = OpenStudioSdkDocLookup(tmp_path)
+    assert lookup.find_classes("NonExistentClass") == []
+
+
+def test_find_classes_excludes_impl_by_default(tmp_path: Path):
+    _write_classes_gz(
+        tmp_path,
+        {
+            "Space": _minimal_class("Space"),
+            "Space_Impl": _minimal_class("Space_Impl"),
+        },
     )
-    by_anchor = lookup.get_method(
-        "ControllerOutdoorAir",
-        "setEconomizerMaximumLimitDryBulbTemperature",
-        anchor="atwo",
+    lookup = OpenStudioSdkDocLookup(tmp_path)
+    names = [r["class_name"] for r in lookup.find_classes("Space")]
+    assert "Space_Impl" not in names
+
+
+def test_find_classes_includes_impl_when_requested(tmp_path: Path):
+    _write_classes_gz(
+        tmp_path,
+        {
+            "Space": _minimal_class("Space"),
+            "Space_Impl": _minimal_class("Space_Impl"),
+        },
     )
-    by_signature = lookup.get_method(
+    lookup = OpenStudioSdkDocLookup(tmp_path)
+    names = [r["class_name"] for r in lookup.find_classes("Space", include_detail=True)]
+    assert "Space_Impl" in names
+
+
+def test_find_classes_limit_is_respected(tmp_path: Path):
+    classes = {f"ClassNum{i}": _minimal_class(f"ClassNum{i}") for i in range(20)}
+    _write_classes_gz(tmp_path, classes)
+    lookup = OpenStudioSdkDocLookup(tmp_path)
+    assert len(lookup.find_classes("ClassNum", limit=5)) == 5
+
+
+def test_list_methods_returns_all_methods(tmp_path: Path):
+    methods = [
+        {
+            "name": "azimuth",
+            "signature": "double azimuth() const",
+            "description": "Returns azimuth.",
+        },
+        {
+            "name": "tilt",
+            "signature": "double tilt() const",
+            "description": "Returns tilt.",
+        },
+    ]
+    _write_classes_gz(
+        tmp_path, {"PlanarSurface": _minimal_class("PlanarSurface", methods)}
+    )
+    lookup = OpenStudioSdkDocLookup(tmp_path)
+    result = lookup.list_methods("PlanarSurface")
+    assert result["total_matches"] == 2
+    assert result["class_name"] == "PlanarSurface"
+
+
+def test_list_methods_keyword_filter(tmp_path: Path):
+    methods = [
+        {"name": "azimuth", "signature": "double azimuth() const", "description": None},
+        {"name": "tilt", "signature": "double tilt() const", "description": None},
+    ]
+    _write_classes_gz(
+        tmp_path, {"PlanarSurface": _minimal_class("PlanarSurface", methods)}
+    )
+    lookup = OpenStudioSdkDocLookup(tmp_path)
+    result = lookup.list_methods("PlanarSurface", keyword="azimuth")
+    assert result["total_matches"] == 1
+    assert result["methods"][0]["name"] == "azimuth"
+
+
+def test_list_methods_raises_for_unknown_class(tmp_path: Path):
+    _write_classes_gz(tmp_path, {})
+    lookup = OpenStudioSdkDocLookup(tmp_path)
+    with pytest.raises(KeyError):
+        lookup.list_methods("Nonexistent")
+
+
+def test_list_methods_limit_clamped_to_200(tmp_path: Path):
+    methods = [
+        {"name": f"method{i}", "signature": f"void method{i}()", "description": None}
+        for i in range(250)
+    ]
+    _write_classes_gz(tmp_path, {"BigClass": _minimal_class("BigClass", methods)})
+    lookup = OpenStudioSdkDocLookup(tmp_path)
+    result = lookup.list_methods("BigClass", limit=10_000)
+    assert len(result["methods"]) == 200
+
+
+def test_get_method_returns_signature_and_docs(tmp_path: Path):
+    methods = [
+        {
+            "name": "azimuth",
+            "signature": "double azimuth() const",
+            "python_signature": "azimuth() -> float",
+            "description": "Returns the surface azimuth in radians.",
+        }
+    ]
+    _write_classes_gz(
+        tmp_path, {"PlanarSurface": _minimal_class("PlanarSurface", methods)}
+    )
+    lookup = OpenStudioSdkDocLookup(tmp_path)
+    result = lookup.get_method("PlanarSurface", "azimuth")
+    assert "double azimuth()" in result["signature"]
+    assert result["python_signature"] == "azimuth() -> float"
+    assert "radians" in result["documentation"]
+
+
+def test_get_method_adds_radians_note(tmp_path: Path):
+    methods = [
+        {
+            "name": "azimuth",
+            "signature": "double azimuth() const",
+            "description": "Returns azimuth in radians.",
+        }
+    ]
+    _write_classes_gz(
+        tmp_path, {"PlanarSurface": _minimal_class("PlanarSurface", methods)}
+    )
+    lookup = OpenStudioSdkDocLookup(tmp_path)
+    result = lookup.get_method("PlanarSurface", "azimuth")
+    assert any("radians" in note for note in result["notes"])
+
+
+def test_get_method_adds_optional_note_from_signature(tmp_path: Path):
+    methods = [
+        {
+            "name": "defaultScheduleSet",
+            "signature": "boost::optional< DefaultScheduleSet > defaultScheduleSet() const",
+            "description": "Returns the default schedule set.",
+        }
+    ]
+    _write_classes_gz(tmp_path, {"Space": _minimal_class("Space", methods)})
+    lookup = OpenStudioSdkDocLookup(tmp_path)
+    result = lookup.get_method("Space", "defaultScheduleSet")
+    assert any("is_initialized()" in note for note in result["notes"])
+
+
+def test_get_method_raises_for_unknown_method(tmp_path: Path):
+    _write_classes_gz(tmp_path, {"Space": _minimal_class("Space", [])})
+    lookup = OpenStudioSdkDocLookup(tmp_path)
+    with pytest.raises(KeyError):
+        lookup.get_method("Space", "nonExistentMethod")
+
+
+def test_get_method_signature_contains_disambiguates_overloads(tmp_path: Path):
+    methods = [
+        {
+            "name": "setEconomizerMaximumLimitDryBulbTemperature",
+            "signature": "bool setEconomizerMaximumLimitDryBulbTemperature(double temperature)",
+            "description": "Sets the limit.",
+        },
+        {
+            "name": "setEconomizerMaximumLimitDryBulbTemperature",
+            "signature": "bool setEconomizerMaximumLimitDryBulbTemperature(const Quantity& temperature)",
+            "description": "Sets the limit from a Quantity.",
+        },
+    ]
+    _write_classes_gz(
+        tmp_path,
+        {"ControllerOutdoorAir": _minimal_class("ControllerOutdoorAir", methods)},
+    )
+    lookup = OpenStudioSdkDocLookup(tmp_path)
+    result = lookup.get_method(
         "ControllerOutdoorAir",
         "setEconomizerMaximumLimitDryBulbTemperature",
         signature_contains="Quantity",
     )
-
-    assert len(first["overloads"]) == 2
-    assert first["anchor"] == "aone"
-    assert by_anchor["anchor"] == "atwo"
-    assert "Quantity" in by_signature["signature"]
+    assert "Quantity" in result["signature"]
+    assert len(result["overloads"]) == 2
 
 
-def test_sdk_doc_search_methods_clamps_large_limit(tmp_path: Path):
-    html_file = tmp_path / "classopenstudio_1_1model_1_1_model.html"
-    html_file.write_text(
-        """
-<html>
-<head><title>OpenStudio: openstudio::model::Model Class Reference</title></head>
-<body><div class="title">openstudio::model::Model Class Reference</div></body>
-</html>
-""",
-        encoding="utf-8",
+def test_get_method_overloads_list_contains_all_variants(tmp_path: Path):
+    methods = [
+        {
+            "name": "addBranchForZone",
+            "signature": "bool addBranchForZone(ThermalZone& zone)",
+            "description": None,
+        },
+        {
+            "name": "addBranchForZone",
+            "signature": "bool addBranchForZone(ThermalZone& zone, HVACComponent& terminal)",
+            "description": None,
+        },
+    ]
+    _write_classes_gz(tmp_path, {"AirLoopHVAC": _minimal_class("AirLoopHVAC", methods)})
+    lookup = OpenStudioSdkDocLookup(tmp_path)
+    result = lookup.get_method("AirLoopHVAC", "addBranchForZone")
+    assert len(result["overloads"]) == 2
+
+
+def test_search_methods_finds_across_classes(tmp_path: Path):
+    _write_classes_gz(
+        tmp_path,
+        {
+            "Space": _minimal_class(
+                "Space",
+                [
+                    {
+                        "name": "setName",
+                        "signature": "bool setName(const std::string&)",
+                        "description": None,
+                    }
+                ],
+            ),
+            "ThermalZone": _minimal_class(
+                "ThermalZone",
+                [
+                    {
+                        "name": "setName",
+                        "signature": "bool setName(const std::string&)",
+                        "description": None,
+                    }
+                ],
+            ),
+        },
     )
-    method_rows = ",\n".join(
-        f'[ "method{i}", "classopenstudio_1_1model_1_1_model.html#a{i}", null ]'
+    lookup = OpenStudioSdkDocLookup(tmp_path)
+    results = lookup.search_methods("setName")
+    class_names = {r["class_name"] for r in results}
+    assert "Space" in class_names
+    assert "ThermalZone" in class_names
+
+
+def test_search_methods_class_filter(tmp_path: Path):
+    _write_classes_gz(
+        tmp_path,
+        {
+            "Space": _minimal_class(
+                "Space",
+                [
+                    {
+                        "name": "setName",
+                        "signature": "bool setName(const std::string&)",
+                        "description": None,
+                    }
+                ],
+            ),
+            "ThermalZone": _minimal_class(
+                "ThermalZone",
+                [
+                    {
+                        "name": "setName",
+                        "signature": "bool setName(const std::string&)",
+                        "description": None,
+                    }
+                ],
+            ),
+        },
+    )
+    lookup = OpenStudioSdkDocLookup(tmp_path)
+    results = lookup.search_methods("setName", class_filter="Space")
+    assert all(r["class_name"] == "Space" for r in results)
+
+
+def test_search_methods_clamps_large_limit(tmp_path: Path):
+    methods = [
+        {"name": f"method{i}", "signature": f"void method{i}()", "description": None}
         for i in range(250)
-    )
-    (tmp_path / "classopenstudio_1_1model_1_1_model.js").write_text(
-        f"var classopenstudio_1_1model_1_1_model = [\n{method_rows}\n];",
-        encoding="utf-8",
-    )
-
+    ]
+    _write_classes_gz(tmp_path, {"Model": _minimal_class("Model", methods)})
     results = OpenStudioSdkDocLookup(tmp_path).search_methods("", limit=10_000)
-
     assert len(results) == 100
+
+
+def test_search_methods_empty_keyword_returns_all_up_to_limit(tmp_path: Path):
+    methods = [
+        {"name": f"doThing{i}", "signature": f"void doThing{i}()", "description": None}
+        for i in range(10)
+    ]
+    _write_classes_gz(tmp_path, {"MyClass": _minimal_class("MyClass", methods)})
+    results = OpenStudioSdkDocLookup(tmp_path).search_methods("", limit=5)
+    assert len(results) == 5
+
+
+def test_route_returns_geometry_wiki_packs(tmp_path: Path):
+    # route() is deterministic and does not require local YAML files.
+    lookup = OpenStudioSdkDocLookup(tmp_path)
+    result = lookup.route("Compute WWR by orientation from exterior wall azimuths")
+    assert "sdk_geometry" in result["wiki_packs"]
+    assert "PlanarSurface" in result["classes"]
+
+
+def test_route_returns_hvac_classes_for_air_loop_query(tmp_path: Path):
+    lookup = OpenStudioSdkDocLookup(tmp_path)
+    result = lookup.route("create an air loop with outdoor air controller and fan")
+    assert "AirLoopHVAC" in result["classes"]
+
+
+def test_route_returns_empty_domains_for_unrelated_query(tmp_path: Path):
+    lookup = OpenStudioSdkDocLookup(tmp_path)
+    result = lookup.route("what is the capital of France")
+    assert result["domains"] == []
+
+
+def test_ensure_available_raises_when_docs_missing(tmp_path: Path):
+    lookup = OpenStudioSdkDocLookup(tmp_path / "missing")
+    with pytest.raises(SdkDocsUnavailableError):
+        lookup.find_classes("Space")
+
+
+def test_bundled_docs_are_available():
+    """The bundled YAML files must be importable without any env override."""
+    lookup = OpenStudioSdkDocLookup()
+    assert lookup.available(), (
+        "Bundled SDK docs not found. "
+        "Expected openstudio_mcp/sdk_docs/docs/api/classes.yaml.gz to exist."
+    )
+
+
+def test_bundled_docs_contain_airloophvac():
+    lookup = OpenStudioSdkDocLookup()
+    results = lookup.find_classes("AirLoopHVAC")
+    names = [r["class_name"] for r in results]
+    assert "AirLoopHVAC" in names
+
+
+def test_bundled_docs_list_methods_for_airloophvac():
+    lookup = OpenStudioSdkDocLookup()
+    result = lookup.list_methods("AirLoopHVAC", keyword="addBranchForZone")
+    assert result["total_matches"] >= 1
+
+
+def test_bundled_docs_get_method_returns_signature():
+    lookup = OpenStudioSdkDocLookup()
+    result = lookup.get_method("AirLoopHVAC", "addBranchForZone")
+    assert result["signature"] is not None
+    assert "ThermalZone" in result["signature"]

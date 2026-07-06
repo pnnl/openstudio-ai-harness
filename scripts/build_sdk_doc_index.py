@@ -15,12 +15,12 @@ from openstudio_mcp.sdk_docs.lookup import (
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Build a compact OpenStudio model SDK doc index from local Doxygen HTML."
+        description="Build a compact OpenStudio SDK doc index from YAML documentation."
     )
     parser.add_argument(
         "--docs-dir",
         required=True,
-        help="Directory containing classopenstudio_1_1model_*.html SDK docs.",
+        help="Directory containing api/classes.yaml (e.g. openstudio_mcp/sdk_docs/docs).",
     )
     parser.add_argument(
         "--output",

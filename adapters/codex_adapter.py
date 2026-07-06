@@ -643,6 +643,11 @@ def main() -> int:
             )
             return code
 
+    # Do not call the `openstudio-ai` console script here: after pip installs
+    # the package, Python's scripts directory may not be visible on PATH in this
+    # shell yet. The top-level `cli` module is importable in the current Python
+    # environment immediately after installation, so it is the stable bootstrap
+    # path for first-run storage initialization.
     code = run([sys.executable, "-m", "cli", "install-runtime"])
     if code != 0:
         print("\\nInstalled package, but runtime initialization failed.")

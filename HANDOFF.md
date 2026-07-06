@@ -67,6 +67,10 @@ Current readiness hardening completed:
 - Installation docs now state the two-part OpenStudio requirement explicitly:
   the PyPI `openstudio` Python package plus the native OpenStudio application
   or CLI visible through `OPENSTUDIO_PATH` or `PATH`.
+- AUTOMA-AI and Streamlit remain outside the base marketplace install. They are
+  exposed through optional `automa`, `ui`, and user-facing `standalone` extras;
+  developers should use `pip install -e ".[dev,standalone]"` for local
+  AUTOMA-AI-backed harness testing.
 
 ## Verification
 
@@ -123,7 +127,8 @@ Result:
 
 ## Next Steps
 
-1. Decide the long-term dependency source for `automa_ai` before publishing.
+1. Decide the long-term approved dependency source for optional `automa-ai`
+   before publishing the standalone extra.
 2. Add CI that runs `py_compile` and the focused pytest suite.
 3. Add CI coverage for wheel content inspection, `openstudio-ai doctor`, and
    `validate-export --runtime-mode marketplace`.

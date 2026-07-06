@@ -36,6 +36,10 @@ dev = [
 ]
 automa = ["automa-ai>=0.7.3"]
 ui = ["streamlit>=1.54.0"]
+standalone = [
+    "automa-ai>=0.7.3",
+    "streamlit>=1.54.0",
+]
 
 [project.urls]
 Homepage = "https://gitlab.pnnl.gov/building-energy-modeling/openstudio-ai-harness"

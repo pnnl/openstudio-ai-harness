@@ -20,8 +20,12 @@ knowledge, and workflow-state tools for AI-assisted building-energy modeling.
 From this repository root:
 
 ```bash
-python -m pip install -e ".[dev]"
+python -m pip install -e ".[dev,standalone]"
 ```
+
+Use `.[dev,standalone]` for full local harness development. The `standalone`
+extra installs the optional AUTOMA-AI and Streamlit dependencies used by
+`agent.py`, `ui.py`, and tests that exercise the local A2A agent path.
 
 Install the runtime package after it is published:
 
@@ -35,6 +39,19 @@ openstudio-ai-mcp --transport stdio
 OpenStudio AI requires both the PyPI `openstudio` Python package, installed as
 a dependency of `openstudio-ai`, and the native OpenStudio application/CLI. Set
 `OPENSTUDIO_PATH` when the CLI is not on `PATH`.
+
+The base package is the recommended install for Claude Code, Codex, and other
+marketplace-style host integrations. It intentionally does not install
+AUTOMA-AI or Streamlit. To run the standalone local AI app, install:
+
+```bash
+python -m pip install "openstudio-ai[standalone]"
+python agent.py
+streamlit run ui.py
+```
+
+Standalone mode requires user-provided LLM configuration, such as API keys or
+model endpoint settings, in the local environment.
 
 Run focused tests:
 

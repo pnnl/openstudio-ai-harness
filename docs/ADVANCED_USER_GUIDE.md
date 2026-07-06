@@ -9,6 +9,34 @@ measures, policies, skills, and knowledge-base content.
 - You are comfortable with OpenStudio model concepts.
 - You want to customize behavior beyond the default OpenStudio AI workflow.
 
+## Install Modes
+
+OpenStudio AI has two supported install shapes.
+
+Marketplace or host-agent runtime:
+
+```bash
+python -m pip install openstudio-ai
+openstudio-ai install-runtime
+OPENSTUDIO_PATH=/path/to/openstudio openstudio-ai doctor
+```
+
+Use this path for Claude Code, Codex, and other host integrations. It installs
+the MCP runtime, skills, knowledge, OpenStudio Python SDK dependency, and CLI
+tools. It does not install AUTOMA-AI or Streamlit.
+
+Standalone local AI app:
+
+```bash
+python -m pip install "openstudio-ai[standalone]"
+python agent.py
+streamlit run ui.py
+```
+
+Use this path when you want OpenStudio AI to run as a local AUTOMA-AI-backed
+agent with the Streamlit UI. Standalone mode requires local LLM configuration,
+such as API keys or model endpoint settings, in your environment.
+
 ## Extension Surface
 
 You will typically work in three areas:

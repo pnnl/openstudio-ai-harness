@@ -65,6 +65,35 @@ These are active engineering limits, not product vision gaps:
   deterministic. Agent-assisted reflection should be added after review and
   eval gates are stable.
 
+## Developer Install Modes
+
+Use the full development install when testing the harness locally:
+
+```bash
+python -m pip install -e ".[dev,standalone]"
+```
+
+The `dev` extra installs build and test tooling. The `standalone` extra installs
+AUTOMA-AI and Streamlit for `agent.py`, `ui.py`, and tests that exercise the
+local A2A agent path.
+
+Use the lean base install when validating the marketplace or host-agent runtime:
+
+```bash
+python -m pip install openstudio-ai
+openstudio-ai install-runtime
+OPENSTUDIO_PATH=/path/to/openstudio openstudio-ai doctor
+```
+
+The base package is the target for Claude Code, Codex, and other host
+integrations. It intentionally excludes AUTOMA-AI and Streamlit because those
+hosts provide the agent shell; OpenStudio AI provides the MCP runtime, skills,
+knowledge, and OpenStudio-backed tools.
+
+Tests that import `automa_ai` or exercise the Streamlit UI should be run from a
+`.[dev,standalone]` environment. Packaging, export, doctor, and MCP runtime
+tests should continue to pass from the lean base runtime plus test tooling.
+
 ## Exported Runtime Harness
 
 These are the assets a host adapter packages for Claude Code, Codex, or another

@@ -68,9 +68,9 @@ Current readiness hardening completed:
   the PyPI `openstudio` Python package plus the native OpenStudio application
   or CLI visible through `OPENSTUDIO_PATH` or `PATH`.
 - AUTOMA-AI and Streamlit remain outside the base marketplace install. They are
-  exposed through optional `automa`, `ui`, and user-facing `standalone` extras;
-  developers should use `pip install -e ".[dev,standalone]"` for local
-  AUTOMA-AI-backed harness testing.
+  exposed only through the optional `standalone` extra; developers should use
+  `pip install -e ".[dev,standalone]"` for local AUTOMA-AI-backed harness
+  testing.
 
 ## Verification
 

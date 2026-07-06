@@ -34,8 +34,6 @@ dev = [
     "pytest-asyncio>=1.2.0",
     "twine>=5.0.0",
 ]
-automa = ["automa-ai>=0.7.3"]
-ui = ["streamlit>=1.54.0"]
 standalone = [
     "automa-ai>=0.7.3",
     "streamlit>=1.54.0",

@@ -1,14 +1,15 @@
 ---
-name: openstudio_hvac_workflow_state
-description: Maintain persistent task-global HVAC workflow state for multi-phase OpenStudio model-editing workflows.
+name: openstudio_workflow_state
+description: Maintain persistent task-global workflow state for long-running OpenStudio energy modeling tasks.
 version: 0.3.0
 output_format: markdown_with_json_state
 ---
 
 ## Scope
 
-Use this skill whenever an OpenStudio HVAC creation/editing workflow spans
-multiple phases, child skills, scripts, or clarification gates.
+Use this skill whenever an OpenStudio energy modeling workflow spans multiple
+phases, child skills, scripts, simulations, failure recovery steps, or
+clarification gates.
 
 OpenStudio AI persists workflow state through MCP blackboard tools. The parent
 workflow skill owns all writes. Child skills and script phases return narrow
@@ -41,55 +42,31 @@ workflow skill owns all writes. Child skills and script phases return narrow
 
 Do not use AUTOMA-AI native blackboard tools for this harness.
 
-## Canonical Workflow Fields
+## Generic Workflow Fields
 
-Every workflow should keep these top-level fields. Use `null`, empty arrays, or
-empty objects for unknown values.
+Every long-running workflow should keep these top-level fields. Use `null`,
+empty arrays, or empty objects for unknown values. Domain-specific parent skills
+may add nested sections such as `system`, `schedules`, `sizing`, `variants`, or
+`results`.
 
 ```text
 workflow_id
-mode
+goal
+status
 input_model_path
 current_model_path
 output_model_path
 openstudio_version
-standards_template
-system
-schedules
-design_temperatures
-sizing
-fan
-central_heating
-central_cooling
-outdoor_air_system
-air_loop_controls
-zone_terminals
 completed_steps
 pending_steps
 created_objects
+artifacts
 assumptions
 warnings
+failures
 validation_results
 missing_fields
 last_phase
-```
-
-Default VAV pending steps:
-
-```text
-preflight_inspection
-clarification_gate
-air_loop
-schedule_resolver
-sizing_system
-supply_fan
-central_heating_coil
-central_cooling_coil
-outdoor_air_system
-air_loop_controls
-zone_terminals
-validation
-simulation_handoff
 ```
 
 ## Assumption Ledger
@@ -108,10 +85,9 @@ Each child phase returns only changed fields:
 {
   "ok": true,
   "state_patch": {
-    "completed_steps": ["supply_fan"],
-    "pending_steps_remove": ["supply_fan"],
-    "created_objects": {"fan": "3 Zone VAV Fan"},
-    "fan": {"fan_name": "3 Zone VAV Fan", "fan_pressure_rise_pa": 995.4},
+    "completed_steps": ["focused_edit"],
+    "pending_steps_remove": ["focused_edit"],
+    "created_objects": {"edited_model": "outputs/model_edited.osm"},
     "warnings": []
   }
 }
@@ -125,18 +101,17 @@ If blocked, a child phase returns:
 ```json
 {
   "ok": false,
-  "missing_fields": ["central_heating.hot_water_loop_name"],
-  "clarifying_question": "Which existing hot-water plant loop should serve the water heating coils?"
+  "missing_fields": ["output_model_path"],
+  "clarifying_question": "Where should I save the copied edited model?"
 }
 ```
 
 ## Validation Before Handoff
 
-Before simulation handoff, confirm in state:
+Before simulation or final handoff, confirm in state:
 
 - input and output paths are distinct unless overwrite was approved;
-- target zones are served by the new air loop;
-- central and reheat water coils are attached to intended plant loops;
-- terminal count equals target zone count;
 - created object names, assumptions, warnings, and validation results are
-  recorded.
+  recorded;
+- failures are inspectable and include enough detail for recovery;
+- artifacts needed by the next phase are recorded.

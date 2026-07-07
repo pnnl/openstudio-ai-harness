@@ -1,14 +1,14 @@
 ---
 name: sdk_daylighting
 description: OpenStudio Python SDK examples for adding daylighting controls to spaces.
-version: 0.1.0
+version: 0.1.2
 ---
 
 # SDK Daylighting Context
 
 Use this pack for daylighting sensor creation and space-level daylighting
-control edits. This is a good candidate for `run_python` because it is a scoped
-model edit that does not require simulation.
+control edits. This is a good candidate for host Python execution because it is
+a scoped model edit that does not require simulation.
 
 For daylighting-control creation, apply the global object creation rule from
 `sdk_core_patterns`: ask for target spaces, sensor names, illuminance setpoints,

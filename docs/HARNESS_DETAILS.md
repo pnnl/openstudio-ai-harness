@@ -217,7 +217,7 @@ Use MCP tools such as `blackboard_initialize_workflow`,
 The YAML spec reads local environment settings and configures:
 
 - MCP client connection;
-- bounded `run_python` workspace;
+- bounded host Python execution workspace;
 - skills and knowledge roots;
 - telemetry JSONL path;
 - Python script failure log path;

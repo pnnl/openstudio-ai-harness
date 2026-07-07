@@ -1,7 +1,7 @@
 ---
 name: sdk_index
 description: Routing index for OpenStudio SDK wiki context packs.
-version: 0.1.0
+version: 0.1.2
 ---
 
 # OpenStudio SDK Wiki Index
@@ -33,7 +33,7 @@ Python script. Load only the context packs relevant to the task.
 - `sdk_simulation_results`: load for understanding OpenStudio simulation-file,
   OSW, SQL, and result-query idioms. In OpenStudio AI, use MCP `sim_*` and
   `results_*` tools for actual simulation and result retrieval; do not use this
-  pack as permission to run simulations with `run_python`.
+  pack as permission to run simulations with host Python execution.
 - `sdk_review_prompts`: load only when testing or reviewing the knowledge-base
   behavior. It contains representative prompts and success criteria.
 
@@ -52,7 +52,7 @@ scripts focused on the user's model-inspection or model-editing request.
 3. Load every domain pack required by the selected task.
 4. For WWR/orientation/surface tasks, `sdk_geometry` is required.
 5. For HVAC topology tasks, load `sdk_hvac`; for simulations and result
-   retrieval, route to MCP tools instead of `run_python`.
+   retrieval, route to MCP tools instead of host Python execution.
 6. Draft a bounded script using only the relevant snippets and idioms.
 7. Summarize the intended script and ask for explicit user approval before
-   calling `run_python`.
+   using host Python execution.

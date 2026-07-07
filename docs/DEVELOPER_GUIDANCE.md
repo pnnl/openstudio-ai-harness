@@ -129,6 +129,20 @@ agent host.
 Host agents should consume these trusted runtime assets. They should not edit
 developer source specs, templates, review queues, or candidate assets directly.
 
+### Host Python Execution Boundary
+
+Runtime prompts, skills, and knowledge packs must not assume AUTOMA-AI-only
+tools such as `run_python`. Use host-neutral language: "host Python execution"
+means the Python execution path available in the current agent host. AUTOMA-AI
+may expose `run_python`; Codex may use its shell/Python execution environment;
+Claude Code may use its approved command or script execution path; some hosts
+may require asking the user to run the displayed script manually.
+
+Keep the shared safety contract independent of host implementation: show the
+complete script, ask for explicit approval before execution, keep scripts
+local-file only, count failed attempts, and route simulations/results to MCP
+`sim_*` and `results_*` tools instead of Python scripts.
+
 ## Developer-Only Workbench
 
 These folders are for maintaining and improving OpenStudio AI. They are not the
@@ -235,8 +249,9 @@ Responsibilities:
 3. Keep MCP imports and package paths stable under
    `openstudio_mcp`.
 4. Keep local, installed, and marketplace MCP launch configs validated.
-5. Add validation that exported packages include MCP config, prompts, skills,
-   knowledge, schemas, runtime learning assets, and approved measures.
+5. Add validation that exported packages include the host-native component
+   layout, MCP config, skills, agents or prompts, supporting references,
+   learning schemas, and approved measures.
 6. Keep blackboard scope explicit: MCP-owned workflow state for this harness;
    AUTOMA-AI native blackboard should remain disabled in the OpenStudio AI
    agent spec while this path is evaluated.
@@ -244,14 +259,18 @@ Responsibilities:
 Current Claude Code export command:
 
 ```bash
-.venv/bin/python -m adapters.claude_code_adapter export-plugin \
-  --output-dir /tmp/openstudio-ai-plugin
+.venv/bin/python -m cli export claude \
+  --output-dir /tmp/openstudio-ai-plugin \
+  --workspace-root "$PWD" \
+  --runtime-mode marketplace
 ```
 
 The export command creates a local marketplace with `.claude-plugin/marketplace.json`
 and an `openstudio-ai/` plugin folder containing `.claude-plugin/plugin.json`,
-`.mcp.json`, `commands/`, `skills/`, `knowledge/`, `instructions/`,
-`learning/`, and `blackboard/schemas/`.
+`.mcp.json`, `settings.json`, `agents/`, `skills/`, `monitors/`, and `bin/`.
+Claude SDK knowledge, prompt contracts, blackboard schemas, and learning schemas
+are exported as supporting files under the skills that use them, not as inert
+plugin-root folders.
 
 Claude Code install flow:
 
@@ -260,6 +279,149 @@ Claude Code install flow:
 /plugin install openstudio-ai@openstudio-ai-local
 /reload-plugins
 ```
+
+### Integrated Claude Code Plugin Testing
+
+Use this workflow when you need to test the exported Claude Code plugin in a
+real Claude Code session. It validates the full path from repo assets to local
+marketplace, Claude plugin install, MCP startup, skills, agent activation, and
+reload behavior.
+
+Claude Code copies marketplace-installed plugins into its local plugin cache
+instead of using the export folder in place. It also uses the plugin version as
+the cache/update key. If you edit plugin assets but keep the same
+`.claude-plugin/plugin.json` version, Claude Code may keep using the cached
+installed copy until you uninstall/reinstall or explicitly bump the version.
+For release-candidate testing, keep the version realistic. For rapid local
+iteration, prefer a clean uninstall/reinstall cycle.
+
+1. Export a local Claude Code marketplace:
+
+   ```bash
+   rm -rf /tmp/openstudio-ai-claude-test
+   .venv/bin/python -m cli export claude \
+     --output-dir /tmp/openstudio-ai-claude-test \
+     --workspace-root "$PWD" \
+     --runtime-mode marketplace \
+     --force
+   ```
+
+   On macOS, `/tmp` may print back as `/private/tmp`; those are the same
+   filesystem location.
+
+2. Validate the exported plugin before loading it in Claude Code:
+
+   ```bash
+   .venv/bin/python -m cli validate-export \
+     /tmp/openstudio-ai-claude-test/openstudio-ai \
+     --runtime-mode marketplace
+
+   claude plugin validate /tmp/openstudio-ai-claude-test/openstudio-ai
+   ```
+
+3. Load the local marketplace in Claude Code.
+
+   Start Claude Code in the project where you want to test the plugin, then run:
+
+   ```text
+   /plugin marketplace add /tmp/openstudio-ai-claude-test
+   /plugin install openstudio-ai@openstudio-ai-local
+   /reload-plugins
+   ```
+
+   If Claude Code asks for scope during development, choose `local` unless you
+   intentionally want user-wide or project-shared installation. Local scope
+   writes to `.claude/settings.local.json` and avoids committing test plugin
+   state.
+
+   For non-interactive install after the marketplace is already registered, use:
+
+   ```bash
+   claude plugin install openstudio-ai@openstudio-ai-local --scope local
+   ```
+
+4. Confirm the plugin loaded.
+
+   In Claude Code:
+
+   ```text
+   /plugin list
+   /plugin details openstudio-ai@openstudio-ai-local
+   /openstudio-ai:doctor-openstudio-ai
+   ```
+
+   Expected checks:
+
+   - `openstudio-ai` appears enabled.
+   - The component list includes `skills/`, `agents/openstudio-modeler.md`,
+     `.mcp.json`, `settings.json`, `monitors/`, and `bin/`.
+   - `settings.json` activates `openstudio-modeler` as the main Claude Code
+     thread while the plugin is enabled.
+   - The doctor skill reports whether Python, OpenStudio AI, OpenStudio, MCP,
+     SDK docs, and runtime assets are ready.
+
+5. Clean up an existing test install before reloading a changed plugin.
+
+   First uninstall the plugin from the same scope used for testing:
+
+   ```bash
+   claude plugin uninstall openstudio-ai@openstudio-ai-local \
+     --scope local \
+     --keep-data
+   ```
+
+   Use `--keep-data` while iterating if you want to preserve plugin runtime
+   state. Omit `--keep-data` for a clean runtime-data reset.
+
+   Then remove or refresh the exported marketplace folder and reinstall:
+
+   ```bash
+   rm -rf /tmp/openstudio-ai-claude-test
+   .venv/bin/python -m cli export claude \
+     --output-dir /tmp/openstudio-ai-claude-test \
+     --workspace-root "$PWD" \
+     --runtime-mode marketplace \
+     --force
+   ```
+
+   Back in Claude Code:
+
+   ```text
+   /plugin marketplace add /tmp/openstudio-ai-claude-test
+   /plugin install openstudio-ai@openstudio-ai-local
+   /reload-plugins
+   ```
+
+   If Claude Code still shows an older version, check the installed plugin list
+   and details:
+
+   ```bash
+   claude plugin list --json
+   claude plugin details openstudio-ai@openstudio-ai-local
+   ```
+
+   If the old version remains installed, uninstall every scope where it appears:
+
+   ```bash
+   claude plugin uninstall openstudio-ai@openstudio-ai-local --scope local --keep-data
+   claude plugin uninstall openstudio-ai@openstudio-ai-local --scope project --keep-data
+   claude plugin uninstall openstudio-ai@openstudio-ai-local --scope user --keep-data
+   ```
+
+   Ignore "not installed" errors for scopes you did not use.
+
+   If you intentionally want to remove unused auto-installed dependencies, run a
+   dry-run first:
+
+   ```bash
+   claude plugin prune --scope local --dry-run
+   ```
+
+   Avoid manually deleting `~/.claude/plugins/cache` during normal development.
+   Claude Code marks old marketplace plugin versions as orphaned and removes
+   them after its grace period. Manual cache deletion is only a last-resort
+   diagnostic after uninstalling the plugin and closing all Claude Code
+   sessions.
 
 Current Codex export command:
 
@@ -320,8 +482,11 @@ trusted assets until reviewed, validated, and promoted.
 
 Runtime learning export:
 
-- Claude/Codex exports include `learning/schemas/` and `learning/candidates/`.
-- Claude exports include `/openstudio-ai:propose-measure`.
+- Claude exports include `propose-measure` and `capture-session-lesson` skills
+  with candidate schemas under `skills/*/references/`.
+- Claude exports include a passive learning-event monitor that only notifies
+  Claude about runtime learning events; it does not promote assets.
+- Codex exports currently include `learning/schemas/` and `learning/candidates/`.
 - Runtime candidates remain untrusted until reviewed and validated.
 
 ## Learning Pipeline Boundary

@@ -93,28 +93,86 @@ def test_claude_code_adapter_exports_plugin_package(tmp_path: Path) -> None:
     assert (plugin_dir / ".mcp.json").exists()
     assert (plugin_dir / "README.md").exists()
     assert (plugin_dir / "CONNECTORS.md").exists()
-    assert (plugin_dir / "commands" / "add-vav-reheat.md").exists()
-    assert (plugin_dir / "commands" / "propose-measure.md").exists()
+    assert (plugin_dir / "settings.json").exists()
+    assert (plugin_dir / "agents" / "openstudio-modeler.md").exists()
+    assert (plugin_dir / "monitors" / "monitors.json").exists()
+    assert (plugin_dir / "bin" / "openstudio-ai-learning-monitor").exists()
+    assert (plugin_dir / "skills" / "add-vav-reheat" / "SKILL.md").exists()
+    assert (plugin_dir / "skills" / "propose-measure" / "SKILL.md").exists()
+    assert (plugin_dir / "skills" / "capture-session-lesson" / "SKILL.md").exists()
     assert (
         plugin_dir / "skills" / "openstudio-hvac-air-loop-creator" / "SKILL.md"
     ).exists()
     assert not (
         plugin_dir / "skills" / "HVAC-CHILD-SKILL-MANAGEMENT" / "SKILL.md"
     ).exists()
-    assert (plugin_dir / "knowledge" / "openstudio_sdk_recipes.md").exists()
     assert (
-        plugin_dir / "blackboard" / "schemas" / "workflow_state.schema.json"
+        plugin_dir
+        / "skills"
+        / "openstudio-sdk-model-editor"
+        / "references"
+        / "openstudio_sdk_recipes.md"
     ).exists()
-    assert (plugin_dir / "learning" / "README.md").exists()
     assert (
-        plugin_dir / "learning" / "schemas" / "candidate_measure.schema.json"
+        plugin_dir
+        / "skills"
+        / "openstudio-sdk-model-editor"
+        / "references"
+        / "sdk_wiki"
+        / "sdk_index.md"
     ).exists()
-    assert (plugin_dir / "learning" / "candidates" / ".gitkeep").exists()
+    assert (
+        plugin_dir
+        / "skills"
+        / "openstudio-workflow-state"
+        / "references"
+        / "workflow_state.schema.json"
+    ).exists()
+    assert (
+        plugin_dir
+        / "skills"
+        / "openstudio-workflow-state"
+        / "references"
+        / "blackboard_contract.md"
+    ).exists()
+    assert not (
+        plugin_dir
+        / "skills"
+        / "openstudio-vav-reheat-system-creator"
+        / "references"
+        / "workflow_state.schema.json"
+    ).exists()
+    assert (
+        plugin_dir
+        / "skills"
+        / "propose-measure"
+        / "references"
+        / "candidate_measure.schema.json"
+    ).exists()
+    assert (
+        plugin_dir
+        / "skills"
+        / "capture-session-lesson"
+        / "references"
+        / "session_lesson.schema.json"
+    ).exists()
+    assert not (plugin_dir / "commands").exists()
+    assert not (plugin_dir / "knowledge").exists()
+    assert not (plugin_dir / "instructions").exists()
+    assert not (plugin_dir / "learning").exists()
+    assert not (plugin_dir / "blackboard").exists()
 
     plugin_json = json.loads(
         (plugin_dir / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8")
     )
     assert plugin_json["name"] == "openstudio-ai"
+    settings_json = json.loads(
+        (plugin_dir / "settings.json").read_text(encoding="utf-8")
+    )
+    assert settings_json["agent"] == "openstudio-modeler"
+    readme = (plugin_dir / "README.md").read_text(encoding="utf-8")
+    assert "activating it as the main Claude Code thread" in readme
+    assert "does not automatically read arbitrary plugin instruction files" in readme
     mcp_json = json.loads((plugin_dir / ".mcp.json").read_text(encoding="utf-8"))
     assert "openstudio_ai" in mcp_json["mcpServers"]
     marketplace_json = json.loads(
@@ -137,7 +195,7 @@ def test_claude_code_adapter_installed_mode_uses_runtime_command(
     assert server["args"] == ["--transport", "stdio"]
     assert "env" not in server
     assert not (
-        tmp_path / "openstudio-ai" / "commands" / "setup-openstudio-ai.md"
+        tmp_path / "openstudio-ai" / "skills" / "setup-openstudio-ai" / "SKILL.md"
     ).exists()
 
 
@@ -150,22 +208,26 @@ def test_claude_code_adapter_marketplace_mode_exports_runtime_setup(
     mcp_json = json.loads((plugin_dir / ".mcp.json").read_text(encoding="utf-8"))
     server = mcp_json["mcpServers"]["openstudio_ai"]
     assert server == {"command": "openstudio-ai-mcp", "args": ["--transport", "stdio"]}
-    assert (plugin_dir / "commands" / "setup-openstudio-ai.md").exists()
-    assert (plugin_dir / "commands" / "doctor-openstudio-ai.md").exists()
-    assert (plugin_dir / "commands" / "repair-openstudio-ai.md").exists()
-    assert (plugin_dir / "installers" / "install_runtime.py").exists()
-    assert (plugin_dir / "installers" / "doctor_runtime.py").exists()
+    assert (plugin_dir / "skills" / "setup-openstudio-ai" / "SKILL.md").exists()
+    assert (plugin_dir / "skills" / "doctor-openstudio-ai" / "SKILL.md").exists()
+    assert (plugin_dir / "skills" / "repair-openstudio-ai" / "SKILL.md").exists()
+    assert (
+        plugin_dir / "skills" / "setup-openstudio-ai" / "scripts" / "install_runtime.py"
+    ).exists()
+    assert (
+        plugin_dir / "skills" / "setup-openstudio-ai" / "scripts" / "doctor_runtime.py"
+    ).exists()
 
-    setup = (plugin_dir / "commands" / "setup-openstudio-ai.md").read_text(
+    setup = (plugin_dir / "skills" / "setup-openstudio-ai" / "SKILL.md").read_text(
         encoding="utf-8"
     )
     assert "python --version" in setup
     assert "python3 --version" in setup
     assert "openstudio-ai-mcp --help" in setup
     assert "energy-modeler language" in setup
-    installer = (plugin_dir / "installers" / "install_runtime.py").read_text(
-        encoding="utf-8"
-    )
+    installer = (
+        plugin_dir / "skills" / "setup-openstudio-ai" / "scripts" / "install_runtime.py"
+    ).read_text(encoding="utf-8")
     assert "OPENSTUDIO_AI_PACKAGE_SPEC" in installer
     assert '"pip", "install", "--upgrade"' in installer
     assert '"cli", "install-runtime"' in installer
@@ -179,24 +241,24 @@ def test_claude_code_adapter_marketplace_mode_exports_runtime_setup(
     assert "/Users/" not in exported_text
 
 
-def test_claude_code_adapter_exports_command_frontmatter(tmp_path: Path) -> None:
+def test_claude_code_adapter_exports_workflow_skill_frontmatter(tmp_path: Path) -> None:
     _adapter().export_plugin(tmp_path, dry_run=False)
 
-    command = (tmp_path / "openstudio-ai" / "commands" / "add-vav-reheat.md").read_text(
-        encoding="utf-8"
-    )
-    assert command.startswith("---\n")
-    assert "name: add-vav-reheat\n" in command
+    skill = (
+        tmp_path / "openstudio-ai" / "skills" / "add-vav-reheat" / "SKILL.md"
+    ).read_text(encoding="utf-8")
+    assert skill.startswith("---\n")
+    assert "name: add-vav-reheat\n" in skill
     assert (
         "description: Plan and execute a phased OpenStudio VAV reheat workflow.\n"
-        in command
+        in skill
     )
-    assert "\n---\n\n# Add VAV Reheat" in command
+    assert "\n---\n\n# Add VAV Reheat" in skill
     propose_measure = (
-        tmp_path / "openstudio-ai" / "commands" / "propose-measure.md"
+        tmp_path / "openstudio-ai" / "skills" / "propose-measure" / "SKILL.md"
     ).read_text(encoding="utf-8")
     assert "name: propose-measure\n" in propose_measure
-    assert "learning/candidates/" in propose_measure
+    assert "references/candidate_measure.schema.json" in propose_measure
 
 
 def test_claude_code_adapter_exports_skill_frontmatter(tmp_path: Path) -> None:
@@ -212,7 +274,7 @@ def test_claude_code_adapter_exports_skill_frontmatter(tmp_path: Path) -> None:
     assert skill.startswith("---\n")
     assert "name: openstudio_hvac_air_loop_creator\n" in skill
     assert "description: Create or confirm the parent AirLoopHVAC object" in skill
-    assert "version: 0.1.0\n" in skill
+    assert "version: 0.1.2\n" in skill
     assert "\n---\n\n## Scope" in skill
 
 

@@ -1,7 +1,7 @@
 ---
 name: sdk_review_prompts
 description: Representative prompts and pass criteria for reviewing OpenStudio SDK knowledge-pack routing.
-version: 0.1.0
+version: 0.1.2
 ---
 
 # SDK Knowledge-Base Review Prompts
@@ -18,7 +18,7 @@ For every SDK-script prompt, the agent should:
 - load `sdk_index` and `sdk_core_patterns`;
 - load only the matching domain packs;
 - show the full Python script before execution;
-- ask for explicit user approval before calling `run_python`;
+- ask for explicit user approval before using host Python execution;
 - use `openstudio.openstudioosversion.VersionTranslator()` unless it gives a
   clear project-specific reason not to;
 - avoid fake SDK names such as `getBuildingStories()`;
@@ -28,11 +28,11 @@ For every SDK-script prompt, the agent should:
 - for any new OpenStudio object, ask for missing names, numeric values, units,
   referenced model objects, and assignment targets before execution;
 - list approved default assumptions as `Object:Name.parameter: assumed to be x`;
-- stop after three failed `run_python` attempts and report likely causes.
+- stop after three failed host Python execution attempts and report likely causes.
 
 For simulation/result prompts, the agent should route to MCP `model_*`,
 `sim_*`, and `results_*` tools instead of launching simulations through
-`run_python`.
+host Python execution.
 
 ## 12 Representative Prompts
 

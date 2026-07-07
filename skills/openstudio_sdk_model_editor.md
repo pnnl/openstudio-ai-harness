@@ -1,7 +1,7 @@
 ---
 name: openstudio_sdk_model_editor
-description: Inspect and edit OpenStudio models through run_python and the OpenStudio Python SDK.
-version: 0.1.0
+description: Inspect and edit OpenStudio models through host Python execution and the OpenStudio Python SDK.
+version: 0.1.2
 output_format: markdown_with_json_summary
 ---
 
@@ -12,9 +12,13 @@ it to run simulations or retrieve simulation results. Simulation execution,
 polling, artifacts, and SQL-backed result retrieval belong to the OpenStudio MCP
 tools.
 
-Use `run_python` only when the task requires a generated Python script against a
-local `.osm` file. Do not call `run_python` for tasks that can be completed with
-MCP `model_*`, `sim_*`, or `results_*` tools.
+Use host Python execution only when the task requires a generated Python script
+against a local `.osm` file. Host Python execution means the Python mechanism
+available in the current agent host: AUTOMA-AI may expose `run_python`, Codex
+may use its shell/Python execution environment, Claude Code may use its
+approved command or script execution path, and some hosts may require asking the
+user to run the displayed script manually. Do not execute Python scripts for
+tasks that can be completed with MCP `model_*`, `sim_*`, or `results_*` tools.
 
 Allowed uses:
 
@@ -40,7 +44,7 @@ Disallowed uses:
 1. Classify the request before writing code:
    - `inspect_only`: read model data and summarize.
    - `edit_model`: make a safe copy and edit model objects.
-   - `simulate_or_results`: use MCP tools instead of `run_python`.
+   - `simulate_or_results`: use MCP tools instead of host Python execution.
    - `ambiguous_or_risky`: ask a clarifying question.
 2. Load SDK wiki context:
    - call `sdk_docs_route` with the user request to identify likely SDK domains,
@@ -94,7 +98,7 @@ Disallowed uses:
    objects from the model and ask the user to select one. If the user explicitly
    says to keep defaults, list assumptions with this exact format:
    `Object:Name.parameter: assumed to be x`.
-7. Draft a short workflow before using `run_python`:
+7. Draft a short workflow before using host Python execution:
    - input model path;
    - inspection or edit target;
    - OpenStudio SDK APIs expected to be used;
@@ -105,9 +109,9 @@ Disallowed uses:
    - output model path for edits.
 8. For edits, never overwrite the original model unless the user explicitly asks.
    Write a new `.osm` under `outputs/` or another user-approved path.
-9. Prepare a bounded Python script for `run_python`, or split the task into
-   multiple scripts when the scope is complex. Use the script-length rules
-   below.
+9. Prepare a bounded Python script for the current host's Python execution
+   mechanism, or split the task into multiple scripts when the scope is
+   complex. Use the script-length rules below.
 10. Summarize like a senior building energy modeler:
    - what was inspected or changed;
    - affected object counts and names when practical;
@@ -161,8 +165,8 @@ the Python script until all matching packs are loaded.
   to be summarized by space, thermal zone, or served zone.
 - Load `sdk_simulation_results` only to explain or review OpenStudio simulation
   files, OSW setup, SQL attachment, or result-extraction idioms. Do not use this
-  pack as permission to run simulations or retrieve results through
-  `run_python`; route actual simulation and result workflows to MCP `sim_*` and
+  pack as permission to run simulations or retrieve results through host Python
+  execution; route actual simulation and result workflows to MCP `sim_*` and
   `results_*`.
 - Load `sdk_review_prompts` only when testing or reviewing the knowledge-base
   routing behavior.
@@ -189,9 +193,9 @@ user. If defaults are approved, list each assumption as
 
 ## Script Length And Multi-Step Rules
 
-Prefer small, inspectable scripts. The `run_python` tool records script length
-metadata and logs failed executions for later experience review, but the agent
-must still keep scripts reviewable.
+Prefer small, inspectable scripts. Some hosts record script length metadata and
+failed executions for later experience review, but the agent must still keep
+scripts reviewable regardless of host.
 
 - For scripts up to 120 lines, a single script is acceptable when the task is
   scoped and clear.
@@ -215,11 +219,11 @@ need user choices. The default phases are:
 5. **Simulation handoff**: use MCP `sim_*` and `results_*` tools when simulation
    or result retrieval is requested.
 
-When a `run_python` execution fails, do not immediately retry from memory. Read
-the error, identify the failed SDK call or assumption, check loaded wiki context
-or SDK docs for the relevant class/method, then draft a shorter corrected script
-or debugging script. After three failed attempts, stop and ask the user to
-review the script and failure summary.
+When host Python execution fails, do not immediately retry from memory. Read the
+error, identify the failed SDK call or assumption, check loaded wiki context or
+SDK docs for the relevant class/method, then draft a shorter corrected script or
+debugging script. After three failed attempts, stop and ask the user to review
+the script and failure summary.
 
 ## Required Script Result Contract
 
@@ -256,8 +260,8 @@ If the task fails, print:
 - Save edited models with `model.save(str(output_path), True)`.
 - Preserve the original model file.
 - Keep scripts deterministic and local-file only.
-- Do not import modules blocked by the `run_python` tool policy:
+- Do not import modules blocked by the current host's Python execution policy:
   `subprocess`, `socket`, `requests`, `urllib`, or `ctypes`.
 - Do not import network libraries.
 - Do not use shell commands or subprocesses.
-- Do not perform simulation or results retrieval with `run_python`.
+- Do not perform simulation or results retrieval with host Python execution.

@@ -5,8 +5,8 @@ Code, Codex, or another supported AI coding tool.
 
 OpenStudio AI has two parts:
 
-1. The plugin, which gives the AI assistant OpenStudio modeling knowledge,
-   skills, and setup commands.
+1. The plugin, which gives the AI assistant OpenStudio modeling skills,
+   supporting references, and setup workflows.
 2. The local runtime, which provides the `openstudio-ai-mcp` command that lets
    the assistant run OpenStudio modeling, simulation, result, SDK lookup, and
    workflow-state tools on your computer.
@@ -20,15 +20,15 @@ The plugin needs the local runtime to do real modeling work.
 - OpenStudio installed if you want to run simulations or edit real models.
 - The OpenStudio AI plugin installed from a marketplace or plugin folder.
 
-You do not need to understand Python packages or MCP servers. The setup command
+You do not need to understand Python packages or MCP servers. The setup workflow
 is designed to check these pieces for you.
 
 ## Setup Flow
 
-After installing the plugin, run the OpenStudio AI setup command in your AI
+After installing the plugin, run the OpenStudio AI setup workflow in your AI
 tool.
 
-For Claude Code, the command is expected to look like:
+For Claude Code, invoke the setup skill:
 
 ```text
 /openstudio-ai:setup-openstudio-ai
@@ -37,7 +37,7 @@ For Claude Code, the command is expected to look like:
 For Codex, ask:
 
 ```text
-Run the OpenStudio AI setup command.
+Run the OpenStudio AI setup workflow.
 ```
 
 The assistant should:

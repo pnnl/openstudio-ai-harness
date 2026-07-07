@@ -9,7 +9,7 @@ as a human reference, not default agent context.
 
 ## Load Order
 
-For any `run_python` task that inspects or edits an `.osm` model:
+For any host Python execution task that inspects or edits an `.osm` model:
 
 1. Load `openstudio_sdk_model_editor`.
 2. Load `sdk_index`.
@@ -58,7 +58,7 @@ For any `run_python` task that inspects or edits an `.osm` model:
 - HVAC topology: `sdk_hvac`, often with `sdk_spaces_zones_loads`.
 - Daylighting edits: `sdk_daylighting`, often with `sdk_geometry`.
 - Simulation runs, polling, artifacts, and result summaries: MCP tools, not
-  `run_python`.
+  host Python execution.
 
 ## Non-Negotiable SDK Rules
 

@@ -12,7 +12,7 @@ multi-zone VAV reheat air system in an OpenStudio model.
 
 This skill does not hold object-level implementation detail. It owns workflow
 state, clarification gates, phase order, child-skill routing, and final handoff.
-Use `run_python` only through the bounded script workflow in
+Use host Python execution only through the bounded script workflow in
 `openstudio_sdk_model_editor`. Use MCP `model_*`, `sim_*`, and `results_*` for
 validation, simulation, and results after the edited model is saved.
 
@@ -21,7 +21,7 @@ validation, simulation, and results after the edited model is saved.
 Before any VAV script drafting, load:
 
 - `openstudio_sdk_model_editor`
-- `openstudio_hvac_workflow_state`
+- `openstudio_workflow_state`
 - `sdk_index`
 
 Load exactly one child skill for the active edit phase. Do not load all child
@@ -38,7 +38,7 @@ Load SDK context packs only when needed:
 ## Parent Rules
 
 - Initialize and maintain the task-global state table from
-  `openstudio_hvac_workflow_state`.
+  `openstudio_workflow_state`.
 - Treat the state table as the source of truth for paths, target zones,
   schedules, coil choices, plant loops, fan inputs, assumptions, warnings,
   created objects, and checklist status.
@@ -85,7 +85,7 @@ complete. Each phase must return a `state_patch`.
 
 | Step | Phase | Child Skill |
 | --- | --- | --- |
-| 0 | Initialize state | `openstudio_hvac_workflow_state` |
+| 0 | Initialize state | `openstudio_workflow_state` |
 | 1 | Preflight inspection | parent short script |
 | 2 | Clarification gate | parent state update |
 | 3 | Air loop | `openstudio_hvac_air_loop_creator` |

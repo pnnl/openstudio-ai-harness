@@ -70,25 +70,33 @@ mode must not require a developer path such as `/Users/...`.
 ## Marketplace Setup Contract
 
 Marketplace exports must include setup files that let an AI host guide a
-non-programmer through installation:
+non-programmer through installation.
+
+Claude Code marketplace exports place setup as Claude-native skills:
 
 ```text
-commands/
-  setup-openstudio-ai.md
-  doctor-openstudio-ai.md
-  repair-openstudio-ai.md
-installers/
-  install_runtime.py
-  doctor_runtime.py
+skills/
+  setup-openstudio-ai/
+    SKILL.md
+    scripts/
+      install_runtime.py
+      doctor_runtime.py
+  doctor-openstudio-ai/
+    SKILL.md
+  repair-openstudio-ai/
+    SKILL.md
 ```
 
-The setup command should ask the host agent to:
+Codex marketplace exports may use host-specific command files and installer
+folders when that matches the Codex plugin structure.
+
+The setup workflow should ask the host agent to:
 
 1. Check whether Python is available.
 2. Check whether `openstudio-ai-mcp` is available.
-3. Run `python installers/doctor_runtime.py`.
-4. If the runtime is missing, run `python installers/install_runtime.py` after
-   explaining what will happen.
+3. Run the bundled `doctor_runtime.py` helper.
+4. If the runtime is missing, run the bundled `install_runtime.py` helper after
+   explaining what will happen and receiving approval.
 5. Run `openstudio-ai doctor` when available.
 6. Explain failures in normal energy-modeler language.
 

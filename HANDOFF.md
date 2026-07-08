@@ -21,8 +21,10 @@ First packaging phase completed:
 - Claude and Codex adapters support `--runtime-mode local`, `installed`, and
   `marketplace`.
 - Installed and marketplace exports point `.mcp.json` at `openstudio-ai-mcp`.
-- Marketplace exports include setup/doctor/repair command files and
-  `installers/install_runtime.py` plus `installers/doctor_runtime.py`.
+- Claude marketplace exports follow Claude Code's native plugin structure:
+  `agents/`, `skills/`, `.mcp.json`, `monitors/`, `bin/`, `settings.json`, and
+  skill-local `references/` and `scripts/`. Setup/doctor/repair are Claude
+  skills, not legacy `commands/` files.
 - Energy-modeler marketplace setup guide added in `docs/MARKETPLACE_INSTALL_GUIDE.md`.
 
 Pip release baseline completed:
@@ -56,9 +58,10 @@ Current readiness hardening completed:
   without depending on packaged sample models.
 - `doctor` no longer creates user data directories as a side effect;
   `openstudio-ai install-runtime` initializes user-local runtime storage.
-- Marketplace `installers/install_runtime.py` now runs pip for
-  `OPENSTUDIO_AI_PACKAGE_SPEC` or `openstudio-ai`, then runs
-  `python -m cli install-runtime`.
+- Marketplace runtime installer helpers now run pip for
+  `OPENSTUDIO_AI_PACKAGE_SPEC` or `openstudio-ai`, then run
+  `python -m cli install-runtime`. Claude places these helpers under
+  `skills/setup-openstudio-ai/scripts/`; Codex keeps them under `installers/`.
 - `validate-export` now enforces runtime-mode-specific MCP config, marketplace
   setup files, and hardcoded developer path rejection.
 - `platformdirs` is now a runtime dependency for cross-platform user data paths.
@@ -71,6 +74,17 @@ Current readiness hardening completed:
   exposed only through the optional `standalone` extra; developers should use
   `pip install -e ".[dev,standalone]"` for local AUTOMA-AI-backed harness
   testing.
+- Agent-facing prompts, skills, and SDK knowledge now use host-neutral "host
+  Python execution" language instead of assuming AUTOMA-AI's `run_python` tool.
+  Codex, Claude Code, AUTOMA-AI, and future hosts should map that contract to
+  their own approved Python execution mechanism.
+- Claude learning support is explicit-skill-first: `propose-measure` and
+  `capture-session-lesson` carry learning schemas in skill references, while a
+  passive monitor only surfaces runtime learning-event log lines.
+- Claude blackboard support now lives in a generic `openstudio-workflow-state`
+  skill with `blackboard_contract.md`, `workflow_state.schema.json`, and
+  `state_patch.schema.json` references. VAV loads that skill instead of owning
+  blackboard references directly.
 
 ## Verification
 
@@ -87,8 +101,8 @@ Result:
 
 - `py_compile`: passed.
 - `pytest` with OpenStudio 3.10.0 configured: `62 passed, 5 warnings`.
-- `python -m build`: produced `dist/openstudio_ai-0.1.0.tar.gz` and
-  `dist/openstudio_ai-0.1.0-py3-none-any.whl`.
+- `python -m build`: produced `dist/openstudio_ai-0.1.1.tar.gz` and
+  `dist/openstudio_ai-0.1.1-py3-none-any.whl`.
 - `twine check dist/*`: passed.
 - Wheel content inspection passed for CLI, MCP server, adapters, skills,
   knowledge, prompts, policy, and blackboard schemas. Local sample OSM/EPW

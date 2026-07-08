@@ -199,16 +199,18 @@ def test_openstudio_example_loads_yaml_a2a_server_with_mcp_config() -> None:
     assert "surface_azimuth_degrees(surface)" in model_editor_skill
     assert "Load `sdk_geometry` for geometry" in model_editor_skill
     instructions = spec.resolve_instructions()
-    assert "### MCP `model_*`" in instructions
-    assert "### MCP `sim_*`" in instructions
-    assert "### MCP `results_*`" in instructions
-    assert "load `openstudio_sdk_model_editor`" in instructions
-    assert "use this loop" in instructions
+    assert "## MCP Tool Routing" in instructions
+    assert "Use `model_*` tools" in instructions
+    assert "Use `sim_*` tools" in instructions
+    assert "Use `results_*` tools" in instructions
+    assert "Use `openstudio_sdk_model_editor`" in instructions
+    assert "Use `openstudio_workflow_state`" in instructions
     assert "hvac_sizing_assistant" in instructions
     assert "openstudio_sdk_model_editor" in instructions
     assert "sdk_index" not in instructions
     assert "surface_azimuth_degrees" not in instructions
     assert "fails three times" not in instructions
+    assert "blackboard_initialize_workflow" not in instructions
     assert "## Python Script Safeguard" not in instructions
     assert "Follow the skill instructions exactly" not in instructions
     assert isinstance(server, A2AAgentServer)
@@ -221,8 +223,11 @@ def test_openstudio_ai_uses_mcp_blackboard_not_native_blackboard() -> None:
 
     assert factory_kwargs["blackboard_config"] is None
     instructions = spec.resolve_instructions()
-    assert "blackboard_initialize_workflow" in instructions
-    assert "AUTOMA-AI native blackboard" in instructions
+    assert "Use `openstudio_workflow_state`" in instructions
+    skill_manager = SkillManager.from_config(factory_kwargs["skills_config"])
+    workflow_state_skill = skill_manager.load("openstudio_workflow_state")
+    assert "blackboard_initialize_workflow" in workflow_state_skill
+    assert "AUTOMA-AI native blackboard" in workflow_state_skill
 
 
 def test_openstudio_mcp_blackboard_supports_workflow_state(tmp_path: Path) -> None:

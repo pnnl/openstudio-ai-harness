@@ -1,19 +1,19 @@
 ---
 name: sdk_core_patterns
 description: Core OpenStudio Python SDK scripting patterns for bounded model inspection and editing.
-version: 0.1.0
+version: 0.1.2
 ---
 
 # Core OpenStudio SDK Patterns
 
-Use these patterns in every `run_python` script that reads or edits an `.osm`
-model.
+Use these patterns in every host Python execution script that reads or edits an
+`.osm` model.
 
 ## Import Safety
 
 Generated scripts must stay local-file only. Do not import modules blocked by
-the `run_python` tool policy: `subprocess`, `socket`, `requests`, `urllib`, or
-`ctypes`.
+the current host Python execution policy: `subprocess`, `socket`, `requests`,
+`urllib`, or `ctypes`.
 
 ## Load, Save, and Report
 

@@ -34,7 +34,7 @@ The generator owns these child skills:
 The generator does not own:
 
 - `openstudio_vav_reheat_system_creator`
-- `openstudio_hvac_workflow_state`
+- `openstudio_workflow_state`
 - `openstudio_sdk_model_editor`
 - `hvac_sizing_assistant`
 

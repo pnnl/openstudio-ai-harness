@@ -58,17 +58,27 @@ openstudio-ai-plugin/
     ├── .mcp.json
     ├── README.md
     ├── CONNECTORS.md
-    ├── commands/
-    ├── installers/
+    ├── settings.json
+    ├── agents/
+    ├── monitors/
+    ├── bin/
     ├── skills/
-    ├── knowledge/
-    ├── instructions/
-    ├── learning/
-    └── blackboard/schemas/
+    │   ├── openstudio-sdk-model-editor/
+    │   │   └── references/
+    │   ├── openstudio-vav-reheat-system-creator/
+    │   │   └── references/
+    │   ├── setup-openstudio-ai/
+    │   │   └── scripts/
+    │   ├── propose-measure/
+    │   │   └── references/
+    │   └── capture-session-lesson/
+    │       └── references/
 ```
 
-Skills and knowledge are exported as separate files and folders. They are not
-flattened into one large `CLAUDE.md`.
+Claude Code plugin context is exported through Claude-native components:
+`agents/`, `skills/`, `.mcp.json`, `monitors/`, `bin/`, and `settings.json`.
+SDK knowledge, prompt contracts, blackboard schemas, and learning schemas are
+placed as supporting files under the skills that use them.
 
 Install the exported plugin from inside Claude Code:
 

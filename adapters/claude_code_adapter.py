@@ -120,11 +120,11 @@ class ClaudeCodeAdapter(OpenStudioAiHostAdapter):
         dry_run: bool = True,
         force: bool = False,
     ) -> PluginExportResult:
-        """Export a Claude plugin-style package with separate skills and knowledge.
+        """Export a Claude plugin-style package.
 
-        The exported package intentionally mirrors Anthropic's knowledge-work
-        plugin layout: metadata, MCP config, commands, skills, knowledge, and
-        instructions remain distinct files/folders.
+        The exported package follows Claude Code's native plugin layout:
+        metadata, MCP config, agents, monitors, bin scripts, and folder-per-skill
+        packages with supporting reference files kept inside the relevant skill.
         """
         workspace_root = self.config.workspace_root.resolve()
         marketplace_dir = output_dir.resolve()
@@ -312,46 +312,79 @@ def _planned_export_files(
         plugin_dir / ".mcp.json",
         plugin_dir / "README.md",
         plugin_dir / "CONNECTORS.md",
-        plugin_dir / "commands" / "add-vav-reheat.md",
-        plugin_dir / "commands" / "simulate.md",
-        plugin_dir / "commands" / "query-results.md",
-        plugin_dir / "commands" / "propose-measure.md",
-        plugin_dir / "blackboard" / "schemas" / plan.blackboard_schema.name,
-        plugin_dir / "learning" / "README.md",
-        plugin_dir / "learning" / "candidates" / ".gitkeep",
+        plugin_dir / "settings.json",
+        plugin_dir / "agents" / "openstudio-modeler.md",
+        plugin_dir / "monitors" / "monitors.json",
+        plugin_dir / "bin" / "openstudio-ai-learning-monitor",
+        plugin_dir / "skills" / "add-vav-reheat" / "SKILL.md",
+        plugin_dir / "skills" / "simulate" / "SKILL.md",
+        plugin_dir / "skills" / "query-results" / "SKILL.md",
+        plugin_dir / "skills" / "propose-measure" / "SKILL.md",
+        plugin_dir
+        / "skills"
+        / "propose-measure"
+        / "references"
+        / "candidate_measure.schema.json",
+        plugin_dir / "skills" / "capture-session-lesson" / "SKILL.md",
+        plugin_dir
+        / "skills"
+        / "capture-session-lesson"
+        / "references"
+        / "session_lesson.schema.json",
+        plugin_dir
+        / "skills"
+        / "openstudio-sdk-model-editor"
+        / "references"
+        / "openstudio_sdk_recipes.md",
+        plugin_dir
+        / "skills"
+        / "openstudio-workflow-state"
+        / "references"
+        / "blackboard_contract.md",
+        plugin_dir
+        / "skills"
+        / "openstudio-workflow-state"
+        / "references"
+        / "workflow_state.schema.json",
+        plugin_dir
+        / "skills"
+        / "openstudio-workflow-state"
+        / "references"
+        / "state_patch.schema.json",
     ]
     if runtime_mode == "marketplace":
         files.extend(
             [
-                plugin_dir / "commands" / "setup-openstudio-ai.md",
-                plugin_dir / "commands" / "doctor-openstudio-ai.md",
-                plugin_dir / "commands" / "repair-openstudio-ai.md",
-                plugin_dir / "installers" / "install_runtime.py",
-                plugin_dir / "installers" / "doctor_runtime.py",
+                plugin_dir / "skills" / "setup-openstudio-ai" / "SKILL.md",
+                plugin_dir
+                / "skills"
+                / "setup-openstudio-ai"
+                / "scripts"
+                / "install_runtime.py",
+                plugin_dir
+                / "skills"
+                / "setup-openstudio-ai"
+                / "scripts"
+                / "doctor_runtime.py",
+                plugin_dir / "skills" / "doctor-openstudio-ai" / "SKILL.md",
+                plugin_dir / "skills" / "repair-openstudio-ai" / "SKILL.md",
             ]
         )
-    files.extend(
-        plugin_dir / "instructions" / path.name for path in plan.system_prompt_files
-    )
     files.extend(
         plugin_dir / "skills" / _skill_dir_name(path) / "SKILL.md"
         for path in plan.skill_paths
     )
     files.extend(
-        plugin_dir / "learning" / "schemas" / path.name
+        plugin_dir
+        / "skills"
+        / "openstudio-sdk-model-editor"
+        / "references"
+        / "sdk_wiki"
+        / path.name
         for path in sorted(
-            (workspace_root / "learning" / "harness_pipeline" / "schemas").glob(
-                "*.json"
-            )
+            (workspace_root / "knowledge" / "openstudio_sdk_wiki").glob("*.md")
         )
     )
-    for root in [workspace_root / "knowledge"]:
-        if root.exists():
-            files.extend(
-                plugin_dir / "knowledge" / path.relative_to(root)
-                for path in root.rglob("*")
-                if path.is_file()
-            )
     return sorted(files)
 
 
@@ -362,7 +395,7 @@ def _render_marketplace_json(plugin_name: str) -> str:
             {
                 "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
                 "name": MARKETPLACE_NAME,
-                "version": "0.1.0",
+                "version": "0.1.2",
                 "description": "Local marketplace for the OpenStudio AI Claude plugin.",
                 "owner": {
                     "name": "OpenStudio AI",
@@ -374,7 +407,7 @@ def _render_marketplace_json(plugin_name: str) -> str:
                             "OpenStudio AI harness for OpenStudio model editing, simulation, "
                             "results, SDK lookup, and reusable workflow skills."
                         ),
-                        "version": "0.1.0",
+                        "version": "0.1.2",
                         "source": f"./{plugin_name}",
                         "category": "engineering",
                     }
@@ -422,19 +455,19 @@ def _render_install_doc(
         "/reload-plugins\n"
         "```\n\n"
         "## 5. Try The Plugin\n\n"
-        "Use one of the namespaced commands:\n\n"
+        "Use one of the namespaced skills:\n\n"
         "```text\n"
         f"/{plugin_name}:add-vav-reheat\n"
         f"/{plugin_name}:simulate\n"
         f"/{plugin_name}:query-results\n"
         "```\n\n"
-        "The plugin also contributes OpenStudio AI skills and an `openstudio_ai` MCP server.\n\n"
+        "The plugin also contributes the OpenStudio modeler agent and an `openstudio_ai` MCP server.\n\n"
         "## Runtime Setup\n\n"
-        "After installation, run the setup command:\n\n"
+        "After installation, run the setup skill:\n\n"
         "```text\n"
         f"/{plugin_name}:setup-openstudio-ai\n"
         "```\n\n"
-        "The setup command checks Python, checks `openstudio-ai-mcp`, and explains any "
+        "The setup skill checks Python, checks `openstudio-ai-mcp`, and explains any "
         "missing installation steps in energy-modeler language.\n"
     )
 
@@ -447,19 +480,17 @@ def _write_plugin_package(
 ) -> None:
     """Materialize the plugin package on disk."""
     (plugin_dir / ".claude-plugin").mkdir(parents=True, exist_ok=True)
-    (plugin_dir / "commands").mkdir(parents=True, exist_ok=True)
-    (plugin_dir / "installers").mkdir(parents=True, exist_ok=True)
+    (plugin_dir / "agents").mkdir(parents=True, exist_ok=True)
+    (plugin_dir / "bin").mkdir(parents=True, exist_ok=True)
+    (plugin_dir / "monitors").mkdir(parents=True, exist_ok=True)
     (plugin_dir / "skills").mkdir(parents=True, exist_ok=True)
-    (plugin_dir / "instructions").mkdir(parents=True, exist_ok=True)
-    (plugin_dir / "blackboard" / "schemas").mkdir(parents=True, exist_ok=True)
-    (plugin_dir / "learning" / "schemas").mkdir(parents=True, exist_ok=True)
-    (plugin_dir / "learning" / "candidates").mkdir(parents=True, exist_ok=True)
 
     (plugin_dir / ".claude-plugin" / "plugin.json").write_text(
         json.dumps(
             {
                 "name": "openstudio-ai",
-                "version": "0.1.0",
+                "displayName": "OpenStudio AI",
+                "version": "0.1.2",
                 "description": (
                     "OpenStudio AI harness for model editing, simulation, results, "
                     "SDK lookup, and reusable building-energy workflow skills."
@@ -482,6 +513,10 @@ def _write_plugin_package(
         _render_plugin_mcp_config(workspace_root, runtime_mode),
         encoding="utf-8",
     )
+    (plugin_dir / "settings.json").write_text(
+        json.dumps({"agent": "openstudio-modeler"}, indent=2, ensure_ascii=True) + "\n",
+        encoding="utf-8",
+    )
     (plugin_dir / "README.md").write_text(
         _render_plugin_readme(plan, runtime_mode), encoding="utf-8"
     )
@@ -489,46 +524,343 @@ def _write_plugin_package(
         _render_connectors_doc(workspace_root, runtime_mode),
         encoding="utf-8",
     )
-
-    for command_name, content in _command_docs(runtime_mode).items():
-        (plugin_dir / "commands" / command_name).write_text(content, encoding="utf-8")
-
-    if runtime_mode == "marketplace":
-        _write_installer_assets(plugin_dir / "installers")
-
-    for prompt in plan.system_prompt_files:
-        shutil.copy2(prompt, plugin_dir / "instructions" / prompt.name)
+    (plugin_dir / "agents" / "openstudio-modeler.md").write_text(
+        _render_openstudio_modeler_agent(workspace_root),
+        encoding="utf-8",
+    )
+    (plugin_dir / "monitors" / "monitors.json").write_text(
+        _render_learning_monitor_config(),
+        encoding="utf-8",
+    )
+    monitor_script = plugin_dir / "bin" / "openstudio-ai-learning-monitor"
+    monitor_script.write_text(_learning_monitor_script(), encoding="utf-8")
+    monitor_script.chmod(0o755)
 
     for skill in plan.skill_paths:
         target_dir = plugin_dir / "skills" / _skill_dir_name(skill)
         target_dir.mkdir(parents=True, exist_ok=True)
-        # Claude plugin skills use folder-per-skill layout with SKILL.md.
-        shutil.copy2(skill, target_dir / "SKILL.md")
+        (target_dir / "SKILL.md").write_text(
+            _render_exported_skill(skill, target_dir.name),
+            encoding="utf-8",
+        )
 
-    shutil.copy2(
-        plan.blackboard_schema,
-        plugin_dir / "blackboard" / "schemas" / plan.blackboard_schema.name,
-    )
-    shutil.copy2(
-        workspace_root / "learning" / "harness_pipeline" / "runtime_learning.md",
-        plugin_dir / "learning" / "README.md",
-    )
-    (plugin_dir / "learning" / "candidates" / ".gitkeep").write_text(
-        "", encoding="utf-8"
-    )
-    for schema in sorted(
-        (workspace_root / "learning" / "harness_pipeline" / "schemas").glob("*.json")
-    ):
-        shutil.copy2(schema, plugin_dir / "learning" / "schemas" / schema.name)
+    _write_workflow_skills(plugin_dir / "skills", runtime_mode)
+    _write_skill_references(plugin_dir / "skills", workspace_root)
 
-    knowledge_root = workspace_root / "knowledge"
-    if knowledge_root.exists():
-        shutil.copytree(knowledge_root, plugin_dir / "knowledge")
+    if runtime_mode == "marketplace":
+        setup_scripts_dir = plugin_dir / "skills" / "setup-openstudio-ai" / "scripts"
+        _write_installer_assets(setup_scripts_dir)
 
 
 def _skill_dir_name(path: Path) -> str:
     """Convert repo skill filenames into plugin skill folder names."""
+    if path.name == "openstudio_hvac_workflow_state.md":
+        return "openstudio-workflow-state"
     return path.stem.replace("_", "-")
+
+
+def _render_exported_skill(skill_path: Path, skill_name: str) -> str:
+    """Render a source skill with Claude-plugin reference navigation appended."""
+    content = skill_path.read_text(encoding="utf-8")
+    references = _skill_reference_notes(skill_name)
+    if not references:
+        return content
+    return content.rstrip() + "\n\n" + references + "\n"
+
+
+def _skill_reference_notes(skill_name: str) -> str:
+    if skill_name == "openstudio-sdk-model-editor":
+        return (
+            "## Claude Code Supporting Files\n\n"
+            "Load these files only when needed for the current SDK task:\n\n"
+            "- `references/openstudio_sdk_recipes.md`: SDK context-pack routing "
+            "and non-negotiable scripting rules.\n"
+            "- `references/sdk_wiki/`: detailed OpenStudio SDK context packs for "
+            "geometry, constructions, schedules, spaces/zones/loads, daylighting, "
+            "HVAC, and simulation-result idioms.\n"
+        )
+    if skill_name == "openstudio-vav-reheat-system-creator":
+        return (
+            "## Claude Code Supporting Files\n\n"
+            "For durable long-running workflow state, load "
+            "`openstudio-workflow-state`. This VAV skill owns the VAV-specific "
+            "phase order, required inputs, and child-skill routing only.\n"
+        )
+    if skill_name == "openstudio-workflow-state":
+        return (
+            "## Claude Code Supporting Files\n\n"
+            "Load these workflow references when coordinating any long-running "
+            "OpenStudio task:\n\n"
+            "- `references/blackboard_contract.md`: MCP-owned blackboard usage rules.\n"
+            "- `references/workflow_state.schema.json`: durable workflow-state shape.\n"
+            "- `references/state_patch.schema.json`: child-skill patch shape.\n"
+        )
+    return ""
+
+
+def _write_workflow_skills(skills_dir: Path, runtime_mode: str) -> None:
+    """Write Claude-native skill directories for user-invoked workflows."""
+    for skill_name, content in _workflow_skill_docs(runtime_mode).items():
+        target_dir = skills_dir / skill_name
+        target_dir.mkdir(parents=True, exist_ok=True)
+        (target_dir / "SKILL.md").write_text(content, encoding="utf-8")
+
+
+def _workflow_skill_docs(runtime_mode: str) -> dict[str, str]:
+    docs = {
+        "add-vav-reheat": _skill_markdown(
+            name="add-vav-reheat",
+            description="Plan and execute a phased OpenStudio VAV reheat workflow.",
+            body=(
+                "# Add VAV Reheat\n\n"
+                "Use the `openstudio-vav-reheat-system-creator` parent workflow "
+                "skill. Maintain workflow state through the MCP blackboard contract, "
+                "load only the child skill needed for the current phase, and use MCP "
+                "`model_*`, `sim_*`, and `results_*` tools for deterministic model "
+                "lifecycle operations when appropriate.\n"
+            ),
+        ),
+        "simulate": _skill_markdown(
+            name="simulate",
+            description="Run, poll, and collect artifacts from an OpenStudio simulation.",
+            body=(
+                "# Simulate\n\n"
+                "Use the `openstudio_ai` MCP simulation tools to run, poll, and "
+                "collect artifacts from OpenStudio simulations. Do not run "
+                "simulations through ad hoc shell commands when MCP tools are "
+                "available.\n"
+            ),
+        ),
+        "query-results": _skill_markdown(
+            name="query-results",
+            description="Query SQL-backed OpenStudio simulation results through MCP tools.",
+            body=(
+                "# Query Results\n\n"
+                "Use the `openstudio_ai` MCP result tools for SQL-backed annual, "
+                "design-day, and summary result retrieval. Attribute assumptions "
+                "and missing outputs in the final answer.\n"
+            ),
+        ),
+        "propose-measure": _skill_markdown(
+            name="propose-measure",
+            description="Draft a candidate OpenStudio measure from a repeated script or workflow.",
+            body=(
+                "# Propose Measure\n\n"
+                "Summarize the repeated OpenStudio script or workflow as a candidate "
+                "measure. Use `references/candidate_measure.schema.json` for the "
+                "candidate shape. Do not edit trusted `knowledge/`, `skills/`, or "
+                "approved measures directly. State that review and eval validation "
+                "are required before promotion.\n"
+            ),
+        ),
+        "capture-session-lesson": _skill_markdown(
+            name="capture-session-lesson",
+            description="Capture a candidate OpenStudio AI session lesson for later review.",
+            body=(
+                "# Capture Session Lesson\n\n"
+                "Capture a candidate runtime lesson from the current session. Use "
+                "`references/session_lesson.schema.json` for the candidate shape. "
+                "Record only reviewable observations, assumptions, failure modes, "
+                "or reusable workflow notes. Do not promote directly into trusted "
+                "skills, knowledge, measures, or MCP tools.\n"
+            ),
+        ),
+    }
+    if runtime_mode == "marketplace":
+        docs.update(_marketplace_setup_skill_docs())
+    return docs
+
+
+def _marketplace_setup_skill_docs() -> dict[str, str]:
+    return {
+        "setup-openstudio-ai": _skill_markdown(
+            name="setup-openstudio-ai",
+            description="Check and prepare the OpenStudio AI runtime for energy modeling.",
+            body=(
+                "# Setup OpenStudio AI\n\n"
+                "Help the user get OpenStudio AI ready without assuming programming "
+                "experience.\n\n"
+                "1. Explain that OpenStudio AI needs a local runtime command named "
+                "`openstudio-ai-mcp` so the AI assistant can safely run OpenStudio "
+                "tools.\n"
+                "2. Check whether Python is available using `python --version`. If "
+                "that fails, try `python3 --version`.\n"
+                "3. Check whether `openstudio-ai-mcp` is available by running "
+                "`openstudio-ai-mcp --help`.\n"
+                "4. Run `python ${CLAUDE_SKILL_DIR}/scripts/doctor_runtime.py`. If "
+                "`python` is unavailable, try "
+                "`python3 ${CLAUDE_SKILL_DIR}/scripts/doctor_runtime.py`.\n"
+                "5. If the runtime is missing, explain the issue in normal "
+                "energy-modeler language and ask before running "
+                "`python ${CLAUDE_SKILL_DIR}/scripts/install_runtime.py`.\n"
+                "6. When `openstudio-ai` is available, run `openstudio-ai doctor`.\n"
+                "7. Summarize readiness for model loading, HVAC workflow support, "
+                "simulation, results, SDK lookup, and workflow state tracking.\n"
+            ),
+        ),
+        "doctor-openstudio-ai": _skill_markdown(
+            name="doctor-openstudio-ai",
+            description="Diagnose OpenStudio AI runtime readiness.",
+            body=(
+                "# Doctor OpenStudio AI\n\n"
+                "Run `python ${CLAUDE_SKILL_DIR}/../setup-openstudio-ai/scripts/"
+                "doctor_runtime.py`, then run `openstudio-ai doctor` if the command "
+                "exists. Explain missing Python, missing runtime, missing OpenStudio, "
+                "or path problems as setup items, not programming failures.\n"
+            ),
+        ),
+        "repair-openstudio-ai": _skill_markdown(
+            name="repair-openstudio-ai",
+            description="Guide non-destructive repair of the OpenStudio AI runtime.",
+            body=(
+                "# Repair OpenStudio AI\n\n"
+                "First run the doctor skill. If the runtime is missing, ask for "
+                "approval before running `python ${CLAUDE_SKILL_DIR}/../"
+                "setup-openstudio-ai/scripts/install_runtime.py`. Do not delete user "
+                "models, simulation outputs, or project files. Describe each repair "
+                "step in plain language for an energy modeler.\n"
+            ),
+        ),
+    }
+
+
+def _skill_markdown(name: str, description: str, body: str) -> str:
+    return "---\n" f"name: {name}\n" f"description: {description}\n" "---\n\n" f"{body}"
+
+
+def _write_skill_references(skills_dir: Path, workspace_root: Path) -> None:
+    """Place supporting files inside the Claude skills that use them."""
+    sdk_refs = skills_dir / "openstudio-sdk-model-editor" / "references"
+    sdk_refs.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(
+        workspace_root / "knowledge" / "openstudio_sdk_recipes.md",
+        sdk_refs / "openstudio_sdk_recipes.md",
+    )
+    sdk_wiki_source = workspace_root / "knowledge" / "openstudio_sdk_wiki"
+    sdk_wiki_target = sdk_refs / "sdk_wiki"
+    sdk_wiki_target.mkdir(parents=True, exist_ok=True)
+    for path in sorted(sdk_wiki_source.glob("*.md")):
+        shutil.copy2(path, sdk_wiki_target / path.name)
+
+    workflow_refs = skills_dir / "openstudio-workflow-state" / "references"
+    workflow_refs.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(
+        workspace_root / "prompts" / "blackboard_contract.md",
+        workflow_refs / "blackboard_contract.md",
+    )
+    shutil.copy2(
+        workspace_root / "blackboard" / "schemas" / "workflow_state.schema.json",
+        workflow_refs / "workflow_state.schema.json",
+    )
+    shutil.copy2(
+        workspace_root / "blackboard" / "schemas" / "state_patch.schema.json",
+        workflow_refs / "state_patch.schema.json",
+    )
+
+    learning_schemas = workspace_root / "learning" / "harness_pipeline" / "schemas"
+    propose_refs = skills_dir / "propose-measure" / "references"
+    propose_refs.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(
+        learning_schemas / "candidate_measure.schema.json",
+        propose_refs / "candidate_measure.schema.json",
+    )
+    lesson_refs = skills_dir / "capture-session-lesson" / "references"
+    lesson_refs.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(
+        learning_schemas / "session_lesson.schema.json",
+        lesson_refs / "session_lesson.schema.json",
+    )
+
+
+def _render_openstudio_modeler_agent(workspace_root: Path) -> str:
+    """Render the Claude Code agent activated as the main thread by settings.json."""
+    prompt_path = workspace_root / "prompts" / "openstudio_agent.md"
+    prompt = prompt_path.read_text(encoding="utf-8")
+    return (
+        "---\n"
+        "name: openstudio-modeler\n"
+        "description: Senior OpenStudio modeler for MCP-backed model editing, "
+        "simulation, results, SDK lookup, and long-running workflow state.\n"
+        "model: sonnet\n"
+        "effort: high\n"
+        "---\n\n"
+        f"{prompt.rstrip()}\n"
+    )
+
+
+def _render_learning_monitor_config() -> str:
+    """Render a passive Claude monitor for runtime learning events."""
+    return (
+        json.dumps(
+            [
+                {
+                    "name": "openstudio-learning-events",
+                    "command": '"${CLAUDE_PLUGIN_ROOT}"/bin/openstudio-ai-learning-monitor',
+                    "description": (
+                        "Passive notifications for OpenStudio AI candidate learning events."
+                    ),
+                    "when": "on-skill-invoke:propose-measure",
+                }
+            ],
+            indent=2,
+            ensure_ascii=True,
+        )
+        + "\n"
+    )
+
+
+def _learning_monitor_script() -> str:
+    """Return a small monitor that tails learning_events.jsonl when present."""
+    return '''#!/usr/bin/env python3
+"""Emit OpenStudio AI learning events for Claude Code monitor notifications."""
+
+from __future__ import annotations
+
+import os
+import sys
+import time
+from pathlib import Path
+
+
+def candidate_paths() -> list[Path]:
+    paths: list[Path] = []
+    explicit = os.getenv("OPENSTUDIO_AI_LEARNING_EVENT_LOG", "").strip()
+    if explicit:
+        paths.append(Path(explicit).expanduser())
+    project_dir = os.getenv("CLAUDE_PROJECT_DIR", "").strip()
+    if project_dir:
+        paths.append(Path(project_dir) / "logs" / "learning_events.jsonl")
+    data_dir = os.getenv("OPENSTUDIO_AI_DATA_DIR", "").strip()
+    if data_dir:
+        paths.append(Path(data_dir) / "logs" / "learning_events.jsonl")
+    return paths
+
+
+def first_existing_path() -> Path | None:
+    for path in candidate_paths():
+        if path.exists():
+            return path
+    return None
+
+
+def main() -> int:
+    path = first_existing_path()
+    if path is None:
+        return 0
+    with path.open("r", encoding="utf-8") as stream:
+        stream.seek(0, os.SEEK_END)
+        while True:
+            line = stream.readline()
+            if line:
+                print(line.rstrip(), flush=True)
+            else:
+                time.sleep(1.0)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+'''
 
 
 def _render_plugin_readme(plan: HostLaunchPlan, runtime_mode: str) -> str:
@@ -538,25 +870,34 @@ def _render_plugin_readme(plan: HostLaunchPlan, runtime_mode: str) -> str:
         "# OpenStudio AI\n\n"
         "OpenStudio AI is a Claude plugin package for building-energy modeling "
         "workflows using OpenStudio, MCP tools, reusable skills, and a reviewed "
-        "knowledge base.\n\n"
+        "SDK knowledge base.\n\n"
         "## What It Includes\n\n"
         "- `.mcp.json`: registers the `openstudio_ai` MCP server.\n"
-        "- `skills/`: separate runtime skills for model editing and HVAC workflows.\n"
-        "- `commands/`: user-facing workflow entry points.\n"
-        "- `knowledge/`: reviewed OpenStudio SDK recipes and context packs.\n"
-        "- `instructions/`: harness, blackboard, learning, and promotion contracts.\n"
-        "- `blackboard/schemas/`: workflow-state schema for long-running tasks.\n\n"
-        "## Commands\n\n"
+        "- `agents/openstudio-modeler.md`: the OpenStudio modeler agent prompt.\n"
+        "- `settings.json`: sets `agent` to `openstudio-modeler`, activating it "
+        "as the main Claude Code thread while the plugin is enabled.\n"
+        "- `skills/`: Claude-native workflow and model-editing skills.\n"
+        "- `skills/*/references/`: reviewed SDK context packs, schemas, and workflow contracts.\n"
+        "- `monitors/`: passive learning-event notifications for candidate learning workflows.\n"
+        "- `bin/`: monitor helper executables.\n\n"
+        "## User-Facing Skills\n\n"
         "- `/openstudio-ai:add-vav-reheat`: plan and execute a VAV reheat workflow.\n"
         "- `/openstudio-ai:simulate`: run or prepare an OpenStudio simulation workflow.\n"
         "- `/openstudio-ai:query-results`: retrieve SQL-backed simulation results.\n\n"
-        "## Skills\n\n"
+        "## Runtime Skills\n\n"
         f"{skill_names}\n\n"
         "## Runtime Note\n\n"
         f"Runtime mode: `{runtime_mode}`.\n\n"
         "In `local` mode, this plugin references a source checkout. In `installed` "
         "and `marketplace` mode, it expects the `openstudio-ai-mcp` command to be "
-        "available on the user's machine.\n"
+        "available on the user's machine.\n\n"
+        "## Claude Code Activation\n\n"
+        "Claude Code does not automatically read arbitrary plugin instruction "
+        "files. This package uses the supported `settings.json` `agent` key to "
+        "activate `agents/openstudio-modeler.md` as the main thread. If a host or "
+        "managed policy ignores plugin settings, the skills and MCP server still "
+        "load, but natural-language orchestration will depend on the user invoking "
+        "the OpenStudio skills explicitly.\n"
     )
 
 
@@ -582,106 +923,6 @@ def _render_connectors_doc(workspace_root: Path, runtime_mode: str) -> str:
         f"{runtime_text}"
         "OpenStudio and EnergyPlus availability depends on the local environment.\n"
     )
-
-
-def _command_docs(runtime_mode: str) -> dict[str, str]:
-    """Return command files for common OpenStudio workflows."""
-    commands = {
-        "add-vav-reheat.md": _command_markdown(
-            name="add-vav-reheat",
-            description="Plan and execute a phased OpenStudio VAV reheat workflow.",
-            body=(
-                "# Add VAV Reheat\n\n"
-                "Use the OpenStudio AI VAV reheat parent workflow skill. Maintain workflow "
-                "state through the blackboard contract, load only the child skill needed "
-                "for the current phase, and use MCP tools for deterministic model lifecycle "
-                "operations when appropriate.\n"
-            ),
-        ),
-        "simulate.md": _command_markdown(
-            name="simulate",
-            description="Run, poll, and collect artifacts from an OpenStudio simulation.",
-            body=(
-                "# Simulate\n\n"
-                "Use the `openstudio_ai` MCP simulation tools to run, poll, and collect "
-                "artifacts from OpenStudio simulations. Do not run simulations through "
-                "ad hoc shell commands when MCP tools are available.\n"
-            ),
-        ),
-        "query-results.md": _command_markdown(
-            name="query-results",
-            description="Query SQL-backed OpenStudio simulation results through MCP tools.",
-            body=(
-                "# Query Results\n\n"
-                "Use the `openstudio_ai` MCP result tools for SQL-backed annual, design-day, "
-                "and summary result retrieval. Attribute assumptions and missing outputs "
-                "in the final answer.\n"
-            ),
-        ),
-        "propose-measure.md": _command_markdown(
-            name="propose-measure",
-            description="Draft a candidate OpenStudio measure from a repeated script or workflow.",
-            body=(
-                "# Propose Measure\n\n"
-                "Summarize the repeated OpenStudio script or workflow as a candidate measure. "
-                "Write candidate JSON to `learning/candidates/` using "
-                "`learning/schemas/candidate_measure.schema.json`. Do not edit trusted "
-                "`knowledge/`, `skills/`, or approved measures directly. State that review "
-                "and eval validation are required before promotion.\n"
-            ),
-        ),
-    }
-    if runtime_mode == "marketplace":
-        commands.update(_marketplace_command_docs())
-    return commands
-
-
-def _marketplace_command_docs() -> dict[str, str]:
-    """Return marketplace setup commands for no-code runtime onboarding."""
-    return {
-        "setup-openstudio-ai.md": _command_markdown(
-            name="setup-openstudio-ai",
-            description="Check and prepare the OpenStudio AI runtime for energy modeling.",
-            body=(
-                "# Setup OpenStudio AI\n\n"
-                "Help the user get OpenStudio AI ready without assuming programming experience.\n\n"
-                "1. Explain that OpenStudio AI needs a local runtime command named "
-                "`openstudio-ai-mcp` so the AI assistant can safely run OpenStudio tools.\n"
-                "2. Check whether Python is available using `python --version`. If that fails, "
-                "try `python3 --version`.\n"
-                "3. Check whether `openstudio-ai-mcp` is available by running "
-                "`openstudio-ai-mcp --help`.\n"
-                "4. Run `python installers/doctor_runtime.py`. If `python` is unavailable, "
-                "try `python3 installers/doctor_runtime.py`.\n"
-                "5. If the runtime is missing, explain the issue in normal energy-modeler "
-                "language and ask before running `python installers/install_runtime.py`.\n"
-                "6. When `openstudio-ai` is available, run `openstudio-ai doctor`.\n"
-                "7. Summarize readiness for model loading, HVAC workflow support, simulation, "
-                "results, SDK lookup, and workflow state tracking.\n"
-            ),
-        ),
-        "doctor-openstudio-ai.md": _command_markdown(
-            name="doctor-openstudio-ai",
-            description="Diagnose OpenStudio AI runtime readiness.",
-            body=(
-                "# Doctor OpenStudio AI\n\n"
-                "Run `python installers/doctor_runtime.py`, then run `openstudio-ai doctor` "
-                "if the command exists. Explain missing Python, missing runtime, missing "
-                "OpenStudio, or path problems as setup items, not programming failures.\n"
-            ),
-        ),
-        "repair-openstudio-ai.md": _command_markdown(
-            name="repair-openstudio-ai",
-            description="Guide non-destructive repair of the OpenStudio AI runtime.",
-            body=(
-                "# Repair OpenStudio AI\n\n"
-                "First run the doctor command. If the runtime is missing, ask for approval "
-                "before running `python installers/install_runtime.py`. Do not delete user "
-                "models, simulation outputs, or project files. Describe each repair step in "
-                "plain language for an energy modeler.\n"
-            ),
-        ),
-    }
 
 
 def _write_installer_assets(installers_dir: Path) -> None:
@@ -820,11 +1061,6 @@ def main() -> int:
 if __name__ == "__main__":
     raise SystemExit(main())
 '''
-
-
-def _command_markdown(*, name: str, description: str, body: str) -> str:
-    """Render a Claude Code command file with required YAML frontmatter."""
-    return "---\n" f"name: {name}\n" f"description: {description}\n" "---\n\n" f"{body}"
 
 
 def _default_workspace_root() -> Path:

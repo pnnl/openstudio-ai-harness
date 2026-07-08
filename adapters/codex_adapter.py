@@ -229,7 +229,7 @@ def _render_plugin_json() -> str:
         json.dumps(
             {
                 "name": DEFAULT_PLUGIN_NAME,
-                "version": "0.1.0",
+                "version": "0.1.2",
                 "description": (
                     "OpenStudio AI harness for OpenStudio model editing, simulation, "
                     "results, SDK lookup, and reusable workflow skills."

@@ -162,8 +162,13 @@ def test_cli_export_claude_marketplace(tmp_path: Path) -> None:
     plugin_dir = tmp_path / "openstudio-ai"
     mcp_json = json.loads((plugin_dir / ".mcp.json").read_text(encoding="utf-8"))
     assert mcp_json["mcpServers"]["openstudio_ai"]["command"] == "openstudio-ai-mcp"
-    assert (plugin_dir / "commands" / "setup-openstudio-ai.md").exists()
-    assert (plugin_dir / "installers" / "doctor_runtime.py").exists()
+    assert (plugin_dir / "skills" / "setup-openstudio-ai" / "SKILL.md").exists()
+    assert (
+        plugin_dir / "skills" / "setup-openstudio-ai" / "scripts" / "doctor_runtime.py"
+    ).exists()
+    assert (
+        main(["validate-export", str(plugin_dir), "--runtime-mode", "marketplace"]) == 0
+    )
 
 
 def test_cli_validate_export(tmp_path: Path) -> None:

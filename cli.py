@@ -17,7 +17,7 @@ from adapters.codex_adapter import CodexAdapter
 from adapters.contracts import RUNTIME_MODES, HostAdapterConfig
 
 DIST_NAME = "openstudio-ai"
-FALLBACK_VERSION = "0.1.0"
+FALLBACK_VERSION = "0.1.1"
 
 
 def _version() -> str:
@@ -503,16 +503,30 @@ def _cmd_validate_export(args: argparse.Namespace) -> int:
         print(f"Export path does not exist: {plugin_dir}", file=sys.stderr)
         return 1
 
-    required = [
-        ".mcp.json",
-        "README.md",
-        "CONNECTORS.md",
-        "skills",
-        "knowledge",
-        "instructions",
-        "learning",
-        "blackboard",
-    ]
+    is_claude = (plugin_dir / ".claude-plugin" / "plugin.json").exists()
+    required = (
+        [
+            ".mcp.json",
+            "README.md",
+            "CONNECTORS.md",
+            "skills",
+            "agents",
+            "settings.json",
+            "monitors",
+            "bin",
+        ]
+        if is_claude
+        else [
+            ".mcp.json",
+            "README.md",
+            "CONNECTORS.md",
+            "skills",
+            "knowledge",
+            "instructions",
+            "learning",
+            "blackboard",
+        ]
+    )
     missing = [item for item in required if not (plugin_dir / item).exists()]
     if missing:
         print("Export is missing required files or directories:")
@@ -552,13 +566,23 @@ def _cmd_validate_export(args: argparse.Namespace) -> int:
             return 1
 
     if args.runtime_mode == "marketplace":
-        marketplace_required = [
-            "commands/setup-openstudio-ai.md",
-            "commands/doctor-openstudio-ai.md",
-            "commands/repair-openstudio-ai.md",
-            "installers/install_runtime.py",
-            "installers/doctor_runtime.py",
-        ]
+        marketplace_required = (
+            [
+                "skills/setup-openstudio-ai/SKILL.md",
+                "skills/setup-openstudio-ai/scripts/install_runtime.py",
+                "skills/setup-openstudio-ai/scripts/doctor_runtime.py",
+                "skills/doctor-openstudio-ai/SKILL.md",
+                "skills/repair-openstudio-ai/SKILL.md",
+            ]
+            if is_claude
+            else [
+                "commands/setup-openstudio-ai.md",
+                "commands/doctor-openstudio-ai.md",
+                "commands/repair-openstudio-ai.md",
+                "installers/install_runtime.py",
+                "installers/doctor_runtime.py",
+            ]
+        )
         missing_marketplace = [
             item for item in marketplace_required if not (plugin_dir / item).exists()
         ]

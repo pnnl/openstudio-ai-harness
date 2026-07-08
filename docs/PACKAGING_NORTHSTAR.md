@@ -95,17 +95,13 @@ The marketplace plugin should include:
 ```text
 plugin manifest
 .mcp.json
+agents/
 skills/
-knowledge/
-instructions/
-commands/
-  setup-openstudio-ai.md
-  doctor-openstudio-ai.md
-  repair-openstudio-ai.md
-  uninstall-openstudio-ai.md
-installers/
-  install_runtime.py
-  doctor_runtime.py
+skills/*/references/
+skills/setup-openstudio-ai/scripts/
+monitors/
+bin/
+settings.json
 INSTALL.md
 CONNECTORS.md
 ```
@@ -227,18 +223,20 @@ project structure is stabilized.
 
 3. Add marketplace setup commands to exports.
 
-   Required command docs:
+   Required setup workflows:
 
-   - `setup-openstudio-ai.md`
-   - `doctor-openstudio-ai.md`
-   - `repair-openstudio-ai.md`
-   - `uninstall-openstudio-ai.md`
+   - `setup-openstudio-ai`
+   - `doctor-openstudio-ai`
+   - `repair-openstudio-ai`
+   - future `uninstall-openstudio-ai`
 
 4. Add cross-platform installer scripts.
 
    ```text
-   installers/install_runtime.py
-   installers/doctor_runtime.py
+   Claude: skills/setup-openstudio-ai/scripts/install_runtime.py
+   Claude: skills/setup-openstudio-ai/scripts/doctor_runtime.py
+   Codex: installers/install_runtime.py
+   Codex: installers/doctor_runtime.py
    ```
 
    These should validate prerequisites, install or upgrade the runtime package

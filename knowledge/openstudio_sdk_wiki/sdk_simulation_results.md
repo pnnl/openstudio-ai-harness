@@ -1,15 +1,15 @@
 ---
 name: sdk_simulation_results
 description: OpenStudio Python SDK idioms for simulation files, OSW setup, SQL attachment, and result extraction.
-version: 0.1.0
+version: 0.1.2
 ---
 
 # SDK Simulation and Results Context
 
 This pack documents source-observed simulation and SQL idioms. In OpenStudio AI,
 actual simulation execution, polling, artifact retrieval, and result summaries
-belong to MCP `sim_*` and `results_*` tools. Do not use `run_python` to launch
-OpenStudio CLI, shell commands, or subprocesses.
+belong to MCP `sim_*` and `results_*` tools. Do not use host Python execution
+to launch OpenStudio CLI, shell commands, or subprocesses.
 
 Use this pack when explaining existing scripts, understanding result artifacts,
 or drafting a non-executed review plan.
@@ -25,7 +25,7 @@ model.save(openstudio.path(f"{run_dir}/in.osm"), True)
 
 This translates an OpenStudio model to EnergyPlus IDF and saves both model and
 IDF inputs. In OpenStudio AI, prefer MCP simulation workflows instead of doing
-this inside `run_python`.
+this inside host Python execution.
 
 ## Prepare WorkflowJSON
 

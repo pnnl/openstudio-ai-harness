@@ -16,6 +16,36 @@ class SdkDocsUnavailableError(RuntimeError):
 
 _BUNDLED_DOCS_DIR = Path(__file__).parent / "docs"
 
+# The OpenStudio version whose docs are served by default.
+# Set to None to auto-detect the latest available versioned files in the docs
+# directory (files named classes-<version>.yaml.gz), or set to an explicit
+# version string such as "3.10.0" to pin to a specific extraction.
+OPENSTUDIO_SDK_DOCS_VERSION: str | None = None
+
+
+def _resolve_docs_version(docs_dir: Path) -> str | None:
+    """Return the version suffix to use for versioned YAML files.
+
+    If OPENSTUDIO_SDK_DOCS_VERSION is set, use it.  Otherwise scan the docs/api
+    directory for ``classes-<version>.yaml.gz`` files and return the version
+    string of the lexicographically latest one (which corresponds to the newest
+    semantic version for typical OpenStudio release strings like "3.9.0").
+    Returns None when no versioned files are found (caller falls back to the
+    legacy unversioned names ``classes.yaml.gz`` / ``python-api.yaml.gz``).
+    """
+    if OPENSTUDIO_SDK_DOCS_VERSION is not None:
+        return OPENSTUDIO_SDK_DOCS_VERSION
+
+    api_dir = docs_dir / "api"
+    if not api_dir.is_dir():
+        return None
+
+    candidates = sorted(
+        p.name[len("classes-"):-len(".yaml.gz")]
+        for p in api_dir.glob("classes-*.yaml.gz")
+    )
+    return candidates[-1] if candidates else None
+
 
 @dataclass(frozen=True)
 class MethodRef:
@@ -232,9 +262,12 @@ class OpenStudioSdkDocLookup:
 
     def available(self) -> bool:
         """Return whether the configured SDK documentation directory can be used."""
-        return bool(
-            self.docs_dir and (self.docs_dir / "api" / "classes.yaml.gz").is_file()
-        )
+        if not self.docs_dir:
+            return False
+        version = _resolve_docs_version(self.docs_dir)
+        if version is not None:
+            return (self.docs_dir / "api" / f"classes-{version}.yaml.gz").is_file()
+        return (self.docs_dir / "api" / "classes.yaml.gz").is_file()
 
     def route(self, query: str, *, limit: int = 6) -> dict[str, Any]:
         """Map a user request to likely SDK wiki packs and OpenStudio classes."""
@@ -454,8 +487,13 @@ class OpenStudioSdkDocLookup:
             return self._classes
 
         assert self.docs_dir is not None
-        classes_path = self.docs_dir / "api" / "classes.yaml.gz"
-        python_api_path = self.docs_dir / "api" / "python-api.yaml.gz"
+        version = _resolve_docs_version(self.docs_dir)
+        if version is not None:
+            classes_path = self.docs_dir / "api" / f"classes-{version}.yaml.gz"
+            python_api_path = self.docs_dir / "api" / f"python-api-{version}.yaml.gz"
+        else:
+            classes_path = self.docs_dir / "api" / "classes.yaml.gz"
+            python_api_path = self.docs_dir / "api" / "python-api.yaml.gz"
 
         with gzip.open(classes_path) as fh:
             classes_data = yaml.safe_load(fh)

@@ -25,8 +25,8 @@ agent_card:
       description: Inspects and edits OpenStudio model files through run_python and the OpenStudio Python SDK.
       tags: [openstudio, sdk, model_editing, run_python]
       examples:
-        - Inspect spaces, thermal zones, constructions, and loads in resource/sample.osm.
-        - Copy resource/sample.osm and reduce lighting power by 20 percent.
+        - Inspect spaces, thermal zones, constructions, and loads in the user's OSM model.
+        - Copy the user's OSM model and reduce lighting power by 20 percent.
 
 instructions:
   path: ../prompts/openstudio_agent.md

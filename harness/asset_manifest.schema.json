@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OpenStudio AI Asset Manifest",
+  "type": "object",
+  "required": ["version", "assets"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "version": {
+      "type": "integer",
+      "enum": [1]
+    },
+    "assets": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/asset"
+      }
+    }
+  },
+  "$defs": {
+    "asset": {
+      "type": "object",
+      "required": ["path", "kind", "labels", "hosts"],
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Repository-relative source path. Glob patterns are allowed for copied references."
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "agent_prompt",
+            "orchestration_prompt",
+            "workflow_state_reference",
+            "learning_reference",
+            "promotion_reference",
+            "knowledge_reference",
+            "workflow_state_schema",
+            "learning_schema"
+          ]
+        },
+        "labels": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": [
+              "prompt",
+              "agent",
+              "orchestration",
+              "harness",
+              "blackboard",
+              "workflow_state",
+              "learning",
+              "governance",
+              "promotion",
+              "knowledge",
+              "sdk",
+              "recipes",
+              "wiki",
+              "schema",
+              "measure",
+              "recipe",
+              "session_lesson",
+              "runtime"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "hosts": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": false,
+          "properties": {
+            "claude": {
+              "$ref": "#/$defs/host_target"
+            },
+            "codex": {
+              "$ref": "#/$defs/host_target"
+            }
+          }
+        }
+      }
+    },
+    "host_target": {
+      "type": "object",
+      "required": ["role"],
+      "additionalProperties": false,
+      "properties": {
+        "role": {
+          "type": "string",
+          "enum": [
+            "agent_template",
+            "skill_reference"
+          ]
+        },
+        "copy": {
+          "type": "boolean",
+          "default": true
+        },
+        "generated_target": {
+          "type": "string",
+          "minLength": 1
+        },
+        "targets": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "target_dir": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "oneOf": [
+        {
+          "required": ["generated_target"]
+        },
+        {
+          "required": ["targets"]
+        },
+        {
+          "required": ["target_dir"]
+        }
+      ]
+    }
+  }
+}

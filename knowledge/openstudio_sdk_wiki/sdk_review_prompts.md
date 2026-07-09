@@ -38,7 +38,7 @@ host Python execution.
 
 ### 1. Model Summary
 
-Inspect `resource/sample.osm` and summarize building type, floor area, spaces,
+Inspect the user-provided OSM model and summarize building type, floor area, spaces,
 zones, stories, surfaces, and subsurfaces.
 
 Expected packs: `sdk_core_patterns`, `sdk_geometry`,

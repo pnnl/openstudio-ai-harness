@@ -25,8 +25,8 @@ from openstudio_mcp.server import (
     OpenStudioService,
 )
 
-
 MCP_HOST = "localhost"
+FIXTURE_DIR = Path(__file__).resolve().parent / "fixtures"
 
 
 def _find_free_port() -> int:
@@ -41,9 +41,7 @@ MCP_URL = f"http://{MCP_HOST}:{MCP_PORT}/sse"
 
 def _find_local_epw() -> Path | None:
     candidates = [
-        Path(
-            "resource/USA_FL_Tampa-MacDill.AFB.747880_TMY3.epw"
-        ),
+        FIXTURE_DIR / "USA_FL_Tampa.Intl.AP.722110_TMY3.epw",
         Path.home()
         / "github/openstudio-standards/data/weather/USA_FL_Tampa-MacDill.AFB.747880_TMY3.epw",
     ]
@@ -292,9 +290,7 @@ async def test_openstudio_mcp_apply_add_daylighting_measure() -> None:
     if not openstudio_path or not Path(openstudio_path).exists():
         pytest.skip("OPENSTUDIO_PATH is not configured to a valid executable.")
 
-    sample_model_uri = (
-        Path("resource/sample.osm").resolve().as_uri()
-    )
+    sample_model_uri = (FIXTURE_DIR / "sample.osm").resolve().as_uri()
     async with sse_client(MCP_URL) as (read_stream, write_stream):
         async with ClientSession(read_stream, write_stream) as session:
             await session.initialize()
@@ -348,9 +344,7 @@ async def test_openstudio_mcp_apply_add_daylighting_measure() -> None:
 
 @pytest.mark.asyncio
 async def test_openstudio_mcp_simulation_flow_with_sample_model() -> None:
-    sample_model_uri = (
-        Path("resource/sample.osm").resolve().as_uri()
-    )
+    sample_model_uri = (FIXTURE_DIR / "sample.osm").resolve().as_uri()
     async with sse_client(MCP_URL) as (read_stream, write_stream):
         async with ClientSession(read_stream, write_stream) as session:
             await session.initialize()
@@ -411,9 +405,7 @@ async def test_openstudio_mcp_real_simulation_with_sample_model() -> None:
     if epw_path is None:
         pytest.skip("Local EPW file not found for real simulation test.")
 
-    sample_model_uri = (
-        Path("resource/sample.osm").resolve().as_uri()
-    )
+    sample_model_uri = (FIXTURE_DIR / "sample.osm").resolve().as_uri()
     workspace_root = Path(".openstudio_mcp_workspace").resolve()
     existing_sqls = (
         {str(p.resolve()) for p in workspace_root.rglob("run/eplusout.sql")}

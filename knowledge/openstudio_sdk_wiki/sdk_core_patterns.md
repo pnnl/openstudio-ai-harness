@@ -22,7 +22,7 @@ import json
 from pathlib import Path
 import openstudio
 
-input_path = Path("resource/sample.osm").resolve()
+input_path = Path("/path/to/input-model.osm").resolve()
 output_path = Path("outputs/sample_edited.osm").resolve()
 output_path.parent.mkdir(parents=True, exist_ok=True)
 

@@ -9,6 +9,7 @@ from pathlib import Path
 
 from adapters.base import OpenStudioAiHostAdapter
 from adapters.contracts import RUNTIME_MODES, HostAdapterConfig, HostLaunchPlan
+from harness.asset_manifest import reference_exports_for_host
 from harness.registry import discover_harness_assets
 
 GENERATED_START = "<!-- BEGIN OPENSTUDIO_AI_HARNESS -->"
@@ -320,37 +321,7 @@ def _planned_export_files(
         plugin_dir / "skills" / "simulate" / "SKILL.md",
         plugin_dir / "skills" / "query-results" / "SKILL.md",
         plugin_dir / "skills" / "propose-measure" / "SKILL.md",
-        plugin_dir
-        / "skills"
-        / "propose-measure"
-        / "references"
-        / "candidate_measure.schema.json",
         plugin_dir / "skills" / "capture-session-lesson" / "SKILL.md",
-        plugin_dir
-        / "skills"
-        / "capture-session-lesson"
-        / "references"
-        / "session_lesson.schema.json",
-        plugin_dir
-        / "skills"
-        / "openstudio-sdk-model-editor"
-        / "references"
-        / "openstudio_sdk_recipes.md",
-        plugin_dir
-        / "skills"
-        / "openstudio-workflow-state"
-        / "references"
-        / "blackboard_contract.md",
-        plugin_dir
-        / "skills"
-        / "openstudio-workflow-state"
-        / "references"
-        / "workflow_state.schema.json",
-        plugin_dir
-        / "skills"
-        / "openstudio-workflow-state"
-        / "references"
-        / "state_patch.schema.json",
     ]
     if runtime_mode == "marketplace":
         files.extend(
@@ -375,15 +346,8 @@ def _planned_export_files(
         for path in plan.skill_paths
     )
     files.extend(
-        plugin_dir
-        / "skills"
-        / "openstudio-sdk-model-editor"
-        / "references"
-        / "sdk_wiki"
-        / path.name
-        for path in sorted(
-            (workspace_root / "knowledge" / "openstudio_sdk_wiki").glob("*.md")
-        )
+        export.target
+        for export in reference_exports_for_host(workspace_root, plugin_dir, "claude")
     )
     return sorted(files)
 
@@ -759,50 +723,14 @@ def _skill_markdown(name: str, description: str, body: str) -> str:
 
 def _write_skill_references(skills_dir: Path, workspace_root: Path) -> None:
     """Place supporting files inside the Claude skills that use them."""
-    sdk_refs = skills_dir / "openstudio-sdk-model-editor" / "references"
-    sdk_refs.mkdir(parents=True, exist_ok=True)
-    _copy_reference_file(
-        workspace_root / "knowledge" / "openstudio_sdk_recipes.md",
-        sdk_refs / "openstudio_sdk_recipes.md",
-    )
-    sdk_wiki_source = workspace_root / "knowledge" / "openstudio_sdk_wiki"
-    sdk_wiki_target = sdk_refs / "sdk_wiki"
-    sdk_wiki_target.mkdir(parents=True, exist_ok=True)
-    for path in sorted(sdk_wiki_source.glob("*.md")):
-        _copy_reference_file(path, sdk_wiki_target / path.name)
-
-    workflow_refs = skills_dir / "openstudio-workflow-state" / "references"
-    workflow_refs.mkdir(parents=True, exist_ok=True)
-    _copy_reference_file(
-        workspace_root / "prompts" / "blackboard_contract.md",
-        workflow_refs / "blackboard_contract.md",
-    )
-    shutil.copy2(
-        workspace_root / "blackboard" / "schemas" / "workflow_state.schema.json",
-        workflow_refs / "workflow_state.schema.json",
-    )
-    shutil.copy2(
-        workspace_root / "blackboard" / "schemas" / "state_patch.schema.json",
-        workflow_refs / "state_patch.schema.json",
-    )
-
-    learning_schemas = workspace_root / "learning" / "harness_pipeline" / "schemas"
-    propose_refs = skills_dir / "propose-measure" / "references"
-    propose_refs.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(
-        learning_schemas / "candidate_measure.schema.json",
-        propose_refs / "candidate_measure.schema.json",
-    )
-    lesson_refs = skills_dir / "capture-session-lesson" / "references"
-    lesson_refs.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(
-        learning_schemas / "session_lesson.schema.json",
-        lesson_refs / "session_lesson.schema.json",
-    )
+    plugin_dir = skills_dir.parent
+    for export in reference_exports_for_host(workspace_root, plugin_dir, "claude"):
+        _copy_reference_file(export.source, export.target)
 
 
 def _copy_reference_file(source: Path, target: Path) -> None:
     """Copy a Claude reference file without top-level YAML agent-like metadata."""
+    target.parent.mkdir(parents=True, exist_ok=True)
     if source.suffix.lower() != ".md":
         shutil.copy2(source, target)
         return

@@ -2,7 +2,7 @@
   "suite": "openstudio_ai_agent_eval_cases",
   "version": "0.1.3",
   "description": "Conversation-style evaluation cases for the OpenStudio AI Model Workspace Agent.",
-  "default_model_path": "resource/sample.osm",
+  "default_model_path": "tests/fixtures/sample.osm",
   "evaluation_dimensions": [
     "agent_professionalism",
     "clarification_behavior",
@@ -14,7 +14,7 @@
   "cases": [
     {
       "id": "bem_model_summary_001",
-      "query": "Can you inspect resource/sample.osm and give me a concise senior-modeler summary of the building geometry, spaces, thermal zones, surfaces, and subsurfaces?",
+      "query": "Can you inspect tests/fixtures/sample.osm and give me a concise senior-modeler summary of the building geometry, spaces, thermal zones, surfaces, and subsurfaces?",
       "expected_output": {
         "summary_should_include": [
           "building-level counts",

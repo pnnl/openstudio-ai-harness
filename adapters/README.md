@@ -1,56 +1,49 @@
-# OpenStudio AI Agent Adapters
+# OpenStudio AI Host Adapters
 
-This folder defines the host-specific adapter layer for packaging OpenStudio AI
-into agent shells such as Codex or Claude Code.
+`adapters/` is release tooling. It translates trusted OpenStudio AI assets into
+the native plugin layouts required by Claude Code and Codex. It must not own
+modeling behavior, OpenStudio operations, or durable workflow state.
 
-Adapters are responsible for:
+## Ownership
 
-- loading the harness system prompt and prompt contracts;
-- exposing the skill directory to the host agent;
-- connecting the OpenStudio MCP server;
-- wiring the blackboard state store;
-- recording learning events from host-agent activity.
+- `claude_code_adapter.py`: Claude Code marketplace and project-local exports.
+- `codex_adapter.py`: Codex marketplace exports.
+- `contracts.py`: shared host configuration and launch-plan types.
+- `base.py`: common adapter interface.
 
-Adapters should stay thin. Product behavior belongs in `harness/`,
-`blackboard/`, `learning/`, `skills/`, and `openstudio_mcp/`.
+The adapters read runtime skills from `skills/` and copy labeled references
+from `harness/asset_manifest.yaml`. Durable workflow state is owned by the MCP
+runtime in `openstudio_mcp/runtime/state_store.py`, not by an adapter.
 
-## Claude Code Plugin Export
+## Runtime Modes
 
-Export a Claude plugin-style package:
+| Mode | MCP command in the export | Use |
+| --- | --- | --- |
+| `local` | Current virtualenv Python running `openstudio_mcp.server` | Source-checkout development. |
+| `installed` | `openstudio-ai-mcp` | An already installed runtime. |
+| `marketplace` | `openstudio-ai-mcp` | Marketplace package with setup, doctor, and repair skills. |
 
-```bash
-.venv/bin/python -m adapters.claude_code_adapter export-plugin \
-  --output-dir /tmp/openstudio-ai-plugin
-```
+Use `local` while changing this repository. Use `marketplace` only after the
+runtime is installed in the environment that will load the plugin.
 
-Preview package files without writing:
-
-```bash
-.venv/bin/python -m adapters.claude_code_adapter export-plugin \
-  --output-dir /tmp/openstudio-ai-plugin \
-  --dry-run
-```
-
-Runtime modes:
-
-- `--runtime-mode local`: development mode; `.mcp.json` starts the MCP server
-  from this source checkout.
-- `--runtime-mode installed`: assumes `openstudio-ai-mcp` is already installed.
-- `--runtime-mode marketplace`: assumes `openstudio-ai-mcp` is the runtime
-  command and adds setup/doctor/repair commands plus installer helper scripts.
-
-Marketplace export:
+## Claude Code Export
 
 ```bash
-.venv/bin/python -m adapters.claude_code_adapter export-plugin \
-  --output-dir /tmp/openstudio-ai-plugin \
-  --runtime-mode marketplace
+.venv/bin/python -m cli export claude \
+  --output-dir /tmp/openstudio-ai-claude \
+  --workspace-root "$PWD" \
+  --runtime-mode local \
+  --force
+
+.venv/bin/python -m cli validate-export \
+  /tmp/openstudio-ai-claude/openstudio-ai \
+  --runtime-mode local
 ```
 
-The exported package has this shape:
+The marketplace export has this shape:
 
 ```text
-openstudio-ai-plugin/
+openstudio-ai-claude/
 ├── .claude-plugin/marketplace.json
 ├── INSTALL.md
 └── openstudio-ai/
@@ -59,147 +52,92 @@ openstudio-ai-plugin/
     ├── README.md
     ├── CONNECTORS.md
     ├── settings.json
-    ├── agents/
-    ├── monitors/
-    ├── bin/
-    ├── skills/
-    │   ├── openstudio-sdk-model-editor/
-    │   │   └── references/
-    │   ├── openstudio-vav-reheat-system-creator/
-    │   │   └── references/
-    │   ├── setup-openstudio-ai/
-    │   │   └── scripts/
-    │   ├── propose-measure/
-    │   │   └── references/
-    │   └── capture-session-lesson/
-    │       └── references/
+    ├── agents/openstudio-modeler.md
+    ├── monitors/monitors.json
+    ├── bin/openstudio-ai-learning-monitor
+    └── skills/
+        ├── add-vav-reheat/
+        ├── simulate/
+        ├── query-results/
+        ├── setup-openstudio-ai/
+        ├── doctor-openstudio-ai/
+        ├── repair-openstudio-ai/
+        ├── openstudio-sdk-model-editor/
+        ├── openstudio-workflow-state/
+        ├── propose-measure/
+        └── capture-session-lesson/
 ```
 
-Claude Code plugin context is exported through Claude-native components:
-`agents/`, `skills/`, `.mcp.json`, `monitors/`, `bin/`, and `settings.json`.
-SDK knowledge, prompt contracts, blackboard schemas, and learning schemas are
-placed as supporting files under the skills that use them.
+References such as SDK knowledge, workflow schemas, and learning contracts are
+copied under the owning skill's `references/` directory. Claude Code does not
+load arbitrary plugin-root `knowledge/`, `instructions/`, or `blackboard/`
+folders.
 
-Install the exported plugin from inside Claude Code:
+For development, add the marketplace and reload it in Claude Code:
 
 ```text
-/plugin marketplace add /tmp/openstudio-ai-plugin
+/plugin marketplace add /tmp/openstudio-ai-claude
 /plugin install openstudio-ai@openstudio-ai-local
 /reload-plugins
 ```
 
-Then use the namespaced commands:
+The `install` subcommand remains a project-local debugging path. It writes a
+managed OpenStudio AI block to `.claude/CLAUDE.md` and a project `.mcp.json`; it
+is not the distributable plugin format.
+
+## Codex Export
+
+```bash
+.venv/bin/python -m cli export codex \
+  --output-dir /tmp/openstudio-ai-codex \
+  --workspace-root "$PWD" \
+  --runtime-mode local \
+  --force
+
+.venv/bin/python -m cli validate-export \
+  /tmp/openstudio-ai-codex/plugins/openstudio-ai \
+  --runtime-mode local
+```
+
+The export has this shape:
 
 ```text
-/openstudio-ai:add-vav-reheat
-/openstudio-ai:simulate
-/openstudio-ai:query-results
-/openstudio-ai:propose-measure
-/openstudio-ai:setup-openstudio-ai
-```
-
-## Claude Code Project Install
-
-Preview the files that would be installed into a Claude Code project:
-
-```bash
-.venv/bin/python -m adapters.claude_code_adapter install \
-  --target-dir /path/to/claude/project \
-  --dry-run
-```
-
-Install into a Claude Code project:
-
-```bash
-.venv/bin/python -m adapters.claude_code_adapter install \
-  --target-dir /path/to/claude/project
-```
-
-The installer writes:
-
-- `.mcp.json`
-  Project-scoped MCP server registration for `openstudio_ai`.
-- `.claude/CLAUDE.md`
-  Project instructions containing OpenStudio AI harness paths, prompt
-  contracts, and runtime skill references.
-
-If `.claude/CLAUDE.md` already exists and is not managed by OpenStudio AI, the
-installer stops unless `--force` is provided. With `--force`, it appends a
-generated OpenStudio AI block.
-
-Project install is mainly useful for local development and debugging. The
-plugin export command is the intended distributable path.
-
-## Codex Plugin Export
-
-Export a Codex plugin-style package and repo-local marketplace:
-
-```bash
-.venv/bin/python -m adapters.codex_adapter export-plugin \
-  --output-dir /tmp/openstudio-ai-codex-plugin
-```
-
-Preview package files without writing:
-
-```bash
-.venv/bin/python -m adapters.codex_adapter export-plugin \
-  --output-dir /tmp/openstudio-ai-codex-plugin \
-  --dry-run
-```
-
-Marketplace export:
-
-```bash
-.venv/bin/python -m adapters.codex_adapter export-plugin \
-  --output-dir /tmp/openstudio-ai-codex-plugin \
-  --runtime-mode marketplace
-```
-
-The exported package has this shape:
-
-```text
-openstudio-ai-codex-plugin/
+openstudio-ai-codex/
 ├── .agents/plugins/marketplace.json
 ├── INSTALL.md
-└── plugins/
-    └── openstudio-ai/
-        ├── .codex-plugin/plugin.json
-        ├── .mcp.json
-        ├── README.md
-        ├── CONNECTORS.md
-        └── skills/
-            ├── setup-openstudio-ai/
-            │   ├── SKILL.md
-            │   └── scripts/
-            ├── openstudio-modeling-orchestrator/
-            │   ├── SKILL.md
-            │   └── references/
-            ├── openstudio-sdk-model-editor/
-            │   ├── SKILL.md
-            │   └── references/
-            ├── openstudio-workflow-state/
-            │   ├── SKILL.md
-            │   └── references/
-            ├── propose-measure/
-            │   ├── SKILL.md
-            │   └── references/
-            └── capture-session-lesson/
-                ├── SKILL.md
-                └── references/
+└── plugins/openstudio-ai/
+    ├── .codex-plugin/plugin.json
+    ├── .mcp.json
+    ├── README.md
+    ├── CONNECTORS.md
+    └── skills/
+        ├── setup-openstudio-ai/
+        ├── openstudio-modeling-orchestrator/
+        ├── openstudio-sdk-model-editor/
+        ├── openstudio-workflow-state/
+        ├── propose-measure/
+        └── capture-session-lesson/
 ```
 
-Validate the plugin:
+Add the exported marketplace with:
 
 ```bash
-python -m json.tool \
-  /tmp/openstudio-ai-codex-plugin/plugins/openstudio-ai/.codex-plugin/plugin.json
+codex plugin marketplace add /tmp/openstudio-ai-codex
 ```
 
-Install the marketplace in Codex:
+Codex references also live under the relevant skill. Do not add root plugin
+folders such as `commands/`, `instructions/`, `knowledge/`, `blackboard/`,
+`learning/`, or `installers/`.
 
-```bash
-codex plugin marketplace add /tmp/openstudio-ai-codex-plugin
-```
+## Change Checklist
 
-Then install or view `openstudio-ai` from the `openstudio-ai-local` marketplace
-in the Codex plugin UI.
+When changing an adapter or exported layout:
+
+1. Update the adapter and its expected export contract.
+2. Update `cli validate-export` when the contract changes.
+3. Update the relevant adapter tests and asset-manifest tests.
+4. Export to `/tmp`, run `validate-export`, and run the host validator when it
+   is available.
+
+See `docs/DEVELOPER_GUIDANCE.md` for the complete local, Claude Code, and Codex
+testing workflows.

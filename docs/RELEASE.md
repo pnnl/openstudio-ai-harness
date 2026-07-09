@@ -78,11 +78,12 @@ Validate metadata:
 python -m twine check dist/*
 ```
 
-Inspect wheel contents:
+Inspect wheel and source-distribution contents:
 
 ```bash
 python - <<'PY'
 from pathlib import Path
+import tarfile
 import zipfile
 
 wheel = next(Path("dist").glob("*.whl"))
@@ -94,7 +95,17 @@ with zipfile.ZipFile(wheel) as zf:
 blocked = [
     name
     for name in names
-    if name.startswith((".git/", ".venv/", ".idea/", "resource/", "measures/candidates/"))
+    if name.startswith(
+        (
+            ".git/",
+            ".venv/",
+            ".idea/",
+            "resource/",
+            "tests/",
+            "evals/",
+            "measures/candidates/",
+        )
+    )
 ]
 if blocked:
     raise SystemExit(f"Blocked paths found in wheel: {blocked[:10]}")
@@ -115,10 +126,24 @@ if missing:
 forbidden = [
     "resource/sample.osm",
     "resource/USA_FL_Tampa.Intl.AP.722110_TMY3.epw",
+    "tests/fixtures/sample.osm",
+    "tests/fixtures/USA_FL_Tampa.Intl.AP.722110_TMY3.epw",
 ]
 included_forbidden = [name for name in forbidden if name in names]
 if included_forbidden:
     raise SystemExit(f"Release wheel includes local test fixtures: {included_forbidden}")
+
+sdist = next(Path("dist").glob("*.tar.gz"))
+with tarfile.open(sdist) as archive:
+    sdist_names = [member.name.partition("/")[2] for member in archive.getmembers()]
+
+blocked_sdist = [
+    name
+    for name in sdist_names
+    if name.startswith(("resource/", "tests/fixtures/", "measures/candidates/"))
+]
+if blocked_sdist:
+    raise SystemExit(f"Blocked paths found in source distribution: {blocked_sdist[:10]}")
 
 base_openstudio = [
     line

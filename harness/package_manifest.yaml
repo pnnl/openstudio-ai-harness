@@ -5,6 +5,8 @@ entrypoints:
   mcp_server: openstudio_mcp/server.py
   primary_agent_spec: specs/openstudio_agent.yaml
 assets:
+  asset_manifest: harness/asset_manifest.yaml
+  asset_manifest_schema: harness/asset_manifest.schema.json
   prompts: prompts
   skills: skills
   knowledge: knowledge
@@ -12,4 +14,3 @@ assets:
   blackboard_schema: blackboard/schemas/workflow_state.schema.json
   learning_events: logs/learning_events.jsonl
 trusted_asset_policy: reviewed_only
-

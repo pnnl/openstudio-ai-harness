@@ -96,6 +96,9 @@ exclude = [
     "build",
     ".pytest_cache",
     ".openstudio_mcp_workspace",
+    "resource",
+    "tests",
+    "evals",
     "measures/candidates",
 ]
 
@@ -138,4 +141,5 @@ exclude = [
     ".pytest_cache",
     ".openstudio_mcp_workspace",
     "measures/candidates/**",
+    "tests/fixtures/**",
 ]

@@ -9,6 +9,7 @@ from pathlib import Path
 
 from adapters.base import OpenStudioAiHostAdapter
 from adapters.contracts import RUNTIME_MODES, HostAdapterConfig, HostLaunchPlan
+from harness.asset_manifest import reference_exports_for_host
 from harness.registry import discover_harness_assets
 
 DEFAULT_PLUGIN_NAME = "openstudio-ai"
@@ -143,85 +144,9 @@ def _planned_export_files(
         for path in plan.skill_paths
     )
     files.extend(
-        [
-            plugin_dir
-            / "skills"
-            / "openstudio-modeling-orchestrator"
-            / "references"
-            / "openstudio_agent.md",
-            plugin_dir
-            / "skills"
-            / "openstudio-modeling-orchestrator"
-            / "references"
-            / "harness_system_prompt.md",
-            plugin_dir
-            / "skills"
-            / "openstudio-sdk-model-editor"
-            / "references"
-            / "openstudio_sdk_recipes.md",
-            plugin_dir
-            / "skills"
-            / "openstudio-workflow-state"
-            / "references"
-            / "blackboard_contract.md",
-            plugin_dir
-            / "skills"
-            / "openstudio-workflow-state"
-            / "references"
-            / "workflow_state.schema.json",
-            plugin_dir
-            / "skills"
-            / "openstudio-workflow-state"
-            / "references"
-            / "state_patch.schema.json",
-            plugin_dir
-            / "skills"
-            / "propose-measure"
-            / "references"
-            / "candidate_measure.schema.json",
-            plugin_dir
-            / "skills"
-            / "propose-measure"
-            / "references"
-            / "candidate_recipe.schema.json",
-            plugin_dir
-            / "skills"
-            / "propose-measure"
-            / "references"
-            / "learning_contract.md",
-            plugin_dir
-            / "skills"
-            / "propose-measure"
-            / "references"
-            / "promotion_rules.md",
-            plugin_dir
-            / "skills"
-            / "capture-session-lesson"
-            / "references"
-            / "session_lesson.schema.json",
-            plugin_dir
-            / "skills"
-            / "capture-session-lesson"
-            / "references"
-            / "runtime_learning.md",
-            plugin_dir
-            / "skills"
-            / "capture-session-lesson"
-            / "references"
-            / "learning_contract.md",
-        ]
+        export.target
+        for export in reference_exports_for_host(workspace_root, plugin_dir, "codex")
     )
-    sdk_wiki_root = workspace_root / "knowledge" / "openstudio_sdk_wiki"
-    if sdk_wiki_root.exists():
-        files.extend(
-            plugin_dir
-            / "skills"
-            / "openstudio-sdk-model-editor"
-            / "references"
-            / "sdk_wiki"
-            / path.name
-            for path in sorted(sdk_wiki_root.glob("*.md"))
-        )
     return sorted(files)
 
 
@@ -643,83 +568,14 @@ def _rewrite_skill_frontmatter_name(content: str, skill_name: str) -> str:
 
 def _write_skill_references(skills_dir: Path, workspace_root: Path) -> None:
     """Place supporting files inside the Codex skills that use them."""
-    orchestrator_refs = skills_dir / "openstudio-modeling-orchestrator" / "references"
-    orchestrator_refs.mkdir(parents=True, exist_ok=True)
-    _copy_reference_file(
-        workspace_root / "prompts" / "openstudio_agent.md",
-        orchestrator_refs / "openstudio_agent.md",
-    )
-    _copy_reference_file(
-        workspace_root / "prompts" / "harness_system_prompt.md",
-        orchestrator_refs / "harness_system_prompt.md",
-    )
-
-    sdk_refs = skills_dir / "openstudio-sdk-model-editor" / "references"
-    sdk_refs.mkdir(parents=True, exist_ok=True)
-    _copy_reference_file(
-        workspace_root / "knowledge" / "openstudio_sdk_recipes.md",
-        sdk_refs / "openstudio_sdk_recipes.md",
-    )
-    sdk_wiki_source = workspace_root / "knowledge" / "openstudio_sdk_wiki"
-    sdk_wiki_target = sdk_refs / "sdk_wiki"
-    sdk_wiki_target.mkdir(parents=True, exist_ok=True)
-    for path in sorted(sdk_wiki_source.glob("*.md")):
-        _copy_reference_file(path, sdk_wiki_target / path.name)
-
-    workflow_refs = skills_dir / "openstudio-workflow-state" / "references"
-    workflow_refs.mkdir(parents=True, exist_ok=True)
-    _copy_reference_file(
-        workspace_root / "prompts" / "blackboard_contract.md",
-        workflow_refs / "blackboard_contract.md",
-    )
-    shutil.copy2(
-        workspace_root / "blackboard" / "schemas" / "workflow_state.schema.json",
-        workflow_refs / "workflow_state.schema.json",
-    )
-    shutil.copy2(
-        workspace_root / "blackboard" / "schemas" / "state_patch.schema.json",
-        workflow_refs / "state_patch.schema.json",
-    )
-
-    learning_root = workspace_root / "learning" / "harness_pipeline"
-    learning_schemas = learning_root / "schemas"
-    propose_refs = skills_dir / "propose-measure" / "references"
-    propose_refs.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(
-        learning_schemas / "candidate_measure.schema.json",
-        propose_refs / "candidate_measure.schema.json",
-    )
-    shutil.copy2(
-        learning_schemas / "candidate_recipe.schema.json",
-        propose_refs / "candidate_recipe.schema.json",
-    )
-    _copy_reference_file(
-        workspace_root / "prompts" / "learning_contract.md",
-        propose_refs / "learning_contract.md",
-    )
-    _copy_reference_file(
-        workspace_root / "prompts" / "promotion_rules.md",
-        propose_refs / "promotion_rules.md",
-    )
-
-    lesson_refs = skills_dir / "capture-session-lesson" / "references"
-    lesson_refs.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(
-        learning_schemas / "session_lesson.schema.json",
-        lesson_refs / "session_lesson.schema.json",
-    )
-    _copy_reference_file(
-        learning_root / "runtime_learning.md",
-        lesson_refs / "runtime_learning.md",
-    )
-    _copy_reference_file(
-        workspace_root / "prompts" / "learning_contract.md",
-        lesson_refs / "learning_contract.md",
-    )
+    plugin_dir = skills_dir.parent
+    for export in reference_exports_for_host(workspace_root, plugin_dir, "codex"):
+        _copy_reference_file(export.source, export.target)
 
 
 def _copy_reference_file(source: Path, target: Path) -> None:
     """Copy a Codex reference file without top-level YAML agent-like metadata."""
+    target.parent.mkdir(parents=True, exist_ok=True)
     if source.suffix.lower() != ".md":
         shutil.copy2(source, target)
         return

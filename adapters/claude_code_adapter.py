@@ -395,7 +395,7 @@ def _render_marketplace_json(plugin_name: str) -> str:
             {
                 "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
                 "name": MARKETPLACE_NAME,
-                "version": "0.1.2",
+                "version": "0.1.3",
                 "description": "Local marketplace for the OpenStudio AI Claude plugin.",
                 "owner": {
                     "name": "OpenStudio AI",
@@ -407,7 +407,7 @@ def _render_marketplace_json(plugin_name: str) -> str:
                             "OpenStudio AI harness for OpenStudio model editing, simulation, "
                             "results, SDK lookup, and reusable workflow skills."
                         ),
-                        "version": "0.1.2",
+                        "version": "0.1.3",
                         "source": f"./{plugin_name}",
                         "category": "engineering",
                     }
@@ -490,7 +490,7 @@ def _write_plugin_package(
             {
                 "name": "openstudio-ai",
                 "displayName": "OpenStudio AI",
-                "version": "0.1.2",
+                "version": "0.1.3",
                 "description": (
                     "OpenStudio AI harness for model editing, simulation, results, "
                     "SDK lookup, and reusable building-energy workflow skills."
@@ -561,11 +561,37 @@ def _skill_dir_name(path: Path) -> str:
 
 def _render_exported_skill(skill_path: Path, skill_name: str) -> str:
     """Render a source skill with Claude-plugin reference navigation appended."""
-    content = skill_path.read_text(encoding="utf-8")
+    content = _rewrite_skill_frontmatter_name(
+        skill_path.read_text(encoding="utf-8"), skill_name
+    )
     references = _skill_reference_notes(skill_name)
     if not references:
         return content
     return content.rstrip() + "\n\n" + references + "\n"
+
+
+def _rewrite_skill_frontmatter_name(content: str, skill_name: str) -> str:
+    """Keep Claude skill frontmatter aligned with the exported folder name."""
+    if not content.startswith("---\n"):
+        return content
+    end = content.find("\n---", 4)
+    if end == -1:
+        return content
+
+    header = content[4:end]
+    body = content[end:]
+    lines = header.splitlines()
+    replaced = False
+    rewritten: list[str] = []
+    for line in lines:
+        if line.startswith("name:"):
+            rewritten.append(f"name: {skill_name}")
+            replaced = True
+        else:
+            rewritten.append(line)
+    if not replaced:
+        rewritten.insert(0, f"name: {skill_name}")
+    return "---\n" + "\n".join(rewritten) + body
 
 
 def _skill_reference_notes(skill_name: str) -> str:
@@ -694,7 +720,10 @@ def _marketplace_setup_skill_docs() -> dict[str, str]:
                 "energy-modeler language and ask before running "
                 "`python ${CLAUDE_SKILL_DIR}/scripts/install_runtime.py`.\n"
                 "6. When `openstudio-ai` is available, run `openstudio-ai doctor`.\n"
-                "7. Summarize readiness for model loading, HVAC workflow support, "
+                "7. If installation changed runtime command availability, tell the "
+                "user to run `/reload-plugins` or reconnect the failed MCP server so "
+                "Claude Code starts `openstudio-ai-mcp` again.\n"
+                "8. Summarize readiness for model loading, HVAC workflow support, "
                 "simulation, results, SDK lookup, and workflow state tracking.\n"
             ),
         ),
@@ -732,7 +761,7 @@ def _write_skill_references(skills_dir: Path, workspace_root: Path) -> None:
     """Place supporting files inside the Claude skills that use them."""
     sdk_refs = skills_dir / "openstudio-sdk-model-editor" / "references"
     sdk_refs.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(
+    _copy_reference_file(
         workspace_root / "knowledge" / "openstudio_sdk_recipes.md",
         sdk_refs / "openstudio_sdk_recipes.md",
     )
@@ -740,11 +769,11 @@ def _write_skill_references(skills_dir: Path, workspace_root: Path) -> None:
     sdk_wiki_target = sdk_refs / "sdk_wiki"
     sdk_wiki_target.mkdir(parents=True, exist_ok=True)
     for path in sorted(sdk_wiki_source.glob("*.md")):
-        shutil.copy2(path, sdk_wiki_target / path.name)
+        _copy_reference_file(path, sdk_wiki_target / path.name)
 
     workflow_refs = skills_dir / "openstudio-workflow-state" / "references"
     workflow_refs.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(
+    _copy_reference_file(
         workspace_root / "prompts" / "blackboard_contract.md",
         workflow_refs / "blackboard_contract.md",
     )
@@ -770,6 +799,28 @@ def _write_skill_references(skills_dir: Path, workspace_root: Path) -> None:
         learning_schemas / "session_lesson.schema.json",
         lesson_refs / "session_lesson.schema.json",
     )
+
+
+def _copy_reference_file(source: Path, target: Path) -> None:
+    """Copy a Claude reference file without top-level YAML agent-like metadata."""
+    if source.suffix.lower() != ".md":
+        shutil.copy2(source, target)
+        return
+    target.write_text(
+        _strip_yaml_frontmatter(source.read_text(encoding="utf-8")),
+        encoding="utf-8",
+    )
+
+
+def _strip_yaml_frontmatter(content: str) -> str:
+    """Remove a leading YAML frontmatter block from Markdown reference docs."""
+    if not content.startswith("---\n"):
+        return content
+    end = content.find("\n---", 4)
+    if end == -1:
+        return content
+    remainder = content[end + len("\n---") :]
+    return remainder.lstrip("\n")
 
 
 def _render_openstudio_modeler_agent(workspace_root: Path) -> str:
@@ -1055,6 +1106,10 @@ def main() -> int:
         return 3
 
     print("\\nOpenStudio AI runtime installation completed.")
+    print(
+        "If Claude Code already marked the MCP server as failed, run /reload-plugins "
+        "or reconnect the failed MCP server so it starts openstudio-ai-mcp again."
+    )
     return 0
 
 

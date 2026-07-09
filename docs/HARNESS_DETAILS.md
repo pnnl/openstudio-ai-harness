@@ -129,9 +129,15 @@ Codex install flow:
 codex plugin marketplace add /tmp/openstudio-ai-codex-plugin
 ```
 
-Exported packages include separate `skills/`, `knowledge/`, `instructions/`,
-`learning/`, and `blackboard/schemas/` folders. Skills and knowledge are not
-flattened into one large `CLAUDE.md`.
+Exported packages keep host-visible content in native plugin locations. Claude
+Code exports use Claude plugin folders such as `skills/`, `agents/`,
+`monitors/`, and `.mcp.json`. Codex exports use `.codex-plugin/plugin.json`,
+`.mcp.json`, `CONNECTORS.md`, `README.md`, and `skills/`.
+
+For both plugin exports, source prompts, knowledge packs, blackboard schemas, and
+learning schemas are mapped into the `references/` folder of the skill that uses
+them. They are not exported as root `knowledge/`, `instructions/`,
+`blackboard/`, or `learning/` plugin folders.
 
 ### AUTOMA-AI Local Agent
 

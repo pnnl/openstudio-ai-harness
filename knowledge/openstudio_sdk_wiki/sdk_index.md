@@ -1,7 +1,7 @@
 ---
 name: sdk_index
 description: Routing index for OpenStudio SDK wiki context packs.
-version: 0.1.2
+version: 0.1.3
 ---
 
 # OpenStudio SDK Wiki Index

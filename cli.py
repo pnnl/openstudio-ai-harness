@@ -521,10 +521,15 @@ def _cmd_validate_export(args: argparse.Namespace) -> int:
             "README.md",
             "CONNECTORS.md",
             "skills",
-            "knowledge",
-            "instructions",
-            "learning",
-            "blackboard",
+            "skills/openstudio-modeling-orchestrator/SKILL.md",
+            "skills/openstudio-modeling-orchestrator/references/openstudio_agent.md",
+            "skills/openstudio-modeling-orchestrator/references/harness_system_prompt.md",
+            "skills/openstudio-sdk-model-editor/references/openstudio_sdk_recipes.md",
+            "skills/openstudio-workflow-state/references/blackboard_contract.md",
+            "skills/openstudio-workflow-state/references/workflow_state.schema.json",
+            "skills/openstudio-workflow-state/references/state_patch.schema.json",
+            "skills/propose-measure/references/candidate_measure.schema.json",
+            "skills/capture-session-lesson/references/session_lesson.schema.json",
         ]
     )
     missing = [item for item in required if not (plugin_dir / item).exists()]
@@ -576,11 +581,11 @@ def _cmd_validate_export(args: argparse.Namespace) -> int:
             ]
             if is_claude
             else [
-                "commands/setup-openstudio-ai.md",
-                "commands/doctor-openstudio-ai.md",
-                "commands/repair-openstudio-ai.md",
-                "installers/install_runtime.py",
-                "installers/doctor_runtime.py",
+                "skills/setup-openstudio-ai/SKILL.md",
+                "skills/setup-openstudio-ai/scripts/install_runtime.py",
+                "skills/setup-openstudio-ai/scripts/doctor_runtime.py",
+                "skills/doctor-openstudio-ai/SKILL.md",
+                "skills/repair-openstudio-ai/SKILL.md",
             ]
         )
         missing_marketplace = [

@@ -87,8 +87,9 @@ skills/
     SKILL.md
 ```
 
-Codex marketplace exports may use host-specific command files and installer
-folders when that matches the Codex plugin structure.
+Codex marketplace exports expose setup as Codex skills and place helper scripts
+under `skills/setup-openstudio-ai/scripts/`. Do not export root `commands/` or
+`installers/` folders for Codex.
 
 The setup workflow should ask the host agent to:
 

@@ -53,20 +53,129 @@ def test_codex_adapter_exports_plugin_package(tmp_path: Path) -> None:
     assert (plugin_dir / "README.md").exists()
     assert (plugin_dir / "CONNECTORS.md").exists()
     assert (
+        plugin_dir / "skills" / "openstudio-modeling-orchestrator" / "SKILL.md"
+    ).exists()
+    assert (plugin_dir / "skills" / "add-vav-reheat" / "SKILL.md").exists()
+    assert (plugin_dir / "skills" / "propose-measure" / "SKILL.md").exists()
+    assert (plugin_dir / "skills" / "capture-session-lesson" / "SKILL.md").exists()
+    assert (
         plugin_dir / "skills" / "openstudio-hvac-air-loop-creator" / "SKILL.md"
+    ).exists()
+    assert (plugin_dir / "skills" / "openstudio-workflow-state" / "SKILL.md").exists()
+    assert not (
+        plugin_dir / "skills" / "openstudio-hvac-workflow-state" / "SKILL.md"
     ).exists()
     assert not (
         plugin_dir / "skills" / "HVAC-CHILD-SKILL-MANAGEMENT" / "SKILL.md"
     ).exists()
-    assert (plugin_dir / "knowledge" / "openstudio_sdk_recipes.md").exists()
     assert (
-        plugin_dir / "blackboard" / "schemas" / "workflow_state.schema.json"
+        plugin_dir
+        / "skills"
+        / "openstudio-sdk-model-editor"
+        / "references"
+        / "openstudio_sdk_recipes.md"
     ).exists()
-    assert (plugin_dir / "learning" / "README.md").exists()
     assert (
-        plugin_dir / "learning" / "schemas" / "candidate_measure.schema.json"
+        plugin_dir
+        / "skills"
+        / "openstudio-sdk-model-editor"
+        / "references"
+        / "sdk_wiki"
+        / "sdk_index.md"
     ).exists()
-    assert (plugin_dir / "learning" / "candidates" / ".gitkeep").exists()
+    assert (
+        plugin_dir
+        / "skills"
+        / "openstudio-workflow-state"
+        / "references"
+        / "workflow_state.schema.json"
+    ).exists()
+    assert (
+        plugin_dir
+        / "skills"
+        / "openstudio-workflow-state"
+        / "references"
+        / "state_patch.schema.json"
+    ).exists()
+    assert (
+        plugin_dir
+        / "skills"
+        / "openstudio-workflow-state"
+        / "references"
+        / "blackboard_contract.md"
+    ).exists()
+    assert (
+        plugin_dir
+        / "skills"
+        / "propose-measure"
+        / "references"
+        / "candidate_measure.schema.json"
+    ).exists()
+    assert (
+        plugin_dir
+        / "skills"
+        / "propose-measure"
+        / "references"
+        / "candidate_recipe.schema.json"
+    ).exists()
+    assert (
+        plugin_dir
+        / "skills"
+        / "propose-measure"
+        / "references"
+        / "learning_contract.md"
+    ).exists()
+    assert (
+        plugin_dir / "skills" / "propose-measure" / "references" / "promotion_rules.md"
+    ).exists()
+    assert (
+        plugin_dir
+        / "skills"
+        / "capture-session-lesson"
+        / "references"
+        / "session_lesson.schema.json"
+    ).exists()
+    assert (
+        plugin_dir
+        / "skills"
+        / "capture-session-lesson"
+        / "references"
+        / "runtime_learning.md"
+    ).exists()
+    assert (
+        plugin_dir
+        / "skills"
+        / "capture-session-lesson"
+        / "references"
+        / "learning_contract.md"
+    ).exists()
+    sdk_index = (
+        plugin_dir
+        / "skills"
+        / "openstudio-sdk-model-editor"
+        / "references"
+        / "sdk_wiki"
+        / "sdk_index.md"
+    ).read_text(encoding="utf-8")
+    blackboard_contract = (
+        plugin_dir
+        / "skills"
+        / "openstudio-workflow-state"
+        / "references"
+        / "blackboard_contract.md"
+    ).read_text(encoding="utf-8")
+    source_skill = (
+        plugin_dir / "skills" / "openstudio-hvac-air-loop-creator" / "SKILL.md"
+    ).read_text(encoding="utf-8")
+    assert not sdk_index.startswith("---\n")
+    assert not blackboard_contract.startswith("---\n")
+    assert "name: openstudio-hvac-air-loop-creator\n" in source_skill
+    assert not (plugin_dir / "commands").exists()
+    assert not (plugin_dir / "installers").exists()
+    assert not (plugin_dir / "instructions").exists()
+    assert not (plugin_dir / "knowledge").exists()
+    assert not (plugin_dir / "blackboard").exists()
+    assert not (plugin_dir / "learning").exists()
     install_doc = (tmp_path / "INSTALL.md").read_text(encoding="utf-8")
     assert f"codex plugin marketplace add {tmp_path}" in install_doc
 
@@ -121,7 +230,7 @@ def test_codex_adapter_installed_mode_uses_runtime_command(tmp_path: Path) -> No
     assert server["args"] == ["--transport", "stdio"]
     assert "env" not in server
     assert not (
-        tmp_path / "plugins" / "openstudio-ai" / "commands" / "setup-openstudio-ai.md"
+        tmp_path / "plugins" / "openstudio-ai" / "skills" / "setup-openstudio-ai"
     ).exists()
 
 
@@ -132,22 +241,29 @@ def test_codex_adapter_marketplace_mode_exports_runtime_setup(tmp_path: Path) ->
     mcp_json = json.loads((plugin_dir / ".mcp.json").read_text(encoding="utf-8"))
     server = mcp_json["mcpServers"]["openstudio_ai"]
     assert server == {"command": "openstudio-ai-mcp", "args": ["--transport", "stdio"]}
-    assert (plugin_dir / "commands" / "setup-openstudio-ai.md").exists()
-    assert (plugin_dir / "commands" / "doctor-openstudio-ai.md").exists()
-    assert (plugin_dir / "commands" / "repair-openstudio-ai.md").exists()
-    assert (plugin_dir / "installers" / "install_runtime.py").exists()
-    assert (plugin_dir / "installers" / "doctor_runtime.py").exists()
+    assert (plugin_dir / "skills" / "setup-openstudio-ai" / "SKILL.md").exists()
+    assert (plugin_dir / "skills" / "doctor-openstudio-ai" / "SKILL.md").exists()
+    assert (plugin_dir / "skills" / "repair-openstudio-ai" / "SKILL.md").exists()
+    assert (
+        plugin_dir / "skills" / "setup-openstudio-ai" / "scripts" / "install_runtime.py"
+    ).exists()
+    assert (
+        plugin_dir / "skills" / "setup-openstudio-ai" / "scripts" / "doctor_runtime.py"
+    ).exists()
+    assert not (plugin_dir / "commands").exists()
+    assert not (plugin_dir / "installers").exists()
 
-    setup = (plugin_dir / "commands" / "setup-openstudio-ai.md").read_text(
+    setup = (plugin_dir / "skills" / "setup-openstudio-ai" / "SKILL.md").read_text(
         encoding="utf-8"
     )
     assert "python --version" in setup
     assert "python3 --version" in setup
     assert "openstudio-ai-mcp --help" in setup
     assert "energy-modeler language" in setup
-    installer = (plugin_dir / "installers" / "install_runtime.py").read_text(
-        encoding="utf-8"
-    )
+    assert "restart Codex" in setup
+    installer = (
+        plugin_dir / "skills" / "setup-openstudio-ai" / "scripts" / "install_runtime.py"
+    ).read_text(encoding="utf-8")
     assert "OPENSTUDIO_AI_PACKAGE_SPEC" in installer
     assert '"pip", "install", "--upgrade"' in installer
     assert '"cli", "install-runtime"' in installer

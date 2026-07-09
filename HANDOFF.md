@@ -25,6 +25,11 @@ First packaging phase completed:
   `agents/`, `skills/`, `.mcp.json`, `monitors/`, `bin/`, `settings.json`, and
   skill-local `references/` and `scripts/`. Setup/doctor/repair are Claude
   skills, not legacy `commands/` files.
+- Codex marketplace exports follow Codex plugin structure: `.codex-plugin/`,
+  `.mcp.json`, `CONNECTORS.md`, `README.md`, and `skills/`. Source prompts,
+  knowledge packs, blackboard schemas, and learning schemas are exported into
+  skill-local `references/`; marketplace setup helpers live under
+  `skills/setup-openstudio-ai/scripts/`.
 - Energy-modeler marketplace setup guide added in `docs/MARKETPLACE_INSTALL_GUIDE.md`.
 
 Pip release baseline completed:
@@ -60,8 +65,8 @@ Current readiness hardening completed:
   `openstudio-ai install-runtime` initializes user-local runtime storage.
 - Marketplace runtime installer helpers now run pip for
   `OPENSTUDIO_AI_PACKAGE_SPEC` or `openstudio-ai`, then run
-  `python -m cli install-runtime`. Claude places these helpers under
-  `skills/setup-openstudio-ai/scripts/`; Codex keeps them under `installers/`.
+  `python -m cli install-runtime`. Claude and Codex both place these helpers
+  under `skills/setup-openstudio-ai/scripts/`.
 - `validate-export` now enforces runtime-mode-specific MCP config, marketplace
   setup files, and hardcoded developer path rejection.
 - `platformdirs` is now a runtime dependency for cross-platform user data paths.
@@ -85,6 +90,10 @@ Current readiness hardening completed:
   skill with `blackboard_contract.md`, `workflow_state.schema.json`, and
   `state_patch.schema.json` references. VAV loads that skill instead of owning
   blackboard references directly.
+- Codex blackboard support uses the same generic `openstudio-workflow-state`
+  skill references. The exported schemas document MCP workflow-state payloads;
+  they do not write SQLite rows unless the host actually invokes MCP blackboard
+  tools.
 
 ## Verification
 

@@ -167,13 +167,25 @@ openstudio-ai-codex-plugin/
         ├── .mcp.json
         ├── README.md
         ├── CONNECTORS.md
-        ├── commands/
-        ├── installers/
-        ├── skills/
-        ├── knowledge/
-        ├── instructions/
-        ├── learning/
-        └── blackboard/schemas/
+        └── skills/
+            ├── setup-openstudio-ai/
+            │   ├── SKILL.md
+            │   └── scripts/
+            ├── openstudio-modeling-orchestrator/
+            │   ├── SKILL.md
+            │   └── references/
+            ├── openstudio-sdk-model-editor/
+            │   ├── SKILL.md
+            │   └── references/
+            ├── openstudio-workflow-state/
+            │   ├── SKILL.md
+            │   └── references/
+            ├── propose-measure/
+            │   ├── SKILL.md
+            │   └── references/
+            └── capture-session-lesson/
+                ├── SKILL.md
+                └── references/
 ```
 
 Validate the plugin:

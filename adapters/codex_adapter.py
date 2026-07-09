@@ -40,7 +40,7 @@ class CodexAdapter(OpenStudioAiHostAdapter):
             blackboard_schema=assets.blackboard_schema,
             learning_event_log=assets.learning_event_log,
             notes=[
-                "Export skills, MCP config, knowledge, and instructions as a Codex plugin."
+                "Export skills, MCP config, and skill-owned references as a Codex plugin."
             ],
         )
 
@@ -118,42 +118,109 @@ def _planned_export_files(
         plugin_dir / ".mcp.json",
         plugin_dir / "README.md",
         plugin_dir / "CONNECTORS.md",
-        plugin_dir / "blackboard" / "schemas" / plan.blackboard_schema.name,
-        plugin_dir / "learning" / "README.md",
-        plugin_dir / "learning" / "candidates" / ".gitkeep",
     ]
+    files.extend(
+        plugin_dir / "skills" / skill_name / "SKILL.md"
+        for skill_name in _workflow_skill_docs(runtime_mode)
+    )
     if runtime_mode == "marketplace":
         files.extend(
             [
-                plugin_dir / "commands" / "setup-openstudio-ai.md",
-                plugin_dir / "commands" / "doctor-openstudio-ai.md",
-                plugin_dir / "commands" / "repair-openstudio-ai.md",
-                plugin_dir / "installers" / "install_runtime.py",
-                plugin_dir / "installers" / "doctor_runtime.py",
+                plugin_dir
+                / "skills"
+                / "setup-openstudio-ai"
+                / "scripts"
+                / "install_runtime.py",
+                plugin_dir
+                / "skills"
+                / "setup-openstudio-ai"
+                / "scripts"
+                / "doctor_runtime.py",
             ]
         )
-    files.extend(
-        plugin_dir / "instructions" / path.name for path in plan.system_prompt_files
-    )
     files.extend(
         plugin_dir / "skills" / _skill_dir_name(path) / "SKILL.md"
         for path in plan.skill_paths
     )
     files.extend(
-        plugin_dir / "learning" / "schemas" / path.name
-        for path in sorted(
-            (workspace_root / "learning" / "harness_pipeline" / "schemas").glob(
-                "*.json"
-            )
-        )
+        [
+            plugin_dir
+            / "skills"
+            / "openstudio-modeling-orchestrator"
+            / "references"
+            / "openstudio_agent.md",
+            plugin_dir
+            / "skills"
+            / "openstudio-modeling-orchestrator"
+            / "references"
+            / "harness_system_prompt.md",
+            plugin_dir
+            / "skills"
+            / "openstudio-sdk-model-editor"
+            / "references"
+            / "openstudio_sdk_recipes.md",
+            plugin_dir
+            / "skills"
+            / "openstudio-workflow-state"
+            / "references"
+            / "blackboard_contract.md",
+            plugin_dir
+            / "skills"
+            / "openstudio-workflow-state"
+            / "references"
+            / "workflow_state.schema.json",
+            plugin_dir
+            / "skills"
+            / "openstudio-workflow-state"
+            / "references"
+            / "state_patch.schema.json",
+            plugin_dir
+            / "skills"
+            / "propose-measure"
+            / "references"
+            / "candidate_measure.schema.json",
+            plugin_dir
+            / "skills"
+            / "propose-measure"
+            / "references"
+            / "candidate_recipe.schema.json",
+            plugin_dir
+            / "skills"
+            / "propose-measure"
+            / "references"
+            / "learning_contract.md",
+            plugin_dir
+            / "skills"
+            / "propose-measure"
+            / "references"
+            / "promotion_rules.md",
+            plugin_dir
+            / "skills"
+            / "capture-session-lesson"
+            / "references"
+            / "session_lesson.schema.json",
+            plugin_dir
+            / "skills"
+            / "capture-session-lesson"
+            / "references"
+            / "runtime_learning.md",
+            plugin_dir
+            / "skills"
+            / "capture-session-lesson"
+            / "references"
+            / "learning_contract.md",
+        ]
     )
-
-    knowledge_root = workspace_root / "knowledge"
-    if knowledge_root.exists():
+    sdk_wiki_root = workspace_root / "knowledge" / "openstudio_sdk_wiki"
+    if sdk_wiki_root.exists():
         files.extend(
-            plugin_dir / "knowledge" / path.relative_to(knowledge_root)
-            for path in knowledge_root.rglob("*")
-            if path.is_file()
+            plugin_dir
+            / "skills"
+            / "openstudio-sdk-model-editor"
+            / "references"
+            / "sdk_wiki"
+            / path.name
+            for path in sorted(sdk_wiki_root.glob("*.md"))
         )
     return sorted(files)
 
@@ -166,13 +233,7 @@ def _write_plugin_package(
 ) -> None:
     """Materialize the Codex plugin package on disk."""
     (plugin_dir / ".codex-plugin").mkdir(parents=True, exist_ok=True)
-    (plugin_dir / "commands").mkdir(parents=True, exist_ok=True)
-    (plugin_dir / "installers").mkdir(parents=True, exist_ok=True)
     (plugin_dir / "skills").mkdir(parents=True, exist_ok=True)
-    (plugin_dir / "instructions").mkdir(parents=True, exist_ok=True)
-    (plugin_dir / "blackboard" / "schemas").mkdir(parents=True, exist_ok=True)
-    (plugin_dir / "learning" / "schemas").mkdir(parents=True, exist_ok=True)
-    (plugin_dir / "learning" / "candidates").mkdir(parents=True, exist_ok=True)
 
     (plugin_dir / ".codex-plugin" / "plugin.json").write_text(
         _render_plugin_json(),
@@ -188,39 +249,25 @@ def _write_plugin_package(
         _render_connectors_doc(workspace_root, runtime_mode), encoding="utf-8"
     )
 
-    for command_name, content in _command_docs(runtime_mode).items():
-        (plugin_dir / "commands" / command_name).write_text(content, encoding="utf-8")
-
-    if runtime_mode == "marketplace":
-        _write_installer_assets(plugin_dir / "installers")
-
-    for prompt in plan.system_prompt_files:
-        shutil.copy2(prompt, plugin_dir / "instructions" / prompt.name)
+    for skill_name, content in _workflow_skill_docs(runtime_mode).items():
+        target_dir = plugin_dir / "skills" / skill_name
+        target_dir.mkdir(parents=True, exist_ok=True)
+        (target_dir / "SKILL.md").write_text(content, encoding="utf-8")
 
     for skill in plan.skill_paths:
         target_dir = plugin_dir / "skills" / _skill_dir_name(skill)
         target_dir.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(skill, target_dir / "SKILL.md")
+        (target_dir / "SKILL.md").write_text(
+            _render_exported_skill(skill, target_dir.name),
+            encoding="utf-8",
+        )
 
-    shutil.copy2(
-        plan.blackboard_schema,
-        plugin_dir / "blackboard" / "schemas" / plan.blackboard_schema.name,
-    )
-    shutil.copy2(
-        workspace_root / "learning" / "harness_pipeline" / "runtime_learning.md",
-        plugin_dir / "learning" / "README.md",
-    )
-    (plugin_dir / "learning" / "candidates" / ".gitkeep").write_text(
-        "", encoding="utf-8"
-    )
-    for schema in sorted(
-        (workspace_root / "learning" / "harness_pipeline" / "schemas").glob("*.json")
-    ):
-        shutil.copy2(schema, plugin_dir / "learning" / "schemas" / schema.name)
+    if runtime_mode == "marketplace":
+        _write_installer_assets(
+            plugin_dir / "skills" / "setup-openstudio-ai" / "scripts"
+        )
 
-    knowledge_root = workspace_root / "knowledge"
-    if knowledge_root.exists():
-        shutil.copytree(knowledge_root, plugin_dir / "knowledge")
+    _write_skill_references(plugin_dir / "skills", workspace_root)
 
 
 def _render_plugin_json() -> str:
@@ -229,7 +276,7 @@ def _render_plugin_json() -> str:
         json.dumps(
             {
                 "name": DEFAULT_PLUGIN_NAME,
-                "version": "0.1.2",
+                "version": "0.1.3",
                 "description": (
                     "OpenStudio AI harness for OpenStudio model editing, simulation, "
                     "results, SDK lookup, and reusable workflow skills."
@@ -389,10 +436,11 @@ def _render_plugin_readme(plan: HostLaunchPlan, runtime_mode: str) -> str:
         "using OpenStudio, MCP tools, reusable skills, and reviewed knowledge.\n\n"
         "## What It Includes\n\n"
         "- `.mcp.json`: registers the `openstudio_ai` MCP server.\n"
-        "- `skills/`: separate runtime skills for model editing and HVAC workflows.\n"
-        "- `knowledge/`: reviewed OpenStudio SDK recipes and context packs.\n"
-        "- `instructions/`: harness, blackboard, learning, and promotion contracts.\n"
-        "- `blackboard/schemas/`: workflow-state schema for long-running tasks.\n\n"
+        "- `skills/`: Codex-native workflows for orchestration, setup, model editing, "
+        "simulation, results, learning capture, and HVAC workflows.\n"
+        "- `skills/*/references/`: reviewed SDK context packs, prompt contracts, "
+        "blackboard schemas, and learning schemas used by the owning skills.\n"
+        "- `skills/setup-openstudio-ai/scripts/`: marketplace runtime setup helpers.\n\n"
         "## Skills\n\n"
         f"{skill_names}\n\n"
         "## Runtime Note\n\n"
@@ -426,10 +474,24 @@ def _render_connectors_doc(workspace_root: Path, runtime_mode: str) -> str:
     )
 
 
-def _command_docs(runtime_mode: str) -> dict[str, str]:
-    """Return command files for common OpenStudio workflows and setup."""
-    commands = {
-        "add-vav-reheat.md": _command_markdown(
+def _workflow_skill_docs(runtime_mode: str) -> dict[str, str]:
+    """Return Codex-native skill files for common OpenStudio workflows."""
+    skills = {
+        "openstudio-modeling-orchestrator": _skill_markdown(
+            name="openstudio-modeling-orchestrator",
+            description="Route OpenStudio modeling requests to the right skills, MCP tools, and workflow-state support.",
+            body=(
+                "# OpenStudio Modeling Orchestrator\n\n"
+                "Use this skill for broad OpenStudio modeling requests that need "
+                "routing across model lifecycle, SDK editing, simulations, results, "
+                "and long-running workflow state. Load task-specific skills instead "
+                "of recreating their detailed procedures from memory.\n\n"
+                "Reference files:\n\n"
+                "- `references/openstudio_agent.md`: high-level orchestration prompt.\n"
+                "- `references/harness_system_prompt.md`: harness-wide execution contract.\n"
+            ),
+        ),
+        "add-vav-reheat": _skill_markdown(
             name="add-vav-reheat",
             description="Plan and execute a phased OpenStudio VAV reheat workflow.",
             body=(
@@ -440,7 +502,7 @@ def _command_docs(runtime_mode: str) -> dict[str, str]:
                 "model lifecycle operations when appropriate.\n"
             ),
         ),
-        "simulate.md": _command_markdown(
+        "simulate": _skill_markdown(
             name="simulate",
             description="Run, poll, and collect artifacts from an OpenStudio simulation.",
             body=(
@@ -450,7 +512,7 @@ def _command_docs(runtime_mode: str) -> dict[str, str]:
                 "ad hoc shell commands when MCP tools are available.\n"
             ),
         ),
-        "query-results.md": _command_markdown(
+        "query-results": _skill_markdown(
             name="query-results",
             description="Query SQL-backed OpenStudio simulation results through MCP tools.",
             body=(
@@ -460,28 +522,40 @@ def _command_docs(runtime_mode: str) -> dict[str, str]:
                 "in the final answer.\n"
             ),
         ),
-        "propose-measure.md": _command_markdown(
+        "propose-measure": _skill_markdown(
             name="propose-measure",
             description="Draft a candidate OpenStudio measure from a repeated script or workflow.",
             body=(
                 "# Propose Measure\n\n"
                 "Summarize the repeated OpenStudio script or workflow as a candidate measure. "
-                "Write candidate JSON to `learning/candidates/` using "
-                "`learning/schemas/candidate_measure.schema.json`. Do not edit trusted "
-                "`knowledge/`, `skills/`, or approved measures directly. State that review "
-                "and eval validation are required before promotion.\n"
+                "Use `references/candidate_measure.schema.json` and "
+                "`references/candidate_recipe.schema.json` for candidate shapes. "
+                "Do not edit trusted skills, references, or approved measures directly. "
+                "State that review and eval validation are required before promotion.\n"
+            ),
+        ),
+        "capture-session-lesson": _skill_markdown(
+            name="capture-session-lesson",
+            description="Capture a candidate OpenStudio AI session lesson for later review.",
+            body=(
+                "# Capture Session Lesson\n\n"
+                "Capture a candidate runtime lesson from the current session. Use "
+                "`references/session_lesson.schema.json` for the candidate shape. "
+                "Record only reviewable observations, assumptions, failure modes, or "
+                "reusable workflow notes. Do not promote directly into trusted skills, "
+                "references, measures, or MCP tools.\n"
             ),
         ),
     }
     if runtime_mode == "marketplace":
-        commands.update(_marketplace_command_docs())
-    return commands
+        skills.update(_marketplace_setup_skill_docs())
+    return skills
 
 
-def _marketplace_command_docs() -> dict[str, str]:
-    """Return marketplace setup commands for no-code runtime onboarding."""
+def _marketplace_setup_skill_docs() -> dict[str, str]:
+    """Return marketplace setup skills for no-code runtime onboarding."""
     return {
-        "setup-openstudio-ai.md": _command_markdown(
+        "setup-openstudio-ai": _skill_markdown(
             name="setup-openstudio-ai",
             description="Check and prepare the OpenStudio AI runtime for energy modeling.",
             body=(
@@ -493,42 +567,177 @@ def _marketplace_command_docs() -> dict[str, str]:
                 "try `python3 --version`.\n"
                 "3. Check whether `openstudio-ai-mcp` is available by running "
                 "`openstudio-ai-mcp --help`.\n"
-                "4. Run `python installers/doctor_runtime.py`. If `python` is unavailable, "
-                "try `python3 installers/doctor_runtime.py`.\n"
+                "4. Run the script beside this skill at `scripts/doctor_runtime.py` "
+                "with `python`; if `python` is unavailable, try `python3`.\n"
                 "5. If the runtime is missing, explain the issue in normal energy-modeler "
-                "language and ask before running `python installers/install_runtime.py`.\n"
+                "language and ask before running "
+                "`scripts/install_runtime.py` with the same Python command.\n"
                 "6. When `openstudio-ai` is available, run `openstudio-ai doctor`.\n"
-                "7. Summarize readiness for model loading, HVAC workflow support, simulation, "
+                "7. If installation changed runtime command availability, tell the "
+                "user to restart Codex or reconnect the failed MCP server so Codex "
+                "starts `openstudio-ai-mcp` again.\n"
+                "8. Summarize readiness for model loading, HVAC workflow support, simulation, "
                 "results, SDK lookup, and workflow state tracking.\n"
             ),
         ),
-        "doctor-openstudio-ai.md": _command_markdown(
+        "doctor-openstudio-ai": _skill_markdown(
             name="doctor-openstudio-ai",
             description="Diagnose OpenStudio AI runtime readiness.",
             body=(
                 "# Doctor OpenStudio AI\n\n"
-                "Run `python installers/doctor_runtime.py`, then run `openstudio-ai doctor` "
-                "if the command exists. Explain missing Python, missing runtime, missing "
-                "OpenStudio, or path problems as setup items, not programming failures.\n"
+                "Run the setup skill's `scripts/doctor_runtime.py`, then run "
+                "`openstudio-ai doctor` if the command exists. Explain missing Python, "
+                "missing runtime, missing OpenStudio, or path problems as setup items, "
+                "not programming failures.\n"
             ),
         ),
-        "repair-openstudio-ai.md": _command_markdown(
+        "repair-openstudio-ai": _skill_markdown(
             name="repair-openstudio-ai",
             description="Guide non-destructive repair of the OpenStudio AI runtime.",
             body=(
                 "# Repair OpenStudio AI\n\n"
                 "First run the doctor command. If the runtime is missing, ask for approval "
-                "before running `python installers/install_runtime.py`. Do not delete user "
-                "models, simulation outputs, or project files. Describe each repair step in "
-                "plain language for an energy modeler.\n"
+                "before running the setup skill's `scripts/install_runtime.py`. Do not "
+                "delete user models, simulation outputs, or project files. Describe each "
+                "repair step in plain language for an energy modeler.\n"
             ),
         ),
     }
 
 
-def _command_markdown(*, name: str, description: str, body: str) -> str:
-    """Render a Codex command file with YAML frontmatter."""
+def _skill_markdown(*, name: str, description: str, body: str) -> str:
+    """Render a Codex skill file with YAML frontmatter."""
     return "---\n" f"name: {name}\n" f"description: {description}\n" "---\n\n" f"{body}"
+
+
+def _render_exported_skill(skill_path: Path, skill_name: str) -> str:
+    """Render a source skill with Codex-plugin frontmatter naming."""
+    return _rewrite_skill_frontmatter_name(
+        skill_path.read_text(encoding="utf-8"), skill_name
+    )
+
+
+def _rewrite_skill_frontmatter_name(content: str, skill_name: str) -> str:
+    """Keep Codex skill frontmatter aligned with the exported folder name."""
+    if not content.startswith("---\n"):
+        return content
+    end = content.find("\n---", 4)
+    if end == -1:
+        return content
+
+    header = content[4:end]
+    body = content[end:]
+    lines = header.splitlines()
+    replaced = False
+    rewritten: list[str] = []
+    for line in lines:
+        if line.startswith("name:"):
+            rewritten.append(f"name: {skill_name}")
+            replaced = True
+        else:
+            rewritten.append(line)
+    if not replaced:
+        rewritten.insert(0, f"name: {skill_name}")
+    return "---\n" + "\n".join(rewritten) + body
+
+
+def _write_skill_references(skills_dir: Path, workspace_root: Path) -> None:
+    """Place supporting files inside the Codex skills that use them."""
+    orchestrator_refs = skills_dir / "openstudio-modeling-orchestrator" / "references"
+    orchestrator_refs.mkdir(parents=True, exist_ok=True)
+    _copy_reference_file(
+        workspace_root / "prompts" / "openstudio_agent.md",
+        orchestrator_refs / "openstudio_agent.md",
+    )
+    _copy_reference_file(
+        workspace_root / "prompts" / "harness_system_prompt.md",
+        orchestrator_refs / "harness_system_prompt.md",
+    )
+
+    sdk_refs = skills_dir / "openstudio-sdk-model-editor" / "references"
+    sdk_refs.mkdir(parents=True, exist_ok=True)
+    _copy_reference_file(
+        workspace_root / "knowledge" / "openstudio_sdk_recipes.md",
+        sdk_refs / "openstudio_sdk_recipes.md",
+    )
+    sdk_wiki_source = workspace_root / "knowledge" / "openstudio_sdk_wiki"
+    sdk_wiki_target = sdk_refs / "sdk_wiki"
+    sdk_wiki_target.mkdir(parents=True, exist_ok=True)
+    for path in sorted(sdk_wiki_source.glob("*.md")):
+        _copy_reference_file(path, sdk_wiki_target / path.name)
+
+    workflow_refs = skills_dir / "openstudio-workflow-state" / "references"
+    workflow_refs.mkdir(parents=True, exist_ok=True)
+    _copy_reference_file(
+        workspace_root / "prompts" / "blackboard_contract.md",
+        workflow_refs / "blackboard_contract.md",
+    )
+    shutil.copy2(
+        workspace_root / "blackboard" / "schemas" / "workflow_state.schema.json",
+        workflow_refs / "workflow_state.schema.json",
+    )
+    shutil.copy2(
+        workspace_root / "blackboard" / "schemas" / "state_patch.schema.json",
+        workflow_refs / "state_patch.schema.json",
+    )
+
+    learning_root = workspace_root / "learning" / "harness_pipeline"
+    learning_schemas = learning_root / "schemas"
+    propose_refs = skills_dir / "propose-measure" / "references"
+    propose_refs.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(
+        learning_schemas / "candidate_measure.schema.json",
+        propose_refs / "candidate_measure.schema.json",
+    )
+    shutil.copy2(
+        learning_schemas / "candidate_recipe.schema.json",
+        propose_refs / "candidate_recipe.schema.json",
+    )
+    _copy_reference_file(
+        workspace_root / "prompts" / "learning_contract.md",
+        propose_refs / "learning_contract.md",
+    )
+    _copy_reference_file(
+        workspace_root / "prompts" / "promotion_rules.md",
+        propose_refs / "promotion_rules.md",
+    )
+
+    lesson_refs = skills_dir / "capture-session-lesson" / "references"
+    lesson_refs.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(
+        learning_schemas / "session_lesson.schema.json",
+        lesson_refs / "session_lesson.schema.json",
+    )
+    _copy_reference_file(
+        learning_root / "runtime_learning.md",
+        lesson_refs / "runtime_learning.md",
+    )
+    _copy_reference_file(
+        workspace_root / "prompts" / "learning_contract.md",
+        lesson_refs / "learning_contract.md",
+    )
+
+
+def _copy_reference_file(source: Path, target: Path) -> None:
+    """Copy a Codex reference file without top-level YAML agent-like metadata."""
+    if source.suffix.lower() != ".md":
+        shutil.copy2(source, target)
+        return
+    target.write_text(
+        _strip_yaml_frontmatter(source.read_text(encoding="utf-8")),
+        encoding="utf-8",
+    )
+
+
+def _strip_yaml_frontmatter(content: str) -> str:
+    """Remove a leading YAML frontmatter block from Markdown reference docs."""
+    if not content.startswith("---\n"):
+        return content
+    end = content.find("\n---", 4)
+    if end == -1:
+        return content
+    remainder = content[end + len("\n---") :]
+    return remainder.lstrip("\n")
 
 
 def _write_installer_assets(installers_dir: Path) -> None:
@@ -671,6 +880,8 @@ if __name__ == "__main__":
 
 def _skill_dir_name(path: Path) -> str:
     """Convert repo skill filenames into plugin skill folder names."""
+    if path.name == "openstudio_hvac_workflow_state.md":
+        return "openstudio-workflow-state"
     return path.stem.replace("_", "-")
 
 

@@ -235,8 +235,8 @@ project structure is stabilized.
    ```text
    Claude: skills/setup-openstudio-ai/scripts/install_runtime.py
    Claude: skills/setup-openstudio-ai/scripts/doctor_runtime.py
-   Codex: installers/install_runtime.py
-   Codex: installers/doctor_runtime.py
+   Codex: skills/setup-openstudio-ai/scripts/install_runtime.py
+   Codex: skills/setup-openstudio-ai/scripts/doctor_runtime.py
    ```
 
    These should validate prerequisites, install or upgrade the runtime package
@@ -248,7 +248,7 @@ project structure is stabilized.
 
    Tests should confirm:
 
-   - marketplace exports include setup/doctor/repair commands;
+   - marketplace exports include setup/doctor/repair skills;
    - `.mcp.json` points to `openstudio-ai-mcp` in installed/marketplace mode;
    - local mode still points to the source checkout;
    - exported instructions are cross-platform;
@@ -281,7 +281,6 @@ openstudio-ai/
 ├── plugins/
 │   ├── claude/
 │   └── codex/
-├── installers/
 └── tests/
 ```
 

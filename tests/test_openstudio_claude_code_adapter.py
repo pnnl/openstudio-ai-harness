@@ -121,6 +121,16 @@ def test_claude_code_adapter_exports_plugin_package(tmp_path: Path) -> None:
         / "sdk_wiki"
         / "sdk_index.md"
     ).exists()
+    sdk_index_ref = (
+        plugin_dir
+        / "skills"
+        / "openstudio-sdk-model-editor"
+        / "references"
+        / "sdk_wiki"
+        / "sdk_index.md"
+    ).read_text(encoding="utf-8")
+    assert not sdk_index_ref.startswith("---\n")
+    assert sdk_index_ref.startswith("# OpenStudio SDK Wiki Index")
     assert (
         plugin_dir
         / "skills"
@@ -135,6 +145,15 @@ def test_claude_code_adapter_exports_plugin_package(tmp_path: Path) -> None:
         / "references"
         / "blackboard_contract.md"
     ).exists()
+    blackboard_contract = (
+        plugin_dir
+        / "skills"
+        / "openstudio-workflow-state"
+        / "references"
+        / "blackboard_contract.md"
+    ).read_text(encoding="utf-8")
+    assert not blackboard_contract.startswith("---\n")
+    assert blackboard_contract.startswith("# Blackboard Contract")
     assert not (
         plugin_dir
         / "skills"
@@ -225,12 +244,14 @@ def test_claude_code_adapter_marketplace_mode_exports_runtime_setup(
     assert "python3 --version" in setup
     assert "openstudio-ai-mcp --help" in setup
     assert "energy-modeler language" in setup
+    assert "/reload-plugins" in setup
     installer = (
         plugin_dir / "skills" / "setup-openstudio-ai" / "scripts" / "install_runtime.py"
     ).read_text(encoding="utf-8")
     assert "OPENSTUDIO_AI_PACKAGE_SPEC" in installer
     assert '"pip", "install", "--upgrade"' in installer
     assert '"cli", "install-runtime"' in installer
+    assert "run /reload-plugins" in installer
     assert "Placeholder installer" not in installer
 
     exported_text = "\n".join(
@@ -272,9 +293,9 @@ def test_claude_code_adapter_exports_skill_frontmatter(tmp_path: Path) -> None:
         / "SKILL.md"
     ).read_text(encoding="utf-8")
     assert skill.startswith("---\n")
-    assert "name: openstudio_hvac_air_loop_creator\n" in skill
+    assert "name: openstudio-hvac-air-loop-creator\n" in skill
     assert "description: Create or confirm the parent AirLoopHVAC object" in skill
-    assert "version: 0.1.2\n" in skill
+    assert "version: 0.1.3\n" in skill
     assert "\n---\n\n## Scope" in skill
 
 

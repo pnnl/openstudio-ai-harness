@@ -210,7 +210,9 @@ def test_cli_validate_export_rejects_missing_marketplace_setup(tmp_path: Path) -
     )
 
     plugin_dir = tmp_path / "plugins" / "openstudio-ai"
-    (plugin_dir / "installers" / "doctor_runtime.py").unlink()
+    (
+        plugin_dir / "skills" / "setup-openstudio-ai" / "scripts" / "doctor_runtime.py"
+    ).unlink()
     assert (
         main(["validate-export", str(plugin_dir), "--runtime-mode", "marketplace"]) == 1
     )

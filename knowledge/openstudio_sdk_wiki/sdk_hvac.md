@@ -1,7 +1,7 @@
 ---
 name: sdk_hvac
 description: OpenStudio Python SDK examples for HVAC topology inspection and scoped HVAC object edits.
-version: 0.1.2
+version: 0.1.3
 ---
 
 # SDK HVAC Context

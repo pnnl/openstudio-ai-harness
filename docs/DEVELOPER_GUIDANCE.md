@@ -1,83 +1,54 @@
-# OpenStudio AI Developer Guidance
+# OpenStudio AI Developer Guide
 
-This guide explains how the OpenStudio AI folder is organized, which modules
-are for developers, which assets are exported into agent hosts, and what the
-near-term deployment roadmap should prioritize.
+This guide is for developers joining the OpenStudio AI harness work. It explains
+what each repository folder is for, what can be changed safely, how assets move
+from candidate work into trusted runtime content, and how to test the harness
+locally, in Claude Code, and in Codex.
 
-The main rule is simple:
+## Mental Model
 
-> Developers maintain the workbench. Claude Code, Codex, and other host agents
-> consume the trusted runtime harness.
+OpenStudio AI has three layers:
 
-## Product Boundary
+1. Developer workbench: source specs, candidates, evals, review queues, and
+   tools used to build the product.
+2. Trusted runtime harness: MCP tools, skills, prompts, knowledge, approved
+   measures, schemas, and package metadata that are safe to ship.
+3. Host plugin exports: Claude Code and Codex specific plugin layouts generated
+   from the trusted runtime harness.
 
-OpenStudio AI has two audiences.
+Do not edit exported plugin folders as source of truth. Change the repo assets,
+then regenerate the export.
 
-1. Harness developers
-   Build, test, review, validate, and promote OpenStudio AI assets.
-2. End users through host agents
-   Use OpenStudio AI through Claude Code, Codex, or another agent shell.
+```text
+Developer workbench
+  skills/specs, skills/templates, learning, evals, measures/candidates
+        |
+        v
+Trusted runtime harness
+  openstudio_mcp, skills/*.md, prompts, knowledge, measures/approved, schemas
+        |
+        v
+Host-specific export
+  Claude Code plugin or Codex plugin
+```
 
-Not every folder is exported to a host agent. Some folders are source,
-governance, review, or build machinery.
+## Environment Setup
 
-## Completed Baseline
+Use Python 3.12 or newer.
 
-The current implementation should be treated as the development baseline. These
-pieces are in place:
-
-- `openstudio_mcp/` is the stable MCP package name. It intentionally avoids the
-  top-level name `mcp` so it does not shadow the Anthropic MCP Python package.
-- Claude Code plugin export creates a local marketplace, plugin manifest,
-  `.mcp.json`, commands, skills, knowledge, instructions, blackboard schemas,
-  and runtime learning folders.
-- Codex plugin export creates a local marketplace, plugin manifest, `.mcp.json`,
-  skills, knowledge, instructions, blackboard schemas, and runtime learning
-  folders.
-- Runtime skills are exported as folder-per-skill packages. Skills and
-  knowledge are not flattened into one large `CLAUDE.md`.
-- HVAC child skills are generated from one YAML spec per skill plus a shared
-  Jinja template.
-- Developer-only skill management docs are excluded from runtime skill exports.
-- Runtime learning exports include schemas and a local candidate area for
-  session lessons, reusable recipes, and candidate measures.
-- Developer learning has a deterministic pipeline runner that reads local logs
-  and writes candidate lessons into a review queue.
-- A developer learning agent contract exists for the future agent-assisted
-  reflection loop.
-- Focused tests cover Claude export, Codex export, learning pipeline behavior,
-  SDK docs, and MCP smoke behavior.
-
-## Current Deployment Limits
-
-These are active engineering limits, not product vision gaps:
-
-- Local-mode plugin exports still point to the source checkout for developer
-  testing. Installed and marketplace exports now point to `openstudio-ai-mcp`;
-  the remaining deployment limit is proving those paths through clean installs,
-  stronger doctor checks, and host validation.
-- Learning promotion is intentionally gated. Runtime agents can propose
-  candidates, but trusted assets still require review, validation, and explicit
-  promotion.
-- The blackboard is now exposed through MCP tools and persisted in the local MCP
-  SQLite runtime registry for this harness evaluation.
-- The developer learning agent is specified, but the active runner is
-  deterministic. Agent-assisted reflection should be added after review and
-  eval gates are stable.
-
-## Developer Install Modes
-
-Use the full development install when testing the harness locally:
+Full developer setup:
 
 ```bash
+python -m venv .venv
+. .venv/bin/activate
+python -m pip install --upgrade pip
 python -m pip install -e ".[dev,standalone]"
 ```
 
-The `dev` extra installs build and test tooling. The `standalone` extra installs
-AUTOMA-AI and Streamlit for `agent.py`, `ui.py`, and tests that exercise the
-local A2A agent path.
+The `dev` extra installs test/build tools. The `standalone` extra installs
+AUTOMA-AI and Streamlit for local agent/UI testing.
 
-Use the lean base install when validating the marketplace or host-agent runtime:
+Base runtime setup:
 
 ```bash
 python -m pip install openstudio-ai
@@ -85,243 +56,297 @@ openstudio-ai install-runtime
 OPENSTUDIO_PATH=/path/to/openstudio openstudio-ai doctor
 ```
 
-The base package is the target for Claude Code, Codex, and other host
-integrations. It intentionally excludes AUTOMA-AI and Streamlit because those
-hosts provide the agent shell; OpenStudio AI provides the MCP runtime, skills,
-knowledge, and OpenStudio-backed tools.
+The base runtime is what Claude Code and Codex marketplace users should need. It
+does not include AUTOMA-AI or Streamlit because those hosts provide the agent
+shell.
 
-Tests that import `automa_ai` or exercise the Streamlit UI should be run from a
-`.[dev,standalone]` environment. Packaging, export, doctor, and MCP runtime
-tests should continue to pass from the lean base runtime plus test tooling.
+OpenStudio has two requirements:
 
-## Exported Runtime Harness
+- Python package: `openstudio>=3.10.0`.
+- Native OpenStudio application or CLI visible through `OPENSTUDIO_PATH` or
+  `PATH`.
 
-These are the assets a host adapter packages for Claude Code, Codex, or another
-agent host.
+## Folder Ownership
 
-- `openstudio_mcp/`
-  The OpenStudio MCP server. This is the primary runtime tool surface for model
-  operations, simulation, result queries, SDK doc lookup, and approved measures.
+Use this table when deciding where a change belongs.
+
+| Path | Purpose | Put Here | Do Not Put Here | Export Behavior |
+| --- | --- | --- | --- | --- |
+| `openstudio_mcp/` | MCP server and tool runtime | Model lifecycle, simulation, results, SDK doc, approved measure, runtime state tools | Host-specific plugin layout, markdown-only instructions | Shipped in the package and used by `.mcp.json` |
+| `openstudio_mcp/runtime/` | Runtime registry and SQLite-backed state | Durable job/artifact/storage/blackboard persistence code | Source knowledge or skill content | Used by MCP tools at runtime |
+| `openstudio_mcp/tools/` | MCP tool registration | Tool wrappers that expose service behavior | Business logic that belongs in services | Used by MCP server |
+| `openstudio_mcp/simulation/`, `results/`, `sdk_docs/`, `measures/` | Runtime service modules | Deterministic runtime operations | Host adapter behavior | Used by MCP tools |
+| `skills/*.md` | Trusted runtime skills | Hand-authored parent skills and generated child skill outputs | Draft notes, unreviewed lessons, specs | Exported as host skills |
+| `skills/specs/` | Source specs for generated skills | YAML definitions for generated HVAC child skills | Runtime-only skill markdown edits | Not exported directly |
+| `skills/templates/` | Skill generation templates | Shared Jinja templates | One-off skill content | Not exported directly |
+| `prompts/` | Shared contracts and orchestration prompts | System prompt, blackboard contract, learning contract, promotion rules | Host-specific plugin manifests | Exported into skill `references/` where needed |
+| `knowledge/` | Reviewed knowledge base | Trusted SDK recipes and wiki packs | Raw notes, generated candidates, unresolved findings | Exported into relevant skill `references/` |
+| `sdk_index/` | Structured SDK index work | Index builders, graph/index data, lookup experiments | Broad markdown docs already owned by `knowledge/` | Exposed through MCP when lookup is implemented |
+| `blackboard/schemas/` | Workflow-state schemas | JSON schemas for long-running task state and patches | Runtime SQLite files | Exported into `openstudio-workflow-state/references/` |
+| `learning/harness_pipeline/` | Runtime learning contracts | Candidate schemas and runtime learning docs | Trusted promoted assets | Exported into learning-related skill `references/` |
+| `learning/developer_pipeline/` | Deterministic developer learning | Review/promotion pipeline code | Host runtime code | Developer only |
+| `learning/developer_agent/` | AUTOMA-AI developer reflection contract | Agent spec for assisted candidate generation | Trusted assets or runtime plugin code | Developer only |
+| `learning/review_queue/` | Candidate review queue | Untrusted candidate lessons/assets awaiting review | Anything treated as product truth | Developer only |
+| `measures/approved/` | Intended trusted measure target | Reviewed deterministic OpenStudio measures after validation | Draft measures | TODO: current registry points at `measures/add_daylighting.py`; align approved folder and registry before treating this as the exposed source |
+| `measures/candidates/` | Draft measures | Proposed measures awaiting review/evals | Approved runtime measures | Excluded from wheel/runtime export |
+| `measures/templates/` | Measure templates | Reusable measure scaffolds | User outputs | Source only |
+| `harness/` | Host-agnostic package registry | Manifest and asset discovery logic | Host-specific export decisions | Used by adapters |
+| `adapters/` | Host-specific install/export logic | Claude Code and Codex plugin mapping | Product behavior or trusted modeling logic | Generates plugin folders |
+| `specs/` | Local AUTOMA-AI agent specs | `openstudio_agent.yaml` and related local agent config | Claude/Codex plugin manifests | Used for local AUTOMA-AI testing |
+| `evals/` | Eval cases and datasets | Regression cases for skills, planning, measures, knowledge | Runtime state or generated logs | Developer only |
+| `policy/` | Governance and promotion policies | Review, retention, allowlist, and runtime gate policies | Runtime executable code | Developer only unless referenced by docs |
+| `scripts/` | Build/generation scripts | Skill generation, index generation, repo maintenance scripts | Runtime MCP tool implementations | Some scripts may ship in wheel, but not as plugin UI |
+| `tests/` | Automated tests | Focused unit, adapter, MCP, CLI, and integration tests | Runtime assets | Developer only |
+| `docs/` | Developer and user documentation | Stable guides, release notes, architecture docs | Runtime state | Shipped as package docs |
+| `state/`, `logs/`, `outputs/` | Local working artifacts | Local sessions, snapshots, logs, generated outputs | Trusted assets or source specs | Not trusted; do not promote without review |
+| `.openstudio_mcp_workspace/` | Local MCP runtime workspace | Local test jobs/artifacts created by MCP | Source code | Excluded from package/export |
+| `resource/` | Local/resource inputs | Developer-only local resources | Required release assets unless explicitly packaged | Not part of marketplace payload |
+| `agent.py` | Local AUTOMA-AI bootstrap | Standalone local agent entrypoint | Claude/Codex-specific logic | Used only in standalone mode |
+| `ui.py` | Local Streamlit UI | Standalone UI code | Host plugin logic | Used only in standalone mode |
+| `cli.py` | Package CLI | `doctor`, `install-runtime`, `repair`, `export`, `validate-export` | Host-specific implementation details beyond command routing | Shipped as `openstudio-ai` |
+| `pyproject.toml` | Package metadata | Dependencies, extras, scripts, build include/exclude rules | Runtime state | Defines release package |
+| `README.md`, `HANDOFF.md` | Top-level orientation | Stable overview and current status | Deep implementation docs | Shipped/read by developers |
+
+## Current Wiring And Missing Metadata
+
+Prompts and knowledge are wired to skills by adapter code today. There is no
+general metadata manifest in `prompts/` or `knowledge/` that says "this file
+belongs to this skill" or "this prompt is for an agent versus a skill
+reference."
+
+Current hard-coded mappings:
+
+| Source Asset | Claude Export Target | Codex Export Target | Current Wiring | TODO |
+| --- | --- | --- | --- | --- |
+| `prompts/openstudio_agent.md` | Used to render `agents/openstudio-modeler.md` | `skills/openstudio-modeling-orchestrator/references/openstudio_agent.md` | Adapter-specific code | Add metadata/manifest field for prompt role: agent, orchestrator reference, skill reference |
+| `prompts/harness_system_prompt.md` | Used in Claude agent/readme guidance | `skills/openstudio-modeling-orchestrator/references/harness_system_prompt.md` | Adapter-specific code | Add metadata/manifest field for host and target skill/agent |
+| `prompts/blackboard_contract.md` | `skills/openstudio-workflow-state/references/blackboard_contract.md` | Same | Adapter-specific code | Add metadata/manifest field: target skill `openstudio-workflow-state` |
+| `prompts/learning_contract.md` | Not fully exported in Claude today except via learning skill behavior | `skills/propose-measure/references/learning_contract.md` and `skills/capture-session-lesson/references/learning_contract.md` | Adapter-specific code | Normalize Claude/Codex reference mappings through a shared manifest |
+| `prompts/promotion_rules.md` | Not fully exported in Claude today except via learning skill behavior | `skills/propose-measure/references/promotion_rules.md` | Adapter-specific code | Normalize Claude/Codex reference mappings through a shared manifest |
+| `knowledge/openstudio_sdk_recipes.md` | `skills/openstudio-sdk-model-editor/references/openstudio_sdk_recipes.md` | Same | Adapter-specific code | Add metadata/manifest field: target skill `openstudio-sdk-model-editor` |
+| `knowledge/openstudio_sdk_wiki/*.md` | `skills/openstudio-sdk-model-editor/references/sdk_wiki/*.md` | Same | Adapter-specific code | Add metadata/manifest field for target skill and optional topic tags |
+| `blackboard/schemas/*.json` | `skills/openstudio-workflow-state/references/` | Same | Adapter-specific code | Add schema manifest entry and validator coverage |
+| `learning/harness_pipeline/schemas/*.json` | Learning skill `references/` | Learning skill `references/` | Adapter-specific code | Normalize the exact Claude/Codex learning reference set |
+
+Preferred future shape:
+
+```yaml
+assets:
+  - path: prompts/blackboard_contract.md
+    kind: prompt_reference
+    target_skills:
+      - openstudio-workflow-state
+    host_targets:
+      claude: skills/openstudio-workflow-state/references/
+      codex: skills/openstudio-workflow-state/references/
+  - path: knowledge/openstudio_sdk_wiki/sdk_geometry.md
+    kind: knowledge_reference
+    target_skills:
+      - openstudio-sdk-model-editor
+    tags:
+      - sdk
+      - geometry
+```
+
+This could live in `harness/package_manifest.yaml` or a new
+`harness/asset_manifest.yaml`. Until that exists, developers must update both
+adapter mappings and adapter tests whenever prompt or knowledge ownership
+changes.
+
+## End-User Exposure And TODOs
+
+| Capability | Exposed To End Users Today | How It Is Exposed | Not Exposed / TODO |
+| --- | --- | --- | --- |
+| SDK knowledge references | Indirectly | Host skills load `references/`; MCP SDK docs tools also expose curated SDK docs | TODO: metadata-driven mapping and retrieval instead of hard-coded reference copies |
+| Agent prompts | Partially | Claude uses `agents/openstudio-modeler.md`; Codex uses `openstudio-modeling-orchestrator` skill references | TODO: classify prompt role in metadata: agent prompt, orchestrator prompt, skill reference, policy contract |
+| Blackboard schemas | Indirectly | Exported as `openstudio-workflow-state/references/`; MCP tools create/read/update SQLite state | Not a user-editable schema surface; TODO: clearer host UX for starting/resuming named workflows |
+| Approved measures | Partially | End users can call `model_list_measures` and `model_apply_measure` for measures allowed by `policy/measure_registry.yaml` | Users cannot add/approve measures through MCP today. TODO: admin/developer workflow for adding candidate measures, validating them, promoting to approved, and reloading registry safely |
+| `measures/approved/` folder | Not meaningfully used yet | It is the intended trusted target folder | Current registered measure points at `measures/add_daylighting.py`. TODO: move approved scripts under `measures/approved/` or rename the trusted measure layout so policy and docs agree |
+| Measure policy | No direct user editing | Runtime enforces `allowed`, `timeout_seconds`, and `args_schema` from `policy/measure_registry.yaml` | TODO: end-user/admin configuration story for enabling/disabling installed measures without editing package files |
+| Runtime storage usage | Yes | MCP tool `runtime_storage_usage` | TODO: surface this in setup/doctor skills and host UX more explicitly |
+| Prune preview | Yes | MCP tool `runtime_prune_preview`; does not delete files | TODO: expose retention settings and explanations in user-facing skills |
+| Runtime prune | Yes, but should require approval | MCP tool `runtime_prune`; defaults prune unprotected measure workspaces and failed simulations only | TODO: user-configurable retention rules for successful simulations, old workspaces, max disk use, and pinned workspaces |
+
+## Promotion Rules
+
+Runtime agents and local learning jobs may propose candidates. They do not
+promote trusted assets.
+
+Promotion requires:
+
+- source event or issue lineage;
+- reviewer approval;
+- a clear target folder;
+- at least one focused test or eval covering the change;
+- no hardcoded local developer paths;
+- no unreviewed candidate content copied directly into trusted runtime folders.
+
+Allowed promotion targets:
 
 - `skills/*.md`
-  Runtime skill files loaded by the host agent. These include parent workflow
-  skills and generated child skills.
-
-- `prompts/`
-  System and project instruction contracts. Important files include
-  `harness_system_prompt.md`, `blackboard_contract.md`,
-  `learning_contract.md`, `promotion_rules.md`, and `openstudio_agent.md`.
-
 - `knowledge/`
-  Trusted, reviewed knowledge-base content. Only reviewed/promoted knowledge
-  should be treated as exportable.
-
-- `measures/approved/`
-  Reviewed deterministic measures that are safe to expose through MCP.
-
-- `blackboard/schemas/`
-  Shared state schemas for long-running workflows.
-
-- `learning/harness_pipeline/schemas/`
-  Runtime candidate schemas for session lessons, reusable recipes, and candidate
-  measures.
-
-Host agents should consume these trusted runtime assets. They should not edit
-developer source specs, templates, review queues, or candidate assets directly.
-
-### Host Python Execution Boundary
-
-Runtime prompts, skills, and knowledge packs must not assume AUTOMA-AI-only
-tools such as `run_python`. Use host-neutral language: "host Python execution"
-means the Python execution path available in the current agent host. AUTOMA-AI
-may expose `run_python`; Codex may use its shell/Python execution environment;
-Claude Code may use its approved command or script execution path; some hosts
-may require asking the user to run the displayed script manually.
-
-Keep the shared safety contract independent of host implementation: show the
-complete script, ask for explicit approval before execution, keep scripts
-local-file only, count failed attempts, and route simulations/results to MCP
-`sim_*` and `results_*` tools instead of Python scripts.
-
-## Developer-Only Workbench
-
-These folders are for maintaining and improving OpenStudio AI. They are not the
-normal user-facing plugin payload.
-
-- `skills/specs/`
-  YAML source specs for generated child skills. Developers edit these, then run
-  the generator to update runtime `.md` skills.
-
-- `skills/templates/`
-  Jinja templates for generated skills. Change these only when the shared child
-  skill contract should change.
-
-- `scripts/`
-  Build, generation, and index scripts.
-
-- `learning/`
-  Developer and runtime learning pipeline code. This captures, distills,
-  reviews, validates, and promotes lessons/assets.
-
-- `evals/`
-  Agent-behavior evals. Use these to validate promoted lessons, skills,
-  measures, and SDK notes.
-
 - `sdk_index/`
-  Developer boundary for the future structured SDK index and knowledge graph.
-  Only query capabilities should be exposed through MCP or adapters.
-
-- `policy/`
-  Governance, promotion, review, retention, allowlist, and runtime gate policy.
-
-- `measures/candidates/`
-  Draft measures generated by developers or runtime learning. These require
-  review before publication.
-
-- `state/`
-  Local sessions, snapshots, candidate assets, and workflow-run state. This is
-  runtime working storage, not trusted product content.
-
-## Bridge Modules
-
-These modules connect the developer workbench to the exported harness.
-
-- `harness/`
-  Defines the host-agnostic package boundary: prompts, skills, MCP entrypoint,
-  blackboard schema, learning log, knowledge roots, and SDK index roots.
-
-- `adapters/`
-  Host-specific install/export logic. These modules translate the harness into
-  Codex, Claude Code, or another host's configuration format.
-
-The adapters should not contain product logic. Product logic belongs in MCP
-tools, skills, blackboard operations, learning pipelines, and trusted assets.
-
-## Mental Model
-
-```text
-Developer Workbench
-  skills/specs
-  skills/templates
-  scripts
-  learning
-  evals
-  sdk_index
-  policy
-  measures/candidates
-        |
-        v
-Trusted Runtime Assets
-  openstudio_mcp
-  prompts
-  skills/*.md
-  knowledge
-  measures/approved
-  blackboard/schemas
-  learning/harness_pipeline/schemas
-        |
-        v
-Harness Export
-  harness
-  adapters/codex_adapter.py
-  adapters/claude_code_adapter.py
-        |
-        v
-Codex / Claude Code / Other Agent Hosts
-```
-
-## Developer Workstreams
-
-### Developer 1: Runtime Harness And Host Adapters
-
-Primary folders:
-
 - `openstudio_mcp/`
-- `blackboard/`
-- `harness/`
-- `adapters/`
-- `prompts/`
+- `measures/approved/`
+- `evals/`
+- `docs/`
 
-Responsibilities:
+Never treat `state/`, `logs/`, `outputs/`, `learning/review_queue/`, or
+`measures/candidates/` as product truth.
 
-1. Keep `harness/package_manifest.yaml` the authoritative package manifest.
-2. Maintain Claude Code and Codex plugin exports from the same harness registry.
-3. Keep MCP imports and package paths stable under
-   `openstudio_mcp`.
-4. Keep local, installed, and marketplace MCP launch configs validated.
-5. Add validation that exported packages include the host-native component
-   layout, MCP config, skills, agents or prompts, supporting references,
-   learning schemas, and approved measures.
-6. Keep blackboard scope explicit: MCP-owned workflow state for this harness;
-   AUTOMA-AI native blackboard should remain disabled in the OpenStudio AI
-   agent spec while this path is evaluated.
+## Skill Development
 
-Current Claude Code export command:
+Parent workflow skills are usually hand-authored in `skills/*.md`.
+
+Generated HVAC child skills are edited through specs and templates:
 
 ```bash
-.venv/bin/python -m cli export claude \
-  --output-dir /tmp/openstudio-ai-plugin \
-  --workspace-root "$PWD" \
-  --runtime-mode marketplace
+.venv/bin/python scripts/generate_hvac_child_skills.py
+.venv/bin/python -m pytest -q tests/test_openstudio_hvac_skill_generation.py
 ```
 
-The export command creates a local marketplace with `.claude-plugin/marketplace.json`
-and an `openstudio-ai/` plugin folder containing `.claude-plugin/plugin.json`,
-`.mcp.json`, `settings.json`, `agents/`, `skills/`, `monitors/`, and `bin/`.
-Claude SDK knowledge, prompt contracts, blackboard schemas, and learning schemas
-are exported as supporting files under the skills that use them, not as inert
-plugin-root folders.
+Edit:
 
-Claude Code install flow:
+- `skills/specs/hvac/*.yaml` for one child skill.
+- `skills/templates/hvac_child_skill.md.j2` for shared child skill structure.
 
-```text
-/plugin marketplace add /tmp/openstudio-ai-plugin
-/plugin install openstudio-ai@openstudio-ai-local
-/reload-plugins
+Do not edit generated child skill markdown directly unless the generator is also
+updated or the skill is intentionally removed from generation.
+
+## Host Python Execution Boundary
+
+Runtime instructions must not assume AUTOMA-AI-only tools such as `run_python`.
+Use host-neutral language:
+
+- AUTOMA-AI may expose `run_python`.
+- Claude Code may use Bash or script execution.
+- Codex may use shell/Python execution.
+- Some hosts may require asking the user to run a script manually.
+
+Shared rule: show or reference the script, ask before running impactful actions,
+keep model-editing scripts local-file only, and route simulation/results through
+MCP tools when available.
+
+## Blackboard Boundary
+
+The blackboard contract describes long-running workflow state. It is not itself
+SQLite persistence.
+
+Persistence happens through MCP blackboard tools:
+
+- `blackboard_initialize_workflow`
+- `blackboard_get_workflow`
+- `blackboard_update_state_patch`
+- `blackboard_mark_step_complete`
+- `blackboard_record_assumption`
+- `blackboard_record_issue`
+- `blackboard_snapshot_workflow`
+
+The SQLite table is managed by `openstudio_mcp/runtime/state_store.py`. Plugin
+exports include `workflow_state.schema.json`, `state_patch.schema.json`, and
+`blackboard_contract.md` as references so host agents know how to call the MCP
+tools. They do not create rows unless the tools are invoked.
+
+## Local AUTOMA-AI Testing
+
+Use this path when developing the standalone local agent or testing A2A behavior.
+
+1. Install full developer dependencies:
+
+   ```bash
+   . .venv/bin/activate
+   python -m pip install -e ".[dev,standalone]"
+   ```
+
+2. Configure environment:
+
+   ```bash
+   cp sample.env .env
+   ```
+
+   Add any required LLM API keys and set `OPENSTUDIO_PATH` if the OpenStudio CLI
+   is not on `PATH`. Do not commit `.env`.
+
+3. Run the local agent:
+
+   ```bash
+   .venv/bin/python agent.py
+   ```
+
+4. Optionally run the Streamlit UI:
+
+   ```bash
+   .venv/bin/streamlit run ui.py
+   ```
+
+5. Run focused AUTOMA-AI and MCP tests:
+
+   ```bash
+   .venv/bin/python -m pytest -q \
+     tests/test_mcp_openstudio_smoke.py \
+     tests/test_openstudio_learning_pipeline.py
+   ```
+
+   Some smoke tests skip real OpenStudio execution unless `OPENSTUDIO_PATH` and
+   required local resources are configured.
+
+Use AUTOMA-AI testing for local standalone behavior. Do not use AUTOMA-AI
+assumptions in Claude/Codex runtime skills.
+
+## CLI And Runtime Checks
+
+Run these before testing host plugins:
+
+```bash
+.venv/bin/python -m cli doctor --json
+.venv/bin/python -m cli install-runtime
+.venv/bin/python -m cli validate-export --help
 ```
 
-### Integrated Claude Code Plugin Testing
+Focused checks for common edits:
 
-Use this workflow when you need to test the exported Claude Code plugin in a
-real Claude Code session. It validates the full path from repo assets to local
-marketplace, Claude plugin install, MCP startup, skills, agent activation, and
-reload behavior.
+```bash
+.venv/bin/python -m pytest -q tests/test_openstudio_cli.py
+.venv/bin/python -m pytest -q tests/test_openstudio_codex_adapter.py
+.venv/bin/python -m pytest -q tests/test_openstudio_claude_code_adapter.py
+```
 
-Claude Code copies marketplace-installed plugins into its local plugin cache
-instead of using the export folder in place. It also uses the plugin version as
-the cache/update key. If you edit plugin assets but keep the same
-`.claude-plugin/plugin.json` version, Claude Code may keep using the cached
-installed copy until you uninstall/reinstall or explicitly bump the version.
-For release-candidate testing, keep the version realistic. For rapid local
-iteration, prefer a clean uninstall/reinstall cycle.
+Use `OPENSTUDIO_PATH=/path/to/openstudio` when testing actual OpenStudio CLI
+integration.
 
-1. Export a local Claude Code marketplace:
+## Claude Code Plugin Testing
+
+Use `--runtime-mode local` when testing from a source checkout. Local mode writes
+an MCP config that starts the server with the repo virtualenv Python and
+`python -m openstudio_mcp.server`.
+
+Use `--runtime-mode marketplace` only when testing an installed package where
+`openstudio-ai-mcp` is already visible on Claude Code's PATH.
+
+1. Export:
 
    ```bash
    rm -rf /tmp/openstudio-ai-claude-test
    .venv/bin/python -m cli export claude \
      --output-dir /tmp/openstudio-ai-claude-test \
      --workspace-root "$PWD" \
-     --runtime-mode marketplace \
+     --runtime-mode local \
      --force
    ```
 
-   On macOS, `/tmp` may print back as `/private/tmp`; those are the same
-   filesystem location.
+   On macOS, `/tmp` may appear as `/private/tmp`; they are the same location.
 
-2. Validate the exported plugin before loading it in Claude Code:
+2. Validate:
 
    ```bash
    .venv/bin/python -m cli validate-export \
      /tmp/openstudio-ai-claude-test/openstudio-ai \
-     --runtime-mode marketplace
+     --runtime-mode local
 
    claude plugin validate /tmp/openstudio-ai-claude-test/openstudio-ai
    ```
 
-3. Load the local marketplace in Claude Code.
-
-   Start Claude Code in the project where you want to test the plugin, then run:
+3. Install in Claude Code:
 
    ```text
    /plugin marketplace add /tmp/openstudio-ai-claude-test
@@ -329,20 +354,10 @@ iteration, prefer a clean uninstall/reinstall cycle.
    /reload-plugins
    ```
 
-   If Claude Code asks for scope during development, choose `local` unless you
-   intentionally want user-wide or project-shared installation. Local scope
-   writes to `.claude/settings.local.json` and avoids committing test plugin
-   state.
+   During local development, use local scope unless you intentionally need user
+   or project scope.
 
-   For non-interactive install after the marketplace is already registered, use:
-
-   ```bash
-   claude plugin install openstudio-ai@openstudio-ai-local --scope local
-   ```
-
-4. Confirm the plugin loaded.
-
-   In Claude Code:
+4. Confirm load:
 
    ```text
    /plugin list
@@ -350,347 +365,218 @@ iteration, prefer a clean uninstall/reinstall cycle.
    /openstudio-ai:doctor-openstudio-ai
    ```
 
-   Expected checks:
+Expected Claude plugin shape:
 
-   - `openstudio-ai` appears enabled.
-   - The component list includes `skills/`, `agents/openstudio-modeler.md`,
-     `.mcp.json`, `settings.json`, `monitors/`, and `bin/`.
-   - `settings.json` activates `openstudio-modeler` as the main Claude Code
-     thread while the plugin is enabled.
-   - The doctor skill reports whether Python, OpenStudio AI, OpenStudio, MCP,
-     SDK docs, and runtime assets are ready.
+```text
+openstudio-ai/
+├── .claude-plugin/plugin.json
+├── .mcp.json
+├── README.md
+├── settings.json
+├── agents/openstudio-modeler.md
+├── monitors/monitors.json
+├── bin/
+└── skills/
+    ├── setup-openstudio-ai/
+    │   ├── SKILL.md
+    │   └── scripts/
+    ├── openstudio-sdk-model-editor/
+    │   ├── SKILL.md
+    │   └── references/
+    ├── openstudio-workflow-state/
+    │   ├── SKILL.md
+    │   └── references/
+    ├── propose-measure/
+    │   ├── SKILL.md
+    │   └── references/
+    └── capture-session-lesson/
+        ├── SKILL.md
+        └── references/
+```
 
-5. Clean up an existing test install before reloading a changed plugin.
+Claude Code does not automatically read arbitrary root `instructions/`,
+`knowledge/`, `blackboard/`, or `learning/` folders. Put supporting material in
+the relevant skill `references/` folder.
 
-   First uninstall the plugin from the same scope used for testing:
+### Reloading Claude Code Plugins
+
+Claude Code copies installed marketplace plugins into its cache. Editing the
+export directory does not necessarily update the installed copy.
+
+Clean reinstall:
+
+```bash
+claude plugin uninstall openstudio-ai@openstudio-ai-local --scope local --keep-data
+rm -rf /tmp/openstudio-ai-claude-test
+.venv/bin/python -m cli export claude \
+  --output-dir /tmp/openstudio-ai-claude-test \
+  --workspace-root "$PWD" \
+  --runtime-mode local \
+  --force
+```
+
+Then in Claude Code:
+
+```text
+/plugin marketplace add /tmp/openstudio-ai-claude-test
+/plugin install openstudio-ai@openstudio-ai-local
+/reload-plugins
+```
+
+If an old version remains, inspect scopes:
+
+```bash
+claude plugin list --json
+claude plugin details openstudio-ai@openstudio-ai-local
+claude plugin uninstall openstudio-ai@openstudio-ai-local --scope local --keep-data
+claude plugin uninstall openstudio-ai@openstudio-ai-local --scope project --keep-data
+claude plugin uninstall openstudio-ai@openstudio-ai-local --scope user --keep-data
+```
+
+Ignore "not installed" messages for scopes you did not use.
+
+## Codex Plugin Testing
+
+Codex export creates a local marketplace folder with `.agents/plugins` metadata
+and a plugin under `plugins/openstudio-ai/`.
+
+1. Export:
 
    ```bash
-   claude plugin uninstall openstudio-ai@openstudio-ai-local \
-     --scope local \
-     --keep-data
-   ```
-
-   Use `--keep-data` while iterating if you want to preserve plugin runtime
-   state. Omit `--keep-data` for a clean runtime-data reset.
-
-   Then remove or refresh the exported marketplace folder and reinstall:
-
-   ```bash
-   rm -rf /tmp/openstudio-ai-claude-test
-   .venv/bin/python -m cli export claude \
-     --output-dir /tmp/openstudio-ai-claude-test \
+   rm -rf /tmp/openstudio-ai-codex-test
+   .venv/bin/python -m cli export codex \
+     --output-dir /tmp/openstudio-ai-codex-test \
      --workspace-root "$PWD" \
-     --runtime-mode marketplace \
+     --runtime-mode local \
      --force
    ```
 
-   Back in Claude Code:
+   Use `--runtime-mode local` for source-checkout MCP testing. Use
+   `marketplace` only when `openstudio-ai-mcp` is installed and visible to Codex.
 
-   ```text
-   /plugin marketplace add /tmp/openstudio-ai-claude-test
-   /plugin install openstudio-ai@openstudio-ai-local
-   /reload-plugins
-   ```
-
-   If Claude Code still shows an older version, check the installed plugin list
-   and details:
+2. Validate:
 
    ```bash
-   claude plugin list --json
-   claude plugin details openstudio-ai@openstudio-ai-local
+   .venv/bin/python -m cli validate-export \
+     /tmp/openstudio-ai-codex-test/plugins/openstudio-ai \
+     --runtime-mode local
+
+   .venv/bin/python /path/to/codex/plugin-creator/scripts/validate_plugin.py \
+     /tmp/openstudio-ai-codex-test/plugins/openstudio-ai
    ```
 
-   If the old version remains installed, uninstall every scope where it appears:
+   The second command is optional and depends on where the Codex plugin validator
+   is installed on the developer machine. If it is not present, run the project
+   validator and focused adapter tests instead.
+
+3. Add the marketplace in Codex:
 
    ```bash
-   claude plugin uninstall openstudio-ai@openstudio-ai-local --scope local --keep-data
-   claude plugin uninstall openstudio-ai@openstudio-ai-local --scope project --keep-data
-   claude plugin uninstall openstudio-ai@openstudio-ai-local --scope user --keep-data
+   codex plugin marketplace add /tmp/openstudio-ai-codex-test
    ```
 
-   Ignore "not installed" errors for scopes you did not use.
+4. Install or enable `openstudio-ai` from the `openstudio-ai-local` marketplace
+   in Codex, then ask Codex to use the setup or doctor skill.
 
-   If you intentionally want to remove unused auto-installed dependencies, run a
-   dry-run first:
+Expected Codex plugin shape:
 
-   ```bash
-   claude plugin prune --scope local --dry-run
-   ```
-
-   Avoid manually deleting `~/.claude/plugins/cache` during normal development.
-   Claude Code marks old marketplace plugin versions as orphaned and removes
-   them after its grace period. Manual cache deletion is only a last-resort
-   diagnostic after uninstalling the plugin and closing all Claude Code
-   sessions.
-
-Current Codex export command:
-
-```bash
-.venv/bin/python -m adapters.codex_adapter export-plugin \
-  --output-dir /tmp/openstudio-ai-codex-plugin
+```text
+openstudio-ai-codex-test/
+├── .agents/plugins/marketplace.json
+├── INSTALL.md
+└── plugins/openstudio-ai/
+    ├── .codex-plugin/plugin.json
+    ├── .mcp.json
+    ├── README.md
+    ├── CONNECTORS.md
+    └── skills/
+        ├── setup-openstudio-ai/
+        │   ├── SKILL.md
+        │   └── scripts/
+        ├── openstudio-modeling-orchestrator/
+        │   ├── SKILL.md
+        │   └── references/
+        ├── openstudio-sdk-model-editor/
+        │   ├── SKILL.md
+        │   └── references/
+        ├── openstudio-workflow-state/
+        │   ├── SKILL.md
+        │   └── references/
+        ├── propose-measure/
+        │   ├── SKILL.md
+        │   └── references/
+        └── capture-session-lesson/
+            ├── SKILL.md
+            └── references/
 ```
 
-The export command creates a repo-local Codex marketplace at
-`.agents/plugins/marketplace.json` and a plugin folder at
-`plugins/openstudio-ai/` containing `.codex-plugin/plugin.json`, `.mcp.json`,
-`skills/`, `knowledge/`, `instructions/`, `learning/`, and
-`blackboard/schemas/`.
-
-Local project install remains available for Claude Code development:
-
-```bash
-.venv/bin/python -m adapters.claude_code_adapter install \
-  --target-dir /path/to/claude/project \
-  --dry-run
-```
-
-The non-dry-run install command writes `.mcp.json` and `.claude/CLAUDE.md` into
-the target project. Use plugin export as the preferred distributable path.
-
-### Developer 2: Learning, Skill Quality, And Promotion
-
-Primary folders:
-
-- `learning/`
-- `evals/`
-- `skills/specs/`
-- `skills/templates/`
-- `knowledge/`
-- `measures/candidates/`
-- `measures/approved/`
-
-Responsibilities:
-
-1. Implement learning event capture for failures, user corrections, simulation
-   warnings, review notes, and successful repeated workflows.
-2. Distill raw events into candidate lessons, candidate skills, candidate
-   measures, and eval cases.
-3. Maintain a review queue format for candidate assets.
-4. Require eval linkage before promotion.
-5. Promote reviewed assets into `knowledge/`, `skills/*.md`,
-   `measures/approved/`, or SDK index artifacts.
-6. Keep generated child skills concise and synchronized with their YAML specs.
-
-Current developer learning command:
-
-```bash
-.venv/bin/python -m learning.developer_pipeline.run_pipeline
-```
-
-This writes candidate lessons to `learning/review_queue/`. Candidates are not
-trusted assets until reviewed, validated, and promoted.
-
-Runtime learning export:
-
-- Claude exports include `propose-measure` and `capture-session-lesson` skills
-  with candidate schemas under `skills/*/references/`.
-- Claude exports include a passive learning-event monitor that only notifies
-  Claude about runtime learning events; it does not promote assets.
-- Codex exports currently include `learning/schemas/` and `learning/candidates/`.
-- Runtime candidates remain untrusted until reviewed and validated.
-
-## Learning Pipeline Boundary
-
-OpenStudio AI has two learning pipelines.
-
-Developer learning pipeline:
-
-- captures raw events from development and review;
-- distills candidate assets;
-- requires human/modeler review;
-- validates through evals;
-- promotes trusted assets.
-
-Harness runtime learning pipeline:
-
-- captures local repeated scripts, session lessons, and candidate recipes;
-- may propose candidate measures;
-- writes candidates to local/candidate storage;
-- does not directly update trusted assets.
-
-Runtime learning can suggest. Developer learning can promote.
-
-## Promotion Rules
-
-An asset should not move into trusted runtime content unless it has:
-
-- source event lineage;
-- reviewer approval;
-- at least one linked eval case;
-- a clear promotion target.
-
-Allowed promotion targets:
-
-- `knowledge/`
-- `skills/*.md`
-- `sdk_index/`
-- `openstudio_mcp/`
-- `measures/approved/`
-- `evals/`
-
-Do not promote directly from `state/`, `logs/`, or `measures/candidates/`
-without review and validation.
-
-## Skill Development Rules
-
-Parent workflow skills are generally hand-authored.
-
-Child workflow skills should be generated when they share a common structure.
-For HVAC child skills:
-
-- edit `skills/specs/hvac/*.yaml`;
-- edit `skills/templates/hvac_child_skill.md.j2` only for shared structure;
-- regenerate with `scripts/generate_hvac_child_skills.py`;
-- run the generator check and focused tests.
-
-Runtime hosts consume `skills/*.md`, not `skills/specs/*.yaml`.
+Do not add Codex plugin root `commands/`, `instructions/`, `knowledge/`,
+`blackboard/`, `learning/`, or `installers/` folders. The adapter maps source
+assets into skill-local `references/` and `scripts/`.
 
 ## Adapter Development Rules
 
-Adapters should make normal user setup simple.
+Adapters are release tooling. They should translate trusted harness assets into
+host-native plugin layouts. They should not contain modeling behavior.
 
-Target user flow:
+When changing an adapter:
 
-1. User installs OpenStudio AI or installs a packaged OpenStudio AI release.
-2. User runs a host-specific setup or plugin marketplace command.
-3. Adapter writes or previews host configuration.
-4. Host agent loads prompts, skills, MCP server config, blackboard schema,
-   runtime learning schemas, and trusted knowledge.
-5. User works in Claude Code, Codex, or another host normally.
+1. Update the exported layout in the adapter.
+2. Update `validate-export` if the layout contract changes.
+3. Add or update adapter tests.
+4. Export a real plugin to `/tmp`.
+5. Run the project validator and host validator.
+6. Update this guide and `HANDOFF.md` if developers need to know the new rule.
 
-Adapters should provide:
+Focused adapter tests:
 
-- `--dry-run` before writing config;
-- clear list of files they will create or modify;
-- no direct modification of trusted assets;
-- no hidden learning promotion.
+```bash
+.venv/bin/python -m pytest -q \
+  tests/test_openstudio_claude_code_adapter.py \
+  tests/test_openstudio_codex_adapter.py \
+  tests/test_openstudio_cli.py
+```
 
-## What Not To Export
+## Package And Release Checks
 
-Do not export these as normal host-agent runtime content:
+Before a release candidate:
 
-- `skills/specs/`
-- `skills/templates/`
-- `scripts/`
-- `learning/developer_pipeline/`
-- `learning/developer_agent/`
-- `evals/`
-- `measures/candidates/`
-- review queues;
-- raw logs;
-- local `state/` snapshots;
-- development-only policy drafts.
+```bash
+.venv/bin/python -m pytest -q tests
+rm -rf dist build
+.venv/bin/python -m build --wheel
+.venv/bin/python -m cli export claude --output-dir /tmp/openstudio-ai-claude --runtime-mode marketplace --force
+.venv/bin/python -m cli export codex --output-dir /tmp/openstudio-ai-codex --runtime-mode marketplace --force
+.venv/bin/python -m cli validate-export /tmp/openstudio-ai-claude/openstudio-ai --runtime-mode marketplace
+.venv/bin/python -m cli validate-export /tmp/openstudio-ai-codex/plugins/openstudio-ai --runtime-mode marketplace
+```
 
-These may be included in a developer distribution, but not in the normal
-Claude/Codex runtime package.
+Also run `openstudio-ai doctor` in an environment with the native OpenStudio CLI
+installed before claiming simulation readiness.
 
-## Near-Term Roadmap
+## Common Mistakes
 
-### 1. Prove Runtime Packaging For Deployment
+- Adding support docs to plugin root folders instead of skill `references/`.
+- Editing generated HVAC child skills without updating specs/templates.
+- Treating candidate learning output as trusted knowledge.
+- Assuming `run_python` exists in Claude Code or Codex instructions.
+- Testing marketplace mode before `openstudio-ai-mcp` is on the host PATH.
+- Expecting blackboard schema files to create SQLite state without MCP tool
+  calls.
+- Shipping local paths such as `/Users/...` in marketplace exports.
+- Including sample models, weather files, runtime workspaces, logs, or outputs in
+  release payloads.
 
-Installed and marketplace exports now use the `openstudio-ai-mcp` release
-entrypoint. The goal is to prove exported plugins can start OpenStudio AI
-without relying on a developer's repo path or active virtual environment.
+## What To Update When You Change Things
 
-Definition of done:
+- Folder ownership or export layout changes: update this file, adapter tests,
+  `validate-export`, and `HANDOFF.md`.
+- CLI behavior changes: update `README.md`, relevant docs, and CLI tests.
+- Runtime MCP behavior changes: update MCP tests and any skill/prompt that
+  routes to the changed tool.
+- Skill behavior changes: update skill tests/evals and regenerate generated
+  skills if applicable.
+- Learning/promotion changes: update schemas, review docs, evals, and promotion
+  rules together.
 
-- installable Python package or vendored runtime path passes clean-install
-  verification;
-- installed and marketplace `.mcp.json` files use the package entrypoint;
-- adapter validation fails when required runtime dependencies are missing;
-- Claude Code and Codex exports pass their validators after packaging;
-- OpenStudio-installed MCP smoke checks pass with `OPENSTUDIO_PATH` configured.
-
-### 2. Harden Adapter Validation
-
-The adapters are now real product boundaries. Treat them like release tooling.
-
-Definition of done:
-
-- one command validates the harness manifest and both host exports;
-- tests assert exported command metadata, skill folder layout, learning assets,
-  and blackboard schemas;
-- adapter docs show normal install, validation, and troubleshooting flows;
-- generated packages contain no developer-only specs, templates, review queues,
-  or raw logs.
-
-### 3. Make Learning Promotion Operational
-
-The learning architecture is present. The next step is to make the review and
-promotion process executable end to end.
-
-Definition of done:
-
-- raw event examples cover script failures, simulation warnings, user
-  corrections, review notes, and repeated successful workflows;
-- candidate lesson, candidate measure, and candidate eval examples exist;
-- review records capture approval, rejection, reviewer, rationale, and linked
-  evidence;
-- promotion scripts move approved assets into trusted targets only after eval
-  linkage;
-- promoted knowledge and measures include lineage metadata.
-
-### 4. Add Agent-Assisted Developer Reflection
-
-Use the `learning/developer_agent/` contract to add an agent loop that reflects
-on telemetry and proposes candidates, while preserving deterministic gates.
-
-Definition of done:
-
-- the agent can read reviewable telemetry batches;
-- it writes candidate assets in the same schemas as the deterministic runner;
-- it cannot directly modify trusted assets;
-- evals compare agent proposals against expected candidate structure and
-  required evidence.
-
-### 5. Prove The Augment Layer With VAV Workflow Evals
-
-The parent/child VAV skill hierarchy should be validated as a planning system,
-not only as markdown assets.
-
-Definition of done:
-
-- an eval checks that the parent skill initializes state and loads only the
-  needed child skill for the current phase;
-- child skill contracts include required fields, outputs, validation checks,
-  and failure behavior;
-- the eval confirms no full-system child context is loaded when one phase is
-  enough;
-- one golden VAV workflow trace is stored as a reference artifact.
-
-### 6. Integrate SDK Index And Knowledge Retrieval
-
-The SDK index should become a precise context retrieval layer rather than a
-large static context dump.
-
-Definition of done:
-
-- MCP exposes SDK index lookup with class, method, and return-unit metadata;
-- lessons learned can link to SDK symbols;
-- exported instructions tell host agents when to query SDK index instead of
-  loading broad docs;
-- evals cover known traps such as radians-versus-degrees behavior.
-
-### 7. Harden MCP Blackboard As A Shared Runtime Service
-
-The blackboard has moved into MCP for this harness evaluation. The next step is
-to harden its state contract, persistence semantics, and host-agent usage
-patterns.
-
-Definition of done:
-
-- MCP operations cover initialize, patch, get phase state, mark step
-  complete, and snapshot;
-- parent workflow skills remain the owner of state mutation semantics.
-
-## Direction For The Team
-
-Developer 1 should focus on runtime packaging, adapter validation, host install
-flows, and MCP stability.
-
-Developer 2 should focus on learning pipeline operations, promotion gates,
-workflow evals, skill quality, and knowledge/measure governance.
-
-Both developers should keep the exported runtime harness small, reviewed, and
-portable. The developer workbench can be larger because it is where experience
-is captured, reviewed, validated, and promoted into the product.
+Keep changes small, testable, and tied to one layer at a time.

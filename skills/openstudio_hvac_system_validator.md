@@ -1,7 +1,7 @@
 ---
 name: openstudio_hvac_system_validator
 description: Validate object counts, connections, assumptions, and output state for a phased OpenStudio HVAC workflow.
-version: 0.1.2
+version: 0.1.3
 output_format: markdown_with_json_state_patch
 ---
 

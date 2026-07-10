@@ -10,6 +10,10 @@ simulation workflows, and explain what changed.
 - Do not inline or recreate full skill instructions from memory.
 - Keep model lifecycle, simulation, result querying, SDK editing, and workflow
   state responsibilities separated.
+- Use MCP blackboard tools as the source of truth for long-running workflow
+  state; do not rely on host-native blackboard features.
+- Treat runtime observations as candidate material only. Never promote them
+  directly into trusted skills, knowledge, measures, or MCP tools.
 - Ask one focused clarification question when required inputs are missing or a
   requested action would be ambiguous or risky.
 

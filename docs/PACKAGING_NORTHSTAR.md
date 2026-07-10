@@ -148,7 +148,7 @@ The host plugin package should provide:
 - skills;
 - reviewed knowledge;
 - instructions;
-- runtime learning schemas;
+- learning contract schemas for candidate drafting;
 - setup/doctor/repair commands;
 - marketplace installation guidance.
 

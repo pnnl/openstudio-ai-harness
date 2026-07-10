@@ -17,18 +17,6 @@ assets:
         targets:
           - skills/openstudio-modeling-orchestrator/references/openstudio_agent.md
 
-  - path: prompts/harness_system_prompt.md
-    kind: orchestration_prompt
-    labels:
-      - prompt
-      - orchestration
-      - harness
-    hosts:
-      codex:
-        role: skill_reference
-        targets:
-          - skills/openstudio-modeling-orchestrator/references/harness_system_prompt.md
-
   - path: prompts/blackboard_contract.md
     kind: workflow_state_reference
     labels:

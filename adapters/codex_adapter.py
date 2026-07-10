@@ -413,7 +413,6 @@ def _workflow_skill_docs(runtime_mode: str) -> dict[str, str]:
                 "of recreating their detailed procedures from memory.\n\n"
                 "Reference files:\n\n"
                 "- `references/openstudio_agent.md`: high-level orchestration prompt.\n"
-                "- `references/harness_system_prompt.md`: harness-wide execution contract.\n"
             ),
         ),
         "add-vav-reheat": _skill_markdown(

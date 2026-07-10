@@ -189,6 +189,11 @@ def test_claude_code_adapter_exports_plugin_package(tmp_path: Path) -> None:
         (plugin_dir / "settings.json").read_text(encoding="utf-8")
     )
     assert settings_json["agent"] == "openstudio-modeler"
+    agent_prompt = (plugin_dir / "agents" / "openstudio-modeler.md").read_text(
+        encoding="utf-8"
+    )
+    assert "do not rely on host-native blackboard features" in agent_prompt
+    assert "Never promote them" in agent_prompt
     readme = (plugin_dir / "README.md").read_text(encoding="utf-8")
     assert "activating it as the main Claude Code thread" in readme
     assert "does not automatically read arbitrary plugin instruction files" in readme

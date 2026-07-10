@@ -28,6 +28,13 @@ def test_asset_manifest_maps_codex_prompt_and_knowledge_references(
     assert orchestrator_prompt in by_target
     assert by_target[orchestrator_prompt].kind == "agent_prompt"
     assert "agent" in by_target[orchestrator_prompt].labels
+    assert (
+        Path(
+            "skills/openstudio-modeling-orchestrator/references/"
+            "harness_system_prompt.md"
+        )
+        not in by_target
+    )
     assert sdk_geometry in by_target
     assert by_target[sdk_geometry].kind == "knowledge_reference"
     assert "sdk" in by_target[sdk_geometry].labels
@@ -41,6 +48,7 @@ def test_asset_manifest_skips_generated_claude_agent_prompt(tmp_path: Path) -> N
     targets = {export.target.relative_to(plugin_dir) for export in exports}
 
     assert Path("agents/openstudio-modeler.md") not in targets
+    assert not any(target.name == "harness_system_prompt.md" for target in targets)
     assert (
         Path("skills/openstudio-workflow-state/references/blackboard_contract.md")
         in targets

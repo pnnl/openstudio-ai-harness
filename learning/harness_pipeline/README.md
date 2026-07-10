@@ -1,28 +1,20 @@
-# Harness Runtime Learning Pipeline
+# Learning Contract Assets
 
-The harness pipeline runs in a distributable agent plugin. It may capture local
-experience and propose reusable assets, but it must not directly update trusted
-OpenStudio AI assets.
+This directory supplies the schemas and reference guidance used by the
+`propose-measure` and `capture-session-lesson` skills. It is not an executable
+learning pipeline in Claude Code or Codex.
 
-Allowed outputs:
+Plugin exports copy only these contract assets into skill-local `references/`:
 
-- local recipes;
-- session lessons;
-- candidate measures;
-- candidate eval cases;
-- candidate knowledge-base notes.
+- `schemas/candidate_measure.schema.json` and
+  `schemas/candidate_recipe.schema.json` for `propose-measure`;
+- `schemas/session_lesson.schema.json` and `runtime_learning.md` for
+  `capture-session-lesson`.
 
-Promotion into trusted assets is handled by the developer pipeline.
+The Python helper modules in this directory are not exposed as MCP tools and
+are not invoked by either host plugin. A future executable learning workflow
+must add an explicit MCP tool or an approved host execution path, storage, and
+review lifecycle before it can claim to capture or persist candidates.
 
-## Exported Runtime Shape
-
-Claude and Codex plugin exports include:
-
-- `learning/README.md`
-- `learning/schemas/candidate_measure.schema.json`
-- `learning/schemas/candidate_recipe.schema.json`
-- `learning/schemas/session_lesson.schema.json`
-- `learning/candidates/.gitkeep`
-
-Claude exports also include `/openstudio-ai:propose-measure`, which instructs
-the host agent to write candidate measure JSON into `learning/candidates/`.
+Candidate content never becomes trusted OpenStudio AI content automatically.
+Promotion remains a developer review and evaluation workflow.

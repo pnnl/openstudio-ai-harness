@@ -9,7 +9,8 @@ knowledge, and workflow-state tools for AI-assisted building-energy modeling.
   runtime storage, and MCP-backed blackboard workflow state.
 - Claude Code plugin export.
 - Codex plugin export.
-- Runtime learning schemas and candidate folders.
+- Learning contracts for candidate drafting; host plugins do not persist
+  candidate records yet.
 - HVAC workflow skills and generated child skills.
 - Reviewed OpenStudio SDK knowledge packs.
 - Packaging north-star plan for stable `pip install` and marketplace agentic

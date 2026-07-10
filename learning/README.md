@@ -11,13 +11,14 @@ Developer pipeline:
 - promotes approved assets into trusted knowledge, skills, SDK index notes, or
   MCP measures.
 
-Harness pipeline:
+Host learning contracts:
 
-- runs inside a distributable harness;
-- captures local repeated scripts, recipes, and session lessons;
-- proposes candidate measures or reusable recipes;
-- stores candidates locally for review;
-- never directly edits trusted assets.
+- provide schemas and guidance for drafting candidate measures, recipes, and
+  session lessons;
+- are exported under the relevant skill's `references/` directory;
+- do not execute a learning pipeline or persist candidate records in Claude
+  Code or Codex;
+- never directly edit trusted assets.
 
 This separation keeps "AI learns" defensible: runtime observations can create
 candidates, but trusted assets require review and validation.
@@ -42,14 +43,13 @@ It writes reviewable candidates to:
 These candidates are not trusted assets. A modeler/developer must review them,
 add or update evals, and then promote them intentionally.
 
-## Runtime Harness Pipeline
+## Host Learning Contracts
 
-Claude/Codex exports include a lightweight runtime learning area:
+Claude/Codex exports copy selected files from `learning/harness_pipeline/` into
+`propose-measure` and `capture-session-lesson` skill references. They support
+candidate drafting only; no plugin-root `learning/` directory, candidate
+storage, or host-executed learning pipeline exists today.
 
-- `learning/README.md`
-- `learning/schemas/`
-- `learning/candidates/`
-
-Runtime agents may write candidate recipes, measures, or session lessons there.
-They must not directly modify trusted `knowledge/`, `skills/`, or
-`measures/approved/`.
+A future runtime learning feature must add explicit MCP tools or an approved
+host execution path, durable storage, validation, and review before it may
+claim to capture candidates.

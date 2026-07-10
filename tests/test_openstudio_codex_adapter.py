@@ -142,6 +142,11 @@ def test_codex_adapter_exports_plugin_package(tmp_path: Path) -> None:
         / "references"
         / "runtime_learning.md"
     ).exists()
+    orchestrator = (
+        plugin_dir / "skills" / "openstudio-modeling-orchestrator" / "SKILL.md"
+    ).read_text(encoding="utf-8")
+    assert "openstudio_agent.md" in orchestrator
+    assert "harness_system_prompt.md" not in orchestrator
     assert (
         plugin_dir
         / "skills"

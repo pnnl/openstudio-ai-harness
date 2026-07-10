@@ -108,13 +108,12 @@ Use this table when deciding where a change belongs.
 | `knowledge/` | Reviewed knowledge base | Trusted SDK recipes and wiki packs | Raw notes, generated candidates, unresolved findings | Exported into relevant skill `references/` |
 | `sdk_index/` | Structured SDK index work | Index builders, graph/index data, lookup experiments | Broad markdown docs already owned by `knowledge/` | Exposed through MCP when lookup is implemented |
 | `blackboard/` | Shared workflow-state helpers and schemas | State transformations, snapshots, and JSON schemas for long-running task state | JSON-file persistence or runtime SQLite files | Schemas are exported into `openstudio-workflow-state/references/`; SQLite state is owned by the MCP runtime |
-| `learning/harness_pipeline/` | Runtime learning contracts | Candidate schemas and runtime learning docs | Trusted promoted assets | Exported into learning-related skill `references/` |
+| `learning/harness_pipeline/` | Learning contract sources | Candidate schemas and reference guidance for proposal/capture skills | Host-executable learning behavior or trusted promoted assets | Selected contract files are exported into learning skill `references/`; Python helpers are not invoked by Claude Code or Codex |
 | `learning/developer_pipeline/` | Deterministic developer learning | Review/promotion pipeline code | Host runtime code | Developer only |
 | `learning/developer_agent/` | AUTOMA-AI developer reflection contract | Agent spec for assisted candidate generation | Trusted assets or runtime plugin code | Developer only |
 | `learning/review_queue/` | Candidate review queue | Untrusted candidate lessons/assets awaiting review | Anything treated as product truth | Developer only |
 | `measures/approved/` | Intended trusted measure target | Reviewed deterministic OpenStudio measures after validation | Draft measures | TODO: current registry points at `measures/add_daylighting.py`; align approved folder and registry before treating this as the exposed source |
 | `measures/candidates/` | Draft measures | Proposed measures awaiting review/evals | Approved runtime measures | Excluded from wheel/runtime export |
-| `measures/templates/` | Measure templates | Reusable measure scaffolds | User outputs | Source only |
 | `harness/` | Host-agnostic package registry | Manifest and asset discovery logic | Host-specific export decisions | Used by adapters |
 | `adapters/` | Host-specific install/export logic | Claude Code and Codex plugin mapping | Product behavior or trusted modeling logic | Generates plugin folders |
 | `specs/` | Local AUTOMA-AI agent specs | `openstudio_agent.yaml` and related local agent config | Claude/Codex plugin manifests | Used for local AUTOMA-AI testing |
@@ -206,14 +205,13 @@ Current metadata-backed mappings:
 | Source Asset | Claude Export Target | Codex Export Target | Metadata Label | TODO |
 | --- | --- | --- | --- | --- |
 | `prompts/openstudio_agent.md` | Generated into `agents/openstudio-modeler.md` | `skills/openstudio-modeling-orchestrator/references/openstudio_agent.md` | `agent_prompt` | Keep Claude agent generation and Codex reference target synchronized |
-| `prompts/harness_system_prompt.md` | Not exported | `skills/openstudio-modeling-orchestrator/references/harness_system_prompt.md` | `orchestration_prompt` | Decide whether Claude also needs this as an agent template input or copied reference |
 | `prompts/blackboard_contract.md` | `skills/openstudio-workflow-state/references/blackboard_contract.md` | Same | `workflow_state_reference` | Keep schema and contract targets together |
 | `prompts/learning_contract.md` | `propose-measure` and `capture-session-lesson` references | Same | `learning_reference` | Keep learning skill targets host-aligned |
 | `prompts/promotion_rules.md` | `propose-measure` reference | Same | `promotion_reference` | Add eval coverage for promotion reference loading |
 | `knowledge/openstudio_sdk_recipes.md` | `skills/openstudio-sdk-model-editor/references/openstudio_sdk_recipes.md` | Same | `knowledge_reference` | Add topic-level retrieval metadata when SDK index is ready |
 | `knowledge/openstudio_sdk_wiki/*.md` | `skills/openstudio-sdk-model-editor/references/sdk_wiki/*.md` | Same | `knowledge_reference` | Add optional topic tags per file if retrieval needs finer routing |
 | `blackboard/schemas/*.json` | `skills/openstudio-workflow-state/references/` | Same | `workflow_state_schema` | Keep validator coverage for required schemas |
-| `learning/harness_pipeline/schemas/*.json` | Learning skill `references/` | Same | `learning_schema` | Keep candidate schema targets host-aligned |
+| `learning/harness_pipeline/schemas/*.json` | Learning skill `references/` | Same | `learning_schema` | Contract-only: host plugins do not execute the Python helper modules |
 
 Manifest entry shape:
 

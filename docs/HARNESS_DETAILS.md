@@ -38,7 +38,8 @@ OpenStudio AI currently includes:
 - generated HVAC child skills from one YAML spec per skill plus a shared Jinja
   template;
 - reviewed knowledge folders and SDK wiki packs;
-- runtime learning schemas and candidate folders exported to host agents;
+- learning schemas and guidance exported as skill references for candidate
+  drafting; host plugins do not persist candidate records;
 - manual developer learning pipeline that distills logs into reviewable
   candidates;
 - MCP-backed blackboard schemas and operation helpers;
@@ -189,14 +190,15 @@ Run the current deterministic curation pass:
 .venv/bin/python -m learning.developer_pipeline.run_pipeline
 ```
 
-Runtime harness learning:
+Host learning contracts:
 
-- exported to Claude/Codex as instructions, schemas, and candidate folders;
-- lets host agents propose candidate recipes, session lessons, or measures;
+- exported to Claude/Codex as skill-local instructions and schemas;
+- let host agents draft candidate recipes, session lessons, or measures without
+  claiming that the candidate was persisted;
 - never directly updates trusted `knowledge/`, `skills/`, `openstudio_mcp/`, or
   `measures/approved/`.
 
-Runtime learning can suggest. Developer learning can promote.
+Host learning contracts can guide drafting. Developer learning can promote.
 
 ### Blackboard
 

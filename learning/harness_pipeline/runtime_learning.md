@@ -1,6 +1,6 @@
 # Runtime Learning
 
-Runtime learning in exported Claude/Codex harnesses is candidate-only.
+Learning guidance in exported Claude/Codex harnesses is candidate-only.
 
 Allowed runtime outputs:
 
@@ -12,6 +12,7 @@ Allowed runtime outputs:
 Runtime agents must not directly edit trusted `knowledge/`, `skills/`,
 `measures/approved/`, or MCP tools.
 
-Use `learning/candidates/` for proposed assets and validate against the schemas
-in `learning/schemas/`.
-
+The plugin does not currently provide candidate storage or an executable
+learning pipeline. Use the skill-local schemas to draft a reviewable candidate,
+but do not claim that it was persisted. A future MCP-backed workflow must own
+candidate storage and validation before hosts can capture candidates directly.

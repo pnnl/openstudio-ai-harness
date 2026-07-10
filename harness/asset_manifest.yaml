@@ -1,194 +1,68 @@
 $schema: asset_manifest.schema.json
-version: 1
+version: 2
 assets:
   - path: prompts/openstudio_agent.md
-    kind: agent_prompt
-    labels:
-      - prompt
-      - agent
-      - orchestration
-    hosts:
-      claude:
-        copy: false
-        generated_target: agents/openstudio-modeler.md
-        role: agent_template
-      codex:
-        role: skill_reference
-        targets:
-          - skills/openstudio-modeling-orchestrator/references/openstudio_agent.md
+    agent:
+      hosts: [claude]
+      name: openstudio-modeler
+    references:
+      - hosts: [codex]
+        skill: openstudio-modeling-orchestrator
 
   - path: prompts/blackboard_contract.md
-    kind: workflow_state_reference
-    labels:
-      - prompt
-      - blackboard
-      - workflow_state
-    hosts:
-      claude:
-        role: skill_reference
-        targets:
-          - skills/openstudio-workflow-state/references/blackboard_contract.md
-      codex:
-        role: skill_reference
-        targets:
-          - skills/openstudio-workflow-state/references/blackboard_contract.md
+    references:
+      - hosts: [claude, codex]
+        skill: openstudio-workflow-state
 
   - path: prompts/learning_contract.md
-    kind: learning_reference
-    labels:
-      - prompt
-      - learning
-      - governance
-    hosts:
-      claude:
-        role: skill_reference
-        targets:
-          - skills/propose-measure/references/learning_contract.md
-          - skills/capture-session-lesson/references/learning_contract.md
-      codex:
-        role: skill_reference
-        targets:
-          - skills/propose-measure/references/learning_contract.md
-          - skills/capture-session-lesson/references/learning_contract.md
+    references:
+      - hosts: [claude, codex]
+        skill: propose-measure
+      - hosts: [claude, codex]
+        skill: capture-session-lesson
 
   - path: prompts/promotion_rules.md
-    kind: promotion_reference
-    labels:
-      - prompt
-      - learning
-      - promotion
-    hosts:
-      claude:
-        role: skill_reference
-        targets:
-          - skills/propose-measure/references/promotion_rules.md
-      codex:
-        role: skill_reference
-        targets:
-          - skills/propose-measure/references/promotion_rules.md
+    references:
+      - hosts: [claude, codex]
+        skill: propose-measure
 
   - path: knowledge/openstudio_sdk_recipes.md
-    kind: knowledge_reference
-    labels:
-      - knowledge
-      - sdk
-      - recipes
-    hosts:
-      claude:
-        role: skill_reference
-        targets:
-          - skills/openstudio-sdk-model-editor/references/openstudio_sdk_recipes.md
-      codex:
-        role: skill_reference
-        targets:
-          - skills/openstudio-sdk-model-editor/references/openstudio_sdk_recipes.md
+    references:
+      - hosts: [claude, codex]
+        skill: openstudio-sdk-model-editor
 
   - path: knowledge/openstudio_sdk_wiki/*.md
-    kind: knowledge_reference
-    labels:
-      - knowledge
-      - sdk
-      - wiki
-    hosts:
-      claude:
-        role: skill_reference
-        target_dir: skills/openstudio-sdk-model-editor/references/sdk_wiki
-      codex:
-        role: skill_reference
-        target_dir: skills/openstudio-sdk-model-editor/references/sdk_wiki
+    references:
+      - hosts: [claude, codex]
+        skill: openstudio-sdk-model-editor
+        subdirectory: sdk_wiki
 
   - path: blackboard/schemas/workflow_state.schema.json
-    kind: workflow_state_schema
-    labels:
-      - schema
-      - blackboard
-      - workflow_state
-    hosts:
-      claude:
-        role: skill_reference
-        targets:
-          - skills/openstudio-workflow-state/references/workflow_state.schema.json
-      codex:
-        role: skill_reference
-        targets:
-          - skills/openstudio-workflow-state/references/workflow_state.schema.json
+    references:
+      - hosts: [claude, codex]
+        skill: openstudio-workflow-state
 
   - path: blackboard/schemas/state_patch.schema.json
-    kind: workflow_state_schema
-    labels:
-      - schema
-      - blackboard
-      - workflow_state
-    hosts:
-      claude:
-        role: skill_reference
-        targets:
-          - skills/openstudio-workflow-state/references/state_patch.schema.json
-      codex:
-        role: skill_reference
-        targets:
-          - skills/openstudio-workflow-state/references/state_patch.schema.json
+    references:
+      - hosts: [claude, codex]
+        skill: openstudio-workflow-state
 
   - path: learning/harness_pipeline/schemas/candidate_measure.schema.json
-    kind: learning_schema
-    labels:
-      - schema
-      - learning
-      - measure
-    hosts:
-      claude:
-        role: skill_reference
-        targets:
-          - skills/propose-measure/references/candidate_measure.schema.json
-      codex:
-        role: skill_reference
-        targets:
-          - skills/propose-measure/references/candidate_measure.schema.json
+    references:
+      - hosts: [claude, codex]
+        skill: propose-measure
 
   - path: learning/harness_pipeline/schemas/candidate_recipe.schema.json
-    kind: learning_schema
-    labels:
-      - schema
-      - learning
-      - recipe
-    hosts:
-      claude:
-        role: skill_reference
-        targets:
-          - skills/propose-measure/references/candidate_recipe.schema.json
-      codex:
-        role: skill_reference
-        targets:
-          - skills/propose-measure/references/candidate_recipe.schema.json
+    references:
+      - hosts: [claude, codex]
+        skill: propose-measure
 
   - path: learning/harness_pipeline/schemas/session_lesson.schema.json
-    kind: learning_schema
-    labels:
-      - schema
-      - learning
-      - session_lesson
-    hosts:
-      claude:
-        role: skill_reference
-        targets:
-          - skills/capture-session-lesson/references/session_lesson.schema.json
-      codex:
-        role: skill_reference
-        targets:
-          - skills/capture-session-lesson/references/session_lesson.schema.json
+    references:
+      - hosts: [claude, codex]
+        skill: capture-session-lesson
 
   - path: learning/harness_pipeline/runtime_learning.md
-    kind: learning_reference
-    labels:
-      - learning
-      - runtime
-      - governance
-    hosts:
-      claude:
-        role: skill_reference
-        targets:
-          - skills/capture-session-lesson/references/runtime_learning.md
-      codex:
-        role: skill_reference
-        targets:
-          - skills/capture-session-lesson/references/runtime_learning.md
+    references:
+      - hosts: [claude, codex]
+        skill: capture-session-lesson

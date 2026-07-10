@@ -6,12 +6,10 @@ import pytest
 import yaml
 
 from harness import asset_manifest
-from harness.asset_manifest import reference_exports_for_host
+from harness.asset_manifest import agent_source_for_host, reference_exports_for_host
 
 
-def test_asset_manifest_maps_codex_prompt_and_knowledge_references(
-    tmp_path: Path,
-) -> None:
+def test_asset_manifest_routes_references_by_owning_skill(tmp_path: Path) -> None:
     workspace_root = Path(".").resolve()
     plugin_dir = tmp_path / "openstudio-ai"
 
@@ -26,29 +24,23 @@ def test_asset_manifest_maps_codex_prompt_and_knowledge_references(
     )
 
     assert orchestrator_prompt in by_target
-    assert by_target[orchestrator_prompt].kind == "agent_prompt"
-    assert "agent" in by_target[orchestrator_prompt].labels
-    assert (
-        Path(
-            "skills/openstudio-modeling-orchestrator/references/"
-            "harness_system_prompt.md"
-        )
-        not in by_target
-    )
+    assert by_target[orchestrator_prompt].skill == "openstudio-modeling-orchestrator"
     assert sdk_geometry in by_target
-    assert by_target[sdk_geometry].kind == "knowledge_reference"
-    assert "sdk" in by_target[sdk_geometry].labels
+    assert by_target[sdk_geometry].skill == "openstudio-sdk-model-editor"
 
 
-def test_asset_manifest_skips_generated_claude_agent_prompt(tmp_path: Path) -> None:
+def test_asset_manifest_resolves_claude_agent_and_skips_it_as_reference(
+    tmp_path: Path,
+) -> None:
     workspace_root = Path(".").resolve()
     plugin_dir = tmp_path / "openstudio-ai"
 
+    agent_source = agent_source_for_host(workspace_root, "claude", "openstudio-modeler")
     exports = reference_exports_for_host(workspace_root, plugin_dir, "claude")
     targets = {export.target.relative_to(plugin_dir) for export in exports}
 
+    assert agent_source == workspace_root / "prompts" / "openstudio_agent.md"
     assert Path("agents/openstudio-modeler.md") not in targets
-    assert not any(target.name == "harness_system_prompt.md" for target in targets)
     assert (
         Path("skills/openstudio-workflow-state/references/blackboard_contract.md")
         in targets
@@ -56,35 +48,54 @@ def test_asset_manifest_skips_generated_claude_agent_prompt(tmp_path: Path) -> N
     assert Path("skills/propose-measure/references/learning_contract.md") in targets
 
 
-def test_asset_manifest_schema_documents_enums() -> None:
+def test_asset_manifest_schema_documents_skill_references_and_agents() -> None:
     schema = yaml.safe_load(
         Path("harness/asset_manifest.schema.json").read_text(encoding="utf-8")
     )
-    kind_enum = set(schema["$defs"]["asset"]["properties"]["kind"]["enum"])
-    role_enum = set(schema["$defs"]["host_target"]["properties"]["role"]["enum"])
 
-    assert "agent_prompt" in kind_enum
-    assert "knowledge_reference" in kind_enum
-    assert "learning_schema" in kind_enum
-    assert role_enum == {"agent_template", "skill_reference"}
+    assert schema["properties"]["version"]["enum"] == [2]
+    asset_properties = schema["$defs"]["asset"]["properties"]
+    assert set(asset_properties) == {"path", "agent", "references"}
+    reference_properties = schema["$defs"]["reference"]["properties"]
+    assert set(reference_properties) == {"hosts", "skill", "subdirectory"}
 
 
-def test_asset_manifest_rejects_unknown_kind() -> None:
-    with pytest.raises(ValueError, match="unsupported kind"):
+def test_asset_manifest_rejects_legacy_path_routing_fields() -> None:
+    with pytest.raises(ValueError, match="unsupported fields"):
         asset_manifest._validate_manifest(
             {
-                "version": 1,
+                "version": 2,
                 "assets": [
                     {
                         "path": "prompts/example.md",
-                        "kind": "unknown",
-                        "labels": ["prompt"],
-                        "hosts": {
-                            "claude": {
-                                "role": "skill_reference",
-                                "targets": ["skills/example/references/example.md"],
+                        "kind": "legacy",
+                        "references": [
+                            {
+                                "hosts": ["claude"],
+                                "skill": "example-skill",
                             }
-                        },
+                        ],
+                    }
+                ],
+            }
+        )
+
+
+def test_asset_manifest_rejects_unsafe_reference_subdirectory() -> None:
+    with pytest.raises(ValueError, match="safe relative path"):
+        asset_manifest._validate_manifest(
+            {
+                "version": 2,
+                "assets": [
+                    {
+                        "path": "knowledge/example.md",
+                        "references": [
+                            {
+                                "hosts": ["claude", "codex"],
+                                "skill": "example-skill",
+                                "subdirectory": "../outside",
+                            }
+                        ],
                     }
                 ],
             }

@@ -9,7 +9,7 @@ from pathlib import Path
 
 from adapters.base import OpenStudioAiHostAdapter
 from adapters.contracts import RUNTIME_MODES, HostAdapterConfig, HostLaunchPlan
-from harness.asset_manifest import reference_exports_for_host
+from harness.asset_manifest import agent_source_for_host, reference_exports_for_host
 from harness.registry import discover_harness_assets
 
 GENERATED_START = "<!-- BEGIN OPENSTUDIO_AI_HARNESS -->"
@@ -754,7 +754,7 @@ def _strip_yaml_frontmatter(content: str) -> str:
 
 def _render_openstudio_modeler_agent(workspace_root: Path) -> str:
     """Render the Claude Code agent activated as the main thread by settings.json."""
-    prompt_path = workspace_root / "prompts" / "openstudio_agent.md"
+    prompt_path = agent_source_for_host(workspace_root, "claude", "openstudio-modeler")
     prompt = prompt_path.read_text(encoding="utf-8")
     return (
         "---\n"

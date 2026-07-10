@@ -133,14 +133,12 @@ Use this table when deciding where a change belongs.
 
 ## Asset Metadata And Wiring
 
-Prompts, knowledge, schemas, and learning references are labeled in
-`harness/asset_manifest.yaml`. The manifest tells adapters what a developer is
-creating, such as an agent prompt, skill reference, knowledge reference, schema,
-or learning contract, and where that asset should be copied for each host.
+`harness/asset_manifest.yaml` tells adapters which host skill owns each shared
+reference. The adapter derives the plugin path from that skill; developers never
+write `skills/.../references/...` paths in the manifest.
 
-The machine-readable schema lives at
-`harness/asset_manifest.schema.json`. The Python loader enforces the same enum
-values during export.
+The machine-readable schema lives at `harness/asset_manifest.schema.json`. The
+loader validates the same structure during export.
 
 ### Manifest Schema
 
@@ -149,102 +147,62 @@ Top-level fields:
 | Field | Type | Required | Meaning |
 | --- | --- | --- | --- |
 | `$schema` | string | Optional | Relative path to `asset_manifest.schema.json`. |
-| `version` | integer | Yes | Manifest schema version. Currently only `1` is valid. |
-| `assets` | list | Yes | Asset entries to label and route. |
+| `version` | integer | Yes | Manifest schema version. Currently only `2` is valid. |
+| `assets` | list | Yes | Source assets and their host deliveries. |
 
 Asset entry fields:
 
 | Field | Type | Required | Meaning |
 | --- | --- | --- | --- |
-| `path` | string | Yes | Repository-relative source path. May include `*` for copied references such as SDK wiki files. |
-| `kind` | enum | Yes | What the developer is creating. See kind enum below. |
-| `labels` | list of enum strings | Yes | Search/review labels for the asset. See label enum below. |
-| `hosts` | object | Yes | Host-specific routing keyed by `claude` and/or `codex`. |
+| `path` | string | Yes | Repository-relative source path. May include `*` for a group of copied files such as SDK wiki pages. |
+| `references` | list | Conditional | One or more skill-owned reference deliveries. Required unless `agent` is present. |
+| `agent` | object | Conditional | A generated host agent delivery. Required unless `references` is present. |
 
-Host routing fields:
+Reference delivery fields:
 
 | Field | Type | Required | Meaning |
 | --- | --- | --- | --- |
-| `role` | enum | Yes | How the host uses this asset. See role enum below. |
-| `copy` | boolean | No | Defaults to `true`. Set `false` when the adapter uses the file to generate another artifact. |
-| `generated_target` | string | Conditional | Host path generated from this source, such as `agents/openstudio-modeler.md`. Use when `copy: false`. |
-| `targets` | list of strings | Conditional | Exact host plugin file paths to copy this source to. |
-| `target_dir` | string | Conditional | Host plugin directory where each matched source file is copied by filename. |
+| `hosts` | list | Yes | Hosts receiving the reference: `claude`, `codex`, or both. |
+| `skill` | string | Yes | Owning exported skill. The adapter derives `skills/<skill>/references/`. |
+| `subdirectory` | string | No | Relative folder below `references/`; use it for grouped files such as `sdk_wiki`. |
 
-Each host routing entry must define exactly one of `generated_target`,
-`targets`, or `target_dir`.
+Agent delivery fields:
 
-Kind enum:
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `hosts` | list | Yes | Currently `[claude]`; Claude is the only exported agent-template host. |
+| `name` | string | Yes | Generated agent name, such as `openstudio-modeler`. |
 
-| Kind | Use For |
-| --- | --- |
-| `agent_prompt` | Source prompt used to generate a host agent/subagent file. |
-| `orchestration_prompt` | High-level system or orchestration prompt. |
-| `workflow_state_reference` | Blackboard or long-running workflow-state reference docs. |
-| `learning_reference` | Runtime or developer learning reference docs. |
-| `promotion_reference` | Promotion/review rule docs. |
-| `knowledge_reference` | Reviewed knowledge packs, SDK recipes, SDK wiki files. |
-| `workflow_state_schema` | JSON schemas for blackboard/workflow-state payloads. |
-| `learning_schema` | JSON schemas for lessons, recipes, and candidate measures. |
-
-Label enum:
-
-`prompt`, `agent`, `orchestration`, `harness`, `blackboard`,
-`workflow_state`, `learning`, `governance`, `promotion`, `knowledge`, `sdk`,
-`recipes`, `wiki`, `schema`, `measure`, `recipe`, `session_lesson`, `runtime`.
-
-Role enum:
-
-| Role | Use For |
-| --- | --- |
-| `agent_template` | Host adapter uses this file to generate an agent/subagent. |
-| `skill_reference` | Host adapter copies this file under a skill `references/` folder. |
+The manifest has no `kind`, `labels`, `role`, `copy`, `targets`, or `target_dir`
+fields. A source is either an agent template, a skill reference, or both based
+on the delivery fields it declares.
 
 Current metadata-backed mappings:
 
-| Source Asset | Claude Export Target | Codex Export Target | Metadata Label | TODO |
+| Source Asset | Owning Skill Or Agent | Hosts | Derived Export Location | Notes |
 | --- | --- | --- | --- | --- |
-| `prompts/openstudio_agent.md` | Generated into `agents/openstudio-modeler.md` | `skills/openstudio-modeling-orchestrator/references/openstudio_agent.md` | `agent_prompt` | Keep Claude agent generation and Codex reference target synchronized |
-| `prompts/blackboard_contract.md` | `skills/openstudio-workflow-state/references/blackboard_contract.md` | Same | `workflow_state_reference` | Keep schema and contract targets together |
-| `prompts/learning_contract.md` | `propose-measure` and `capture-session-lesson` references | Same | `learning_reference` | Keep learning skill targets host-aligned |
-| `prompts/promotion_rules.md` | `propose-measure` reference | Same | `promotion_reference` | Add eval coverage for promotion reference loading |
-| `knowledge/openstudio_sdk_recipes.md` | `skills/openstudio-sdk-model-editor/references/openstudio_sdk_recipes.md` | Same | `knowledge_reference` | Add topic-level retrieval metadata when SDK index is ready |
-| `knowledge/openstudio_sdk_wiki/*.md` | `skills/openstudio-sdk-model-editor/references/sdk_wiki/*.md` | Same | `knowledge_reference` | Add optional topic tags per file if retrieval needs finer routing |
-| `blackboard/schemas/*.json` | `skills/openstudio-workflow-state/references/` | Same | `workflow_state_schema` | Keep validator coverage for required schemas |
-| `learning/harness_pipeline/schemas/*.json` | Learning skill `references/` | Same | `learning_schema` | Contract-only: host plugins do not execute the Python helper modules |
+| `prompts/openstudio_agent.md` | `openstudio-modeler` agent; `openstudio-modeling-orchestrator` | Claude agent; Codex skill | Claude: `agents/openstudio-modeler.md`; Codex: derived skill reference | One shared orchestration prompt |
+| `prompts/blackboard_contract.md` | `openstudio-workflow-state` | Both | Derived skill reference | Keep schema and contract together |
+| `prompts/learning_contract.md` | `propose-measure`, `capture-session-lesson` | Both | Derived skill references | Shared learning contract |
+| `prompts/promotion_rules.md` | `propose-measure` | Both | Derived skill reference | Candidate promotion guidance |
+| `knowledge/openstudio_sdk_recipes.md` | `openstudio-sdk-model-editor` | Both | Derived skill reference | Reviewed SDK recipes |
+| `knowledge/openstudio_sdk_wiki/*.md` | `openstudio-sdk-model-editor`, `sdk_wiki` subdirectory | Both | Derived skill reference | Grouped SDK wiki pages |
+| `blackboard/schemas/*.json` | `openstudio-workflow-state` | Both | Derived skill references | Long-running workflow state schemas |
+| `learning/harness_pipeline/schemas/*.json` | Learning proposal/capture skills | Both | Derived skill references | Contract-only; host plugins do not run helper modules |
 
 Manifest entry shape:
 
 ```yaml
 assets:
   - path: prompts/blackboard_contract.md
-    kind: workflow_state_reference
-    labels:
-      - prompt
-      - workflow_state
-    hosts:
-      claude:
-        role: skill_reference
-        targets:
-          - skills/openstudio-workflow-state/references/blackboard_contract.md
-      codex:
-        role: skill_reference
-        targets:
-          - skills/openstudio-workflow-state/references/blackboard_contract.md
+    references:
+      - hosts: [claude, codex]
+        skill: openstudio-workflow-state
   - path: knowledge/openstudio_sdk_wiki/sdk_geometry.md
-    kind: knowledge_reference
-    labels:
-      - knowledge
-      - sdk
-    hosts:
-      claude:
-        role: skill_reference
-        targets:
-          - skills/openstudio-sdk-model-editor/references/sdk_wiki/sdk_geometry.md
-      codex:
-        role: skill_reference
-        targets:
-          - skills/openstudio-sdk-model-editor/references/sdk_wiki/sdk_geometry.md
+    references:
+      - hosts: [claude, codex]
+        skill: openstudio-sdk-model-editor
+        subdirectory: sdk_wiki
 ```
 
 When a developer adds a prompt, knowledge pack, schema, or reference file that
@@ -279,18 +237,9 @@ Use this path when the agent needs a new workflow or tool-use procedure.
 
    ```yaml
    - path: knowledge/my_new_skill_reference.md
-     kind: knowledge_reference
-     labels:
-       - knowledge
-     hosts:
-       claude:
-         role: skill_reference
-         targets:
-           - skills/my-new-skill/references/my_new_skill_reference.md
-       codex:
-         role: skill_reference
-         targets:
-           - skills/my-new-skill/references/my_new_skill_reference.md
+     references:
+       - hosts: [claude, codex]
+         skill: my-new-skill
    ```
 
 4. Add adapter tests that assert the exported skill and reference exist.
@@ -316,31 +265,17 @@ Use this path when the skill already exists and only needs supporting context.
    learning/harness_pipeline/schemas/my_candidate.schema.json
    ```
 
-2. Choose the correct `kind`:
+2. Choose the owning skill and the host list. Use one reference delivery for a
+   shared destination, or add multiple deliveries when more than one skill needs
+   the same source.
 
-   - Use `knowledge_reference` for reviewed knowledge.
-   - Use `workflow_state_reference` or `workflow_state_schema` for blackboard
-     state.
-   - Use `learning_reference` or `learning_schema` for runtime learning assets.
-   - Use `promotion_reference` for review/promotion rules.
-
-3. Add `hosts.claude` and `hosts.codex` targets under the owning skill:
+3. Add the skill-owned reference delivery:
 
    ```yaml
    - path: prompts/my_contract.md
-     kind: workflow_state_reference
-     labels:
-       - prompt
-       - workflow_state
-     hosts:
-       claude:
-         role: skill_reference
-         targets:
-           - skills/openstudio-workflow-state/references/my_contract.md
-       codex:
-         role: skill_reference
-         targets:
-           - skills/openstudio-workflow-state/references/my_contract.md
+     references:
+       - hosts: [claude, codex]
+         skill: openstudio-workflow-state
    ```
 
 4. Do not add root plugin folders such as `knowledge/`, `instructions/`, or
@@ -351,44 +286,36 @@ Use this path when the skill already exists and only needs supporting context.
 Use this path when Claude needs a real `agents/*.md` subagent file.
 
 1. Add or update the source prompt under `prompts/`.
-2. Label it as `agent_prompt` in `harness/asset_manifest.yaml`:
+2. Declare its generated Claude agent delivery in `harness/asset_manifest.yaml`:
 
    ```yaml
    - path: prompts/my_subagent.md
-     kind: agent_prompt
-     labels:
-       - prompt
-       - agent
-       - orchestration
-     hosts:
-       claude:
-         copy: false
-         generated_target: agents/my-subagent.md
-         role: agent_template
+     agent:
+       hosts: [claude]
+       name: my-subagent
    ```
 
-3. Add adapter rendering code if this is a new generated agent file. The manifest
-   labels the source and expected target; it does not automatically invent the
-   generated agent frontmatter.
+3. Add adapter rendering code if this is a new generated agent file. The
+   manifest identifies the source and agent name; it does not automatically
+   invent host-specific frontmatter.
 4. Add tests that assert `agents/my-subagent.md` exists in the Claude export.
 5. Decide whether Codex should receive the same source as a skill reference. If
-   yes, add a `codex` host target:
+   yes, add a reference delivery:
 
    ```yaml
-   codex:
-     role: skill_reference
-     targets:
-       - skills/my-orchestrator/references/my_subagent.md
+   references:
+     - hosts: [codex]
+       skill: my-orchestrator
    ```
 
-If the prompt is only for Claude subagents, omit the `codex` host key.
+If the prompt is only for Claude subagents, omit `references`.
 
 ## End-User Exposure And TODOs
 
 | Capability | Exposed To End Users Today | How It Is Exposed | Not Exposed / TODO |
 | --- | --- | --- | --- |
 | SDK knowledge references | Indirectly | Host skills load manifest-routed `references/`; MCP SDK docs tools also expose curated SDK docs | TODO: topic-level retrieval metadata when SDK index routing is ready |
-| Agent prompts | Partially | `harness/asset_manifest.yaml` classifies prompt roles; Claude uses `agents/openstudio-modeler.md`; Codex uses `openstudio-modeling-orchestrator` references | TODO: clearer host UX for selecting specialized agents/orchestrators |
+| Agent prompts | Partially | `harness/asset_manifest.yaml` declares the Claude agent and Codex skill references; Claude uses `agents/openstudio-modeler.md` | TODO: clearer host UX for selecting specialized agents/orchestrators |
 | Blackboard schemas | Indirectly | Exported as `openstudio-workflow-state/references/`; MCP tools create/read/update SQLite state | Not a user-editable schema surface; TODO: clearer host UX for starting/resuming named workflows |
 | Approved measures | Partially | End users can call `model_list_measures` and `model_apply_measure` for measures allowed by `policy/measure_registry.yaml` | Users cannot add/approve measures through MCP today. TODO: admin/developer workflow for adding candidate measures, validating them, promoting to approved, and reloading registry safely |
 | `measures/approved/` folder | Not meaningfully used yet | It is the intended trusted target folder | Current registered measure points at `measures/add_daylighting.py`. TODO: move approved scripts under `measures/approved/` or rename the trusted measure layout so policy and docs agree |

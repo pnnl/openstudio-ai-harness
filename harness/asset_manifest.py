@@ -1,56 +1,22 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 import yaml
 
 MANIFEST_PATH = Path(__file__).with_name("asset_manifest.yaml")
-
-ALLOWED_KINDS = {
-    "agent_prompt",
-    "orchestration_prompt",
-    "workflow_state_reference",
-    "learning_reference",
-    "promotion_reference",
-    "knowledge_reference",
-    "workflow_state_schema",
-    "learning_schema",
-}
-ALLOWED_LABELS = {
-    "prompt",
-    "agent",
-    "orchestration",
-    "harness",
-    "blackboard",
-    "workflow_state",
-    "learning",
-    "governance",
-    "promotion",
-    "knowledge",
-    "sdk",
-    "recipes",
-    "wiki",
-    "schema",
-    "measure",
-    "recipe",
-    "session_lesson",
-    "runtime",
-}
 ALLOWED_HOSTS = {"claude", "codex"}
-ALLOWED_ROLES = {"agent_template", "skill_reference"}
 
 
 @dataclass(frozen=True)
 class AssetExport:
-    """A concrete source-to-target copy derived from the asset manifest."""
+    """A source file copied into a host skill's references directory."""
 
     source: Path
     target: Path
-    kind: str
-    labels: tuple[str, ...]
-    role: str
+    skill: str
 
 
 def reference_exports_for_host(
@@ -58,56 +24,53 @@ def reference_exports_for_host(
     plugin_dir: Path,
     host: str,
 ) -> list[AssetExport]:
-    """Return manifest-declared copied assets for a host plugin export."""
+    """Return skill-owned reference copies declared for a host."""
+    _validate_host(host)
     workspace_root = workspace_root.resolve()
     plugin_dir = plugin_dir.resolve()
-    manifest = _load_manifest()
     exports: list[AssetExport] = []
 
-    for asset in manifest.get("assets", []):
-        if not isinstance(asset, dict):
-            continue
-        host_config = _host_config(asset, host)
-        if not host_config or host_config.get("copy", True) is False:
-            continue
-        source_pattern = asset.get("path")
-        if not isinstance(source_pattern, str) or not source_pattern:
-            continue
+    for asset in _load_manifest()["assets"]:
+        source_pattern = asset["path"]
         sources = _expand_sources(workspace_root, source_pattern)
-        kind = str(asset.get("kind", "reference"))
-        labels = tuple(str(label) for label in asset.get("labels", []))
-        role = str(host_config.get("role", "skill_reference"))
-        targets = host_config.get("targets")
-        target_dir = host_config.get("target_dir")
-
-        if isinstance(targets, list):
-            for source in sources:
-                for target in targets:
-                    if isinstance(target, str) and target:
-                        exports.append(
-                            AssetExport(
-                                source=source,
-                                target=plugin_dir / target,
-                                kind=kind,
-                                labels=labels,
-                                role=role,
-                            )
-                        )
-            continue
-
-        if isinstance(target_dir, str) and target_dir:
+        for reference in asset.get("references", []):
+            if host not in reference["hosts"]:
+                continue
+            reference_dir = plugin_dir / "skills" / reference["skill"] / "references"
+            subdirectory = reference.get("subdirectory")
+            if subdirectory:
+                reference_dir /= subdirectory
             for source in sources:
                 exports.append(
                     AssetExport(
                         source=source,
-                        target=plugin_dir / target_dir / source.name,
-                        kind=kind,
-                        labels=labels,
-                        role=role,
+                        target=reference_dir / source.name,
+                        skill=reference["skill"],
                     )
                 )
 
     return sorted(exports, key=lambda export: str(export.target))
+
+
+def agent_source_for_host(workspace_root: Path, host: str, name: str) -> Path:
+    """Return the manifest-declared source prompt for a generated host agent."""
+    _validate_host(host)
+    workspace_root = workspace_root.resolve()
+
+    for asset in _load_manifest()["assets"]:
+        agent = asset.get("agent")
+        if not isinstance(agent, dict):
+            continue
+        if agent["name"] != name or host not in agent["hosts"]:
+            continue
+        source = workspace_root / asset["path"]
+        if not source.is_file():
+            raise ValueError(f"Agent source does not exist: {source}")
+        return source
+
+    raise ValueError(
+        f"No {host} agent named {name!r} is declared in the asset manifest"
+    )
 
 
 def _load_manifest() -> dict[str, Any]:
@@ -119,8 +82,8 @@ def _load_manifest() -> dict[str, Any]:
 
 
 def _validate_manifest(data: dict[str, Any]) -> None:
-    if data.get("version") != 1:
-        raise ValueError("asset_manifest.yaml must declare version: 1")
+    if data.get("version") != 2:
+        raise ValueError("asset_manifest.yaml must declare version: 2")
     assets = data.get("assets")
     if not isinstance(assets, list):
         raise ValueError("asset_manifest.yaml must contain an assets list")
@@ -131,62 +94,107 @@ def _validate_manifest(data: dict[str, Any]) -> None:
 
 
 def _validate_asset(asset: dict[str, Any], index: int) -> None:
+    allowed_fields = {"path", "agent", "references"}
+    unexpected_fields = sorted(set(asset) - allowed_fields)
+    if unexpected_fields:
+        raise ValueError(
+            f"Asset manifest entry {index} has unsupported fields: {unexpected_fields}"
+        )
     path = asset.get("path")
     if not isinstance(path, str) or not path:
         raise ValueError(f"Asset manifest entry {index} must define path")
-    kind = asset.get("kind")
-    if kind not in ALLOWED_KINDS:
-        raise ValueError(f"Asset manifest entry {path} has unsupported kind: {kind}")
-    labels = asset.get("labels")
-    if not isinstance(labels, list) or not labels:
-        raise ValueError(f"Asset manifest entry {path} must define labels")
-    unsupported_labels = sorted(set(labels) - ALLOWED_LABELS)
-    if unsupported_labels:
+
+    references = asset.get("references", [])
+    agent = asset.get("agent")
+    if not references and agent is None:
+        raise ValueError(f"Asset manifest entry {path} must define agent or references")
+    if not isinstance(references, list):
+        raise ValueError(f"Asset manifest entry {path} references must be a list")
+    for reference in references:
+        _validate_reference(path, reference)
+    if agent is not None:
+        _validate_agent(path, agent)
+
+
+def _validate_reference(path: str, reference: Any) -> None:
+    if not isinstance(reference, dict):
+        raise ValueError(f"Asset manifest entry {path} reference must be an object")
+    allowed_fields = {"hosts", "skill", "subdirectory"}
+    unexpected_fields = sorted(set(reference) - allowed_fields)
+    if unexpected_fields:
         raise ValueError(
-            f"Asset manifest entry {path} has unsupported labels: {unsupported_labels}"
+            f"Asset manifest entry {path} reference has unsupported fields: "
+            f"{unexpected_fields}"
         )
-    hosts = asset.get("hosts")
-    if not isinstance(hosts, dict) or not hosts:
-        raise ValueError(f"Asset manifest entry {path} must define hosts")
+    _validate_hosts(path, reference.get("hosts"), "reference")
+    skill = reference.get("skill")
+    if not isinstance(skill, str) or not _is_safe_name(skill):
+        raise ValueError(
+            f"Asset manifest entry {path} reference must define a safe skill"
+        )
+    subdirectory = reference.get("subdirectory")
+    if subdirectory is not None and (
+        not isinstance(subdirectory, str) or not _is_safe_relative_path(subdirectory)
+    ):
+        raise ValueError(
+            f"Asset manifest entry {path} reference subdirectory must be a safe relative path"
+        )
+
+
+def _validate_agent(path: str, agent: Any) -> None:
+    if not isinstance(agent, dict):
+        raise ValueError(f"Asset manifest entry {path} agent must be an object")
+    allowed_fields = {"hosts", "name"}
+    unexpected_fields = sorted(set(agent) - allowed_fields)
+    if unexpected_fields:
+        raise ValueError(
+            f"Asset manifest entry {path} agent has unsupported fields: {unexpected_fields}"
+        )
+    hosts = _validate_hosts(path, agent.get("hosts"), "agent")
+    if hosts != ["claude"]:
+        raise ValueError(
+            f"Asset manifest entry {path} agent is only supported for Claude"
+        )
+    name = agent.get("name")
+    if not isinstance(name, str) or not _is_safe_name(name):
+        raise ValueError(f"Asset manifest entry {path} agent must define a safe name")
+
+
+def _validate_hosts(path: str, hosts: Any, delivery: str) -> list[str]:
+    if (
+        not isinstance(hosts, list)
+        or not hosts
+        or not all(isinstance(host, str) for host in hosts)
+    ):
+        raise ValueError(
+            f"Asset manifest entry {path} {delivery} must define a non-empty hosts list"
+        )
     unsupported_hosts = sorted(set(hosts) - ALLOWED_HOSTS)
-    if unsupported_hosts:
+    if unsupported_hosts or len(set(hosts)) != len(hosts):
         raise ValueError(
-            f"Asset manifest entry {path} has unsupported hosts: {unsupported_hosts}"
+            f"Asset manifest entry {path} {delivery} has invalid hosts: {hosts}"
         )
-    for host, config in hosts.items():
-        if not isinstance(config, dict):
-            raise ValueError(
-                f"Asset manifest entry {path} host {host} must be an object"
-            )
-        _validate_host_config(path, host, config)
+    return hosts
 
 
-def _validate_host_config(path: str, host: str, config: dict[str, Any]) -> None:
-    role = config.get("role")
-    if role not in ALLOWED_ROLES:
-        raise ValueError(
-            f"Asset manifest entry {path} host {host} has unsupported role: {role}"
-        )
-    has_generated_target = isinstance(config.get("generated_target"), str)
-    has_targets = isinstance(config.get("targets"), list)
-    has_target_dir = isinstance(config.get("target_dir"), str)
-    if sum([has_generated_target, has_targets, has_target_dir]) != 1:
-        raise ValueError(
-            f"Asset manifest entry {path} host {host} must define exactly one of "
-            "generated_target, targets, or target_dir"
-        )
+def _validate_host(host: str) -> None:
+    if host not in ALLOWED_HOSTS:
+        raise ValueError(f"Unsupported host: {host}")
 
 
-def _host_config(asset: dict[str, Any], host: str) -> dict[str, Any] | None:
-    hosts = asset.get("hosts")
-    if not isinstance(hosts, dict):
-        return None
-    config = hosts.get(host)
-    return config if isinstance(config, dict) else None
+def _is_safe_name(value: str) -> bool:
+    return value == Path(value).name and value not in {"", ".", ".."}
+
+
+def _is_safe_relative_path(value: str) -> bool:
+    path = PurePosixPath(value)
+    return bool(value) and not path.is_absolute() and ".." not in path.parts
 
 
 def _expand_sources(workspace_root: Path, source_pattern: str) -> list[Path]:
     if "*" in source_pattern:
-        return sorted(workspace_root.glob(source_pattern))
+        return sorted(
+            path for path in workspace_root.glob(source_pattern) if path.is_file()
+        )
     source = workspace_root / source_pattern
-    return [source] if source.exists() else []
+    return [source] if source.is_file() else []

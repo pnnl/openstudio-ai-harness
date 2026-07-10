@@ -11,9 +11,11 @@ modeling behavior, OpenStudio operations, or durable workflow state.
 - `contracts.py`: shared host configuration and launch-plan types.
 - `base.py`: common adapter interface.
 
-The adapters read runtime skills from `skills/` and copy manifest-declared
-references into the skill that owns them. Durable workflow state is owned by the
-MCP runtime in `openstudio_mcp/runtime/state_store.py`, not by an adapter.
+The adapters render product skills, agents, and references from
+`harness/asset_manifest.yaml`. They own only host infrastructure such as
+marketplace setup/doctor/repair skills, installer scripts, and MCP configuration.
+Durable workflow state is owned by the MCP runtime in
+`openstudio_mcp/runtime/state_store.py`, not by an adapter.
 
 ## Runtime Modes
 

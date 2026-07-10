@@ -9,7 +9,13 @@ from pathlib import Path
 
 from adapters.base import OpenStudioAiHostAdapter
 from adapters.contracts import RUNTIME_MODES, HostAdapterConfig, HostLaunchPlan
-from harness.asset_manifest import agent_source_for_host, reference_exports_for_host
+from harness.asset_manifest import (
+    agent_source_for_host,
+    reference_exports_for_host,
+    skill_exports_for_host,
+    skill_ids_for_host,
+    skill_sources_for_host,
+)
 from harness.registry import discover_harness_assets
 
 GENERATED_START = "<!-- BEGIN OPENSTUDIO_AI_HARNESS -->"
@@ -56,7 +62,7 @@ class ClaudeCodeAdapter(OpenStudioAiHostAdapter):
         return HostLaunchPlan(
             host_name="claude_code",
             system_prompt_files=assets.prompt_contracts,
-            skill_paths=assets.skill_files,
+            skill_paths=skill_sources_for_host(self.config.workspace_root, "claude"),
             mcp_entrypoint=assets.mcp_entrypoint,
             blackboard_schema=assets.blackboard_schema,
             learning_event_log=assets.learning_event_log,
@@ -318,11 +324,6 @@ def _planned_export_files(
         plugin_dir / "agents" / "openstudio-modeler.md",
         plugin_dir / "monitors" / "monitors.json",
         plugin_dir / "bin" / "openstudio-ai-learning-monitor",
-        plugin_dir / "skills" / "add-vav-reheat" / "SKILL.md",
-        plugin_dir / "skills" / "simulate" / "SKILL.md",
-        plugin_dir / "skills" / "query-results" / "SKILL.md",
-        plugin_dir / "skills" / "propose-measure" / "SKILL.md",
-        plugin_dir / "skills" / "capture-session-lesson" / "SKILL.md",
     ]
     if runtime_mode == "marketplace":
         files.extend(
@@ -343,8 +344,8 @@ def _planned_export_files(
             ]
         )
     files.extend(
-        plugin_dir / "skills" / _skill_dir_name(path) / "SKILL.md"
-        for path in plan.skill_paths
+        export.target
+        for export in skill_exports_for_host(workspace_root, plugin_dir, "claude")
     )
     files.extend(
         export.target
@@ -483,7 +484,7 @@ def _write_plugin_package(
         encoding="utf-8",
     )
     (plugin_dir / "README.md").write_text(
-        _render_plugin_readme(plan, runtime_mode), encoding="utf-8"
+        _render_plugin_readme(plan, workspace_root, runtime_mode), encoding="utf-8"
     )
     (plugin_dir / "CONNECTORS.md").write_text(
         _render_connectors_doc(workspace_root, runtime_mode),
@@ -501,27 +502,20 @@ def _write_plugin_package(
     monitor_script.write_text(_learning_monitor_script(), encoding="utf-8")
     monitor_script.chmod(0o755)
 
-    for skill in plan.skill_paths:
-        target_dir = plugin_dir / "skills" / _skill_dir_name(skill)
+    for skill in skill_exports_for_host(workspace_root, plugin_dir, "claude"):
+        target_dir = skill.target.parent
         target_dir.mkdir(parents=True, exist_ok=True)
-        (target_dir / "SKILL.md").write_text(
-            _render_exported_skill(skill, target_dir.name),
+        skill.target.write_text(
+            _render_exported_skill(skill.source, skill.skill),
             encoding="utf-8",
         )
 
-    _write_workflow_skills(plugin_dir / "skills", runtime_mode)
+    _write_marketplace_setup_skills(plugin_dir / "skills", runtime_mode)
     _write_skill_references(plugin_dir / "skills", workspace_root)
 
     if runtime_mode == "marketplace":
         setup_scripts_dir = plugin_dir / "skills" / "setup-openstudio-ai" / "scripts"
         _write_installer_assets(setup_scripts_dir)
-
-
-def _skill_dir_name(path: Path) -> str:
-    """Convert repo skill filenames into plugin skill folder names."""
-    if path.name == "openstudio_hvac_workflow_state.md":
-        return "openstudio-workflow-state"
-    return path.stem.replace("_", "-")
 
 
 def _render_exported_skill(skill_path: Path, skill_name: str) -> str:
@@ -589,77 +583,14 @@ def _skill_reference_notes(skill_name: str) -> str:
     return ""
 
 
-def _write_workflow_skills(skills_dir: Path, runtime_mode: str) -> None:
-    """Write Claude-native skill directories for user-invoked workflows."""
-    for skill_name, content in _workflow_skill_docs(runtime_mode).items():
+def _write_marketplace_setup_skills(skills_dir: Path, runtime_mode: str) -> None:
+    """Write adapter-owned marketplace setup skills when needed."""
+    if runtime_mode != "marketplace":
+        return
+    for skill_name, content in _marketplace_setup_skill_docs().items():
         target_dir = skills_dir / skill_name
         target_dir.mkdir(parents=True, exist_ok=True)
         (target_dir / "SKILL.md").write_text(content, encoding="utf-8")
-
-
-def _workflow_skill_docs(runtime_mode: str) -> dict[str, str]:
-    docs = {
-        "add-vav-reheat": _skill_markdown(
-            name="add-vav-reheat",
-            description="Plan and execute a phased OpenStudio VAV reheat workflow.",
-            body=(
-                "# Add VAV Reheat\n\n"
-                "Use the `openstudio-vav-reheat-system-creator` parent workflow "
-                "skill. Maintain workflow state through the MCP blackboard contract, "
-                "load only the child skill needed for the current phase, and use MCP "
-                "`model_*`, `sim_*`, and `results_*` tools for deterministic model "
-                "lifecycle operations when appropriate.\n"
-            ),
-        ),
-        "simulate": _skill_markdown(
-            name="simulate",
-            description="Run, poll, and collect artifacts from an OpenStudio simulation.",
-            body=(
-                "# Simulate\n\n"
-                "Use the `openstudio_ai` MCP simulation tools to run, poll, and "
-                "collect artifacts from OpenStudio simulations. Do not run "
-                "simulations through ad hoc shell commands when MCP tools are "
-                "available.\n"
-            ),
-        ),
-        "query-results": _skill_markdown(
-            name="query-results",
-            description="Query SQL-backed OpenStudio simulation results through MCP tools.",
-            body=(
-                "# Query Results\n\n"
-                "Use the `openstudio_ai` MCP result tools for SQL-backed annual, "
-                "design-day, and summary result retrieval. Attribute assumptions "
-                "and missing outputs in the final answer.\n"
-            ),
-        ),
-        "propose-measure": _skill_markdown(
-            name="propose-measure",
-            description="Draft a candidate OpenStudio measure from a repeated script or workflow.",
-            body=(
-                "# Propose Measure\n\n"
-                "Summarize the repeated OpenStudio script or workflow as a candidate "
-                "measure. Use `references/candidate_measure.schema.json` for the "
-                "candidate shape. Do not edit trusted `knowledge/`, `skills/`, or "
-                "approved measures directly. State that review and eval validation "
-                "are required before promotion.\n"
-            ),
-        ),
-        "capture-session-lesson": _skill_markdown(
-            name="capture-session-lesson",
-            description="Capture a candidate OpenStudio AI session lesson for later review.",
-            body=(
-                "# Capture Session Lesson\n\n"
-                "Capture a candidate runtime lesson from the current session. Use "
-                "`references/session_lesson.schema.json` for the candidate shape. "
-                "Record only reviewable observations, assumptions, failure modes, "
-                "or reusable workflow notes. Do not promote directly into trusted "
-                "skills, knowledge, measures, or MCP tools.\n"
-            ),
-        ),
-    }
-    if runtime_mode == "marketplace":
-        docs.update(_marketplace_setup_skill_docs())
-    return docs
 
 
 def _marketplace_setup_skill_docs() -> dict[str, str]:
@@ -843,9 +774,13 @@ if __name__ == "__main__":
 '''
 
 
-def _render_plugin_readme(plan: HostLaunchPlan, runtime_mode: str) -> str:
+def _render_plugin_readme(
+    plan: HostLaunchPlan, workspace_root: Path, runtime_mode: str
+) -> str:
     """Render the README shipped with the exported plugin."""
-    skill_names = "\n".join(f"- `{_skill_dir_name(path)}`" for path in plan.skill_paths)
+    skill_names = "\n".join(
+        f"- `{skill}`" for skill in skill_ids_for_host(workspace_root, "claude")
+    )
     return (
         "# OpenStudio AI\n\n"
         "OpenStudio AI is a Claude plugin package for building-energy modeling "

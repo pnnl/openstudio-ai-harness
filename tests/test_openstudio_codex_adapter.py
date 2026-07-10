@@ -145,8 +145,9 @@ def test_codex_adapter_exports_plugin_package(tmp_path: Path) -> None:
     orchestrator = (
         plugin_dir / "skills" / "openstudio-modeling-orchestrator" / "SKILL.md"
     ).read_text(encoding="utf-8")
-    assert "openstudio_agent.md" in orchestrator
-    assert "harness_system_prompt.md" not in orchestrator
+    assert "# OpenStudio Modeling Orchestrator" in orchestrator
+    assert "MCP blackboard tools" in orchestrator
+    assert "openstudio_agent.md" not in orchestrator
     assert (
         plugin_dir
         / "skills"

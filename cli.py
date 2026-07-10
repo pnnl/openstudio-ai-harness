@@ -522,7 +522,6 @@ def _cmd_validate_export(args: argparse.Namespace) -> int:
             "CONNECTORS.md",
             "skills",
             "skills/openstudio-modeling-orchestrator/SKILL.md",
-            "skills/openstudio-modeling-orchestrator/references/openstudio_agent.md",
             "skills/openstudio-sdk-model-editor/references/openstudio_sdk_recipes.md",
             "skills/openstudio-workflow-state/references/blackboard_contract.md",
             "skills/openstudio-workflow-state/references/workflow_state.schema.json",

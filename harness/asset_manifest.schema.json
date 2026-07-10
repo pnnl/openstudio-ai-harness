@@ -1,71 +1,73 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "OpenStudio AI Asset Manifest",
+  "title": "OpenStudio AI Plugin Manifest",
   "type": "object",
-  "required": ["version", "assets"],
+  "required": ["version", "skills", "agents", "references"],
   "additionalProperties": false,
   "properties": {
     "$schema": { "type": "string" },
-    "version": { "type": "integer", "enum": [2] },
-    "assets": {
+    "version": { "type": "integer", "enum": [3] },
+    "skills": {
       "type": "array",
-      "items": { "$ref": "#/$defs/asset" }
+      "items": { "$ref": "#/$defs/skill" }
+    },
+    "agents": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/agent" }
+    },
+    "references": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/reference" }
     }
   },
   "$defs": {
-    "asset": {
-      "type": "object",
-      "required": ["path"],
-      "additionalProperties": false,
-      "properties": {
-        "path": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Repository-relative source path. Glob patterns are allowed for references."
-        },
-        "agent": { "$ref": "#/$defs/agent" },
-        "references": {
-          "type": "array",
-          "minItems": 1,
-          "items": { "$ref": "#/$defs/reference" }
-        }
-      },
-      "anyOf": [
-        { "required": ["agent"] },
-        { "required": ["references"] }
-      ]
-    },
     "hosts": {
       "type": "array",
       "minItems": 1,
       "uniqueItems": true,
       "items": { "type": "string", "enum": ["claude", "codex"] }
     },
-    "agent": {
+    "skill": {
       "type": "object",
-      "required": ["hosts", "name"],
+      "required": ["id", "source", "hosts"],
       "additionalProperties": false,
       "properties": {
-        "hosts": { "type": "array", "const": ["claude"] },
-        "name": { "type": "string", "minLength": 1 }
+        "id": { "type": "string", "minLength": 1 },
+        "source": { "type": "string", "minLength": 1 },
+        "hosts": { "$ref": "#/$defs/hosts" }
+      }
+    },
+    "agent": {
+      "type": "object",
+      "required": ["id", "source", "hosts"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "source": { "type": "string", "minLength": 1 },
+        "hosts": { "type": "array", "const": ["claude"] }
       }
     },
     "reference": {
+      "type": "object",
+      "required": ["source", "owners"],
+      "additionalProperties": false,
+      "properties": {
+        "source": { "type": "string", "minLength": 1 },
+        "owners": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/reference_owner" }
+        }
+      }
+    },
+    "reference_owner": {
       "type": "object",
       "required": ["hosts", "skill"],
       "additionalProperties": false,
       "properties": {
         "hosts": { "$ref": "#/$defs/hosts" },
-        "skill": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Owning exported skill. The adapter derives its references directory."
-        },
-        "subdirectory": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Optional relative directory below the skill's references directory."
-        }
+        "skill": { "type": "string", "minLength": 1 },
+        "subdirectory": { "type": "string", "minLength": 1 }
       }
     }
   }

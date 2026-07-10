@@ -10,8 +10,9 @@ locally, in Claude Code, and in Codex.
 - [Mental Model](#mental-model)
 - [Environment Setup](#environment-setup)
 - [Folder Ownership](#folder-ownership)
-- [Asset Metadata And Wiring](#asset-metadata-and-wiring)
+- [Plugin Registry](#plugin-registry)
   - [Manifest Schema](#manifest-schema)
+  - [Registration Order](#registration-order)
   - [Example: Develop A New Skill](#example-develop-a-new-skill)
   - [Example: Develop A Reference For An Existing Skill](#example-develop-a-reference-for-an-existing-skill)
   - [Example: Develop A Claude Subagent Prompt](#example-develop-a-claude-subagent-prompt)
@@ -131,11 +132,12 @@ Use this table when deciding where a change belongs.
 | `pyproject.toml` | Package metadata | Dependencies, extras, scripts, build include/exclude rules | Runtime state | Defines release package |
 | `README.md`, `HANDOFF.md` | Top-level orientation | Stable overview and current status | Deep implementation docs | Shipped/read by developers |
 
-## Asset Metadata And Wiring
+## Plugin Registry
 
-`harness/asset_manifest.yaml` tells adapters which host skill owns each shared
-reference. The adapter derives the plugin path from that skill; developers never
-write `skills/.../references/...` paths in the manifest.
+`harness/asset_manifest.yaml` is the product-plugin registry. It declares every
+exported OpenStudio skill, Claude agent, and skill-owned reference. Adapters
+translate that registry into host-native files; they do not define modeling
+workflows themselves.
 
 The machine-readable schema lives at `harness/asset_manifest.schema.json`. The
 loader validates the same structure during export.
@@ -147,41 +149,59 @@ Top-level fields:
 | Field | Type | Required | Meaning |
 | --- | --- | --- | --- |
 | `$schema` | string | Optional | Relative path to `asset_manifest.schema.json`. |
-| `version` | integer | Yes | Manifest schema version. Currently only `2` is valid. |
-| `assets` | list | Yes | Source assets and their host deliveries. |
+| `version` | integer | Yes | Manifest schema version. Currently only `3` is valid. |
+| `skills` | list | Yes | Canonical product skills exported to one or both hosts. |
+| `agents` | list | Yes | Host-specific generated agents. Currently Claude only. |
+| `references` | list | Yes | Supporting sources copied into an owning product skill. |
 
-Asset entry fields:
-
-| Field | Type | Required | Meaning |
-| --- | --- | --- | --- |
-| `path` | string | Yes | Repository-relative source path. May include `*` for a group of copied files such as SDK wiki pages. |
-| `references` | list | Conditional | One or more skill-owned reference deliveries. Required unless `agent` is present. |
-| `agent` | object | Conditional | A generated host agent delivery. Required unless `references` is present. |
-
-Reference delivery fields:
+Product skill fields:
 
 | Field | Type | Required | Meaning |
 | --- | --- | --- | --- |
-| `hosts` | list | Yes | Hosts receiving the reference: `claude`, `codex`, or both. |
-| `skill` | string | Yes | Owning exported skill. The adapter derives `skills/<skill>/references/`. |
-| `subdirectory` | string | No | Relative folder below `references/`; use it for grouped files such as `sdk_wiki`. |
+| `id` | string | Yes | Stable plugin skill identifier, such as `simulate`. |
+| `source` | string | Yes | Canonical `skills/*.md` source file. |
+| `hosts` | list | Yes | Hosts that receive the skill: `claude`, `codex`, or both. |
 
-Agent delivery fields:
+Agent fields use the same `id`, `source`, and `hosts` structure. An agent is
+currently exported only to Claude. Reference fields are `source` and `owners`;
+each owner supplies `hosts`, `skill`, and optional `subdirectory`. The adapter
+derives `skills/<skill>/references/<source filename>`.
 
-| Field | Type | Required | Meaning |
-| --- | --- | --- | --- |
-| `hosts` | list | Yes | Currently `[claude]`; Claude is the only exported agent-template host. |
-| `name` | string | Yes | Generated agent name, such as `openstudio-modeler`. |
+Developers first decide whether the work is a product skill, a Claude agent, or
+a supporting reference; the manifest section makes that distinction explicit.
 
-The manifest has no `kind`, `labels`, `role`, `copy`, `targets`, or `target_dir`
-fields. A source is either an agent template, a skill reference, or both based
-on the delivery fields it declares.
+### Registration Order
 
-Current metadata-backed mappings:
+Register every product skill under `skills` before assigning references to it.
+Each `owners[].skill` value must exactly match a registered skill `id`, and the
+owner hosts must be a subset of that skill's hosts. The loader validates skills
+first and rejects unknown or host-incompatible reference owners.
 
-| Source Asset | Owning Skill Or Agent | Hosts | Derived Export Location | Notes |
+Keep the manifest in this logical order:
+
+1. `skills`: product behavior exported to one or both hosts.
+2. `agents`: host-specific system prompts.
+3. `references`: supporting files attached to registered product skills.
+
+YAML mapping order is not a runtime dependency, but keeping this order makes
+the registry easy to review and ensures a developer can find the owner before
+adding its references.
+
+### Product And Host Boundary
+
+Manifest-register product behavior: OpenStudio model editing, simulation,
+results, HVAC workflows, workflow state, learning guidance, and supporting
+references. Keep marketplace setup infrastructure in adapters: setup, doctor,
+repair, installer scripts, MCP configuration, and marketplace metadata. These
+host-specific files are generated only in marketplace mode and are verified by
+adapter tests.
+
+Current registry mappings:
+
+| Source | Registry Entry | Hosts | Derived Export Location | Notes |
 | --- | --- | --- | --- | --- |
-| `prompts/openstudio_agent.md` | `openstudio-modeler` agent; `openstudio-modeling-orchestrator` | Claude agent; Codex skill | Claude: `agents/openstudio-modeler.md`; Codex: derived skill reference | One shared orchestration prompt |
+| `skills/openstudio_modeling_orchestrator.md` | `openstudio-modeling-orchestrator` skill | Codex | `skills/openstudio-modeling-orchestrator/SKILL.md` | Codex-only orchestration skill |
+| `prompts/openstudio_agent.md` | `openstudio-modeler` agent | Claude | `agents/openstudio-modeler.md` | Claude system prompt; not a Codex reference |
 | `prompts/blackboard_contract.md` | `openstudio-workflow-state` | Both | Derived skill reference | Keep schema and contract together |
 | `prompts/learning_contract.md` | `propose-measure`, `capture-session-lesson` | Both | Derived skill references | Shared learning contract |
 | `prompts/promotion_rules.md` | `propose-measure` | Both | Derived skill reference | Candidate promotion guidance |
@@ -193,21 +213,24 @@ Current metadata-backed mappings:
 Manifest entry shape:
 
 ```yaml
-assets:
-  - path: prompts/blackboard_contract.md
-    references:
+skills:
+  - id: simulate
+    source: skills/simulate.md
+    hosts: [claude, codex]
+agents:
+  - id: openstudio-modeler
+    source: prompts/openstudio_agent.md
+    hosts: [claude]
+references:
+  - source: prompts/blackboard_contract.md
+    owners:
       - hosts: [claude, codex]
         skill: openstudio-workflow-state
-  - path: knowledge/openstudio_sdk_wiki/sdk_geometry.md
-    references:
-      - hosts: [claude, codex]
-        skill: openstudio-sdk-model-editor
-        subdirectory: sdk_wiki
 ```
 
-When a developer adds a prompt, knowledge pack, schema, or reference file that
-must be exported, they must update `harness/asset_manifest.yaml` and adapter
-tests in the same change.
+When a developer adds a product skill, agent, or reference that must be exported,
+they must update `harness/asset_manifest.yaml` and adapter tests in the same
+change.
 
 ### Example: Develop A New Skill
 
@@ -233,13 +256,18 @@ Use this path when the agent needs a new workflow or tool-use procedure.
    knowledge/my_new_skill_reference.md
    ```
 
-3. Add the reference to `harness/asset_manifest.yaml`:
+3. Register the product skill and its reference in `harness/asset_manifest.yaml`:
 
    ```yaml
-   - path: knowledge/my_new_skill_reference.md
-     references:
-       - hosts: [claude, codex]
-         skill: my-new-skill
+   skills:
+     - id: my-new-skill
+       source: skills/my-new-skill.md
+       hosts: [claude, codex]
+   references:
+     - source: knowledge/my_new_skill_reference.md
+       owners:
+         - hosts: [claude, codex]
+           skill: my-new-skill
    ```
 
 4. Add adapter tests that assert the exported skill and reference exist.
@@ -265,17 +293,18 @@ Use this path when the skill already exists and only needs supporting context.
    learning/harness_pipeline/schemas/my_candidate.schema.json
    ```
 
-2. Choose the owning skill and the host list. Use one reference delivery for a
-   shared destination, or add multiple deliveries when more than one skill needs
-   the same source.
+2. Choose the owning skill and the host list. Use one owner entry for a shared
+   destination, or add multiple owner entries when more than one skill needs the
+   same source.
 
-3. Add the skill-owned reference delivery:
+3. Add the skill-owned reference:
 
    ```yaml
-   - path: prompts/my_contract.md
-     references:
-       - hosts: [claude, codex]
-         skill: openstudio-workflow-state
+   references:
+     - source: prompts/my_contract.md
+       owners:
+         - hosts: [claude, codex]
+           skill: openstudio-workflow-state
    ```
 
 4. Do not add root plugin folders such as `knowledge/`, `instructions/`, or
@@ -286,36 +315,38 @@ Use this path when the skill already exists and only needs supporting context.
 Use this path when Claude needs a real `agents/*.md` subagent file.
 
 1. Add or update the source prompt under `prompts/`.
-2. Declare its generated Claude agent delivery in `harness/asset_manifest.yaml`:
+2. Register it under `agents` in `harness/asset_manifest.yaml`:
 
    ```yaml
-   - path: prompts/my_subagent.md
-     agent:
+   agents:
+     - id: my-subagent
+       source: prompts/my_subagent.md
        hosts: [claude]
-       name: my-subagent
    ```
 
 3. Add adapter rendering code if this is a new generated agent file. The
    manifest identifies the source and agent name; it does not automatically
    invent host-specific frontmatter.
 4. Add tests that assert `agents/my-subagent.md` exists in the Claude export.
-5. Decide whether Codex should receive the same source as a skill reference. If
-   yes, add a reference delivery:
+5. If Codex needs comparable orchestration behavior, create a separate canonical
+   Codex skill under `skills/` and register it under `skills`:
 
    ```yaml
-   references:
-     - hosts: [codex]
-       skill: my-orchestrator
+   skills:
+     - id: my-orchestrator
+       source: skills/my_orchestrator.md
+       hosts: [codex]
    ```
 
-If the prompt is only for Claude subagents, omit `references`.
+Do not copy a Claude agent prompt into Codex as a reference. Codex behavior
+belongs in a canonical Codex skill source.
 
 ## End-User Exposure And TODOs
 
 | Capability | Exposed To End Users Today | How It Is Exposed | Not Exposed / TODO |
 | --- | --- | --- | --- |
 | SDK knowledge references | Indirectly | Host skills load manifest-routed `references/`; MCP SDK docs tools also expose curated SDK docs | TODO: topic-level retrieval metadata when SDK index routing is ready |
-| Agent prompts | Partially | `harness/asset_manifest.yaml` declares the Claude agent and Codex skill references; Claude uses `agents/openstudio-modeler.md` | TODO: clearer host UX for selecting specialized agents/orchestrators |
+| Agent prompts | Partially | `harness/asset_manifest.yaml` declares Claude agents separately from Codex product skills; Claude uses `agents/openstudio-modeler.md` | TODO: clearer host UX for selecting specialized agents/orchestrators |
 | Blackboard schemas | Indirectly | Exported as `openstudio-workflow-state/references/`; MCP tools create/read/update SQLite state | Not a user-editable schema surface; TODO: clearer host UX for starting/resuming named workflows |
 | Approved measures | Partially | End users can call `model_list_measures` and `model_apply_measure` for measures allowed by `policy/measure_registry.yaml` | Users cannot add/approve measures through MCP today. TODO: admin/developer workflow for adding candidate measures, validating them, promoting to approved, and reloading registry safely |
 | `measures/approved/` folder | Not meaningfully used yet | It is the intended trusted target folder | Current registered measure points at `measures/add_daylighting.py`. TODO: move approved scripts under `measures/approved/` or rename the trusted measure layout so policy and docs agree |

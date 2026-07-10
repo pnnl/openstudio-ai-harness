@@ -26,17 +26,30 @@ OPENSTUDIO_SDK_DOCS_VERSION: str | None = None
 def _resolve_docs_version(docs_dir: Path) -> str | None:
     """Return the version suffix to use for versioned YAML files.
 
-    If OPENSTUDIO_SDK_DOCS_VERSION is set, use it.  Otherwise scan the docs/api
-    directory for ``classes-<version>.yaml.gz`` files and return the version
-    string of the lexicographically latest one (which corresponds to the newest
-    semantic version for typical OpenStudio release strings like "3.9.0").
-    Returns None when no versioned files are found (caller falls back to the
-    legacy unversioned names ``classes.yaml.gz`` / ``python-api.yaml.gz``).
+    Resolution order:
+    1. If OPENSTUDIO_SDK_DOCS_VERSION is set and the corresponding
+       ``classes-<version>.yaml.gz`` exists, use it.
+    2. If OPENSTUDIO_SDK_DOCS_VERSION is set but that file is missing, log a
+       warning and fall through to auto-detection so callers still get docs.
+    3. Scan for ``classes-<version>.yaml.gz`` files and return the
+       lexicographically latest version found.
+    4. Return None — caller falls back to the legacy unversioned filenames
+       ``classes.yaml.gz`` / ``python-api.yaml.gz``.
     """
-    if OPENSTUDIO_SDK_DOCS_VERSION is not None:
-        return OPENSTUDIO_SDK_DOCS_VERSION
-
     api_dir = docs_dir / "api"
+
+    if OPENSTUDIO_SDK_DOCS_VERSION is not None:
+        pinned_path = api_dir / f"classes-{OPENSTUDIO_SDK_DOCS_VERSION}.yaml.gz"
+        if pinned_path.is_file():
+            return OPENSTUDIO_SDK_DOCS_VERSION
+        import warnings
+        warnings.warn(
+            f"OPENSTUDIO_SDK_DOCS_VERSION is set to {OPENSTUDIO_SDK_DOCS_VERSION!r} "
+            f"but {pinned_path} was not found. "
+            "Falling back to the latest available version.",
+            stacklevel=3,
+        )
+
     if not api_dir.is_dir():
         return None
 

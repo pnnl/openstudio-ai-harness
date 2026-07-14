@@ -94,7 +94,7 @@ def main() -> int:
         print(compatibility.get("message", "The plugin may use unavailable MCP tools."))
         print("Next step: refresh the plugin or update the OpenStudio AI runtime through pip.")
         print("The MCP server remains connected so existing compatible tools can still be used.")
-        return 0
+        return 1
 
     print("\\nOpenStudio AI MCP runtime is ready for this plugin.")
     return 0
@@ -111,7 +111,7 @@ def render_install_runtime_script(*, post_install_guidance: str | None = None) -
     """Render the common approved package install or upgrade helper."""
     guidance = ""
     if post_install_guidance:
-        guidance = f'    print("\\n{post_install_guidance}")'
+        guidance = f'    print("\\n{post_install_guidance}")\n'
     return '''"""Install or repair the OpenStudio AI runtime package for this plugin."""
 
 from __future__ import annotations
@@ -120,6 +120,7 @@ import os
 import shutil
 import subprocess
 import sys
+from pathlib import Path
 
 
 DEFAULT_PACKAGE_SPEC = "openstudio-ai"
@@ -129,6 +130,21 @@ def run(command: list[str]) -> int:
     print(f"\\n$ {' '.join(command)}")
     completed = subprocess.run(command, check=False)
     return completed.returncode
+
+
+def runtime_cli_path() -> str | None:
+    """Find the openstudio-ai console script for this interpreter after pip install."""
+    path = shutil.which("openstudio-ai")
+    if path:
+        return path
+    scripts_dir = Path(sys.executable).resolve().parent
+    candidates = [scripts_dir / "openstudio-ai"]
+    if os.name == "nt":
+        candidates.append(scripts_dir / "openstudio-ai.exe")
+    for candidate in candidates:
+        if candidate.is_file():
+            return str(candidate)
+    return None
 
 
 def main() -> int:
@@ -156,8 +172,11 @@ def main() -> int:
         )
         return code
 
-    # The console-script directory may not be on PATH immediately after pip.
-    code = run([sys.executable, "-m", "cli", "install-runtime"])
+    runtime_cli = runtime_cli_path()
+    if runtime_cli is None:
+        print("\\nInstalled package, but the openstudio-ai command was not found for this Python environment.")
+        return 3
+    code = run([runtime_cli, "install-runtime"])
     if code != 0:
         print("\\nInstalled package, but runtime initialization failed.")
         return code
@@ -170,8 +189,7 @@ def main() -> int:
         return 3
 
     print("\\nOpenStudio AI runtime installation completed.")
-__POST_INSTALL_GUIDANCE__
-    return 0
+__POST_INSTALL_GUIDANCE__    return 0
 
 
 if __name__ == "__main__":

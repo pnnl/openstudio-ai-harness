@@ -15,7 +15,6 @@ from adapters.claude_code_adapter import ClaudeCodeAdapter
 from adapters.codex_adapter import CodexAdapter
 from adapters.contracts import RUNTIME_MODES, HostAdapterConfig
 from openstudio_mcp.compatibility import (
-    CompatibilityResult,
     evaluate_plugin_compatibility,
     package_version,
     plugin_mcp_environment,
@@ -211,20 +210,6 @@ def _sqlite_registry_probe() -> dict[str, Any]:
         return {"ok": False, "error": str(exc)}
 
 
-def _compatibility_payload(result: CompatibilityResult) -> dict[str, Any]:
-    """Make the shared compatibility result safe for CLI JSON output."""
-    return {
-        "ok": result.ok,
-        "status": result.status,
-        "plugin_version": result.plugin_version,
-        "plugin_contract_version": result.plugin_contract_version,
-        "runtime_version": result.runtime_version,
-        "runtime_contract_version": result.runtime_contract_version,
-        "message": result.message,
-        "remediation": result.remediation,
-    }
-
-
 def _diagnostic(
     code: str,
     severity: str,
@@ -390,12 +375,10 @@ def _doctor_payload(
         "mcp_startup": {"ok": False},
         "sdk_docs": {},
         "measures": {"ok": False},
-        "plugin_compatibility": _compatibility_payload(
-            evaluate_plugin_compatibility(
-                plugin_version=plugin_version,
-                plugin_contract_version=plugin_contract_version,
-            )
-        ),
+        "plugin_compatibility": evaluate_plugin_compatibility(
+            plugin_version=plugin_version,
+            plugin_contract_version=plugin_contract_version,
+        ).to_dict(),
         "python_openstudio": _python_openstudio_probe(),
         "openstudio": {
             "ok": False,
@@ -726,9 +709,10 @@ def _cmd_validate_export(args: argparse.Namespace) -> int:
         return 1
 
     server_env = server.get("env")
-    expected_metadata = plugin_mcp_environment()
+    required_metadata = plugin_mcp_environment().keys()
     if not isinstance(server_env, dict) or any(
-        server_env.get(key) != value for key, value in expected_metadata.items()
+        not isinstance(server_env.get(key), str) or not server_env[key]
+        for key in required_metadata
     ):
         print(
             "Export MCP configuration is missing the OpenStudio AI plugin compatibility metadata.",
@@ -737,19 +721,25 @@ def _cmd_validate_export(args: argparse.Namespace) -> int:
         return 1
 
     if args.runtime_mode in {"installed", "marketplace"}:
-        expected = {
-            "command": "openstudio-ai-mcp",
-            "args": ["--transport", "stdio"],
-            "env": plugin_mcp_environment(),
-        }
-        if server != expected:
+        if server.get("command") != "openstudio-ai-mcp" or server.get("args") != [
+            "--transport",
+            "stdio",
+        ]:
             print(
                 "Installed/marketplace exports must point to openstudio-ai-mcp.",
                 file=sys.stderr,
             )
-            print(f"Expected: {expected}", file=sys.stderr)
             print(f"Actual: {server}", file=sys.stderr)
             return 1
+
+    if args.strict_runtime_version and any(
+        server_env.get(key) != value for key, value in plugin_mcp_environment().items()
+    ):
+        print(
+            "Export compatibility metadata does not match the current runtime version.",
+            file=sys.stderr,
+        )
+        return 1
 
     if args.runtime_mode == "local":
         args_list = server.get("args", [])
@@ -885,6 +875,11 @@ def _build_parser() -> argparse.ArgumentParser:
         choices=sorted(RUNTIME_MODES),
         default="installed",
         help="Runtime mode contract to validate against.",
+    )
+    validate.add_argument(
+        "--strict-runtime-version",
+        action="store_true",
+        help="Require exported compatibility metadata to match this runtime exactly.",
     )
     validate.set_defaults(func=_cmd_validate_export)
 

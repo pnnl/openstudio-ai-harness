@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import asdict
 from typing import Any
 
 from openstudio_mcp.compatibility import evaluate_plugin_compatibility
@@ -16,7 +15,10 @@ def register_runtime_tools(mcp, service) -> None:
         ),
     )
     async def runtime_plugin_compatibility() -> dict[str, Any]:
-        return {"ok": True, "compatibility": asdict(evaluate_plugin_compatibility())}
+        return {
+            "ok": True,
+            "compatibility": evaluate_plugin_compatibility().to_dict(),
+        }
 
     @mcp.tool(
         name="runtime_storage_usage",

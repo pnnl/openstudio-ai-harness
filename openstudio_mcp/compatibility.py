@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from importlib import metadata
 import os
 from pathlib import Path
@@ -27,6 +27,10 @@ class CompatibilityResult:
     runtime_contract_version: str
     message: str | None = None
     remediation: str | None = None
+
+    def to_dict(self) -> dict[str, object]:
+        """Return the stable JSON-safe representation used by CLI and MCP callers."""
+        return asdict(self)
 
 
 def package_version() -> str:

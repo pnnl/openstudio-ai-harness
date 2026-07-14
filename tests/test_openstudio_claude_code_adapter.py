@@ -260,7 +260,7 @@ def test_claude_code_adapter_marketplace_mode_exports_runtime_setup(
     ).read_text(encoding="utf-8")
     assert "OPENSTUDIO_AI_PACKAGE_SPEC" in installer
     assert '"pip", "install", "--upgrade"' in installer
-    assert '"cli", "install-runtime"' in installer
+    assert 'runtime_cli, "install-runtime"' in installer
     assert "run /reload-plugins" in installer
     assert "Placeholder installer" not in installer
     doctor = (

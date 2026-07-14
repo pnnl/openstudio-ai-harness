@@ -70,6 +70,16 @@ selected plugin. A contract mismatch leaves `mcp_ready` true when the runtime
 otherwise works, emits a compatibility notice, and lets existing compatible MCP
 tools remain available.
 
+The bundled `doctor_runtime.py` helper returns exit code `1` for a contract
+mismatch so setup automation can require acknowledgement, while the MCP server
+itself continues to start. It returns `0` only when the plugin and runtime are
+compatible.
+
+`openstudio-ai validate-export` validates the structure and presence of
+compatibility metadata for any export by default. Use
+`--strict-runtime-version` only when an artifact must match the currently
+installed runtime exactly.
+
 Expected behavior:
 
 - `openstudio-ai doctor`: checks Python, MCP startup, initialized runtime

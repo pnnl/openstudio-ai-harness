@@ -289,3 +289,47 @@ def test_cli_validate_export_rejects_missing_compatibility_metadata(
     assert (
         main(["validate-export", str(plugin_dir), "--runtime-mode", "marketplace"]) == 1
     )
+
+
+def test_cli_validate_export_allows_historical_metadata_unless_strict(
+    tmp_path: Path,
+) -> None:
+    assert (
+        main(
+            [
+                "export",
+                "codex",
+                "--output-dir",
+                str(tmp_path),
+                "--workspace-root",
+                str(Path(".").resolve()),
+                "--runtime-mode",
+                "marketplace",
+            ]
+        )
+        == 0
+    )
+
+    plugin_dir = tmp_path / "plugins" / "openstudio-ai"
+    mcp_path = plugin_dir / ".mcp.json"
+    mcp_config = json.loads(mcp_path.read_text(encoding="utf-8"))
+    mcp_config["mcpServers"]["openstudio_ai"]["env"][
+        "OPENSTUDIO_AI_PLUGIN_VERSION"
+    ] = "0.0.1"
+    mcp_path.write_text(json.dumps(mcp_config), encoding="utf-8")
+
+    assert (
+        main(["validate-export", str(plugin_dir), "--runtime-mode", "marketplace"]) == 0
+    )
+    assert (
+        main(
+            [
+                "validate-export",
+                str(plugin_dir),
+                "--runtime-mode",
+                "marketplace",
+                "--strict-runtime-version",
+            ]
+        )
+        == 1
+    )

@@ -27,6 +27,7 @@ from blackboard.operations import (
     record_assumption,
     record_failure,
 )
+from openstudio_mcp.compatibility import evaluate_plugin_compatibility
 from blackboard.snapshot import snapshot_workflow
 from openstudio_mcp.runtime.artifact_store import ArtifactStore
 from openstudio_mcp.runtime.job_manager import JobManager
@@ -1205,6 +1206,13 @@ def serve(
     transport: str = "stdio",
     workspace_root: str | None = None,
 ) -> None:
+    compatibility = evaluate_plugin_compatibility()
+    if not compatibility.ok:
+        print(
+            "OpenStudio AI plugin/runtime compatibility notice: "
+            f"{compatibility.message}\nNext step: {compatibility.remediation}",
+            file=sys.stderr,
+        )
     mcp = create_server(host=host, port=port, workspace_root=workspace_root)
     mcp.run(transport=transport)
 

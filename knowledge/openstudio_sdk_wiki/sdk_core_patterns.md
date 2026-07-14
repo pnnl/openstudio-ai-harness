@@ -240,3 +240,21 @@ output_path.parent.mkdir(parents=True, exist_ok=True)
 if not model.save(str(output_path), True):
     raise ValueError(f"Failed to save edited model: {output_path}")
 ```
+
+## In-Memory Clone for Alternatives
+
+Use an in-memory clone only when a task needs to compare or prepare an
+alternative model while retaining the loaded model unchanged. This does not
+replace the safe-copy rule: save the clone to an explicit new output path.
+
+```python
+alternative_model = model.clone().to_Model()
+alternative_model.getBuilding().setNorthAxis(90.0)
+
+alternative_path = Path("outputs/model_rotated_baseline.osm").resolve()
+if not alternative_model.save(str(alternative_path), True):
+    raise ValueError(f"Failed to save alternative model: {alternative_path}")
+```
+
+Use this pattern for a scoped alternative such as a rotated baseline. Do not
+mutate the original model when the user asked to preserve it for comparison.

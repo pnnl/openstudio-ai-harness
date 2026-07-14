@@ -36,6 +36,40 @@ openstudio-ai install-runtime
 openstudio-ai repair
 ```
 
+## Plugin And Runtime Compatibility
+
+An OpenStudio AI plugin contains skills that call MCP tools. A newer plugin can
+therefore require MCP tool names or argument shapes that an older runtime does
+not provide. Plugin exports include these MCP environment fields:
+
+```text
+OPENSTUDIO_AI_PLUGIN_VERSION
+OPENSTUDIO_AI_PLUGIN_CONTRACT_VERSION
+```
+
+The package version identifies the release. The contract version identifies the
+plugin-to-MCP interface and changes only when that interface breaks. A runtime
+starts when the contract differs, reports a compatibility notice, and continues
+to expose tools that remain compatible. The user should refresh the plugin or
+upgrade the runtime before relying on newly added skill workflows.
+
+Marketplace doctor helpers run:
+
+```bash
+openstudio-ai doctor \
+  --plugin-version <plugin-version> \
+  --plugin-contract-version <contract-version>
+```
+
+Use this form after exporting a plugin or when repairing a failed MCP
+connection. Re-exporting the plugin and upgrading the runtime are the normal
+recovery path for a contract mismatch.
+
+`doctor` reports `mcp_ready` for the runtime itself and `plugin_ready` for the
+selected plugin. A contract mismatch leaves `mcp_ready` true when the runtime
+otherwise works, emits a compatibility notice, and lets existing compatible MCP
+tools remain available.
+
 Expected behavior:
 
 - `openstudio-ai doctor`: checks Python, MCP startup, initialized runtime

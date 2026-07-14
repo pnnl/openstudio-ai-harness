@@ -1,0 +1,179 @@
+"""Shared marketplace runtime helper renderers for host adapters."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from openstudio_mcp.compatibility import PLUGIN_CONTRACT_VERSION, package_version
+
+
+def write_runtime_helpers(
+    installers_dir: Path, *, post_install_guidance: str | None = None
+) -> None:
+    """Write common setup helpers with optional host-specific reload guidance."""
+    installers_dir.mkdir(parents=True, exist_ok=True)
+    (installers_dir / "doctor_runtime.py").write_text(
+        render_doctor_runtime_script(), encoding="utf-8"
+    )
+    (installers_dir / "install_runtime.py").write_text(
+        render_install_runtime_script(post_install_guidance=post_install_guidance),
+        encoding="utf-8",
+    )
+
+
+def render_doctor_runtime_script() -> str:
+    """Render the common marketplace runtime doctor helper."""
+    return '''"""Check whether the OpenStudio AI runtime can be used by this plugin."""
+
+from __future__ import annotations
+
+import json
+import shutil
+import subprocess
+import sys
+
+PLUGIN_VERSION = "__OPENSTUDIO_AI_PLUGIN_VERSION__"
+PLUGIN_CONTRACT_VERSION = "__OPENSTUDIO_AI_PLUGIN_CONTRACT_VERSION__"
+
+
+def command_status(command: str) -> dict[str, object]:
+    path = shutil.which(command)
+    return {"command": command, "available": path is not None, "path": path}
+
+
+def main() -> int:
+    report = {
+        "python": {
+            "executable": sys.executable,
+            "version": sys.version.split()[0],
+        },
+        "openstudio_ai_mcp": command_status("openstudio-ai-mcp"),
+        "openstudio_ai": command_status("openstudio-ai"),
+    }
+    print(json.dumps(report, indent=2))
+
+    if not report["openstudio_ai_mcp"]["available"] or not report["openstudio_ai"]["available"]:
+        print(
+            "\\nOpenStudio AI runtime commands are not fully available. "
+            "Ask the user before running install_runtime.py."
+        )
+        return 2
+
+    doctor = subprocess.run(
+        [
+            "openstudio-ai",
+            "doctor",
+            "--json",
+            "--plugin-version",
+            PLUGIN_VERSION,
+            "--plugin-contract-version",
+            PLUGIN_CONTRACT_VERSION,
+        ],
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if doctor.stdout:
+        print(doctor.stdout.strip())
+    if doctor.returncode != 0:
+        print("\\nThe OpenStudio AI runtime is not ready for MCP work.")
+        if doctor.stderr.strip():
+            print(doctor.stderr.strip())
+        return doctor.returncode
+
+    try:
+        payload = json.loads(doctor.stdout)
+    except json.JSONDecodeError:
+        print("\\nThe runtime doctor returned an unreadable report. Run `openstudio-ai doctor` directly.")
+        return 2
+
+    compatibility = payload.get("plugin_compatibility", {})
+    if compatibility.get("ok") is False:
+        print("\\nCompatibility notice: the plugin and runtime use different MCP interface versions.")
+        print(compatibility.get("message", "The plugin may use unavailable MCP tools."))
+        print("Next step: refresh the plugin or update the OpenStudio AI runtime through pip.")
+        print("The MCP server remains connected so existing compatible tools can still be used.")
+        return 0
+
+    print("\\nOpenStudio AI MCP runtime is ready for this plugin.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+'''.replace("__OPENSTUDIO_AI_PLUGIN_VERSION__", package_version()).replace(
+        "__OPENSTUDIO_AI_PLUGIN_CONTRACT_VERSION__", PLUGIN_CONTRACT_VERSION
+    )
+
+
+def render_install_runtime_script(*, post_install_guidance: str | None = None) -> str:
+    """Render the common approved package install or upgrade helper."""
+    guidance = ""
+    if post_install_guidance:
+        guidance = f'    print("\\n{post_install_guidance}")'
+    return '''"""Install or repair the OpenStudio AI runtime package for this plugin."""
+
+from __future__ import annotations
+
+import os
+import shutil
+import subprocess
+import sys
+
+
+DEFAULT_PACKAGE_SPEC = "openstudio-ai"
+
+
+def run(command: list[str]) -> int:
+    print(f"\\n$ {' '.join(command)}")
+    completed = subprocess.run(command, check=False)
+    return completed.returncode
+
+
+def main() -> int:
+    print("OpenStudio AI runtime installer")
+    print("===============================")
+    print(f"Python executable: {sys.executable}")
+    print(f"Python version: {sys.version.split()[0]}")
+
+    package_spec = os.getenv("OPENSTUDIO_AI_PACKAGE_SPEC", DEFAULT_PACKAGE_SPEC)
+    if shutil.which("openstudio-ai") and shutil.which("openstudio-ai-mcp"):
+        print("\\nOpenStudio AI commands are available. Checking for a compatible runtime update.")
+    else:
+        print("\\nOpenStudio AI runtime is not installed yet.")
+    print(f"Installing or upgrading runtime package: {package_spec}")
+    print(
+        "Set OPENSTUDIO_AI_PACKAGE_SPEC to a wheel path, internal index spec, "
+        "or pinned version if your organization does not install from PyPI."
+    )
+    code = run([sys.executable, "-m", "pip", "install", "--upgrade", package_spec])
+    if code != 0:
+        print(
+            "\\nRuntime package installation failed. Check Python permissions, "
+            "network access, package index access, or ask your support contact "
+            "for an approved OpenStudio AI package."
+        )
+        return code
+
+    # The console-script directory may not be on PATH immediately after pip.
+    code = run([sys.executable, "-m", "cli", "install-runtime"])
+    if code != 0:
+        print("\\nInstalled package, but runtime initialization failed.")
+        return code
+
+    if not shutil.which("openstudio-ai-mcp"):
+        print(
+            "\\nThe package installed, but openstudio-ai-mcp is not on PATH in this shell. "
+            "Restart the AI tool or add Python's scripts directory to PATH, then rerun doctor."
+        )
+        return 3
+
+    print("\\nOpenStudio AI runtime installation completed.")
+__POST_INSTALL_GUIDANCE__
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+'''.replace("__POST_INSTALL_GUIDANCE__", guidance)

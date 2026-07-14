@@ -19,7 +19,7 @@ from agent import (
     build_openstudio_mcp_config,
     load_openstudio_agent_spec,
 )
-from openstudio_mcp.server import serve
+import openstudio_mcp.server as mcp_server
 from openstudio_mcp.server import (
     OpenStudioModelState,
     OpenStudioService,
@@ -57,7 +57,11 @@ def start_mcp():
     from multiprocessing import Process
     import time
 
-    process = Process(target=serve, args=(MCP_HOST, MCP_PORT, "sse"), daemon=True)
+    process = Process(
+        target=mcp_server.serve,
+        args=(MCP_HOST, MCP_PORT, "sse"),
+        daemon=True,
+    )
     process.start()
     time.sleep(2)
     yield
@@ -81,6 +85,7 @@ async def test_openstudio_mcp_smoke_list_and_call_model_load() -> None:
             assert "model_clone" in names
             assert "model_list_measures" in names
             assert "sim_run" in names
+            assert "runtime_plugin_compatibility" in names
             assert "runtime_storage_usage" in names
             assert "runtime_prune_preview" in names
             assert "runtime_prune" in names
@@ -277,6 +282,27 @@ def test_openstudio_mcp_blackboard_supports_workflow_state(tmp_path: Path) -> No
 
     snapshot = service.blackboard_snapshot_workflow(workflow_id=workflow_id)
     assert Path(snapshot["snapshot_path"]).exists()
+
+
+def test_openstudio_mcp_warns_but_starts_for_incompatible_plugin_contract(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("OPENSTUDIO_AI_PLUGIN_CONTRACT_VERSION", "999")
+
+    class FakeMcp:
+        def __init__(self) -> None:
+            self.transport: str | None = None
+
+        def run(self, *, transport: str) -> None:
+            self.transport = transport
+
+    fake_mcp = FakeMcp()
+    monkeypatch.setattr(mcp_server, "create_server", lambda **_: fake_mcp)
+
+    mcp_server.serve(transport="stdio")
+
+    assert fake_mcp.transport == "stdio"
+    assert "plugin/runtime compatibility notice" in capsys.readouterr().err
 
 
 @pytest.mark.asyncio

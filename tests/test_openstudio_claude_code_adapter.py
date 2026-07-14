@@ -10,6 +10,7 @@ from adapters.claude_code_adapter import (
     ClaudeCodeAdapter,
 )
 from adapters.contracts import HostAdapterConfig
+from openstudio_mcp.compatibility import plugin_mcp_environment
 
 
 def _adapter() -> ClaudeCodeAdapter:
@@ -217,7 +218,7 @@ def test_claude_code_adapter_installed_mode_uses_runtime_command(
     server = mcp_json["mcpServers"]["openstudio_ai"]
     assert server["command"] == "openstudio-ai-mcp"
     assert server["args"] == ["--transport", "stdio"]
-    assert "env" not in server
+    assert server["env"] == plugin_mcp_environment()
     assert not (
         tmp_path / "openstudio-ai" / "skills" / "setup-openstudio-ai" / "SKILL.md"
     ).exists()
@@ -231,7 +232,11 @@ def test_claude_code_adapter_marketplace_mode_exports_runtime_setup(
     plugin_dir = tmp_path / "openstudio-ai"
     mcp_json = json.loads((plugin_dir / ".mcp.json").read_text(encoding="utf-8"))
     server = mcp_json["mcpServers"]["openstudio_ai"]
-    assert server == {"command": "openstudio-ai-mcp", "args": ["--transport", "stdio"]}
+    assert server == {
+        "command": "openstudio-ai-mcp",
+        "args": ["--transport", "stdio"],
+        "env": plugin_mcp_environment(),
+    }
     assert (plugin_dir / "skills" / "setup-openstudio-ai" / "SKILL.md").exists()
     assert (plugin_dir / "skills" / "doctor-openstudio-ai" / "SKILL.md").exists()
     assert (plugin_dir / "skills" / "repair-openstudio-ai" / "SKILL.md").exists()
@@ -258,6 +263,10 @@ def test_claude_code_adapter_marketplace_mode_exports_runtime_setup(
     assert '"cli", "install-runtime"' in installer
     assert "run /reload-plugins" in installer
     assert "Placeholder installer" not in installer
+    doctor = (
+        plugin_dir / "skills" / "setup-openstudio-ai" / "scripts" / "doctor_runtime.py"
+    ).read_text(encoding="utf-8")
+    assert '"--plugin-contract-version"' in doctor
 
     exported_text = "\n".join(
         path.read_text(encoding="utf-8")

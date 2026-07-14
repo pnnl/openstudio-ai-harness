@@ -14,6 +14,39 @@ to launch OpenStudio CLI, shell commands, or subprocesses.
 Use this pack when explaining existing scripts, understanding result artifacts,
 or drafting a non-executed review plan.
 
+## Attach User-Supplied Weather and Design Days
+
+Weather and design-day assets are model inputs. OpenStudio AI does not package
+sample EPW or DDY files: require user-supplied paths, verify they exist, and
+record their paths in the edit summary. Prefer a relevant MCP `model_*` tool
+when it supports the requested model setup; use these SDK idioms only for a
+scoped model-editing script.
+
+```python
+epw_path = "/path/to/weather.epw"
+epw_file = openstudio.EpwFile(epw_path)
+openstudio.model.WeatherFile.setWeatherFile(model, epw_file)
+```
+
+To merge design days from a user-supplied DDY file, check the IDF load result
+before translating it back into model objects:
+
+```python
+ddy_path = openstudio.path("/path/to/design-days.ddy")
+ddy_idf_opt = openstudio.IdfFile.load(ddy_path)
+if not ddy_idf_opt.is_initialized():
+    raise ValueError("Failed to load DDY file")
+
+ddy_workspace = openstudio.Workspace(ddy_idf_opt.get())
+ddy_model = openstudio.energyplus.ReverseTranslator().translateWorkspace(
+    ddy_workspace
+)
+model.addObjects(ddy_model.objects())
+```
+
+This changes the model only; simulation execution, polling, artifacts, and
+result retrieval remain MCP responsibilities.
+
 ## Forward Translate Model to IDF
 
 ```python

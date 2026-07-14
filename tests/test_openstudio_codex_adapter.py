@@ -7,6 +7,7 @@ import pytest
 
 from adapters.codex_adapter import CodexAdapter
 from adapters.contracts import HostAdapterConfig
+from openstudio_mcp.compatibility import plugin_mcp_environment
 
 
 def _adapter() -> CodexAdapter:
@@ -234,7 +235,7 @@ def test_codex_adapter_installed_mode_uses_runtime_command(tmp_path: Path) -> No
     server = mcp_json["mcpServers"]["openstudio_ai"]
     assert server["command"] == "openstudio-ai-mcp"
     assert server["args"] == ["--transport", "stdio"]
-    assert "env" not in server
+    assert server["env"] == plugin_mcp_environment()
     assert not (
         tmp_path / "plugins" / "openstudio-ai" / "skills" / "setup-openstudio-ai"
     ).exists()
@@ -246,7 +247,11 @@ def test_codex_adapter_marketplace_mode_exports_runtime_setup(tmp_path: Path) ->
     plugin_dir = tmp_path / "plugins" / "openstudio-ai"
     mcp_json = json.loads((plugin_dir / ".mcp.json").read_text(encoding="utf-8"))
     server = mcp_json["mcpServers"]["openstudio_ai"]
-    assert server == {"command": "openstudio-ai-mcp", "args": ["--transport", "stdio"]}
+    assert server == {
+        "command": "openstudio-ai-mcp",
+        "args": ["--transport", "stdio"],
+        "env": plugin_mcp_environment(),
+    }
     assert (plugin_dir / "skills" / "setup-openstudio-ai" / "SKILL.md").exists()
     assert (plugin_dir / "skills" / "doctor-openstudio-ai" / "SKILL.md").exists()
     assert (plugin_dir / "skills" / "repair-openstudio-ai" / "SKILL.md").exists()
@@ -274,6 +279,10 @@ def test_codex_adapter_marketplace_mode_exports_runtime_setup(tmp_path: Path) ->
     assert '"pip", "install", "--upgrade"' in installer
     assert '"cli", "install-runtime"' in installer
     assert "Placeholder installer" not in installer
+    doctor = (
+        plugin_dir / "skills" / "setup-openstudio-ai" / "scripts" / "doctor_runtime.py"
+    ).read_text(encoding="utf-8")
+    assert '"--plugin-contract-version"' in doctor
 
     exported_text = "\n".join(
         path.read_text(encoding="utf-8")

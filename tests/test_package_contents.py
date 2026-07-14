@@ -32,6 +32,7 @@ def test_release_archives_exclude_local_openstudio_fixtures(tmp_path: Path) -> N
     ]
     assert not wheel_blocked
     assert "openstudio_mcp/server.py" in wheel_names
+    assert "openstudio_mcp/compatibility.py" in wheel_names
     assert "skills/openstudio_vav_reheat_system_creator.md" in wheel_names
 
     sdist = next(tmp_path.glob("*.tar.gz"))

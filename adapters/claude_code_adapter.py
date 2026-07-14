@@ -9,6 +9,7 @@ from pathlib import Path
 
 from adapters.base import OpenStudioAiHostAdapter
 from adapters.contracts import RUNTIME_MODES, HostAdapterConfig, HostLaunchPlan
+from adapters.runtime_helpers import write_runtime_helpers
 from harness.asset_manifest import (
     agent_source_for_host,
     reference_exports_for_host,
@@ -17,6 +18,7 @@ from harness.asset_manifest import (
     skill_sources_for_host,
 )
 from harness.registry import discover_harness_assets
+from openstudio_mcp.compatibility import package_version, plugin_mcp_environment
 
 GENERATED_START = "<!-- BEGIN OPENSTUDIO_AI_HARNESS -->"
 GENERATED_END = "<!-- END OPENSTUDIO_AI_HARNESS -->"
@@ -227,12 +229,14 @@ def _mcp_server_config(workspace_root: Path, runtime_mode: str) -> dict[str, obj
             "env": {
                 "PYTHONPATH": str(workspace_root),
                 "OPENSTUDIO_AI_ROOT": str(workspace_root),
+                **plugin_mcp_environment(),
             },
         }
     if runtime_mode in {"installed", "marketplace"}:
         return {
             "command": "openstudio-ai-mcp",
             "args": ["--transport", "stdio"],
+            "env": plugin_mcp_environment(),
         }
     raise ValueError(f"Unsupported runtime mode: {runtime_mode}")
 
@@ -361,7 +365,7 @@ def _render_marketplace_json(plugin_name: str) -> str:
             {
                 "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
                 "name": MARKETPLACE_NAME,
-                "version": "0.1.3",
+                "version": package_version(),
                 "description": "Local marketplace for the OpenStudio AI Claude plugin.",
                 "owner": {
                     "name": "OpenStudio AI",
@@ -373,7 +377,7 @@ def _render_marketplace_json(plugin_name: str) -> str:
                             "OpenStudio AI harness for OpenStudio model editing, simulation, "
                             "results, SDK lookup, and reusable workflow skills."
                         ),
-                        "version": "0.1.3",
+                        "version": package_version(),
                         "source": f"./{plugin_name}",
                         "category": "engineering",
                     }
@@ -456,7 +460,7 @@ def _write_plugin_package(
             {
                 "name": "openstudio-ai",
                 "displayName": "OpenStudio AI",
-                "version": "0.1.3",
+                "version": package_version(),
                 "description": (
                     "OpenStudio AI harness for model editing, simulation, results, "
                     "SDK lookup, and reusable building-energy workflow skills."
@@ -841,145 +845,14 @@ def _render_connectors_doc(workspace_root: Path, runtime_mode: str) -> str:
 
 
 def _write_installer_assets(installers_dir: Path) -> None:
-    """Write cross-platform runtime installer and doctor helper scripts."""
-    installers_dir.mkdir(parents=True, exist_ok=True)
-    (installers_dir / "doctor_runtime.py").write_text(
-        _doctor_runtime_script(), encoding="utf-8"
+    """Write shared marketplace runtime helpers with Claude reload guidance."""
+    write_runtime_helpers(
+        installers_dir,
+        post_install_guidance=(
+            "If Claude Code already marked the MCP server as failed, run /reload-plugins "
+            "or reconnect the failed MCP server so it starts openstudio-ai-mcp again."
+        ),
     )
-    (installers_dir / "install_runtime.py").write_text(
-        _install_runtime_script(), encoding="utf-8"
-    )
-
-
-def _doctor_runtime_script() -> str:
-    """Return the runtime doctor helper script shipped in marketplace exports."""
-    return '''"""Check whether the OpenStudio AI runtime can be used by this plugin."""
-
-from __future__ import annotations
-
-import json
-import shutil
-import subprocess
-import sys
-
-
-def command_status(command: str) -> dict[str, object]:
-    path = shutil.which(command)
-    return {"command": command, "available": path is not None, "path": path}
-
-
-def main() -> int:
-    report = {
-        "python": {
-            "executable": sys.executable,
-            "version": sys.version.split()[0],
-        },
-        "openstudio_ai_mcp": command_status("openstudio-ai-mcp"),
-        "openstudio_ai": command_status("openstudio-ai"),
-    }
-    print(json.dumps(report, indent=2))
-
-    if not report["openstudio_ai_mcp"]["available"]:
-        print(
-            "\\nOpenStudio AI runtime is not installed yet. "
-            "Ask the user before running install_runtime.py."
-        )
-        return 2
-
-    result = subprocess.run(
-        ["openstudio-ai-mcp", "--help"],
-        check=False,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    if result.returncode != 0:
-        print("\\nFound openstudio-ai-mcp, but it did not start cleanly.")
-        print(result.stderr.strip())
-        return result.returncode
-
-    print("\\nOpenStudio AI MCP runtime command is available.")
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
-'''
-
-
-def _install_runtime_script() -> str:
-    """Return the runtime installer script shipped in marketplace exports."""
-    return '''"""Install or repair the OpenStudio AI runtime package for this plugin."""
-
-from __future__ import annotations
-
-import os
-import shutil
-import subprocess
-import sys
-
-
-DEFAULT_PACKAGE_SPEC = "openstudio-ai"
-
-
-def run(command: list[str]) -> int:
-    print(f"\\n$ {' '.join(command)}")
-    completed = subprocess.run(command, check=False)
-    return completed.returncode
-
-
-def main() -> int:
-    print("OpenStudio AI runtime installer")
-    print("===============================")
-    print(f"Python executable: {sys.executable}")
-    print(f"Python version: {sys.version.split()[0]}")
-
-    package_spec = os.getenv("OPENSTUDIO_AI_PACKAGE_SPEC", DEFAULT_PACKAGE_SPEC)
-    if shutil.which("openstudio-ai") and shutil.which("openstudio-ai-mcp"):
-        print("\\nOpenStudio AI commands are already available. Initializing runtime storage.")
-    else:
-        print(f"\\nInstalling runtime package: {package_spec}")
-        print(
-            "Set OPENSTUDIO_AI_PACKAGE_SPEC to a wheel path, internal index spec, "
-            "or pinned version if your organization does not install from PyPI."
-        )
-        code = run([sys.executable, "-m", "pip", "install", "--upgrade", package_spec])
-        if code != 0:
-            print(
-                "\\nRuntime package installation failed. Check Python permissions, "
-                "network access, package index access, or ask your support contact "
-                "for an approved OpenStudio AI package."
-            )
-            return code
-
-    # Do not call the `openstudio-ai` console script here: after pip installs
-    # the package, Python's scripts directory may not be visible on PATH in this
-    # shell yet. The top-level `cli` module is importable in the current Python
-    # environment immediately after installation, so it is the stable bootstrap
-    # path for first-run storage initialization.
-    code = run([sys.executable, "-m", "cli", "install-runtime"])
-    if code != 0:
-        print("\\nInstalled package, but runtime initialization failed.")
-        return code
-
-    if not shutil.which("openstudio-ai-mcp"):
-        print(
-            "\\nThe package installed, but openstudio-ai-mcp is not on PATH in this shell. "
-            "Restart the AI tool or add Python's scripts directory to PATH, then rerun doctor."
-        )
-        return 3
-
-    print("\\nOpenStudio AI runtime installation completed.")
-    print(
-        "If Claude Code already marked the MCP server as failed, run /reload-plugins "
-        "or reconnect the failed MCP server so it starts openstudio-ai-mcp again."
-    )
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
-'''
 
 
 def _default_workspace_root() -> Path:

@@ -140,6 +140,49 @@ def test_cli_doctor_text_reports_missing_openstudio_sdk(
     assert "OpenStudio execution status: not ready" in output
     assert "- python openstudio sdk: failed" in output
     assert "native OpenStudio application" in output
+    assert "[openstudio_python_sdk_unavailable]" in output
+    assert "Technical detail: No module named openstudio" in output
+
+
+def test_cli_doctor_reports_plugin_runtime_contract_mismatch(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    data_dir = tmp_path / "runtime-data"
+    (data_dir / "workspace").mkdir(parents=True)
+    monkeypatch.setenv("OPENSTUDIO_AI_DATA_DIR", str(data_dir))
+    monkeypatch.setenv("OPENSTUDIO_PATH", "/fake/openstudio")
+
+    def fake_command_available(command: str) -> dict:
+        return {"command": command, "available": True, "path": command}
+
+    def fake_run_probe(command: list[str], *, timeout_seconds: int = 10) -> dict:
+        return {"ok": True, "returncode": 0, "stdout": "help", "stderr": ""}
+
+    monkeypatch.setattr(cli, "_command_available", fake_command_available)
+    monkeypatch.setattr(cli, "_run_probe", fake_run_probe)
+
+    assert (
+        main(
+            [
+                "doctor",
+                "--json",
+                "--plugin-version",
+                "9.9.9",
+                "--plugin-contract-version",
+                "999",
+            ]
+        )
+        == 0
+    )
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["mcp_ready"] is True
+    assert payload["plugin_ready"] is False
+    assert payload["plugin_compatibility"]["ok"] is False
+    assert payload["plugin_compatibility"]["status"] == "incompatible"
+    assert any(
+        item["code"] == "plugin_runtime_incompatible" for item in payload["diagnostics"]
+    )
+    assert any(item["severity"] == "warning" for item in payload["diagnostics"])
 
 
 def test_cli_export_claude_marketplace(tmp_path: Path) -> None:
@@ -213,6 +256,36 @@ def test_cli_validate_export_rejects_missing_marketplace_setup(tmp_path: Path) -
     (
         plugin_dir / "skills" / "setup-openstudio-ai" / "scripts" / "doctor_runtime.py"
     ).unlink()
+    assert (
+        main(["validate-export", str(plugin_dir), "--runtime-mode", "marketplace"]) == 1
+    )
+
+
+def test_cli_validate_export_rejects_missing_compatibility_metadata(
+    tmp_path: Path,
+) -> None:
+    assert (
+        main(
+            [
+                "export",
+                "claude",
+                "--output-dir",
+                str(tmp_path),
+                "--workspace-root",
+                str(Path(".").resolve()),
+                "--runtime-mode",
+                "marketplace",
+            ]
+        )
+        == 0
+    )
+
+    plugin_dir = tmp_path / "openstudio-ai"
+    mcp_path = plugin_dir / ".mcp.json"
+    mcp_config = json.loads(mcp_path.read_text(encoding="utf-8"))
+    del mcp_config["mcpServers"]["openstudio_ai"]["env"]
+    mcp_path.write_text(json.dumps(mcp_config), encoding="utf-8")
+
     assert (
         main(["validate-export", str(plugin_dir), "--runtime-mode", "marketplace"]) == 1
     )

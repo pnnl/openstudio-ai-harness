@@ -52,6 +52,30 @@ Reviewed model-generation code stores workflow metadata on spaces through
 `additionalProperties()`. Retrieval returns optional values; check `.empty()`
 before `.get()`.
 
+## Create Space Infiltration
+
+Before creating infiltration, confirm the target space, object name, design-flow
+method, numeric value and units, schedule if applicable, and all coefficient
+values. The example below is a source-observed exterior-wall-area pattern; use
+the active SDK documentation to confirm the intended SI inputs before drafting a
+different method or coefficient set.
+
+```python
+infiltration = openstudio.model.SpaceInfiltrationDesignFlowRate(model)
+infiltration.setName(f"{space.nameString()} Infiltration")
+infiltration.setSpace(space)
+infiltration.setFlowperExteriorWallArea(flow_per_wall_area)
+infiltration.setConstantTermCoefficient(0.0)
+infiltration.setTemperatureTermCoefficient(0.0)
+infiltration.setVelocitySquaredTermCoefficient(0.0)
+infiltration.setVelocityTermCoefficient(0.224)
+```
+
+Assign the infiltration object to its target space and report its method,
+coefficient values, and units in the edit summary. Do not create a duplicate
+when the space already has an applicable infiltration object without user
+approval.
+
 ## Assign SpaceType from Object Lookup
 
 ```python

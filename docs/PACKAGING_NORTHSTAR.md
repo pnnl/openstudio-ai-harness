@@ -379,8 +379,8 @@ Use this checklist to estimate progress.
 
 ### Product Readiness
 
-- [ ] Version compatibility between plugin and runtime is enforced.
-- [ ] MCP startup failure is explained in user-friendly language.
+- [x] Plugin/runtime compatibility mismatches are detected and explained.
+- [x] MCP startup failure is explained in user-friendly language.
 - [ ] Energy modeler setup guide is complete.
 - [ ] Offline/enterprise bundle strategy is documented.
 - [ ] Minimal smoke workflow works after clean install:

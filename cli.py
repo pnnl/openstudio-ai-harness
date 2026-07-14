@@ -8,24 +8,23 @@ import sqlite3
 import subprocess
 import sys
 import tempfile
-from importlib import metadata
 from pathlib import Path
 from typing import Any
 
 from adapters.claude_code_adapter import ClaudeCodeAdapter
 from adapters.codex_adapter import CodexAdapter
 from adapters.contracts import RUNTIME_MODES, HostAdapterConfig
-
-DIST_NAME = "openstudio-ai"
-FALLBACK_VERSION = "0.1.1"
+from openstudio_mcp.compatibility import (
+    CompatibilityResult,
+    evaluate_plugin_compatibility,
+    package_version,
+    plugin_mcp_environment,
+)
 
 
 def _version() -> str:
     """Return the installed package version, falling back during source checkout use."""
-    try:
-        return metadata.version(DIST_NAME)
-    except metadata.PackageNotFoundError:
-        return FALLBACK_VERSION
+    return package_version()
 
 
 def _default_root() -> Path:
@@ -212,7 +211,159 @@ def _sqlite_registry_probe() -> dict[str, Any]:
         return {"ok": False, "error": str(exc)}
 
 
-def _doctor_payload() -> dict[str, Any]:
+def _compatibility_payload(result: CompatibilityResult) -> dict[str, Any]:
+    """Make the shared compatibility result safe for CLI JSON output."""
+    return {
+        "ok": result.ok,
+        "status": result.status,
+        "plugin_version": result.plugin_version,
+        "plugin_contract_version": result.plugin_contract_version,
+        "runtime_version": result.runtime_version,
+        "runtime_contract_version": result.runtime_contract_version,
+        "message": result.message,
+        "remediation": result.remediation,
+    }
+
+
+def _diagnostic(
+    code: str,
+    severity: str,
+    message: str,
+    remediation: str,
+    detail: str | None = None,
+) -> dict[str, str]:
+    """Create a stable, user-facing doctor diagnostic."""
+    result = {
+        "code": code,
+        "severity": severity,
+        "message": message,
+        "remediation": remediation,
+    }
+    if detail:
+        result["detail"] = detail[:1000]
+    return result
+
+
+def _doctor_diagnostics(checks: dict[str, Any]) -> list[dict[str, str]]:
+    """Translate low-level checks into actionable user-facing failures."""
+    diagnostics: list[dict[str, str]] = []
+    compatibility = checks["plugin_compatibility"]
+    if not compatibility["ok"]:
+        diagnostics.append(
+            _diagnostic(
+                "plugin_runtime_incompatible",
+                "warning",
+                compatibility["message"],
+                compatibility["remediation"],
+                (
+                    "Plugin contract "
+                    f"{compatibility['plugin_contract_version']}; runtime contract "
+                    f"{compatibility['runtime_contract_version']}."
+                ),
+            )
+        )
+    elif compatibility["status"] == "not_declared":
+        diagnostics.append(
+            _diagnostic(
+                "plugin_contract_not_declared",
+                "warning",
+                compatibility["message"],
+                compatibility["remediation"],
+            )
+        )
+
+    mcp_command = checks["commands"]["openstudio_ai_mcp"]
+    if not mcp_command["available"]:
+        diagnostics.append(
+            _diagnostic(
+                "mcp_command_missing",
+                "error",
+                "The OpenStudio AI MCP command is not available to this Python environment.",
+                "Run the OpenStudio AI setup workflow to install or repair the runtime, then reload or reconnect the plugin.",
+            )
+        )
+    elif not mcp_command["help_probe"].get("ok"):
+        probe = mcp_command["help_probe"]
+        diagnostics.append(
+            _diagnostic(
+                "mcp_command_failed",
+                "error",
+                "The OpenStudio AI MCP command was found but could not start cleanly.",
+                "Run the OpenStudio AI setup workflow to reinstall the runtime, then reload or reconnect the plugin.",
+                str(
+                    probe.get("stderr") or probe.get("error") or "unknown startup error"
+                ),
+            )
+        )
+
+    mcp_startup = checks["mcp_startup"]
+    if not mcp_startup["ok"]:
+        diagnostics.append(
+            _diagnostic(
+                "mcp_startup_failed",
+                "error",
+                "The OpenStudio AI MCP runtime could not initialize its services.",
+                "Run the OpenStudio AI setup workflow to repair the runtime. If the issue remains, share the technical detail with your support contact.",
+                str(mcp_startup.get("error") or "unknown startup error"),
+            )
+        )
+
+    storage = checks["runtime_storage"]
+    if not storage["ok"]:
+        diagnostics.append(
+            _diagnostic(
+                "runtime_storage_not_ready",
+                "error",
+                storage.get("message", "OpenStudio AI runtime storage is not ready."),
+                "Run `openstudio-ai install-runtime` to initialize user-local storage.",
+                storage.get("error"),
+            )
+        )
+
+    if not checks["assets"]["ok"]:
+        diagnostics.append(
+            _diagnostic(
+                "runtime_assets_missing",
+                "error",
+                checks["assets"]["message"],
+                "Reinstall openstudio-ai, then run `openstudio-ai repair` if the issue remains.",
+                ", ".join(
+                    checks["assets"]["missing_files"]
+                    + checks["assets"]["missing_directories"]
+                ),
+            )
+        )
+
+    if not checks["python_openstudio"]["ok"]:
+        diagnostics.append(
+            _diagnostic(
+                "openstudio_python_sdk_unavailable",
+                "warning",
+                "The OpenStudio Python SDK is unavailable, so model editing and measures are not ready.",
+                "Install the native OpenStudio application, then reinstall openstudio-ai and rerun doctor.",
+                str(checks["python_openstudio"].get("error") or "SDK import failed"),
+            )
+        )
+
+    if not checks["openstudio"]["ok"]:
+        diagnostics.append(
+            _diagnostic(
+                "openstudio_command_unavailable",
+                "warning",
+                "The native OpenStudio command is unavailable, so simulations are not ready.",
+                "Install OpenStudio or set OPENSTUDIO_PATH, then rerun doctor.",
+                str(
+                    checks["openstudio"].get("error")
+                    or "OpenStudio version probe failed"
+                ),
+            )
+        )
+    return diagnostics
+
+
+def _doctor_payload(
+    *, plugin_version: str | None = None, plugin_contract_version: str | None = None
+) -> dict[str, Any]:
     """Collect runtime readiness checks without mutating user models or projects."""
     harness_root = _default_root()
     data_dir = _user_data_dir()
@@ -239,6 +390,12 @@ def _doctor_payload() -> dict[str, Any]:
         "mcp_startup": {"ok": False},
         "sdk_docs": {},
         "measures": {"ok": False},
+        "plugin_compatibility": _compatibility_payload(
+            evaluate_plugin_compatibility(
+                plugin_version=plugin_version,
+                plugin_contract_version=plugin_contract_version,
+            )
+        ),
         "python_openstudio": _python_openstudio_probe(),
         "openstudio": {
             "ok": False,
@@ -331,12 +488,16 @@ def _doctor_payload() -> dict[str, Any]:
         is True
         and checks["measures"].get("ok") is True
     )
+    checks["plugin_ready"] = (
+        checks["mcp_ready"] and checks["plugin_compatibility"].get("ok") is True
+    )
     checks["simulation_ready"] = (
         checks["mcp_ready"]
         and checks["python_openstudio"].get("ok") is True
         and checks["openstudio"].get("ok") is True
     )
     checks["ready"] = checks["mcp_ready"]
+    checks["diagnostics"] = _doctor_diagnostics(checks)
     return checks
 
 
@@ -370,6 +531,7 @@ def _print_json_or_text(payload: dict[str, Any], *, as_json: bool) -> None:
         ("sqlite registry", payload.get("sqlite_registry", {}).get("ok")),
         ("mcp startup", payload.get("mcp_startup", {}).get("ok")),
         ("measure registry", payload.get("measures", {}).get("ok")),
+        ("plugin compatibility", payload.get("plugin_compatibility", {}).get("ok")),
         ("python openstudio sdk", payload.get("python_openstudio", {}).get("ok")),
         ("sdk docs configured", payload.get("sdk_docs", {}).get("available")),
         ("openstudio command", payload.get("openstudio", {}).get("ok")),
@@ -377,11 +539,21 @@ def _print_json_or_text(payload: dict[str, Any], *, as_json: bool) -> None:
     for name, ok in check_rows:
         if ok is True:
             status = "ok"
+        elif name == "plugin compatibility":
+            status = "attention required"
         elif ok is False:
             status = "failed"
         else:
             status = "not checked"
         print(f"- {name}: {status}")
+    diagnostics = payload.get("diagnostics", [])
+    if diagnostics:
+        print("\nDiagnostics:")
+        for diagnostic in diagnostics:
+            print(f"- [{diagnostic['code']}] {diagnostic['message']}")
+            print(f"  Next step: {diagnostic['remediation']}")
+            if diagnostic.get("detail"):
+                print(f"  Technical detail: {diagnostic['detail']}")
     if payload.get("ready") is False:
         print(
             "\nOpenStudio AI can still provide planning, skills, and SDK guidance, "
@@ -393,6 +565,11 @@ def _print_json_or_text(payload: dict[str, Any], *, as_json: bool) -> None:
         asset_message = payload.get("assets", {}).get("message")
         if asset_message:
             print(f"Runtime assets: {asset_message}")
+    elif payload.get("plugin_ready") is False:
+        print(
+            "\nThe MCP runtime is available, but this plugin targets a different MCP "
+            "interface version. Refresh the plugin or update openstudio-ai through pip."
+        )
     elif payload.get("simulation_ready") is False:
         print(
             "\nThe MCP runtime is available, but OpenStudio execution is not ready. "
@@ -408,7 +585,10 @@ def _print_json_or_text(payload: dict[str, Any], *, as_json: bool) -> None:
 
 
 def _cmd_doctor(args: argparse.Namespace) -> int:
-    payload = _doctor_payload()
+    payload = _doctor_payload(
+        plugin_version=args.plugin_version,
+        plugin_contract_version=args.plugin_contract_version,
+    )
     _print_json_or_text(payload, as_json=args.json)
     return 0 if payload["ready"] else 1
 
@@ -545,8 +725,23 @@ def _cmd_validate_export(args: argparse.Namespace) -> int:
         )
         return 1
 
+    server_env = server.get("env")
+    expected_metadata = plugin_mcp_environment()
+    if not isinstance(server_env, dict) or any(
+        server_env.get(key) != value for key, value in expected_metadata.items()
+    ):
+        print(
+            "Export MCP configuration is missing the OpenStudio AI plugin compatibility metadata.",
+            file=sys.stderr,
+        )
+        return 1
+
     if args.runtime_mode in {"installed", "marketplace"}:
-        expected = {"command": "openstudio-ai-mcp", "args": ["--transport", "stdio"]}
+        expected = {
+            "command": "openstudio-ai-mcp",
+            "args": ["--transport", "stdio"],
+            "env": plugin_mcp_environment(),
+        }
         if server != expected:
             print(
                 "Installed/marketplace exports must point to openstudio-ai-mcp.",
@@ -617,6 +812,14 @@ def _build_parser() -> argparse.ArgumentParser:
     doctor = subparsers.add_parser("doctor", help="Check runtime readiness.")
     doctor.add_argument(
         "--json", action="store_true", help="Print machine-readable JSON."
+    )
+    doctor.add_argument(
+        "--plugin-version",
+        help="Plugin package version to include in this compatibility check.",
+    )
+    doctor.add_argument(
+        "--plugin-contract-version",
+        help="Plugin MCP interface contract version to check.",
     )
     doctor.set_defaults(func=_cmd_doctor)
 

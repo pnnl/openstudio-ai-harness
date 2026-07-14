@@ -1,11 +1,23 @@
 from __future__ import annotations
 
+from dataclasses import asdict
 from typing import Any
 
+from openstudio_mcp.compatibility import evaluate_plugin_compatibility
 from openstudio_mcp.tools.schemas import error_payload
 
 
 def register_runtime_tools(mcp, service) -> None:
+    @mcp.tool(
+        name="runtime_plugin_compatibility",
+        description=(
+            "Report whether the connected plugin targets the installed OpenStudio AI "
+            "MCP interface version and how to refresh it when needed."
+        ),
+    )
+    async def runtime_plugin_compatibility() -> dict[str, Any]:
+        return {"ok": True, "compatibility": asdict(evaluate_plugin_compatibility())}
+
     @mcp.tool(
         name="runtime_storage_usage",
         description="Report local OpenStudio AI MCP runtime workspace usage and registry state.",

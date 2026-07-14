@@ -13,7 +13,6 @@ documentation. Root-level files are kept to operational entry points only:
 - `MARKETPLACE_INSTALL_GUIDE.md`: no-code install flow for energy modelers.
 - `RELEASE.md`: PyPI/TestPyPI release checklist.
 - `ADVANCED_USER_GUIDE.md`: advanced workflow and policy usage.
-- `OPENSTUDIO_SDK_EXPERIENCE.md`: human reference notes for SDK lessons learned.
 - `architecture_diagram.md`: sponsor-oriented architecture diagram.
 
 ## Schema Notes

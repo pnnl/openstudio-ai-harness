@@ -25,15 +25,16 @@ Python script. Load only the context packs relevant to the task.
   edits.
 - `sdk_spaces_zones_loads`: load for spaces, thermal zones, plenums,
   residential/nonresidential classification, heated/cooled classification,
-  internal loads, and outdoor air summaries.
+  internal loads, outdoor air summaries, and space infiltration.
 - `sdk_daylighting`: load for daylighting controls and sensor placement.
 - `sdk_hvac`: load for air loops, zone equipment, coils, fans, thermostats,
   sizing objects, outdoor air controllers, setpoint managers, and HVAC topology
   inspection.
-- `sdk_simulation_results`: load for understanding OpenStudio simulation-file,
-  OSW, SQL, and result-query idioms. In OpenStudio AI, use MCP `sim_*` and
-  `results_*` tools for actual simulation and result retrieval; do not use this
-  pack as permission to run simulations with host Python execution.
+- `sdk_simulation_results`: load for weather/design-day model inputs and for
+  understanding OpenStudio simulation-file, OSW, SQL, and result-query idioms.
+  In OpenStudio AI, use MCP `sim_*` and `results_*` tools for actual simulation
+  and result retrieval; do not use this pack as permission to run simulations
+  with host Python execution.
 - `sdk_review_prompts`: load only when testing or reviewing the knowledge-base
   behavior. It contains representative prompts and success criteria.
 

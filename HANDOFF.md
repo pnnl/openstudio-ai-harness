@@ -10,6 +10,10 @@
   routing is declared in `harness/asset_manifest.yaml`.
 - Marketplace exports start the installed `openstudio-ai-mcp` command. Local
   exports start `python -m openstudio_mcp.server` from the source virtualenv.
+- Exports declare a plugin package version and MCP interface contract version.
+  A mismatch is visible through `doctor` and `runtime_plugin_compatibility`, but
+  does not prevent MCP startup; users should refresh the plugin or upgrade the
+  runtime before using newer workflows.
 - The base package requires the OpenStudio Python package. Model edits,
   simulation, and measures also require the native OpenStudio application or
   CLI through `OPENSTUDIO_PATH` or `PATH`.

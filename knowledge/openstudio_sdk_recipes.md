@@ -4,7 +4,7 @@ This file is the lightweight entry point for OpenStudio Python SDK context. It
 should stay small. Detailed examples live in `knowledge/openstudio_sdk_wiki/` and
 are loaded only when relevant to the user request.
 
-The larger source-review note is `docs/OPENSTUDIO_SDK_EXPERIENCE.md`. Treat it
+The routed wiki packs below are distilled from source-reviewed SDK usage. Treat
 as a human reference, not default agent context.
 
 ## Load Order
@@ -22,8 +22,8 @@ For any host Python execution task that inspects or edits an `.osm` model:
 
 - `sdk_index`: routing index and source coverage.
 - `sdk_core_patterns`: load/save, optional-object handling, casts, unit
-  conversion, object lookup, historical Python SDK names, safe-copy edits, and
-  JSON result contract.
+  conversion, object lookup, historical Python SDK names, safe-copy edits,
+  in-memory alternative baselines, and JSON result contract.
 - `sdk_geometry`: spaces as geometry containers, surfaces, subsurfaces, WWR,
   azimuth/orientation, building stories, north axis, bounding boxes, transforms,
   and window area edits.
@@ -34,14 +34,15 @@ For any host Python execution task that inspects or edits an `.osm` model:
   hourly values, date ranges, default schedule sets, and space-type standards
   tags.
 - `sdk_spaces_zones_loads`: spaces, thermal zones, additional properties,
-  plenums, floor area, internal loads, outdoor air, and zone/space grouping.
+  plenums, floor area, internal loads, outdoor air, space infiltration, and
+  zone/space grouping.
 - `sdk_daylighting`: daylighting controls, sensor placement, primary/secondary
   controls, and daylighting fraction safeguards.
 - `sdk_hvac`: air-loop topology, zone equipment, coils, fans, thermostats,
   setpoint managers, outdoor air controllers, and sizing objects.
-- `sdk_simulation_results`: OpenStudio simulation-file and SQL idioms for
-  explanation/review only. Actual simulation and result retrieval should use MCP
-  `sim_*` and `results_*` tools.
+- `sdk_simulation_results`: user-supplied weather/design-day model inputs plus
+  OpenStudio simulation-file and SQL idioms for explanation/review only. Actual
+  simulation and result retrieval should use MCP `sim_*` and `results_*` tools.
 - `sdk_review_prompts`: 12 representative prompts and pass criteria for
   reviewing routing and context-load behavior.
 
@@ -57,6 +58,8 @@ For any host Python execution task that inspects or edits an `.osm` model:
   `sdk_schedules`.
 - HVAC topology: `sdk_hvac`, often with `sdk_spaces_zones_loads`.
 - Daylighting edits: `sdk_daylighting`, often with `sdk_geometry`.
+- Weather or design-day model setup: `sdk_simulation_results`; use user-supplied
+  EPW/DDY files and prefer MCP `model_*` support when available.
 - Simulation runs, polling, artifacts, and result summaries: MCP tools, not
   host Python execution.
 

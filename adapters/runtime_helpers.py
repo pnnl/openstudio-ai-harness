@@ -140,7 +140,13 @@ def runtime_cli_path() -> str | None:
     scripts_dir = Path(sys.executable).resolve().parent
     candidates = [scripts_dir / "openstudio-ai"]
     if os.name == "nt":
-        candidates.append(scripts_dir / "openstudio-ai.exe")
+        candidates.extend(
+            [
+                scripts_dir / "openstudio-ai.exe",
+                scripts_dir / "Scripts" / "openstudio-ai",
+                scripts_dir / "Scripts" / "openstudio-ai.exe",
+            ]
+        )
     for candidate in candidates:
         if candidate.is_file():
             return str(candidate)

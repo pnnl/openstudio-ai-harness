@@ -28,6 +28,7 @@ def test_rendered_runtime_helpers_are_executable_python(tmp_path: Path) -> None:
     assert "return 1" in doctor
     assert 'runtime_cli, "install-runtime"' in installer
     assert "def runtime_cli_path" in installer
+    assert 'scripts_dir / "Scripts" / "openstudio-ai.exe"' in installer
     assert '"-m", "cli"' not in installer
     assert (
         'print("\\nOpenStudio AI runtime installation completed.")\n    return 0'

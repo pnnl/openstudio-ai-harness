@@ -316,8 +316,10 @@ Focused test set for the current OpenStudio AI harness:
 - Simulation runtime files are generated under
   `.openstudio_mcp_workspace/<job_id>/`.
 - If SDK lookup fails, verify `OPENSTUDIO_SDK_DOCS_DIR` points to a directory
-  containing `api/classes.yaml`, or that the bundled docs at
-  `openstudio_mcp/sdk_docs/docs/` are present.
+  containing `api/classes-<version>.yaml.gz` (or the legacy
+  `api/classes.yaml.gz`), or that the bundled docs at
+  `openstudio_mcp/sdk_docs/docs/` are present. `openstudio-ai doctor --json`
+  reports the resolved path and selected documentation version.
 - If measure application fails, verify `policy/measure_registry.yaml` and the
   approved measure entrypoint.
 - If local storage grows too large, use `runtime_storage_usage` and

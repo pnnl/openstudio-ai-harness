@@ -1,7 +1,7 @@
 ---
 name: sdk_simulation_results
 description: OpenStudio Python SDK idioms for simulation files, OSW setup, SQL attachment, and result extraction.
-version: 0.1.3
+version: 0.1.4
 ---
 
 # SDK Simulation and Results Context

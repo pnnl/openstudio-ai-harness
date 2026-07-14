@@ -83,9 +83,14 @@ installed runtime exactly.
 Expected behavior:
 
 - `openstudio-ai doctor`: checks Python, MCP startup, initialized runtime
-  storage, SQLite support, SDK index availability, measure registry
-  availability, OpenStudio Python SDK availability, native OpenStudio CLI
-  availability, and basic simulation readiness.
+  storage, SQLite support, package assets, measure registry, and a bounded gzip
+  health probe against the resolved versioned SDK documentation bundle. The JSON
+  result reports the SDK docs source, path, selected version, and header
+  metadata. An invalid `OPENSTUDIO_SDK_DOCS_DIR` raises a warning but does not
+  block MCP readiness. When a selected versioned gzip is unavailable, SDK
+  lookup falls back to the available default bundle. Doctor also checks
+  OpenStudio Python SDK availability, native OpenStudio CLI availability, and
+  basic simulation readiness.
 
 OpenStudio AI has a two-part OpenStudio prerequisite:
 

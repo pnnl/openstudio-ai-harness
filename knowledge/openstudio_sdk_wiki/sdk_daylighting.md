@@ -1,7 +1,7 @@
 ---
 name: sdk_daylighting
 description: OpenStudio Python SDK examples for adding daylighting controls to spaces.
-version: 0.1.3
+version: 0.1.4
 ---
 
 # SDK Daylighting Context

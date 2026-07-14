@@ -118,6 +118,47 @@ def _python_openstudio_probe() -> dict[str, Any]:
         return {"ok": False, "error": str(exc)}
 
 
+def _sdk_docs_probe() -> dict[str, Any]:
+    """Verify the configured SDK YAML bundle has a readable metadata header."""
+    configured_dir = os.getenv("OPENSTUDIO_SDK_DOCS_DIR", "").strip()
+    source = "environment" if configured_dir else "bundled"
+    try:
+        from openstudio_mcp.sdk_docs import OpenStudioSdkDocLookup
+
+        lookup = OpenStudioSdkDocLookup.from_env()
+        docs_dir = lookup.docs_dir
+        result: dict[str, Any] = {
+            "ok": False,
+            "configured": docs_dir is not None,
+            "source": source,
+            "path": str(docs_dir) if docs_dir else None,
+            "selected_version": lookup.selected_version(),
+        }
+        if not lookup.available():
+            result["available"] = False
+            result["error"] = "The configured SDK documentation bundle is unavailable."
+            return result
+
+        result.update(
+            {
+                "ok": True,
+                "available": True,
+                "document_probe": lookup.health_probe(),
+            }
+        )
+        return result
+    except Exception as exc:  # pragma: no cover - filesystem and YAML failures vary.
+        return {
+            "ok": False,
+            "available": False,
+            "configured": bool(configured_dir),
+            "source": source,
+            "path": configured_dir or None,
+            "selected_version": None,
+            "error": str(exc),
+        }
+
+
 def _check_runtime_assets(root: Path) -> dict[str, Any]:
     """Check package assets that the MCP runtime and exports depend on."""
     required_files = {
@@ -330,6 +371,18 @@ def _doctor_diagnostics(checks: dict[str, Any]) -> list[dict[str, str]]:
             )
         )
 
+    sdk_docs = checks["sdk_docs"]
+    if not sdk_docs.get("ok"):
+        diagnostics.append(
+            _diagnostic(
+                "sdk_docs_unavailable",
+                "warning",
+                "The OpenStudio SDK documentation bundle cannot answer SDK lookups.",
+                "Remove or correct OPENSTUDIO_SDK_DOCS_DIR. The MCP runtime remains available; when a selected versioned gzip is unavailable, SDK lookup falls back to the available default bundle.",
+                str(sdk_docs.get("error") or "SDK docs probe failed"),
+            )
+        )
+
     if not checks["openstudio"]["ok"]:
         diagnostics.append(
             _diagnostic(
@@ -416,6 +469,8 @@ def _doctor_payload(
     else:
         mcp_command["help_probe"] = {"ok": False, "error": "command not found"}
 
+    checks["sdk_docs"] = _sdk_docs_probe()
+
     if OpenStudioService is not None:
         try:
             with tempfile.TemporaryDirectory(prefix="openstudio-ai-service-") as tmp:
@@ -426,14 +481,6 @@ def _doctor_payload(
                     for spec in service.measure_registry._measures.values()
                     if spec.allowed and not spec.entrypoint.exists()
                 ]
-                sdk_docs = {
-                    "configured": service.sdk_docs.docs_dir is not None,
-                    "available": service.sdk_docs.available(),
-                    "route_probe": service.sdk_docs.route(
-                        "create geometry and spaces", limit=2
-                    ),
-                }
-            checks["sdk_docs"] = sdk_docs
             checks["measures"] = {
                 "ok": bool(public_measures) and not missing_entrypoints,
                 "count": len(public_measures),
@@ -443,7 +490,6 @@ def _doctor_payload(
             Exception
         ) as exc:  # pragma: no cover - environment-specific service failures.
             checks["measures"] = {"ok": False, "error": str(exc)}
-            checks["sdk_docs"] = {"available": False, "error": str(exc)}
 
     configured_openstudio = os.getenv("OPENSTUDIO_PATH", "").strip()
     openstudio_command = configured_openstudio or "openstudio"
@@ -516,7 +562,7 @@ def _print_json_or_text(payload: dict[str, Any], *, as_json: bool) -> None:
         ("measure registry", payload.get("measures", {}).get("ok")),
         ("plugin compatibility", payload.get("plugin_compatibility", {}).get("ok")),
         ("python openstudio sdk", payload.get("python_openstudio", {}).get("ok")),
-        ("sdk docs configured", payload.get("sdk_docs", {}).get("available")),
+        ("sdk docs lookup", payload.get("sdk_docs", {}).get("ok")),
         ("openstudio command", payload.get("openstudio", {}).get("ok")),
     ]
     for name, ok in check_rows:

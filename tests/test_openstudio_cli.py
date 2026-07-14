@@ -54,7 +54,14 @@ def test_cli_doctor_json_reports_mcp_readiness(
     assert payload["python_openstudio"]["ok"] is True
     assert payload["measures"]["ok"] is True
     assert payload["measures"]["count"] >= 1
-    assert "route_probe" in payload["sdk_docs"]
+    assert payload["sdk_docs"]["ok"] is True
+    assert payload["sdk_docs"]["source"] == "bundled"
+    assert payload["sdk_docs"]["selected_version"] == "3.10.0"
+    assert payload["sdk_docs"]["document_probe"]["class_count"] == 863
+    assert (
+        payload["sdk_docs"]["document_probe"]["documented_openstudio_version"]
+        == "3.10.0"
+    )
     assert "openstudio" in payload
 
 
@@ -110,6 +117,39 @@ def test_cli_doctor_text_output_reports_checks(
     assert "- runtime assets: ok" in output
     assert "- runtime storage: ok" in output
     assert "- python openstudio sdk: ok" in output
+    assert "- sdk docs lookup: ok" in output
+
+
+def test_cli_doctor_reports_invalid_sdk_docs_override(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    data_dir = tmp_path / "runtime-data"
+    (data_dir / "workspace").mkdir(parents=True)
+    monkeypatch.setenv("OPENSTUDIO_AI_DATA_DIR", str(data_dir))
+    monkeypatch.setenv("OPENSTUDIO_SDK_DOCS_DIR", str(tmp_path / "missing-sdk-docs"))
+    monkeypatch.setenv("OPENSTUDIO_PATH", "/fake/openstudio")
+
+    def fake_command_available(command: str) -> dict:
+        return {"command": command, "available": True, "path": command}
+
+    def fake_run_probe(command: list[str], *, timeout_seconds: int = 10) -> dict:
+        return {"ok": True, "returncode": 0, "stdout": "help", "stderr": ""}
+
+    monkeypatch.setattr(cli, "_command_available", fake_command_available)
+    monkeypatch.setattr(cli, "_run_probe", fake_run_probe)
+
+    assert main(["doctor", "--json"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["mcp_ready"] is True
+    assert payload["sdk_docs"]["ok"] is False
+    assert payload["sdk_docs"]["source"] == "environment"
+    assert payload["sdk_docs"]["path"] == str(tmp_path / "missing-sdk-docs")
+    diagnostic = next(
+        item
+        for item in payload["diagnostics"]
+        if item["code"] == "sdk_docs_unavailable"
+    )
+    assert diagnostic["severity"] == "warning"
 
 
 def test_cli_doctor_text_reports_missing_openstudio_sdk(

@@ -9,7 +9,6 @@ from typing import Any
 import yaml
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
-
 BASE_DIR = Path(__file__).resolve().parents[1]
 SKILLS_DIR = BASE_DIR / "skills"
 SPEC_DIR = SKILLS_DIR / "specs" / "hvac"
@@ -56,7 +55,9 @@ def _build_environment(template_path: Path) -> Environment:
     )
 
 
-def _normalize_extra_sections(raw_sections: list[dict[str, Any]] | None) -> list[dict[str, str]]:
+def _normalize_extra_sections(
+    raw_sections: list[dict[str, Any]] | None,
+) -> list[dict[str, str]]:
     sections: list[dict[str, str]] = []
     for section in raw_sections or []:
         fmt = str(section.get("format", "markdown"))
@@ -64,7 +65,9 @@ def _normalize_extra_sections(raw_sections: list[dict[str, Any]] | None) -> list
         if fmt == "json":
             body = json.dumps(body, indent=2, ensure_ascii=True)
         elif not isinstance(body, str):
-            raise ValueError(f"Markdown extra section body must be string, got {type(body)!r}")
+            raise ValueError(
+                f"Markdown extra section body must be string, got {type(body)!r}"
+            )
         sections.append(
             {
                 "title": str(section["title"]),
@@ -87,12 +90,14 @@ def render_generated_skills(
     generated: list[GeneratedSkill] = []
     for raw_skill in specs:
         skill = dict(raw_skill)
-        skill.setdefault("version", "0.1.3")
+        skill.setdefault("version", "0.1.4")
         skill.setdefault("output_format", "markdown_with_json_state_patch")
         skill.setdefault("sdk_methods_intro", "")
         skill.setdefault("conditional_required_state", [])
         skill.setdefault("extra_sections", [])
-        skill["state_patch_json"] = json.dumps(skill["state_patch"], indent=2, ensure_ascii=True)
+        skill["state_patch_json"] = json.dumps(
+            skill["state_patch"], indent=2, ensure_ascii=True
+        )
         skill["extra_sections"] = _normalize_extra_sections(skill.get("extra_sections"))
         content = template.render(skill=skill)
         generated.append(
@@ -113,7 +118,11 @@ def write_generated_skills(generated: list[GeneratedSkill], *, check: bool) -> i
     mismatches: list[str] = []
     for skill in generated:
         if check:
-            existing = skill.output_path.read_text(encoding="utf-8") if skill.output_path.exists() else None
+            existing = (
+                skill.output_path.read_text(encoding="utf-8")
+                if skill.output_path.exists()
+                else None
+            )
             if existing != skill.content:
                 mismatches.append(str(skill.output_path))
             continue

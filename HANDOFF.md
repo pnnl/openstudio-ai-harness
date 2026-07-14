@@ -2,7 +2,7 @@
 
 ## Current Status
 
-- Package version: `0.1.3`.
+- Package version: `0.1.4`.
 - The package exposes an OpenStudio MCP runtime, Claude Code and Codex plugin
   exports, trusted skills and references, runtime learning contracts, and
   MCP-backed SQLite workflow state.
@@ -14,6 +14,10 @@
   A mismatch is visible through `doctor` and `runtime_plugin_compatibility`, but
   does not prevent MCP startup; users should refresh the plugin or upgrade the
   runtime before using newer workflows.
+- Doctor validates the resolved versioned SDK YAML bundle with a bounded gzip
+  metadata probe. Its JSON output reports the SDK docs source, path, and
+  selected version; an invalid `OPENSTUDIO_SDK_DOCS_DIR` raises a warning but
+  does not block MCP readiness.
 - The base package requires the OpenStudio Python package. Model edits,
   simulation, and measures also require the native OpenStudio application or
   CLI through `OPENSTUDIO_PATH` or `PATH`.

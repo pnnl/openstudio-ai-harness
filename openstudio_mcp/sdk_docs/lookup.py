@@ -43,6 +43,7 @@ def _resolve_docs_version(docs_dir: Path) -> str | None:
         if pinned_path.is_file():
             return OPENSTUDIO_SDK_DOCS_VERSION
         import warnings
+
         warnings.warn(
             f"OPENSTUDIO_SDK_DOCS_VERSION is set to {OPENSTUDIO_SDK_DOCS_VERSION!r} "
             f"but {pinned_path} was not found. "
@@ -54,7 +55,7 @@ def _resolve_docs_version(docs_dir: Path) -> str | None:
         return None
 
     candidates = sorted(
-        p.name[len("classes-"):-len(".yaml.gz")]
+        p.name[len("classes-") : -len(".yaml.gz")]
         for p in api_dir.glob("classes-*.yaml.gz")
     )
     return candidates[-1] if candidates else None
@@ -281,6 +282,49 @@ class OpenStudioSdkDocLookup:
         if version is not None:
             return (self.docs_dir / "api" / f"classes-{version}.yaml.gz").is_file()
         return (self.docs_dir / "api" / "classes.yaml.gz").is_file()
+
+    def selected_version(self) -> str | None:
+        """Return the resolved versioned bundle, or None for legacy filenames."""
+        if not self.docs_dir:
+            return None
+        return _resolve_docs_version(self.docs_dir)
+
+    def health_probe(self) -> dict[str, Any]:
+        """Read the bounded YAML header needed to confirm the bundle is usable.
+
+        This deliberately avoids loading the full class catalog, which is too
+        expensive for a command-line readiness check.
+        """
+        self._ensure_available()
+        assert self.docs_dir is not None
+        version = self.selected_version()
+        filename = (
+            f"classes-{version}.yaml.gz" if version is not None else "classes.yaml.gz"
+        )
+        classes_path = self.docs_dir / "api" / filename
+        with gzip.open(classes_path, "rt", encoding="utf-8") as handle:
+            header = handle.read(4096)
+
+        if not header.startswith("metadata:\n") or "namespaces:" not in header:
+            raise SdkDocsUnavailableError(
+                f"SDK docs file has an invalid YAML header: {classes_path}"
+            )
+
+        class_count_match = re.search(r"^  total_classes: (\d+)$", header, re.MULTILINE)
+        openstudio_version_match = re.search(
+            r"^  openstudio_version: ['\"]?([^\n'\"]+)", header, re.MULTILINE
+        )
+        return {
+            "classes_path": str(classes_path),
+            "class_count": (
+                int(class_count_match.group(1)) if class_count_match else None
+            ),
+            "documented_openstudio_version": (
+                openstudio_version_match.group(1).strip()
+                if openstudio_version_match
+                else None
+            ),
+        }
 
     def route(self, query: str, *, limit: int = 6) -> dict[str, Any]:
         """Map a user request to likely SDK wiki packs and OpenStudio classes."""

@@ -219,8 +219,8 @@ Use MCP tools such as `blackboard_initialize_workflow`,
 3. Set `OPENSTUDIO_PATH` to the local OpenStudio CLI executable path.
 4. Ensure the configured Python executable can import the OpenStudio Python SDK
    when using SDK inspection/editing.
-5. Optional but recommended: set `OPENSTUDIO_SDK_DOCS_DIR` to local
-   Doxygen-generated OpenStudio SDK HTML documentation.
+5. Optional: set `OPENSTUDIO_SDK_DOCS_DIR` to override the bundled
+   OpenStudio SDK YAML documentation directory.
 
 The YAML spec reads local environment settings and configures:
 
@@ -253,9 +253,9 @@ bash run_all.sh
 
 ## SDK Documentation Tools
 
-The `sdk_docs_*` tools inspect local OpenStudio SDK HTML docs. Set
-`OPENSTUDIO_SDK_DOCS_DIR` to the directory containing
-`classopenstudio_1_1model_*.html` files.
+The `sdk_docs_*` tools look up OpenStudio SDK class and method information from
+bundled YAML files at `openstudio_mcp/sdk_docs/docs/api/`. Set
+`OPENSTUDIO_SDK_DOCS_DIR` to override the bundled directory with a custom one.
 
 Available MCP tools include:
 
@@ -269,7 +269,7 @@ Build an optional local cache summary:
 
 ```bash
 python3 scripts/build_sdk_doc_index.py \
-  --docs-dir /path/to/openstudio-sdk-html \
+  --docs-dir openstudio_mcp/sdk_docs/docs \
   --output .sdk_doc_index.json
 ```
 
@@ -315,8 +315,9 @@ Focused test set for the current OpenStudio AI harness:
   MCP setup.
 - Simulation runtime files are generated under
   `.openstudio_mcp_workspace/<job_id>/`.
-- If SDK lookup fails, verify `OPENSTUDIO_SDK_DOCS_DIR` or the future packaged
-  SDK index path.
+- If SDK lookup fails, verify `OPENSTUDIO_SDK_DOCS_DIR` points to a directory
+  containing `api/classes.yaml`, or that the bundled docs at
+  `openstudio_mcp/sdk_docs/docs/` are present.
 - If measure application fails, verify `policy/measure_registry.yaml` and the
   approved measure entrypoint.
 - If local storage grows too large, use `runtime_storage_usage` and

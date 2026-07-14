@@ -1,36 +1,85 @@
 from __future__ import annotations
 
-import html
-import json
+import gzip
 import os
 import re
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 
 class SdkDocsUnavailableError(RuntimeError):
-    """Raised when the local OpenStudio SDK documentation directory is missing."""
+    """Raised when the bundled OpenStudio SDK YAML documentation is missing."""
+
+
+_BUNDLED_DOCS_DIR = Path(__file__).parent / "docs"
+
+# The OpenStudio version whose docs are served by default.
+# Set to None to auto-detect the latest available versioned files in the docs
+# directory (files named classes-<version>.yaml.gz), or set to an explicit
+# version string such as "3.10.0" to pin to a specific extraction.
+OPENSTUDIO_SDK_DOCS_VERSION: str | None = None
+
+
+def _resolve_docs_version(docs_dir: Path) -> str | None:
+    """Return the version suffix to use for versioned YAML files.
+
+    Resolution order:
+    1. If OPENSTUDIO_SDK_DOCS_VERSION is set and the corresponding
+       ``classes-<version>.yaml.gz`` exists, use it.
+    2. If OPENSTUDIO_SDK_DOCS_VERSION is set but that file is missing, log a
+       warning and fall through to auto-detection so callers still get docs.
+    3. Scan for ``classes-<version>.yaml.gz`` files and return the
+       lexicographically latest version found.
+    4. Return None — caller falls back to the legacy unversioned filenames
+       ``classes.yaml.gz`` / ``python-api.yaml.gz``.
+    """
+    api_dir = docs_dir / "api"
+
+    if OPENSTUDIO_SDK_DOCS_VERSION is not None:
+        pinned_path = api_dir / f"classes-{OPENSTUDIO_SDK_DOCS_VERSION}.yaml.gz"
+        if pinned_path.is_file():
+            return OPENSTUDIO_SDK_DOCS_VERSION
+        import warnings
+        warnings.warn(
+            f"OPENSTUDIO_SDK_DOCS_VERSION is set to {OPENSTUDIO_SDK_DOCS_VERSION!r} "
+            f"but {pinned_path} was not found. "
+            "Falling back to the latest available version.",
+            stacklevel=3,
+        )
+
+    if not api_dir.is_dir():
+        return None
+
+    candidates = sorted(
+        p.name[len("classes-"):-len(".yaml.gz")]
+        for p in api_dir.glob("classes-*.yaml.gz")
+    )
+    return candidates[-1] if candidates else None
 
 
 @dataclass(frozen=True)
 class MethodRef:
-    """Compact pointer to one documented C++ SDK member function."""
+    """Compact pointer to one documented SDK member function."""
 
     name: str
-    anchor: str
-    href: str
+    signature: str
+    python_signature: str | None
+    description: str | None
 
 
 @dataclass
 class ClassDoc:
-    """Indexed metadata for one OpenStudio SDK class documentation page."""
+    """Indexed metadata for one OpenStudio SDK class."""
 
     class_name: str
-    qualified_name: str
-    html_file: str
-    js_file: str | None = None
-    is_detail_impl: bool = False
+    namespace: str
+    description: str | None
+    python_path: str | None
+    parent: str | None
+    is_abstract: bool
     methods: list[MethodRef] = field(default_factory=list)
 
 
@@ -210,21 +259,28 @@ DOMAIN_CLASS_GRAPH: dict[str, dict[str, Any]] = {
 
 
 class OpenStudioSdkDocLookup:
-    """Lookup helper for local Doxygen-generated OpenStudio SDK HTML docs."""
+    """Lookup helper for bundled OpenStudio SDK YAML documentation."""
 
     def __init__(self, docs_dir: str | Path | None = None) -> None:
-        configured = docs_dir or os.getenv("OPENSTUDIO_SDK_DOCS_DIR")
+        configured = (
+            docs_dir or os.getenv("OPENSTUDIO_SDK_DOCS_DIR") or _BUNDLED_DOCS_DIR
+        )
         self.docs_dir = Path(configured).expanduser().resolve() if configured else None
         self._classes: dict[str, ClassDoc] | None = None
 
     @classmethod
     def from_env(cls) -> "OpenStudioSdkDocLookup":
-        """Create a lookup helper using `OPENSTUDIO_SDK_DOCS_DIR`."""
+        """Create a lookup helper, preferring OPENSTUDIO_SDK_DOCS_DIR then the bundled docs."""
         return cls()
 
     def available(self) -> bool:
         """Return whether the configured SDK documentation directory can be used."""
-        return bool(self.docs_dir and self.docs_dir.is_dir())
+        if not self.docs_dir:
+            return False
+        version = _resolve_docs_version(self.docs_dir)
+        if version is not None:
+            return (self.docs_dir / "api" / f"classes-{version}.yaml.gz").is_file()
+        return (self.docs_dir / "api" / "classes.yaml.gz").is_file()
 
     def route(self, query: str, *, limit: int = 6) -> dict[str, Any]:
         """Map a user request to likely SDK wiki packs and OpenStudio classes."""
@@ -282,26 +338,22 @@ class OpenStudioSdkDocLookup:
         normalized_query = _normalize(query)
         results: list[tuple[int, ClassDoc]] = []
         for class_doc in classes.values():
-            if class_doc.is_detail_impl and not include_detail:
+            if class_doc.class_name.endswith("_Impl") and not include_detail:
                 continue
             name = _normalize(class_doc.class_name)
-            qualified = _normalize(class_doc.qualified_name)
             if name == normalized_query:
                 score = 100
             elif name.startswith(normalized_query):
                 score = 80
             elif normalized_query in name:
                 score = 60
-            elif normalized_query in qualified:
-                score = 40
             else:
                 continue
             results.append((score, class_doc))
         results.sort(key=lambda item: (-item[0], item[1].class_name))
         bounded_limit = max(0, min(limit, 100))
         return [
-            self._class_summary(class_doc)
-            for _, class_doc in results[:bounded_limit]
+            self._class_summary(class_doc) for _, class_doc in results[:bounded_limit]
         ]
 
     def list_methods(
@@ -317,7 +369,8 @@ class OpenStudioSdkDocLookup:
         methods = [
             method
             for method in class_doc.methods
-            if normalized_keyword is None or normalized_keyword in _normalize(method.name)
+            if normalized_keyword is None
+            or normalized_keyword in _normalize(method.name)
         ]
         bounded_limit = max(0, min(limit, 200))
         return {
@@ -334,10 +387,10 @@ class OpenStudioSdkDocLookup:
         anchor: str | None = None,
         signature_contains: str | None = None,
     ) -> dict[str, Any]:
-        """Return exact signature and documentation for one class method.
+        """Return signature and documentation for one class method.
 
-        `anchor` and `signature_contains` disambiguate overloaded methods that
-        share a C++ member name but have different parameter lists.
+        `anchor` is accepted for API compatibility but ignored (no per-method
+        anchors in the YAML-derived data).  `signature_contains` disambiguates overloads.
         """
         class_doc = self._resolve_class(class_name)
         matches = [
@@ -354,42 +407,33 @@ class OpenStudioSdkDocLookup:
         if not matches:
             raise KeyError(f"Method not found on {class_doc.class_name}: {method_name}")
 
-        overloads = [
-            self._method_overload_summary(class_doc, method) for method in matches
-        ]
+        overloads = [_method_summary(method) for method in matches]
+
         if anchor:
-            matches = [
-                method
-                for method in matches
-                if _normalize_anchor(method.anchor) == _normalize_anchor(anchor)
-            ]
+            # Anchors don't exist in YAML; ignore the filter but keep the
+            # overloads list so callers get the full picture.
+            pass
+
         if signature_contains:
-            normalized_signature_contains = signature_contains.lower()
-            matches = [
-                method
-                for method in matches
-                if normalized_signature_contains
-                in self._method_signature(class_doc, method).lower()
-            ]
-        if not matches:
-            raise KeyError(
-                f"Method overload not found on {class_doc.class_name}: {method_name}"
-            )
+            sig_lower = signature_contains.lower()
+            filtered = [m for m in matches if sig_lower in (m.signature or "").lower()]
+            if filtered:
+                matches = filtered
 
         method = matches[0]
-        section = self._method_section(class_doc, method.anchor)
-        signature = _extract_between(section, '<div class="memproto">', "</div>")
-        docs = _extract_between(section, '<div class="memdoc">', "</div>")
-        clean_signature = _clean_html(signature)
+        notes = _method_notes(
+            method.name, method.description or "", method.signature or ""
+        )
         return {
             **self._class_summary(class_doc),
             "method": method.name,
-            "anchor": method.anchor,
-            "href": method.href,
-            "signature": clean_signature,
-            "documentation": _clean_html(docs),
-            "source_url": self._source_url(method.href),
-            "notes": _method_notes(method.name, docs, clean_signature),
+            "anchor": None,
+            "href": None,
+            "signature": method.signature,
+            "python_signature": method.python_signature,
+            "documentation": method.description,
+            "source_url": None,
+            "notes": notes,
             "overloads": overloads,
         }
 
@@ -408,25 +452,24 @@ class OpenStudioSdkDocLookup:
         bounded_limit = max(1, min(limit, 100))
         results: list[dict[str, Any]] = []
         for class_doc in classes.values():
-            if class_doc.is_detail_impl and not include_detail:
+            if class_doc.class_name.endswith("_Impl") and not include_detail:
                 continue
-            if (
-                normalized_class_filter
-                and normalized_class_filter not in _normalize(class_doc.class_name)
-                and normalized_class_filter not in _normalize(class_doc.qualified_name)
+            if normalized_class_filter and normalized_class_filter not in _normalize(
+                class_doc.class_name
             ):
                 continue
             for method in class_doc.methods:
-                if normalized_keyword not in _normalize(method.name):
+                if normalized_keyword and normalized_keyword not in _normalize(
+                    method.name
+                ):
                     continue
                 results.append(
                     {
                         "class_name": class_doc.class_name,
-                        "qualified_name": class_doc.qualified_name,
+                        "namespace": class_doc.namespace,
                         "method": method.name,
-                        "anchor": method.anchor,
-                        "href": method.href,
-                        "source_url": self._source_url(method.href),
+                        "signature": method.signature,
+                        "python_signature": method.python_signature,
                     }
                 )
                 if len(results) >= bounded_limit:
@@ -437,10 +480,6 @@ class OpenStudioSdkDocLookup:
         """Return a JSON-serializable index payload for optional offline caching."""
         classes = self._load_classes()
         return {
-            "docs_dir_required": (
-                "Set OPENSTUDIO_SDK_DOCS_DIR to the local OpenStudio SDK HTML "
-                "directory."
-            ),
             "classes": [
                 {
                     **self._class_summary(class_doc),
@@ -451,32 +490,53 @@ class OpenStudioSdkDocLookup:
             "class_count": len(classes),
         }
 
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
     def _load_classes(self) -> dict[str, ClassDoc]:
         self._ensure_available()
         if self._classes is not None:
             return self._classes
 
         assert self.docs_dir is not None
+        version = _resolve_docs_version(self.docs_dir)
+        if version is not None:
+            classes_path = self.docs_dir / "api" / f"classes-{version}.yaml.gz"
+            python_api_path = self.docs_dir / "api" / f"python-api-{version}.yaml.gz"
+        else:
+            classes_path = self.docs_dir / "api" / "classes.yaml.gz"
+            python_api_path = self.docs_dir / "api" / "python-api.yaml.gz"
+
+        with gzip.open(classes_path) as fh:
+            classes_data = yaml.safe_load(fh)
+
+        python_paths: dict[str, str] = {}
+        if python_api_path.is_file():
+            with gzip.open(python_api_path) as fh:
+                py_data = yaml.safe_load(fh) or {}
+            for entry_name, entry in (py_data.get("classes") or {}).items():
+                if isinstance(entry, dict):
+                    python_paths[_normalize(entry_name)] = entry.get("python_path", "")
+
         classes: dict[str, ClassDoc] = {}
-        for html_file in sorted(self.docs_dir.glob("classopenstudio_1_1model_*.html")):
-            if html_file.name.endswith("-members.html"):
-                continue
-            text = html_file.read_text(encoding="utf-8", errors="ignore")
-            qualified_name = _extract_class_name(text)
-            if not qualified_name:
-                continue
-            class_name = qualified_name.rsplit("::", 1)[-1]
-            js_file = html_file.with_suffix(".js")
-            methods = _parse_methods_from_js(js_file, html_file.name)
-            key = _normalize(class_name)
-            classes[key] = ClassDoc(
-                class_name=class_name,
-                qualified_name=qualified_name,
-                html_file=html_file.name,
-                js_file=js_file.name if js_file.exists() else None,
-                is_detail_impl="::detail::" in qualified_name or class_name.endswith("_Impl"),
-                methods=methods,
-            )
+        for _ns_name, ns_data in (classes_data.get("namespaces") or {}).items():
+            for class_name, class_entry in (ns_data.get("classes") or {}).items():
+                if not isinstance(class_entry, dict):
+                    continue
+                key = _normalize(class_name)
+                methods = _parse_methods(class_entry)
+                py_path = python_paths.get(key) or class_entry.get("python") or ""
+                classes[key] = ClassDoc(
+                    class_name=class_name,
+                    namespace=class_entry.get("namespace", _ns_name),
+                    description=class_entry.get("description"),
+                    python_path=py_path or None,
+                    parent=class_entry.get("parent"),
+                    is_abstract=bool(class_entry.get("is_abstract", False)),
+                    methods=methods,
+                )
+
         self._classes = classes
         return classes
 
@@ -490,66 +550,31 @@ class OpenStudioSdkDocLookup:
             raise KeyError(f"OpenStudio SDK class not found: {class_name}")
         return classes[_normalize(candidates[0]["class_name"])]
 
-    def _method_section(self, class_doc: ClassDoc, anchor: str) -> str:
-        assert self.docs_dir is not None
-        html_path = self.docs_dir / class_doc.html_file
-        text = html_path.read_text(encoding="utf-8", errors="ignore")
-        marker = f'<a id="{anchor}"'
-        start = text.find(marker)
-        if start == -1:
-            raise KeyError(f"Anchor not found in {class_doc.html_file}: {anchor}")
-        next_match = re.search(
-            r'\n<a id="[^"]+" name="[^"]+"></a>\n<h2 class="memtitle"',
-            text[start + 1 :],
-        )
-        end = start + 1 + next_match.start() if next_match else len(text)
-        return text[start:end]
-
-    def _method_signature(self, class_doc: ClassDoc, method: MethodRef) -> str:
-        section = self._method_section(class_doc, method.anchor)
-        signature = _extract_between(section, '<div class="memproto">', "</div>")
-        return _clean_html(signature)
-
-    def _method_overload_summary(
-        self,
-        class_doc: ClassDoc,
-        method: MethodRef,
-    ) -> dict[str, str]:
-        return {
-            "method": method.name,
-            "anchor": method.anchor,
-            "href": method.href,
-            "signature": self._method_signature(class_doc, method),
-            "source_url": self._source_url(method.href),
-        }
-
-    def _source_url(self, href: str) -> str:
-        if self.docs_dir is None:
-            return href
-        return (self.docs_dir / href.split("#", 1)[0]).as_uri() + (
-            f"#{href.split('#', 1)[1]}" if "#" in href else ""
-        )
-
     def _class_summary(self, class_doc: ClassDoc) -> dict[str, Any]:
         return {
             "class_name": class_doc.class_name,
-            "qualified_name": class_doc.qualified_name,
-            "html_file": class_doc.html_file,
-            "js_file": class_doc.js_file,
-            "is_detail_impl": class_doc.is_detail_impl,
+            "namespace": class_doc.namespace,
+            "description": class_doc.description,
+            "python_path": class_doc.python_path,
+            "parent": class_doc.parent,
+            "is_abstract": class_doc.is_abstract,
             "method_count": len(class_doc.methods),
         }
 
     def _ensure_available(self) -> None:
         if not self.available():
             raise SdkDocsUnavailableError(
-                "OpenStudio SDK docs are unavailable. Set OPENSTUDIO_SDK_DOCS_DIR "
-                "to the local directory containing classopenstudio_1_1model_*.html files."
+                "OpenStudio SDK docs are unavailable. "
+                "Expected api/classes.yaml.gz inside the docs directory. "
+                "Set OPENSTUDIO_SDK_DOCS_DIR to override the bundled path "
+                f"({_BUNDLED_DOCS_DIR})."
             )
 
 
 def write_index_file(docs_dir: str | Path, output_path: str | Path) -> Path:
-    """Build a compact class/method index from local SDK HTML docs."""
+    """Build a compact class/method index from local SDK docs."""
+    import json
+
     lookup = OpenStudioSdkDocLookup(docs_dir)
     payload = lookup.build_index_payload()
     output = Path(output_path).expanduser().resolve()
@@ -558,84 +583,40 @@ def write_index_file(docs_dir: str | Path, output_path: str | Path) -> Path:
     return output
 
 
-def _extract_class_name(text: str) -> str | None:
-    match = re.search(
-        r'<div class="headertitle">\s*'
-        r'<div class="title">(.+?) Class Reference</div>\s*</div>',
-        text,
-    )
-    if not match:
-        match = re.search(r"<title>OpenStudio: (.+?) Class Reference</title>", text)
-    return _clean_html(match.group(1)) if match else None
-
-
-def _parse_methods_from_js(js_file: Path, html_name: str) -> list[MethodRef]:
-    if not js_file.exists():
-        return []
-    text = js_file.read_text(encoding="utf-8", errors="ignore")
+def _parse_methods(class_entry: dict[str, Any]) -> list[MethodRef]:
     methods: list[MethodRef] = []
     seen: set[tuple[str, str]] = set()
-    pattern = re.compile(r'\[\s*"([^"]+)"\s*,\s*"([^"]+)"\s*,\s*null\s*\]')
-    for name, href in pattern.findall(text):
-        if not href.startswith(html_name + "#"):
-            continue
-        anchor = href.split("#", 1)[1]
-        key = (name, anchor)
-        if key in seen:
-            continue
-        seen.add(key)
-        methods.append(MethodRef(name=name, anchor=anchor, href=href))
+    for section_key in ("public_methods", "protected_methods", "static_methods"):
+        for item in class_entry.get(section_key) or []:
+            if not isinstance(item, dict):
+                continue
+            name = item.get("name") or ""
+            sig = item.get("signature") or ""
+            key = (_normalize(name), _normalize(sig))
+            if key in seen:
+                continue
+            seen.add(key)
+            methods.append(
+                MethodRef(
+                    name=name,
+                    signature=sig,
+                    python_signature=item.get("python_signature"),
+                    description=item.get("description"),
+                )
+            )
     return methods
 
 
-def _extract_between(text: str, start_marker: str, end_marker: str) -> str:
-    start = text.find(start_marker)
-    if start == -1:
-        return ""
-    start += len(start_marker)
-    end = text.find(end_marker, start)
-    if end == -1:
-        return text[start:]
-    return text[start:end]
+def _method_summary(method: MethodRef) -> dict[str, Any]:
+    return {
+        "method": method.name,
+        "signature": method.signature,
+        "python_signature": method.python_signature,
+    }
 
 
-def _clean_html(text: str) -> str:
-    text = re.sub(r"<script\b.*?</script>", " ", text, flags=re.DOTALL)
-    text = re.sub(r"<style\b.*?</style>", " ", text, flags=re.DOTALL)
-    text = re.sub(r"<br\s*/?>", "\n", text)
-    text = re.sub(r"</p\s*>", "\n", text)
-    text = re.sub(r"<.*?>", " ", text)
-    text = html.unescape(text)
-    text = re.sub(r"[ \t\r\f\v]+", " ", text)
-    text = re.sub(r"\n\s+", "\n", text)
-    return text.strip()
-
-
-def _normalize(value: str | None) -> str:
-    if value is None:
-        return ""
-    return re.sub(r"[^a-z0-9]+", "", value.lower())
-
-
-def _normalize_anchor(value: str) -> str:
-    return value[1:] if value.startswith("#") else value
-
-
-def _dedupe(items: list[str]) -> list[str]:
-    seen: set[str] = set()
-    result: list[str] = []
-    for item in items:
-        if item in seen:
-            continue
-        seen.add(item)
-        result.append(item)
-    return result
-
-
-def _method_notes(method_name: str, docs_html: str, signature: str = "") -> list[str]:
-    docs = _clean_html(docs_html).lower()
-    signature_text = signature.lower()
-    haystack = f"{docs} {signature_text}"
+def _method_notes(method_name: str, description: str, signature: str) -> list[str]:
+    haystack = f"{description} {signature}".lower()
     notes: list[str] = []
     if "radians" in haystack or "radian" in haystack:
         notes.append(
@@ -647,14 +628,35 @@ def _method_notes(method_name: str, docs_html: str, signature: str = "") -> list
             "The documentation references SI units. Confirm or convert "
             "user-provided IP values before calling the SDK."
         )
-    if "boost::optional" in haystack or method_name.startswith(("get", "optional")):
+    if (
+        "boost::optional" in haystack
+        or method_name.startswith(("get", "optional"))
+        or re.search(r"optional\s*<", haystack)
+    ):
         notes.append(
             "If the Python binding returns an OpenStudio optional, check "
             "is_initialized() before get()."
         )
-    if "throws" in docs:
+    if "throws" in description.lower() or "throw" in description.lower():
         notes.append(
             "The documentation states this method can throw; catch exceptions "
             "or guard preconditions in generated scripts."
         )
     return notes
+
+
+def _normalize(value: str | None) -> str:
+    if value is None:
+        return ""
+    return re.sub(r"[^a-z0-9]+", "", value.lower())
+
+
+def _dedupe(items: list[str]) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for item in items:
+        if item in seen:
+            continue
+        seen.add(item)
+        result.append(item)
+    return result

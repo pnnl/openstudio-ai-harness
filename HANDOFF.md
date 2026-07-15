@@ -21,6 +21,10 @@
 - The base package requires the OpenStudio Python package. Model edits,
   simulation, and measures also require the native OpenStudio application or
   CLI through `OPENSTUDIO_PATH` or `PATH`.
+- The MCP runtime resolves an executable `OPENSTUDIO_PATH` first, then falls
+  back to `openstudio` on `PATH`; the resolved absolute path is used for both
+  measures and simulations. Use the environment variable for a nonstandard or
+  version-specific installation.
 - AUTOMA-AI and Streamlit are only supplied through the `standalone` extra for
   local developer testing. Host-facing skills use host-neutral Python execution
   instructions.

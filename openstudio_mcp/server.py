@@ -148,7 +148,7 @@ class OpenStudioService:
             policy_path=BASE_DIR / "policy" / "measure_registry.yaml",
             base_dir=BASE_DIR,
         )
-        self.openstudio_path = os.getenv("OPENSTUDIO_PATH", "").strip()
+        self.openstudio_path = self._resolve_openstudio_executable()
         self.sdk_docs = OpenStudioSdkDocLookup.from_env()
         self._sim_tasks: dict[str, asyncio.Task] = {}
         self.model_states: dict[str, OpenStudioModelState] = {}
@@ -210,9 +210,8 @@ class OpenStudioService:
 
     def model_apply_measure(self, args: ModelApplyMeasureArgs) -> dict[str, Any]:
         # Step 1: validate base model state. Python measures prefer the
-        # OpenStudio CLI's execute_python_script environment when OPENSTUDIO_PATH
-        # is configured; otherwise they fall back to the current Python only
-        # after verifying that it can import the OpenStudio SDK.
+        # Python measures prefer the resolved OpenStudio CLI environment. They
+        # fall back to the current Python only after verifying its SDK import.
         model_state = self._get_model_state(args.model_id)
 
         # Step 2: resolve measure policy and normalize user args from schema/defaults.
@@ -260,7 +259,8 @@ class OpenStudioService:
         else:
             if openstudio_cmd is None:
                 raise ValueError(
-                    "OPENSTUDIO_PATH is not set to an executable OpenStudio path."
+                    "OpenStudio executable was not found. Set OPENSTUDIO_PATH or add "
+                    "`openstudio` to PATH."
                 )
             cmd = [
                 openstudio_cmd,
@@ -344,13 +344,23 @@ class OpenStudioService:
             warnings=summary_warnings,
         )
 
-    def _openstudio_executable_or_none(self) -> str | None:
-        if not self.openstudio_path:
+    @staticmethod
+    def _resolve_openstudio_executable() -> str | None:
+        """Resolve the explicit override first, then discover OpenStudio on PATH."""
+        configured_path = os.getenv("OPENSTUDIO_PATH", "").strip()
+        if configured_path:
+            candidate = Path(configured_path).expanduser()
+            if candidate.is_file() and os.access(candidate, os.X_OK):
+                return str(candidate.resolve())
             return None
-        openstudio_path = Path(self.openstudio_path)
-        if openstudio_path.is_file() and os.access(openstudio_path, os.X_OK):
-            return str(openstudio_path)
-        return None
+
+        discovered_path = shutil.which("openstudio")
+        if discovered_path is None:
+            return None
+        return str(Path(discovered_path).resolve())
+
+    def _openstudio_executable_or_none(self) -> str | None:
+        return self.openstudio_path
 
     def _validate_python_openstudio_sdk(
         self,
@@ -369,9 +379,9 @@ class OpenStudioService:
         if import_check.returncode != 0:
             raise ValueError(
                 "Python measure execution requires the OpenStudio Python SDK. "
-                "Configure OPENSTUDIO_PATH to the OpenStudio executable so measures "
-                "run via execute_python_script, or install the openstudio module "
-                "into the server's Python environment."
+                "Set OPENSTUDIO_PATH or add `openstudio` to PATH so measures run "
+                "via execute_python_script, or install the openstudio module into "
+                "the server's Python environment."
             )
 
     def model_validate(self, args: ModelCloneArgs) -> dict[str, Any]:
@@ -387,11 +397,11 @@ class OpenStudioService:
         model_path = self._resolve_model_path(model_state.metadata.get("model_uri", ""))
         if not model_path.exists():
             raise ValueError(f"Model file does not exist: {model_path}")
-        if not self.openstudio_path:
-            raise ValueError("OPENSTUDIO_PATH is not set in environment.")
-        if not Path(self.openstudio_path).exists():
+        openstudio_cmd = self._openstudio_executable_or_none()
+        if openstudio_cmd is None:
             raise ValueError(
-                f"OPENSTUDIO_PATH is not executable path: {self.openstudio_path}"
+                "OpenStudio executable was not found. Set OPENSTUDIO_PATH to an "
+                "executable path or add `openstudio` to PATH."
             )
         job = self.job_manager.create_job(
             model_id=args.model_id,
@@ -667,7 +677,12 @@ class OpenStudioService:
 
         stdout_path = workspace / "openstudio.stdout.log"
         stderr_path = workspace / "openstudio.stderr.log"
-        cmd = [self.openstudio_path, "run", "-w", str(osw_path)]
+        openstudio_cmd = self._openstudio_executable_or_none()
+        if openstudio_cmd is None:
+            raise RuntimeError(
+                "OpenStudio executable became unavailable during simulation."
+            )
+        cmd = [openstudio_cmd, "run", "-w", str(osw_path)]
         completed = subprocess.run(
             cmd,
             cwd=str(workspace),

@@ -193,7 +193,7 @@ Smoke test the installed commands:
 openstudio-ai version
 openstudio-ai paths
 openstudio-ai install-runtime
-OPENSTUDIO_PATH=/path/to/openstudio openstudio-ai doctor
+openstudio-ai doctor
 openstudio-ai-mcp --help
 openstudio-ai export claude --output-dir /tmp/openstudio-ai-claude --runtime-mode marketplace
 openstudio-ai export codex --output-dir /tmp/openstudio-ai-codex --runtime-mode marketplace

@@ -79,7 +79,7 @@ Base runtime setup:
 ```bash
 python -m pip install openstudio-ai
 openstudio-ai install-runtime
-OPENSTUDIO_PATH=/path/to/openstudio openstudio-ai doctor
+openstudio-ai doctor
 ```
 
 The base runtime is what Claude Code and Codex marketplace users should need. It
@@ -91,6 +91,9 @@ OpenStudio has two requirements:
 - Python package: `openstudio>=3.10.0`.
 - Native OpenStudio application or CLI visible through `OPENSTUDIO_PATH` or
   `PATH`.
+
+`OPENSTUDIO_PATH` takes priority when it is set; otherwise the runtime resolves
+`openstudio` from `PATH`.
 
 ## Folder Ownership
 
@@ -477,8 +480,9 @@ Use this path when developing the standalone local agent or testing A2A behavior
      tests/test_openstudio_learning_pipeline.py
    ```
 
-   Some smoke tests skip real OpenStudio execution unless `OPENSTUDIO_PATH` and
-   required local resources are configured.
+   Some smoke tests require an explicit `OPENSTUDIO_PATH` so they use a known,
+   fixture-compatible OpenStudio version, as well as the required local
+   resources.
 
 Use AUTOMA-AI testing for local standalone behavior. Do not use AUTOMA-AI
 assumptions in Claude/Codex runtime skills.
@@ -501,8 +505,8 @@ Focused checks for common edits:
 .venv/bin/python -m pytest -q tests/test_openstudio_claude_code_adapter.py
 ```
 
-Use `OPENSTUDIO_PATH=/path/to/openstudio` when testing actual OpenStudio CLI
-integration.
+Use `OPENSTUDIO_PATH=/path/to/openstudio` to test a specific OpenStudio CLI
+installation; otherwise ensure `openstudio` is on `PATH`.
 
 ## Claude Code Plugin Testing
 

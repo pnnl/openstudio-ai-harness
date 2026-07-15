@@ -33,13 +33,14 @@ Install the runtime package after it is published:
 ```bash
 python -m pip install openstudio-ai
 openstudio-ai install-runtime
-OPENSTUDIO_PATH=/path/to/openstudio openstudio-ai doctor
+openstudio-ai doctor
 openstudio-ai-mcp --transport stdio
 ```
 
 OpenStudio AI requires both the PyPI `openstudio` Python package, installed as
 a dependency of `openstudio-ai`, and the native OpenStudio application/CLI. Set
-`OPENSTUDIO_PATH` when the CLI is not on `PATH`.
+`OPENSTUDIO_PATH` when the CLI is not on `PATH` or when selecting a specific
+installation.
 
 The base package is the recommended install for Claude Code, Codex, and other
 marketplace-style host integrations. It intentionally does not install

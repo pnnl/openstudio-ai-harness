@@ -98,6 +98,10 @@ OpenStudio AI has a two-part OpenStudio prerequisite:
    `openstudio-ai`;
 2. the native OpenStudio application/CLI, visible through `OPENSTUDIO_PATH` or
    `PATH`.
+
+The MCP runtime resolves an executable `OPENSTUDIO_PATH` first. If it is unset,
+it resolves `openstudio` from `PATH`. Use the environment variable to select a
+nonstandard installation or a specific version.
 - `openstudio-ai install-runtime`: installs or completes installation of the
   runtime package after user approval.
 - `openstudio-ai repair`: attempts non-destructive fixes such as rebuilding

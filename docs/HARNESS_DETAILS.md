@@ -216,7 +216,8 @@ Use MCP tools such as `blackboard_initialize_workflow`,
 
 1. Copy `sample.env` to `.env`.
 2. Set the model provider values used by `specs/openstudio_agent.yaml`.
-3. Set `OPENSTUDIO_PATH` to the local OpenStudio CLI executable path.
+3. Ensure `openstudio` is on `PATH`, or set `OPENSTUDIO_PATH` to select a local
+   OpenStudio CLI executable explicitly.
 4. Ensure the configured Python executable can import the OpenStudio Python SDK
    when using SDK inspection/editing.
 5. Optional: set `OPENSTUDIO_SDK_DOCS_DIR` to override the bundled

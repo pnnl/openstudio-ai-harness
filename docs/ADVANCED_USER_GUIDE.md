@@ -18,12 +18,15 @@ Marketplace or host-agent runtime:
 ```bash
 python -m pip install openstudio-ai
 openstudio-ai install-runtime
-OPENSTUDIO_PATH=/path/to/openstudio openstudio-ai doctor
+openstudio-ai doctor
 ```
 
 Use this path for Claude Code, Codex, and other host integrations. It installs
 the MCP runtime, skills, knowledge, OpenStudio Python SDK dependency, and CLI
 tools. It does not install AUTOMA-AI or Streamlit.
+
+The runtime discovers `openstudio` on `PATH`. Set `OPENSTUDIO_PATH` only when
+OpenStudio is not on `PATH` or when you need to select a specific installation.
 
 Standalone local AI app:
 

@@ -391,7 +391,7 @@ async def test_openstudio_mcp_simulation_flow_with_sample_model() -> None:
             run_payload = run_result.structuredContent
             assert isinstance(run_payload, dict)
 
-            # If OPENSTUDIO_PATH is not configured, the tool should fail fast with invalid_state.
+            # If no compatible CLI is configured, fail fast with invalid_state.
             if not run_payload.get("ok", False):
                 assert run_payload["error"]["type"] == "invalid_state"
                 return

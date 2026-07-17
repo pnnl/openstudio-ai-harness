@@ -32,6 +32,24 @@ simulation workflows, and explain what changed.
   tasks that span multiple phases, child skills, scripts, simulations, failure
   recovery steps, or clarification gates.
 
+## SDK Script Gate
+
+For every generated OpenStudio Python inspection or edit script, load
+`openstudio_sdk_model_editor` before drafting or executing code. Load its
+matching SDK reference packs and use `sdk_docs_route` followed by the exact
+`sdk_docs_get_method` or `sdk_docs_list_methods` calls for each non-obvious
+OpenStudio API call. This is required both for the initial script and after an
+SDK `AttributeError`; do not retry an SDK method name from memory.
+
+The SDK documentation bundled with OpenStudio AI is a compatibility reference,
+not a lockstep copy of the user's local OpenStudio installation. A bundled 3.x
+index remains valid for normal minor-version differences (for example, bundled
+3.8 documentation with local OpenStudio 3.10). Do not call SDK documentation
+missing merely because those versions differ. If the MCP reports the lookup is
+unavailable, treat that as a runtime diagnostic, state it clearly, and consult
+the loaded reference pack plus Python binding introspection rather than guessing
+method names.
+
 ## MCP Tool Routing
 
 - Use `model_*` tools for controlled model lifecycle, weather/design-day setup,
@@ -39,8 +57,8 @@ simulation workflows, and explain what changed.
 - Use `sim_*` tools for asynchronous simulation execution, status polling, and
   simulation artifact retrieval.
 - Use `results_*` tools after simulation artifacts are available.
-- Use `sdk_docs_*` tools only as directed by SDK-editing skills for SDK script
-  planning and method verification.
+- Use `sdk_docs_*` tools for the SDK Script Gate and as directed by SDK-editing
+  skills for script planning and method verification.
 - Do not use host Python execution for simulation runs, simulation polling,
   artifact retrieval, or SQL-backed result queries.
 

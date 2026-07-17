@@ -101,6 +101,20 @@ def test_claude_code_adapter_exports_plugin_package(tmp_path: Path) -> None:
     assert (plugin_dir / "skills" / "add-vav-reheat" / "SKILL.md").exists()
     assert (plugin_dir / "skills" / "propose-measure" / "SKILL.md").exists()
     assert (plugin_dir / "skills" / "capture-session-lesson" / "SKILL.md").exists()
+    simulate_skill = (plugin_dir / "skills" / "simulate" / "SKILL.md").read_text(
+        encoding="utf-8"
+    )
+    assert "## Executable Recovery" in simulate_skill
+    assert (
+        "Do not immediately retry or automatically edit marketplace" in simulate_skill
+    )
+    assert "## MCP-Only Boundary" in simulate_skill
+    assert "Never invoke `openstudio`, EnergyPlus" in simulate_skill
+    assert "local SQL result extraction as a fallback" in simulate_skill
+    assert "do not use a local CLI fallback" in simulate_skill
+    assert "runtime_openstudio_status" in simulate_skill
+    assert "Before suggesting installation, use read-only discovery" in simulate_skill
+    assert "Only when discovery finds no executable" in simulate_skill
     assert (
         plugin_dir / "skills" / "openstudio-hvac-air-loop-creator" / "SKILL.md"
     ).exists()
@@ -195,6 +209,9 @@ def test_claude_code_adapter_exports_plugin_package(tmp_path: Path) -> None:
     )
     assert "do not rely on host-native blackboard features" in agent_prompt
     assert "Never promote them" in agent_prompt
+    assert "## SDK Script Gate" in agent_prompt
+    assert "do not retry an SDK method name from memory" in agent_prompt
+    assert "bundled 3.x" in agent_prompt
     readme = (plugin_dir / "README.md").read_text(encoding="utf-8")
     assert "activating it as the main Claude Code thread" in readme
     assert "does not automatically read arbitrary plugin instruction files" in readme
@@ -254,6 +271,9 @@ def test_claude_code_adapter_marketplace_mode_exports_runtime_setup(
     assert "python3 --version" in setup
     assert "openstudio-ai-mcp --help" in setup
     assert "energy-modeler language" in setup
+    assert "diagnose command discovery before editing plugin files" in setup
+    assert "do not replace it with an absolute `.venv/bin` path" in setup
+    assert "--runtime-mode local" in setup
     assert "/reload-plugins" in setup
     installer = (
         plugin_dir / "skills" / "setup-openstudio-ai" / "scripts" / "install_runtime.py"

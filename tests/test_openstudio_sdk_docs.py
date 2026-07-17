@@ -401,6 +401,20 @@ def test_ensure_available_raises_when_docs_missing(tmp_path: Path):
         lookup.find_classes("Space")
 
 
+def test_from_env_falls_back_to_bundled_docs_for_invalid_override(
+    monkeypatch, tmp_path: Path
+):
+    monkeypatch.setenv("OPENSTUDIO_SDK_DOCS_DIR", str(tmp_path / "missing"))
+
+    with pytest.warns(UserWarning, match="using the bundled SDK documentation"):
+        lookup = OpenStudioSdkDocLookup.from_env()
+
+    assert lookup.source == "bundled_fallback"
+    assert lookup.override_path == (tmp_path / "missing").resolve()
+    assert lookup.available()
+    assert lookup.find_classes("ThermalZone")
+
+
 def test_bundled_docs_are_available():
     """The bundled YAML files must be importable without any env override."""
     lookup = OpenStudioSdkDocLookup()

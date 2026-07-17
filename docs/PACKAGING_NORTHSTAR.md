@@ -39,6 +39,7 @@ pip install openstudio-ai
 openstudio-ai doctor
 openstudio-ai export claude --output-dir ./openstudio-ai-claude-plugin
 openstudio-ai export codex --output-dir ./openstudio-ai-codex-plugin
+openstudio-ai install codex --target-dir ./my-codex-project
 ```
 
 The exported plugin `.mcp.json` should point to the installed runtime command:
@@ -124,6 +125,7 @@ The MCP runtime package should provide:
 - `openstudio-ai doctor`
 - `openstudio-ai export claude`
 - `openstudio-ai export codex`
+- `openstudio-ai install codex`
 - `openstudio-ai validate-export`
 - `openstudio-ai repair`
 - `openstudio-ai uninstall` where appropriate
@@ -298,6 +300,7 @@ Required CLI commands:
 openstudio-ai doctor
 openstudio-ai export claude
 openstudio-ai export codex
+openstudio-ai install codex
 openstudio-ai validate-export
 openstudio-ai repair
 openstudio-ai version
@@ -371,6 +374,7 @@ Use this checklist to estimate progress.
       workspace, SQLite, and MCP startup.
 - [x] `export claude` command exists.
 - [x] `export codex` command exists.
+- [x] `install codex` command installs managed project guidance.
 - [x] `validate-export` command exists.
 - [ ] Runtime data paths use `platformdirs`.
 - [ ] Package can be installed on macOS.

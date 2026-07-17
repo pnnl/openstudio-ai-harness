@@ -148,7 +148,9 @@ class OpenStudioService:
             policy_path=BASE_DIR / "policy" / "measure_registry.yaml",
             base_dir=BASE_DIR,
         )
-        self.openstudio_path = self._resolve_openstudio_executable()
+        self.openstudio_path, self.openstudio_path_source = (
+            self._resolve_openstudio_executable_with_source()
+        )
         self.sdk_docs = OpenStudioSdkDocLookup.from_env()
         self._sim_tasks: dict[str, asyncio.Task] = {}
         self.model_states: dict[str, OpenStudioModelState] = {}
@@ -346,21 +348,70 @@ class OpenStudioService:
 
     @staticmethod
     def _resolve_openstudio_executable() -> str | None:
-        """Resolve the explicit override first, then discover OpenStudio on PATH."""
+        """Resolve an executable path without exposing its discovery source."""
+        return OpenStudioService._resolve_openstudio_executable_with_source()[0]
+
+    @staticmethod
+    def _resolve_openstudio_executable_with_source() -> tuple[str | None, str | None]:
+        """Resolve an explicit override first, then use the server's PATH."""
         configured_path = os.getenv("OPENSTUDIO_PATH", "").strip()
         if configured_path:
             candidate = Path(configured_path).expanduser()
             if candidate.is_file() and os.access(candidate, os.X_OK):
-                return str(candidate.resolve())
-            return None
+                return str(candidate.resolve()), "OPENSTUDIO_PATH"
+            return None, None
 
         discovered_path = shutil.which("openstudio")
-        if discovered_path is None:
-            return None
-        return str(Path(discovered_path).resolve())
+        if discovered_path:
+            return str(Path(discovered_path).resolve()), "PATH"
+        return None, None
 
     def _openstudio_executable_or_none(self) -> str | None:
         return self.openstudio_path
+
+    def runtime_openstudio_status(self) -> dict[str, Any]:
+        """Report the MCP process's OpenStudio CLI discovery result.
+
+        This is intentionally based on the process-startup resolution used by
+        simulations, rather than a host-shell probe that may have a different
+        environment.
+        """
+        if self.openstudio_path is None:
+            return {
+                "ok": True,
+                "available": False,
+                "path": None,
+                "source": None,
+                "checks": ["OPENSTUDIO_PATH", "shutil.which('openstudio')"],
+                "recommendation": (
+                    "No native OpenStudio CLI is visible to this MCP server. "
+                    "First perform read-only platform-specific discovery. If no "
+                    "executable is found, install OpenStudio; otherwise set "
+                    "OPENSTUDIO_PATH or the MCP server PATH and reconnect."
+                ),
+            }
+
+        version_probe = subprocess.run(
+            [self.openstudio_path, "--version"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=10,
+        )
+        version_output = (version_probe.stdout or version_probe.stderr).strip()
+        return {
+            "ok": True,
+            "available": version_probe.returncode == 0,
+            "path": self.openstudio_path,
+            "source": self.openstudio_path_source,
+            "version": version_output[:2000] or None,
+            "recommendation": (
+                None
+                if version_probe.returncode == 0
+                else "An OpenStudio executable was found, but its version check failed. "
+                "Run the OpenStudio AI doctor workflow before simulation."
+            ),
+        }
 
     def _validate_python_openstudio_sdk(
         self,
@@ -400,8 +451,11 @@ class OpenStudioService:
         openstudio_cmd = self._openstudio_executable_or_none()
         if openstudio_cmd is None:
             raise ValueError(
-                "OpenStudio executable was not found. Set OPENSTUDIO_PATH to an "
-                "executable path or add `openstudio` to PATH."
+                "OpenStudio CLI is unavailable to this MCP server: "
+                "OPENSTUDIO_PATH was not set and shutil.which('openstudio') found "
+                "no executable on the server PATH. Install the OpenStudio CLI, or "
+                "start/reconnect the MCP server with OPENSTUDIO_PATH set or with "
+                "`openstudio` on PATH."
             )
         job = self.job_manager.create_job(
             model_id=args.model_id,

@@ -12,7 +12,9 @@ PACKAGE_NAME = "openstudio-ai"
 PACKAGE_VERSION_FALLBACK = "0.1.4"
 PLUGIN_VERSION_ENV = "OPENSTUDIO_AI_PLUGIN_VERSION"
 PLUGIN_CONTRACT_ENV = "OPENSTUDIO_AI_PLUGIN_CONTRACT_VERSION"
-PLUGIN_CONTRACT_VERSION = "1"
+# Contract 2 adds runtime_openstudio_status, which the simulation skill requires
+# before any model lifecycle or simulation tool call.
+PLUGIN_CONTRACT_VERSION = "2"
 
 
 @dataclass(frozen=True)

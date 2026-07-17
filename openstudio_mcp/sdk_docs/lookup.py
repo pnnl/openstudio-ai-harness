@@ -263,16 +263,43 @@ class OpenStudioSdkDocLookup:
     """Lookup helper for bundled OpenStudio SDK YAML documentation."""
 
     def __init__(self, docs_dir: str | Path | None = None) -> None:
-        configured = (
-            docs_dir or os.getenv("OPENSTUDIO_SDK_DOCS_DIR") or _BUNDLED_DOCS_DIR
-        )
+        configured = docs_dir or _BUNDLED_DOCS_DIR
         self.docs_dir = Path(configured).expanduser().resolve() if configured else None
+        self.source = "bundled" if docs_dir is None else "explicit"
+        self.override_path: Path | None = None
+        self.override_warning: str | None = None
         self._classes: dict[str, ClassDoc] | None = None
 
     @classmethod
     def from_env(cls) -> "OpenStudioSdkDocLookup":
-        """Create a lookup helper, preferring OPENSTUDIO_SDK_DOCS_DIR then the bundled docs."""
-        return cls()
+        """Create a lookup helper with a safe fallback for a stale environment override.
+
+        A custom directory is useful to test a newer documentation extraction,
+        but it must not disable the SDK bundle shipped with OpenStudio AI.  SDK
+        documentation is intentionally portable across compatible OpenStudio
+        minor versions, so the bundled index remains a useful fallback even
+        when the local OpenStudio installation differs from its version.
+        """
+        configured_dir = os.getenv("OPENSTUDIO_SDK_DOCS_DIR", "").strip()
+        if not configured_dir:
+            return cls()
+
+        configured = cls(configured_dir)
+        if configured.available():
+            configured.source = "environment"
+            return configured
+
+        fallback = cls()
+        fallback.source = "bundled_fallback"
+        fallback.override_path = configured.docs_dir
+        fallback.override_warning = (
+            "OPENSTUDIO_SDK_DOCS_DIR does not contain a usable SDK bundle; "
+            "using the bundled SDK documentation instead."
+        )
+        import warnings
+
+        warnings.warn(fallback.override_warning, stacklevel=2)
+        return fallback
 
     def available(self) -> bool:
         """Return whether the configured SDK documentation directory can be used."""
@@ -609,9 +636,8 @@ class OpenStudioSdkDocLookup:
         if not self.available():
             raise SdkDocsUnavailableError(
                 "OpenStudio SDK docs are unavailable. "
-                "Expected api/classes.yaml.gz inside the docs directory. "
-                "Set OPENSTUDIO_SDK_DOCS_DIR to override the bundled path "
-                f"({_BUNDLED_DOCS_DIR})."
+                "Expected a versioned or legacy api/classes YAML gzip inside "
+                f"the docs directory ({self.docs_dir})."
             )
 
 

@@ -46,6 +46,8 @@ The MCP server exposes runtime management tools:
 
 - `runtime_plugin_compatibility`: report plugin/runtime MCP interface status and
   the refresh action for a mismatch.
+- `runtime_openstudio_status`: report the native OpenStudio CLI resolution used
+  by the MCP process before simulation.
 - `runtime_storage_usage`: report registered workspace usage and unregistered
   directories.
 - `runtime_prune_preview`: list prune candidates without deleting files.

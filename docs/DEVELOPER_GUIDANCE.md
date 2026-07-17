@@ -670,7 +670,19 @@ and a plugin under `plugins/openstudio-ai/`.
    ```
 
 4. Install or enable `openstudio-ai` from the `openstudio-ai-local` marketplace
-   in Codex, then ask Codex to use the setup or doctor skill.
+   in Codex.
+
+5. Add the managed modeler policy to the project used for the test:
+
+   ```bash
+   .venv/bin/python -m cli install codex \
+     --target-dir /path/to/codex-project \
+     --workspace-root "$PWD"
+   ```
+
+   The command creates `AGENTS.md` if absent. Use `--dry-run` to review the
+   block; an existing unmanaged file requires `--force` before appending it.
+   Then ask Codex to use the setup or doctor skill.
 
 Expected Codex plugin shape:
 

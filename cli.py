@@ -121,7 +121,6 @@ def _python_openstudio_probe() -> dict[str, Any]:
 def _sdk_docs_probe() -> dict[str, Any]:
     """Verify the configured SDK YAML bundle has a readable metadata header."""
     configured_dir = os.getenv("OPENSTUDIO_SDK_DOCS_DIR", "").strip()
-    source = "environment" if configured_dir else "bundled"
     try:
         from openstudio_mcp.sdk_docs import OpenStudioSdkDocLookup
 
@@ -130,10 +129,13 @@ def _sdk_docs_probe() -> dict[str, Any]:
         result: dict[str, Any] = {
             "ok": False,
             "configured": docs_dir is not None,
-            "source": source,
+            "source": lookup.source,
             "path": str(docs_dir) if docs_dir else None,
             "selected_version": lookup.selected_version(),
         }
+        if lookup.override_path is not None:
+            result["override_path"] = str(lookup.override_path)
+            result["override_warning"] = lookup.override_warning
         if not lookup.available():
             result["available"] = False
             result["error"] = "The configured SDK documentation bundle is unavailable."
@@ -152,7 +154,7 @@ def _sdk_docs_probe() -> dict[str, Any]:
             "ok": False,
             "available": False,
             "configured": bool(configured_dir),
-            "source": source,
+            "source": "environment" if configured_dir else "bundled",
             "path": configured_dir or None,
             "selected_version": None,
             "error": str(exc),
@@ -691,6 +693,22 @@ def _cmd_export(args: argparse.Namespace) -> int:
     raise ValueError(f"Unsupported export host: {args.host}")
 
 
+def _cmd_install_host_guidance(args: argparse.Namespace) -> int:
+    """Install host-specific project guidance without exporting a plugin again."""
+    if args.host != "codex":
+        raise ValueError(f"Unsupported project-guidance host: {args.host}")
+
+    result = CodexAdapter(
+        HostAdapterConfig(host_name="codex", workspace_root=args.workspace_root)
+    ).install(args.target_dir, dry_run=args.dry_run, force=args.force)
+    mode = "Would write" if result.dry_run else "Wrote"
+    for action in result.actions:
+        print(f"{mode} {action.path} ({action.action})")
+        if result.dry_run:
+            print(action.content)
+    return 0
+
+
 def _validate_no_developer_paths(plugin_dir: Path) -> list[str]:
     """Return text files in an export that contain hardcoded developer paths."""
     offenders: list[str] = []
@@ -909,6 +927,34 @@ def _build_parser() -> argparse.ArgumentParser:
         "--force", action="store_true", help="Replace an existing plugin folder."
     )
     export.set_defaults(func=_cmd_export)
+
+    install = subparsers.add_parser(
+        "install", help="Install host-specific project guidance."
+    )
+    install.add_argument(
+        "host", choices=["codex"], help="Host project guidance to install."
+    )
+    install.add_argument(
+        "--target-dir",
+        type=Path,
+        required=True,
+        help="Codex project directory where AGENTS.md should be created or updated.",
+    )
+    install.add_argument(
+        "--workspace-root",
+        type=Path,
+        default=_default_root(),
+        help="Harness root containing the shared modeler policy.",
+    )
+    install.add_argument(
+        "--dry-run", action="store_true", help="Preview guidance without writing."
+    )
+    install.add_argument(
+        "--force",
+        action="store_true",
+        help="Append to an existing unmanaged AGENTS.md.",
+    )
+    install.set_defaults(func=_cmd_install_host_guidance)
 
     validate = subparsers.add_parser(
         "validate-export", help="Validate an exported plugin directory."

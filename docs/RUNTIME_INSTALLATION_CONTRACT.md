@@ -53,6 +53,11 @@ starts when the contract differs, reports a compatibility notice, and continues
 to expose tools that remain compatible. The user should refresh the plugin or
 upgrade the runtime before relying on newly added skill workflows.
 
+Contract version `2` requires `runtime_openstudio_status`. The simulation skill
+uses it as an MCP-only preflight and must not fall back to direct OpenStudio,
+EnergyPlus, workflow, or SQL commands when the tool or MCP reconnection is
+unavailable.
+
 Marketplace doctor helpers run:
 
 ```bash
@@ -100,8 +105,14 @@ OpenStudio AI has a two-part OpenStudio prerequisite:
    `PATH`.
 
 The MCP runtime resolves an executable `OPENSTUDIO_PATH` first. If it is unset,
-it resolves `openstudio` from `PATH`. Use the environment variable to select a
+it resolves `openstudio` from the MCP server's `PATH` using
+`shutil.which("openstudio")`. Use the environment variable to select a
 nonstandard installation or a specific version.
+
+Before a simulation, hosts should call `runtime_openstudio_status`. It reports
+the executable path and discovery source from the MCP process itself, not from
+the host shell. When unavailable, the simulation workflow performs read-only
+platform-specific discovery before offering installation guidance.
 - `openstudio-ai install-runtime`: installs or completes installation of the
   runtime package after user approval.
 - `openstudio-ai repair`: attempts non-destructive fixes such as rebuilding
@@ -143,6 +154,17 @@ skills/
 Codex marketplace exports expose setup as Codex skills and place helper scripts
 under `skills/setup-openstudio-ai/scripts/`. Do not export root `commands/` or
 `installers/` folders for Codex.
+
+Codex does not activate a plugin agent prompt as the main conversation policy.
+After enabling the marketplace plugin, users who want plain-language OpenStudio
+requests to follow the shared orchestration policy run:
+
+```bash
+openstudio-ai install codex --target-dir /path/to/codex-project
+```
+
+This creates or updates only the marked OpenStudio block in that project's
+`AGENTS.md`; it never replaces unrelated project instructions.
 
 The setup workflow should ask the host agent to:
 

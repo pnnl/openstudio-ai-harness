@@ -75,24 +75,38 @@ openstudio-ai-mcp --transport stdio
 Export local development plugins:
 
 ```bash
-python -m adapters.claude_code_adapter export-plugin \
-  --output-dir /tmp/openstudio-ai-claude-plugin
+openstudio-ai export claude \
+  --output-dir /tmp/openstudio-ai-claude-plugin \
+  --runtime-mode local
 
-python -m adapters.codex_adapter export-plugin \
-  --output-dir /tmp/openstudio-ai-codex-plugin
+openstudio-ai export codex \
+  --output-dir /tmp/openstudio-ai-codex-plugin \
+  --runtime-mode local
 ```
 
 Export marketplace-oriented plugins that expect an installed runtime command:
 
 ```bash
-python -m adapters.claude_code_adapter export-plugin \
+openstudio-ai export claude \
   --output-dir /tmp/openstudio-ai-claude-plugin \
   --runtime-mode marketplace
 
-python -m adapters.codex_adapter export-plugin \
+openstudio-ai export codex \
   --output-dir /tmp/openstudio-ai-codex-plugin \
   --runtime-mode marketplace
 ```
+
+After installing the Codex marketplace plugin, add the shared OpenStudio
+modeler policy to each Codex project that should route plain-language
+OpenStudio requests through the workflow orchestrator:
+
+```bash
+openstudio-ai install codex --target-dir /path/to/codex-project
+```
+
+This creates `AGENTS.md` when it does not exist. Use `--dry-run` to preview;
+an existing unmanaged `AGENTS.md` requires `--force` before the managed block
+is appended.
 
 ## Key Docs
 

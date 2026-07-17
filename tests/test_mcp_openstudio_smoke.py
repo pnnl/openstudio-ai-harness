@@ -86,6 +86,7 @@ async def test_openstudio_mcp_smoke_list_and_call_model_load() -> None:
             assert "model_list_measures" in names
             assert "sim_run" in names
             assert "runtime_plugin_compatibility" in names
+            assert "runtime_openstudio_status" in names
             assert "runtime_storage_usage" in names
             assert "runtime_prune_preview" in names
             assert "runtime_prune" in names

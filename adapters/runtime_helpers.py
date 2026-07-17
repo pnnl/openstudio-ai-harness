@@ -132,25 +132,30 @@ def run(command: list[str]) -> int:
     return completed.returncode
 
 
-def runtime_cli_path() -> str | None:
-    """Find the openstudio-ai console script for this interpreter after pip install."""
-    path = shutil.which("openstudio-ai")
+def runtime_command_path(command: str) -> str | None:
+    """Find a console script for this interpreter after pip install."""
+    path = shutil.which(command)
     if path:
         return path
     scripts_dir = Path(sys.executable).resolve().parent
-    candidates = [scripts_dir / "openstudio-ai"]
+    candidates = [scripts_dir / command]
     if os.name == "nt":
         candidates.extend(
             [
-                scripts_dir / "openstudio-ai.exe",
-                scripts_dir / "Scripts" / "openstudio-ai",
-                scripts_dir / "Scripts" / "openstudio-ai.exe",
+                scripts_dir / f"{command}.exe",
+                scripts_dir / "Scripts" / command,
+                scripts_dir / "Scripts" / f"{command}.exe",
             ]
         )
     for candidate in candidates:
         if candidate.is_file():
             return str(candidate)
     return None
+
+
+def runtime_cli_path() -> str | None:
+    """Find the openstudio-ai console script for this interpreter."""
+    return runtime_command_path("openstudio-ai")
 
 
 def main() -> int:
@@ -187,11 +192,23 @@ def main() -> int:
         print("\\nInstalled package, but runtime initialization failed.")
         return code
 
+    runtime_mcp = runtime_command_path("openstudio-ai-mcp")
     if not shutil.which("openstudio-ai-mcp"):
         print(
-            "\\nThe package installed, but openstudio-ai-mcp is not on PATH in this shell. "
-            "Restart the AI tool or add Python's scripts directory to PATH, then rerun doctor."
+            "\\nThe package installed, but openstudio-ai-mcp is not on PATH in this shell."
         )
+        if runtime_mcp:
+            print(f"Installed MCP command: {runtime_mcp}")
+            print(
+                "Add its parent directory to the PATH used to launch the AI tool, then restart "
+                "or reconnect the plugin. Keep marketplace .mcp.json configured with the "
+                "portable command `openstudio-ai-mcp`; do not replace it with this absolute path."
+            )
+        else:
+            print(
+                "The MCP command was not found beside this Python interpreter. Reinstall the "
+                "runtime with this same Python, then rerun doctor."
+            )
         return 3
 
     print("\\nOpenStudio AI runtime installation completed.")

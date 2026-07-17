@@ -619,11 +619,23 @@ def _marketplace_setup_skill_docs() -> dict[str, str]:
                 "5. If the runtime is missing, explain the issue in normal "
                 "energy-modeler language and ask before running "
                 "`python ${CLAUDE_SKILL_DIR}/scripts/install_runtime.py`.\n"
-                "6. When `openstudio-ai` is available, run `openstudio-ai doctor`.\n"
-                "7. If installation changed runtime command availability, tell the "
+                "6. If installation succeeds but `openstudio-ai-mcp` is still missing, "
+                "diagnose command discovery before editing plugin files. Run "
+                '`python -c "import sys, sysconfig; print(sys.executable); '
+                "print(sysconfig.get_path('scripts'))\"` (or `python3`), then check "
+                "whether that scripts directory is on the PATH used to launch Claude Code. "
+                "For a marketplace plugin, keep `.mcp.json` set to the portable command "
+                "`openstudio-ai-mcp`; do not replace it with an absolute `.venv/bin` path. "
+                "After the user approves a PATH update, restart Claude Code from that "
+                "environment.\n"
+                "7. If this is intentionally a repository checkout with a project virtual "
+                "environment, explain that it is local development: re-export with "
+                "`--runtime-mode local` instead of modifying a marketplace export.\n"
+                "8. When `openstudio-ai` is available, run `openstudio-ai doctor`.\n"
+                "9. If installation changed runtime command availability, tell the "
                 "user to run `/reload-plugins` or reconnect the failed MCP server so "
                 "Claude Code starts `openstudio-ai-mcp` again.\n"
-                "8. Summarize readiness for model loading, HVAC workflow support, "
+                "10. Summarize readiness for model loading, HVAC workflow support, "
                 "simulation, results, SDK lookup, and workflow state tracking.\n"
             ),
         ),
@@ -646,8 +658,11 @@ def _marketplace_setup_skill_docs() -> dict[str, str]:
                 "First run the doctor skill. If the runtime is missing, ask for "
                 "approval before running `python ${CLAUDE_SKILL_DIR}/../"
                 "setup-openstudio-ai/scripts/install_runtime.py`. Do not delete user "
-                "models, simulation outputs, or project files. Describe each repair "
-                "step in plain language for an energy modeler.\n"
+                "models, simulation outputs, or project files. If the installer found "
+                "the command beside its Python but Claude cannot find it, follow the "
+                "setup skill's PATH diagnosis. Do not hard-code a project virtualenv "
+                "path into a marketplace `.mcp.json`. Describe each repair step in plain "
+                "language for an energy modeler.\n"
             ),
         ),
     }

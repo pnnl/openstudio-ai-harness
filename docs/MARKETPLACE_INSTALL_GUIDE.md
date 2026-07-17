@@ -13,6 +13,19 @@ OpenStudio AI has two parts:
 
 The plugin needs the local runtime to do real modeling work.
 
+For Codex, install the OpenStudio project policy after enabling the plugin in
+each project where you want natural-language OpenStudio requests to enter the
+workflow router:
+
+```bash
+openstudio-ai install codex --target-dir /path/to/codex-project
+```
+
+If the project has no `AGENTS.md`, this creates one. If it already has an
+unmanaged `AGENTS.md`, preview the result with `--dry-run`; use `--force` only
+when you approve appending the marked OpenStudio block. Existing project
+instructions remain intact.
+
 ## What You Need
 
 - A supported AI tool, such as Claude Code or Codex.
@@ -39,6 +52,10 @@ For Codex, ask:
 ```text
 Run the OpenStudio AI setup workflow.
 ```
+
+The Codex project policy makes this routing automatic for ordinary OpenStudio
+requests; the setup workflow remains useful when you want to check readiness
+explicitly.
 
 The assistant should:
 
@@ -71,6 +88,16 @@ plugin is installed, but the local runtime is not installed yet.
 
 The assistant should explain the next step and ask before running any installer
 script.
+
+### Runtime Installed But MCP Still Fails
+
+The runtime may be installed for a Python interpreter whose scripts directory
+is not on the `PATH` used to launch Claude Code or Codex. The assistant should
+identify that interpreter and scripts directory, ask before changing the host
+launch environment, then restart or reconnect the plugin. It must not rewrite
+a marketplace plugin's `.mcp.json` with an absolute project virtualenv path:
+that path is machine-specific. For repository development, export a separate
+plugin with `--runtime-mode local` instead.
 
 ### OpenStudio Missing
 

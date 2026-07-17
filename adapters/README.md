@@ -7,7 +7,7 @@ modeling behavior, OpenStudio operations, or durable workflow state.
 ## Ownership
 
 - `claude_code_adapter.py`: Claude Code marketplace and project-local exports.
-- `codex_adapter.py`: Codex marketplace exports.
+- `codex_adapter.py`: Codex marketplace exports and managed project guidance.
 - `contracts.py`: shared host configuration and launch-plan types.
 - `base.py`: common adapter interface.
 
@@ -130,6 +130,17 @@ codex plugin marketplace add /tmp/openstudio-ai-codex
 Codex references also live under the relevant skill. Do not add root plugin
 folders such as `commands/`, `instructions/`, `knowledge/`, `blackboard/`,
 `learning/`, or `installers/`.
+
+After installing or enabling the Codex plugin, install the project-level
+modeler policy with the public CLI:
+
+```bash
+openstudio-ai install codex --target-dir /path/to/codex-project
+```
+
+The command creates `AGENTS.md` if it is absent. It otherwise updates only its
+marked block; preview with `--dry-run`, and use `--force` to append to an
+unmanaged file without replacing existing instructions.
 
 ## Change Checklist
 

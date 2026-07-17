@@ -21,6 +21,19 @@ def register_runtime_tools(mcp, service) -> None:
         }
 
     @mcp.tool(
+        name="runtime_openstudio_status",
+        description=(
+            "Report whether this MCP server can run the native OpenStudio CLI, "
+            "including whether it was found through OPENSTUDIO_PATH or PATH."
+        ),
+    )
+    async def runtime_openstudio_status() -> dict[str, Any]:
+        try:
+            return service.runtime_openstudio_status()
+        except Exception as exc:
+            return error_payload("internal_error", str(exc), retryable=False)
+
+    @mcp.tool(
         name="runtime_storage_usage",
         description="Report local OpenStudio AI MCP runtime workspace usage and registry state.",
     )

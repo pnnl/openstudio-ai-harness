@@ -10,6 +10,10 @@
   routing is declared in `harness/asset_manifest.yaml`.
 - Marketplace exports start the installed `openstudio-ai-mcp` command. Local
   exports start `python -m openstudio_mcp.server` from the source virtualenv.
+- Marketplace setup and repair skills diagnose the Python scripts directory
+  when the runtime installs but the MCP command is absent from the host PATH.
+  They keep `.mcp.json` portable and direct repository users to a separate
+  `--runtime-mode local` export rather than hard-coding a virtualenv path.
 - Exports declare a plugin package version and MCP interface contract version.
   A mismatch is visible through `doctor` and `runtime_plugin_compatibility`, but
   does not prevent MCP startup; users should refresh the plugin or upgrade the
@@ -17,14 +21,30 @@
 - Doctor validates the resolved versioned SDK YAML bundle with a bounded gzip
   metadata probe. Its JSON output reports the SDK docs source, path, and
   selected version; an invalid `OPENSTUDIO_SDK_DOCS_DIR` raises a warning but
-  does not block MCP readiness.
+  does not block MCP readiness because lookup falls back to the bundled SDK
+  documentation.
 - The base package requires the OpenStudio Python package. Model edits,
   simulation, and measures also require the native OpenStudio application or
   CLI through `OPENSTUDIO_PATH` or `PATH`.
 - The MCP runtime resolves an executable `OPENSTUDIO_PATH` first, then falls
-  back to `openstudio` on `PATH`; the resolved absolute path is used for both
-  measures and simulations. Use the environment variable for a nonstandard or
-  version-specific installation.
+  back to `openstudio` on its own `PATH` with `shutil.which`; the resolved
+  absolute path is used for both measures and simulations. Use the environment
+  variable for a nonstandard or version-specific installation.
+- The simulation skill prevents repeated executable failures: it does not edit
+  marketplace `.mcp.json` automatically, requires a reconnect after an approved
+  environment change, and retries only once.
+- `runtime_openstudio_status` is the required simulation preflight. It reports
+  the MCP process's executable path/source and directs the agent to read-only
+  platform-specific discovery before proposing an OpenStudio installation.
+- MCP contract version `2` is required for the simulation preflight. Simulation
+  skills are MCP-only: if the preflight or reconnection is unavailable, they
+  stop and ask the user to refresh the plugin/runtime rather than invoke a
+  local OpenStudio CLI fallback.
+- Codex projects can install a managed OpenStudio block into `AGENTS.md` with
+  `openstudio-ai install codex --target-dir <project>`. The block loads
+  `openstudio-modeling-orchestrator` first, then reuses the shared modeler
+  policy; it preserves surrounding project guidance and does not alter Claude's
+  plugin-agent activation.
 - AUTOMA-AI and Streamlit are only supplied through the `standalone` extra for
   local developer testing. Host-facing skills use host-neutral Python execution
   instructions.

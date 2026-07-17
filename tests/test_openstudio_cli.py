@@ -91,6 +91,29 @@ def test_cli_install_runtime_initializes_storage(
     assert (data_dir / "workspace").is_dir()
 
 
+def test_cli_install_codex_creates_managed_agents_guidance(
+    tmp_path: Path, capsys
+) -> None:
+    assert (
+        main(
+            [
+                "install",
+                "codex",
+                "--target-dir",
+                str(tmp_path),
+                "--workspace-root",
+                str(Path(".").resolve()),
+            ]
+        )
+        == 0
+    )
+
+    assert "Wrote" in capsys.readouterr().out
+    instructions = (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
+    assert "openstudio-modeling-orchestrator" in instructions
+    assert "## SDK Script Gate" in instructions
+
+
 def test_cli_doctor_text_output_reports_checks(
     monkeypatch, tmp_path: Path, capsys
 ) -> None:
@@ -120,7 +143,7 @@ def test_cli_doctor_text_output_reports_checks(
     assert "- sdk docs lookup: ok" in output
 
 
-def test_cli_doctor_reports_invalid_sdk_docs_override(
+def test_cli_doctor_falls_back_from_invalid_sdk_docs_override(
     monkeypatch, tmp_path: Path, capsys
 ) -> None:
     data_dir = tmp_path / "runtime-data"
@@ -141,15 +164,16 @@ def test_cli_doctor_reports_invalid_sdk_docs_override(
     assert main(["doctor", "--json"]) == 0
     payload = json.loads(capsys.readouterr().out)
     assert payload["mcp_ready"] is True
-    assert payload["sdk_docs"]["ok"] is False
-    assert payload["sdk_docs"]["source"] == "environment"
-    assert payload["sdk_docs"]["path"] == str(tmp_path / "missing-sdk-docs")
-    diagnostic = next(
-        item
-        for item in payload["diagnostics"]
-        if item["code"] == "sdk_docs_unavailable"
+    assert payload["sdk_docs"]["ok"] is True
+    assert payload["sdk_docs"]["source"] == "bundled_fallback"
+    assert payload["sdk_docs"]["path"].endswith("openstudio_mcp/sdk_docs/docs")
+    assert payload["sdk_docs"]["override_path"] == str(tmp_path / "missing-sdk-docs")
+    assert (
+        "using the bundled SDK documentation" in payload["sdk_docs"]["override_warning"]
     )
-    assert diagnostic["severity"] == "warning"
+    assert not any(
+        item["code"] == "sdk_docs_unavailable" for item in payload["diagnostics"]
+    )
 
 
 def test_cli_doctor_text_reports_missing_openstudio_sdk(

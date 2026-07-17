@@ -27,8 +27,11 @@ def test_rendered_runtime_helpers_are_executable_python(tmp_path: Path) -> None:
     assert '"--plugin-contract-version"' in doctor
     assert "return 1" in doctor
     assert 'runtime_cli, "install-runtime"' in installer
+    assert "def runtime_command_path(command: str)" in installer
     assert "def runtime_cli_path" in installer
-    assert 'scripts_dir / "Scripts" / "openstudio-ai.exe"' in installer
+    assert 'scripts_dir / "Scripts" / f"{command}.exe"' in installer
+    assert 'runtime_mcp = runtime_command_path("openstudio-ai-mcp")' in installer
+    assert "do not replace it with this absolute path" in installer
     assert '"-m", "cli"' not in installer
     assert (
         'print("\\nOpenStudio AI runtime installation completed.")\n    return 0'

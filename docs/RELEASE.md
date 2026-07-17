@@ -197,6 +197,7 @@ openstudio-ai doctor
 openstudio-ai-mcp --help
 openstudio-ai export claude --output-dir /tmp/openstudio-ai-claude --runtime-mode marketplace
 openstudio-ai export codex --output-dir /tmp/openstudio-ai-codex --runtime-mode marketplace
+openstudio-ai install codex --target-dir /tmp/openstudio-ai-codex-project
 ```
 
 Model editing, measure execution, and simulation readiness require two

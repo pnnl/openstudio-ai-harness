@@ -38,6 +38,23 @@ def test_openstudio_path_falls_back_to_path_discovery(
 
     assert service.openstudio_path == str(discovered.resolve())
     assert service._openstudio_executable_or_none() == str(discovered.resolve())
+    status = service.runtime_openstudio_status()
+    assert status["available"] is True
+    assert status["path"] == str(discovered.resolve())
+    assert status["source"] == "PATH"
+
+
+def test_openstudio_status_explains_missing_cli(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.delenv("OPENSTUDIO_PATH", raising=False)
+    monkeypatch.setattr(mcp_server.shutil, "which", lambda _: None)
+
+    status = OpenStudioService(
+        workspace_root=tmp_path / "workspace"
+    ).runtime_openstudio_status()
+
+    assert status["available"] is False
+    assert status["checks"] == ["OPENSTUDIO_PATH", "shutil.which('openstudio')"]
+    assert "read-only platform-specific discovery" in status["recommendation"]
 
 
 def test_invalid_openstudio_path_does_not_select_a_different_installation(

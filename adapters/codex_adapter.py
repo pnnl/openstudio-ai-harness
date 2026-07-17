@@ -22,6 +22,26 @@ from openstudio_mcp.compatibility import package_version, plugin_mcp_environment
 DEFAULT_PLUGIN_NAME = "openstudio-ai"
 MARKETPLACE_NAME = "openstudio-ai-local"
 SERVER_NAME = "openstudio_ai"
+AGENTS_GENERATED_START = "<!-- BEGIN OPENSTUDIO_AI_HARNESS -->"
+AGENTS_GENERATED_END = "<!-- END OPENSTUDIO_AI_HARNESS -->"
+
+
+@dataclass(frozen=True)
+class CodexInstallAction:
+    """A single file write planned for Codex project guidance."""
+
+    path: Path
+    action: str
+    content: str
+
+
+@dataclass(frozen=True)
+class CodexInstallResult:
+    """Result for installing managed OpenStudio guidance into a Codex project."""
+
+    dry_run: bool
+    target_dir: Path
+    actions: list[CodexInstallAction]
 
 
 @dataclass(frozen=True)
@@ -50,6 +70,36 @@ class CodexAdapter(OpenStudioAiHostAdapter):
             notes=[
                 "Export skills, MCP config, and skill-owned references as a Codex plugin."
             ],
+        )
+
+    def build_install_actions(
+        self, target_dir: Path, *, force: bool = False
+    ) -> list[CodexInstallAction]:
+        """Plan a managed OpenStudio policy block for a Codex project's AGENTS.md."""
+        target_dir = target_dir.resolve()
+        return [
+            CodexInstallAction(
+                path=target_dir / "AGENTS.md",
+                action="write_project_guidance",
+                content=_render_codex_agents_instructions(
+                    existing_path=target_dir / "AGENTS.md",
+                    workspace_root=self.config.workspace_root.resolve(),
+                    force=force,
+                ),
+            )
+        ]
+
+    def install(
+        self, target_dir: Path, *, dry_run: bool = True, force: bool = False
+    ) -> CodexInstallResult:
+        """Write or preview the managed OpenStudio policy block for Codex."""
+        actions = self.build_install_actions(target_dir, force=force)
+        if not dry_run:
+            for action in actions:
+                action.path.parent.mkdir(parents=True, exist_ok=True)
+                action.path.write_text(action.content, encoding="utf-8")
+        return CodexInstallResult(
+            dry_run=dry_run, target_dir=target_dir.resolve(), actions=actions
         )
 
     def export_plugin(
@@ -102,12 +152,61 @@ class CodexAdapter(OpenStudioAiHostAdapter):
             encoding="utf-8",
         )
         _write_plugin_package(plugin_dir, plan, workspace_root, runtime_mode)
+
         return CodexPluginExportResult(
             dry_run=False,
             marketplace_path=marketplace_path,
             plugin_dir=plugin_dir,
             files=files,
         )
+
+
+def _render_codex_agents_instructions(
+    existing_path: Path, workspace_root: Path, *, force: bool
+) -> str:
+    """Render or update the managed OpenStudio block in a project's AGENTS.md.
+
+    Codex does not activate an arbitrary plugin agent prompt as the main thread.
+    Installing the shared modeler policy into the project gives natural-language
+    OpenStudio requests the same orchestration gate that Claude receives through
+    its plugin agent, without replacing the project's own instructions.
+    """
+    generated = _generated_codex_agents_block(workspace_root)
+    if not existing_path.exists():
+        return generated
+
+    existing = existing_path.read_text(encoding="utf-8")
+    if AGENTS_GENERATED_START in existing and AGENTS_GENERATED_END in existing:
+        before, rest = existing.split(AGENTS_GENERATED_START, 1)
+        _, after = rest.split(AGENTS_GENERATED_END, 1)
+        return before.rstrip() + "\n\n" + generated + "\n" + after.lstrip()
+
+    if not force:
+        raise FileExistsError(
+            f"{existing_path} already exists and is not managed by OpenStudio AI. "
+            "Use --force to append the generated OpenStudio AI block."
+        )
+
+    return existing.rstrip() + "\n\n" + generated
+
+
+def _generated_codex_agents_block(workspace_root: Path) -> str:
+    """Return the shared modeler policy with Codex's explicit routing gate."""
+    modeler_prompt = (
+        (workspace_root / "prompts" / "openstudio_agent.md")
+        .read_text(encoding="utf-8")
+        .strip()
+    )
+    return (
+        f"{AGENTS_GENERATED_START}\n"
+        "# OpenStudio AI Modeler Policy\n\n"
+        "For every OpenStudio request, first load `openstudio-modeling-orchestrator`, "
+        "then load the specialized OpenStudio skill that it routes to before taking "
+        "action. This applies even when the user asks in plain language rather than "
+        "naming a skill.\n\n"
+        f"{modeler_prompt}\n"
+        f"{AGENTS_GENERATED_END}\n"
+    )
 
 
 def _planned_export_files(
@@ -355,6 +454,17 @@ def _render_install_doc(
         "```\n\n"
         "## 3. Install Or View The Plugin\n\n"
         "Open the Codex plugin UI and install `openstudio-ai` from `openstudio-ai-local`.\n\n"
+        "## 4. Add The Modeler Policy To A Project\n\n"
+        "Codex plugins load skills and MCP tools, but they do not activate a plugin "
+        "agent prompt as the main thread. In each project where plain-language "
+        "OpenStudio requests should consistently enter the workflow router, install "
+        "the managed OpenStudio block into `AGENTS.md`:\n\n"
+        "```bash\n"
+        "openstudio-ai install codex --target-dir <path-to-project>\n"
+        "```\n\n"
+        "Use `--dry-run` to preview. If the project already has an unmanaged "
+        "`AGENTS.md`, use `--force` only after reviewing the proposed append. "
+        "Later runs update only the marked OpenStudio block.\n\n"
         "## Runtime Setup\n\n"
         "After installation, ask Codex to run `setup-openstudio-ai`. The setup command "
         "checks Python, checks `openstudio-ai-mcp`, and explains any missing installation "
@@ -433,11 +543,22 @@ def _marketplace_setup_skill_docs() -> dict[str, str]:
                 "5. If the runtime is missing, explain the issue in normal energy-modeler "
                 "language and ask before running "
                 "`scripts/install_runtime.py` with the same Python command.\n"
-                "6. When `openstudio-ai` is available, run `openstudio-ai doctor`.\n"
-                "7. If installation changed runtime command availability, tell the "
+                "6. If installation succeeds but `openstudio-ai-mcp` is still missing, "
+                "diagnose command discovery before editing plugin files. Run "
+                '`python -c "import sys, sysconfig; print(sys.executable); '
+                "print(sysconfig.get_path('scripts'))\"` (or `python3`), then check "
+                "whether that scripts directory is on the PATH used to launch Codex. For "
+                "a marketplace plugin, keep `.mcp.json` set to the portable command "
+                "`openstudio-ai-mcp`; do not replace it with an absolute `.venv/bin` path. "
+                "After the user approves a PATH update, restart Codex from that environment.\n"
+                "7. If this is intentionally a repository checkout with a project virtual "
+                "environment, explain that it is local development: re-export with "
+                "`--runtime-mode local` instead of modifying a marketplace export.\n"
+                "8. When `openstudio-ai` is available, run `openstudio-ai doctor`.\n"
+                "9. If installation changed runtime command availability, tell the "
                 "user to restart Codex or reconnect the failed MCP server so Codex "
                 "starts `openstudio-ai-mcp` again.\n"
-                "8. Summarize readiness for model loading, HVAC workflow support, simulation, "
+                "10. Summarize readiness for model loading, HVAC workflow support, simulation, "
                 "results, SDK lookup, and workflow state tracking.\n"
             ),
         ),
@@ -459,8 +580,11 @@ def _marketplace_setup_skill_docs() -> dict[str, str]:
                 "# Repair OpenStudio AI\n\n"
                 "First run the doctor command. If the runtime is missing, ask for approval "
                 "before running the setup skill's `scripts/install_runtime.py`. Do not "
-                "delete user models, simulation outputs, or project files. Describe each "
-                "repair step in plain language for an energy modeler.\n"
+                "delete user models, simulation outputs, or project files. If the installer "
+                "found the command beside its Python but Codex cannot find it, follow the "
+                "setup skill's PATH diagnosis. Do not hard-code a project virtualenv path "
+                "into a marketplace `.mcp.json`. Describe each repair step in plain language "
+                "for an energy modeler.\n"
             ),
         ),
     }
@@ -543,11 +667,35 @@ def _default_workspace_root() -> Path:
 
 
 def _parse_args() -> argparse.Namespace:
-    """Parse CLI arguments for Codex plugin export."""
+    """Parse CLI arguments for Codex plugin and project guidance operations."""
     parser = argparse.ArgumentParser(
         description="Export the OpenStudio AI harness as a Codex plugin."
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
+
+    install = subparsers.add_parser(
+        "install", help="Install managed OpenStudio guidance into a Codex AGENTS.md."
+    )
+    install.add_argument(
+        "--target-dir",
+        type=Path,
+        required=True,
+        help="Codex project directory containing AGENTS.md.",
+    )
+    install.add_argument(
+        "--workspace-root",
+        type=Path,
+        default=_default_workspace_root(),
+        help="OpenStudio AI harness root containing the shared modeler policy.",
+    )
+    install.add_argument(
+        "--dry-run", action="store_true", help="Preview guidance without writing it."
+    )
+    install.add_argument(
+        "--force",
+        action="store_true",
+        help="Append the managed block to an existing unmanaged AGENTS.md.",
+    )
 
     export = subparsers.add_parser(
         "export-plugin", help="Export a Codex plugin and local marketplace."
@@ -589,6 +737,21 @@ def _parse_args() -> argparse.Namespace:
 def main() -> int:
     """CLI entrypoint for Codex adapter operations."""
     args = _parse_args()
+    if args.command == "install":
+        adapter = CodexAdapter(
+            config=HostAdapterConfig(
+                host_name="codex", workspace_root=args.workspace_root
+            )
+        )
+        result = adapter.install(
+            args.target_dir, dry_run=args.dry_run, force=args.force
+        )
+        mode = "Would write" if result.dry_run else "Wrote"
+        for action in result.actions:
+            print(f"{mode} {action.path} ({action.action})")
+            if result.dry_run:
+                print(action.content)
+        return 0
     if args.command == "export-plugin":
         adapter = CodexAdapter(
             config=HostAdapterConfig(

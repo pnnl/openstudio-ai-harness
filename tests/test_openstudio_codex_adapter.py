@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from adapters.codex_adapter import CodexAdapter
+from adapters.codex_adapter import AGENTS_GENERATED_START, CodexAdapter
 from adapters.contracts import HostAdapterConfig
 from openstudio_mcp.compatibility import plugin_mcp_environment
 
@@ -42,6 +42,63 @@ def test_codex_adapter_export_plugin_dry_run_does_not_write(tmp_path: Path) -> N
     assert not result.plugin_dir.exists()
 
 
+def test_codex_adapter_guidance_install_dry_run_does_not_write(tmp_path: Path) -> None:
+    result = _adapter().install(tmp_path, dry_run=True)
+
+    assert result.dry_run is True
+    assert [action.path.name for action in result.actions] == ["AGENTS.md"]
+    assert not (tmp_path / "AGENTS.md").exists()
+
+
+def test_codex_adapter_installs_shared_modeler_policy(tmp_path: Path) -> None:
+    result = _adapter().install(tmp_path, dry_run=False)
+
+    assert result.dry_run is False
+    instructions = (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
+    assert AGENTS_GENERATED_START in instructions
+    assert "openstudio-modeling-orchestrator" in instructions
+    assert "## SDK Script Gate" in instructions
+    assert "Do not use host Python execution for simulation runs" in instructions
+
+
+def test_codex_adapter_refuses_unmanaged_agents_without_force(tmp_path: Path) -> None:
+    (tmp_path / "AGENTS.md").write_text(
+        "# Existing project instructions\n", encoding="utf-8"
+    )
+
+    with pytest.raises(FileExistsError):
+        _adapter().install(tmp_path, dry_run=True)
+
+
+def test_codex_adapter_force_preserves_unmanaged_agents(tmp_path: Path) -> None:
+    existing = "# Existing project instructions\n\nKeep these instructions.\n"
+    (tmp_path / "AGENTS.md").write_text(existing, encoding="utf-8")
+
+    _adapter().install(tmp_path, dry_run=False, force=True)
+
+    instructions = (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
+    assert instructions.startswith(existing.rstrip())
+    assert AGENTS_GENERATED_START in instructions
+
+
+def test_codex_adapter_updates_only_its_managed_agents_block(tmp_path: Path) -> None:
+    _adapter().install(tmp_path, dry_run=False)
+    agents_path = tmp_path / "AGENTS.md"
+    agents_path.write_text(
+        "Project guidance before.\n\n"
+        + agents_path.read_text(encoding="utf-8")
+        + "\nProject guidance after.\n",
+        encoding="utf-8",
+    )
+
+    _adapter().install(tmp_path, dry_run=False)
+
+    instructions = agents_path.read_text(encoding="utf-8")
+    assert instructions.startswith("Project guidance before.")
+    assert instructions.rstrip().endswith("Project guidance after.")
+    assert instructions.count(AGENTS_GENERATED_START) == 1
+
+
 def test_codex_adapter_exports_plugin_package(tmp_path: Path) -> None:
     result = _adapter().export_plugin(tmp_path, dry_run=False)
 
@@ -59,6 +116,11 @@ def test_codex_adapter_exports_plugin_package(tmp_path: Path) -> None:
     assert (plugin_dir / "skills" / "add-vav-reheat" / "SKILL.md").exists()
     assert (plugin_dir / "skills" / "propose-measure" / "SKILL.md").exists()
     assert (plugin_dir / "skills" / "capture-session-lesson" / "SKILL.md").exists()
+    simulate_skill = (plugin_dir / "skills" / "simulate" / "SKILL.md").read_text(
+        encoding="utf-8"
+    )
+    assert "## MCP-Only Boundary" in simulate_skill
+    assert "do not use a local CLI fallback" in simulate_skill
     assert (
         plugin_dir / "skills" / "openstudio-hvac-air-loop-creator" / "SKILL.md"
     ).exists()
@@ -185,6 +247,8 @@ def test_codex_adapter_exports_plugin_package(tmp_path: Path) -> None:
     assert not (plugin_dir / "learning").exists()
     install_doc = (tmp_path / "INSTALL.md").read_text(encoding="utf-8")
     assert f"codex plugin marketplace add {tmp_path}" in install_doc
+    assert "openstudio-ai install codex --target-dir <path-to-project>" in install_doc
+    assert "openstudio-ai-codex-export install" not in install_doc
 
 
 def test_codex_adapter_exports_valid_manifest_and_marketplace(tmp_path: Path) -> None:
@@ -271,6 +335,9 @@ def test_codex_adapter_marketplace_mode_exports_runtime_setup(tmp_path: Path) ->
     assert "python3 --version" in setup
     assert "openstudio-ai-mcp --help" in setup
     assert "energy-modeler language" in setup
+    assert "diagnose command discovery before editing plugin files" in setup
+    assert "do not replace it with an absolute `.venv/bin` path" in setup
+    assert "--runtime-mode local" in setup
     assert "restart Codex" in setup
     installer = (
         plugin_dir / "skills" / "setup-openstudio-ai" / "scripts" / "install_runtime.py"

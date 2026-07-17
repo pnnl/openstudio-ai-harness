@@ -120,8 +120,9 @@ Claude Code install flow:
 Codex export:
 
 ```bash
-.venv/bin/python -m adapters.codex_adapter export-plugin \
-  --output-dir /tmp/openstudio-ai-codex-plugin
+openstudio-ai export codex \
+  --output-dir /tmp/openstudio-ai-codex-plugin \
+  --runtime-mode marketplace
 ```
 
 Codex install flow:
@@ -129,6 +130,17 @@ Codex install flow:
 ```bash
 codex plugin marketplace add /tmp/openstudio-ai-codex-plugin
 ```
+
+After enabling the plugin, add the managed OpenStudio modeler policy to the
+Codex project that will use it:
+
+```bash
+openstudio-ai install codex --target-dir /path/to/codex-project
+```
+
+This creates `AGENTS.md` when it is absent. Use `--dry-run` to preview; an
+existing unmanaged `AGENTS.md` requires `--force` before appending the marked
+block without replacing project instructions.
 
 Exported packages keep host-visible content in native plugin locations. Claude
 Code exports use Claude plugin folders such as `skills/`, `agents/`,

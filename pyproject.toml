@@ -1,0 +1,145 @@
+[project]
+name = "openstudio-ai"
+version = "0.1.5"
+description = "OpenStudio AI harness with MCP runtime, host adapters, skills, and knowledge."
+requires-python = ">=3.12"
+authors = [{ name = "PNNL" }]
+readme = "README.md"
+license = "BSD-3-Clause"
+keywords = ["openstudio", "building-energy-modeling", "mcp", "simulation", "ai"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: BSD License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering",
+]
+dependencies = [
+    "mcp>=1.0.0",
+    "openstudio>=3.10.0",
+    "platformdirs>=4.0.0",
+    "pydantic>=2.12.3",
+    "python-dotenv>=1.0.0",
+    "pyyaml>=6.0.2",
+    "jinja2>=3.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "build>=1.2.0",
+    "black>=25.9.0",
+    "pytest>=8.4.2",
+    "pytest-asyncio>=1.2.0",
+    "twine>=5.0.0",
+]
+standalone = [
+    "automa-ai>=0.7.3",
+    "streamlit>=1.54.0",
+]
+
+[project.urls]
+Homepage = "https://gitlab.pnnl.gov/building-energy-modeling/openstudio-ai-harness"
+Repository = "https://gitlab.pnnl.gov/building-energy-modeling/openstudio-ai-harness"
+Documentation = "https://gitlab.pnnl.gov/building-energy-modeling/openstudio-ai-harness"
+
+[project.scripts]
+openstudio-ai = "cli:main"
+openstudio-ai-mcp = "openstudio_mcp.server:main"
+openstudio-ai-claude-export = "adapters.claude_code_adapter:main"
+openstudio-ai-codex-export = "adapters.codex_adapter:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = [
+    "adapters",
+    "blackboard",
+    "harness",
+    "learning",
+    "openstudio_mcp",
+    "scripts",
+    "sdk_index",
+]
+only-include = [
+    "adapters",
+    "blackboard",
+    "harness",
+    "learning",
+    "openstudio_mcp",
+    "scripts",
+    "sdk_index",
+    "cli.py",
+    "agent.py",
+    "ui.py",
+    "skills",
+    "knowledge",
+    "prompts",
+    "policy",
+    "measures",
+    "specs",
+    "evals",
+    "docs",
+    "HANDOFF.md",
+    "LICENSE",
+    "README.md",
+    "sample.env",
+]
+exclude = [
+    ".git",
+    ".idea",
+    ".venv",
+    "dist",
+    "build",
+    ".pytest_cache",
+    ".openstudio_mcp_workspace",
+    "resource",
+    "tests",
+    "evals",
+    "measures/candidates",
+]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "adapters/**",
+    "blackboard/**",
+    "harness/**",
+    "learning/**",
+    "openstudio_mcp/**",
+    "scripts/**",
+    "sdk_index/**",
+    "skills/**",
+    "knowledge/**",
+    "prompts/**",
+    "policy/**",
+    "measures/**",
+    "specs/**",
+    "evals/**",
+    "docs/**",
+    "tests/**",
+    "cli.py",
+    "agent.py",
+    "ui.py",
+    "*.md",
+    "LICENSE",
+    "*.json",
+    "*.yaml",
+    "*.png",
+    "sample.env",
+    "README.md",
+    "pyproject.toml",
+]
+exclude = [
+    ".git",
+    ".idea",
+    ".venv",
+    "dist",
+    "build",
+    ".pytest_cache",
+    ".openstudio_mcp_workspace",
+    "measures/candidates/**",
+    "tests/fixtures/**",
+]

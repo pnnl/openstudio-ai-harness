@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OpenStudio AI Plugin Manifest",
+  "type": "object",
+  "required": ["version", "skills", "agents", "references"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "version": { "type": "integer", "enum": [3] },
+    "skills": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/skill" }
+    },
+    "agents": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/agent" }
+    },
+    "references": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/reference" }
+    }
+  },
+  "$defs": {
+    "hosts": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "enum": ["claude", "codex"] }
+    },
+    "skill": {
+      "type": "object",
+      "required": ["id", "source", "hosts"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "source": { "type": "string", "minLength": 1 },
+        "hosts": { "$ref": "#/$defs/hosts" }
+      }
+    },
+    "agent": {
+      "type": "object",
+      "required": ["id", "source", "hosts"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "source": { "type": "string", "minLength": 1 },
+        "hosts": { "type": "array", "const": ["claude"] }
+      }
+    },
+    "reference": {
+      "type": "object",
+      "required": ["source", "owners"],
+      "additionalProperties": false,
+      "properties": {
+        "source": { "type": "string", "minLength": 1 },
+        "owners": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/reference_owner" }
+        }
+      }
+    },
+    "reference_owner": {
+      "type": "object",
+      "required": ["hosts", "skill"],
+      "additionalProperties": false,
+      "properties": {
+        "hosts": { "$ref": "#/$defs/hosts" },
+        "skill": { "type": "string", "minLength": 1 },
+        "subdirectory": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

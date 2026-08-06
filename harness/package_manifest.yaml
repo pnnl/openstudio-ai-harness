@@ -1,0 +1,16 @@
+name: openstudio_ai_harness
+version: 0.1.5
+description: Portable OpenStudio AI harness for agent hosts.
+entrypoints:
+  mcp_server: openstudio_mcp/server.py
+  primary_agent_spec: specs/openstudio_agent.yaml
+assets:
+  asset_manifest: harness/asset_manifest.yaml
+  asset_manifest_schema: harness/asset_manifest.schema.json
+  prompts: prompts
+  skills: skills
+  knowledge: knowledge
+  sdk_index: sdk_index
+  blackboard_schema: blackboard/schemas/workflow_state.schema.json
+  learning_events: logs/learning_events.jsonl
+trusted_asset_policy: reviewed_only

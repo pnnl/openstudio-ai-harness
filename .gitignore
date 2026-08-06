@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# Local environments
+.venv/
+venv/
+.env
+
+# macOS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# OpenStudio AI runtime state
+.openstudio_mcp_workspace/
+.openstudio_ai_blackboards/
+.sdk_doc_index.json
+logs/*
+!logs/.gitkeep
+outputs/*
+!outputs/.gitkeep
+state/candidate_assets/*
+state/sessions/*
+state/snapshots/*
+state/workflow_runs/*
+
+# Generated local package exports
+openstudio-ai-claude-plugin/
+openstudio-ai-codex-plugin/
+

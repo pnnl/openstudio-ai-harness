@@ -1,0 +1,115 @@
+$schema: asset_manifest.schema.json
+version: 3
+
+skills:
+  - id: add-vav-reheat
+    source: skills/add_vav_reheat.md
+    hosts: [claude, codex]
+  - id: capture-session-lesson
+    source: skills/capture_session_lesson.md
+    hosts: [claude, codex]
+  - id: hvac-sizing-assistant
+    source: skills/hvac_sizing_assistant.md
+    hosts: [claude, codex]
+  - id: openstudio-hvac-air-loop-creator
+    source: skills/openstudio_hvac_air_loop_creator.md
+    hosts: [claude, codex]
+  - id: openstudio-hvac-central-cooling-coil-creator
+    source: skills/openstudio_hvac_central_cooling_coil_creator.md
+    hosts: [claude, codex]
+  - id: openstudio-hvac-central-heating-coil-creator
+    source: skills/openstudio_hvac_central_heating_coil_creator.md
+    hosts: [claude, codex]
+  - id: openstudio-hvac-outdoor-air-system-creator
+    source: skills/openstudio_hvac_outdoor_air_system_creator.md
+    hosts: [claude, codex]
+  - id: openstudio-hvac-schedule-resolver
+    source: skills/openstudio_hvac_schedule_resolver.md
+    hosts: [claude, codex]
+  - id: openstudio-hvac-sizing-system-configurator
+    source: skills/openstudio_hvac_sizing_system_configurator.md
+    hosts: [claude, codex]
+  - id: openstudio-hvac-supply-fan-creator
+    source: skills/openstudio_hvac_supply_fan_creator.md
+    hosts: [claude, codex]
+  - id: openstudio-hvac-system-validator
+    source: skills/openstudio_hvac_system_validator.md
+    hosts: [claude, codex]
+  - id: openstudio-hvac-vav-terminal-creator
+    source: skills/openstudio_hvac_vav_terminal_creator.md
+    hosts: [claude, codex]
+  - id: openstudio-modeling-orchestrator
+    source: skills/openstudio_modeling_orchestrator.md
+    hosts: [codex]
+  - id: openstudio-sdk-model-editor
+    source: skills/openstudio_sdk_model_editor.md
+    hosts: [claude, codex]
+  - id: openstudio-vav-reheat-system-creator
+    source: skills/openstudio_vav_reheat_system_creator.md
+    hosts: [claude, codex]
+  - id: openstudio-workflow-state
+    source: skills/openstudio_hvac_workflow_state.md
+    hosts: [claude, codex]
+  - id: propose-measure
+    source: skills/propose_measure.md
+    hosts: [claude, codex]
+  - id: query-results
+    source: skills/query_results.md
+    hosts: [claude, codex]
+  - id: simulate
+    source: skills/simulate.md
+    hosts: [claude, codex]
+
+agents:
+  - id: openstudio-modeler
+    source: prompts/openstudio_agent.md
+    hosts: [claude]
+
+references:
+  - source: prompts/blackboard_contract.md
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-workflow-state
+  - source: prompts/learning_contract.md
+    owners:
+      - hosts: [claude, codex]
+        skill: propose-measure
+      - hosts: [claude, codex]
+        skill: capture-session-lesson
+  - source: prompts/promotion_rules.md
+    owners:
+      - hosts: [claude, codex]
+        skill: propose-measure
+  - source: knowledge/openstudio_sdk_recipes.md
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-sdk-model-editor
+  - source: knowledge/openstudio_sdk_wiki/*.md
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-sdk-model-editor
+        subdirectory: sdk_wiki
+  - source: blackboard/schemas/workflow_state.schema.json
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-workflow-state
+  - source: blackboard/schemas/state_patch.schema.json
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-workflow-state
+  - source: learning/harness_pipeline/schemas/candidate_measure.schema.json
+    owners:
+      - hosts: [claude, codex]
+        skill: propose-measure
+  - source: learning/harness_pipeline/schemas/candidate_recipe.schema.json
+    owners:
+      - hosts: [claude, codex]
+        skill: propose-measure
+  - source: learning/harness_pipeline/schemas/session_lesson.schema.json
+    owners:
+      - hosts: [claude, codex]
+        skill: capture-session-lesson
+  - source: learning/harness_pipeline/runtime_learning.md
+    owners:
+      - hosts: [claude, codex]
+        skill: capture-session-lesson

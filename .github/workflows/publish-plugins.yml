@@ -15,6 +15,7 @@ concurrency:
 env:
   PLUGINS_REPO: pnnl-int/openstudio-ai-plugins
   EXPORT_BRANCH: automated/plugin-export
+  BASE_BRANCH: main
   EXPORT_COMMAND: openstudio-ai export marketplace --runtime-mode marketplace
 
 jobs:
@@ -32,6 +33,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ${{ env.PLUGINS_REPO }}
+          ref: ${{ env.BASE_BRANCH }}
           token: ${{ secrets.PLUGINS_PR_TOKEN }}
           path: plugins-repo
 
@@ -99,13 +101,18 @@ jobs:
           # Reuse the commit subject so the PR title can never drift from it.
           title=$(git log -1 --format=%s)
 
-          existing=$(gh pr list --head "${EXPORT_BRANCH}" --base main --state open --json number --jq '.[0].number // empty')
+          existing=$(gh pr list \
+            --head "${EXPORT_BRANCH}" \
+            --base "${BASE_BRANCH}" \
+            --state open \
+            --json number,isCrossRepository \
+            --jq '[.[] | select(.isCrossRepository == false)] | .[0].number // empty')
           if [ -n "${existing}" ]; then
             gh pr edit "${existing}" --title "${title}" --body "${body}"
             echo "Updated PR #${existing}"
           else
             gh pr create \
-              --base main \
+              --base "${BASE_BRANCH}" \
               --head "${EXPORT_BRANCH}" \
               --title "${title}" \
               --body "${body}"

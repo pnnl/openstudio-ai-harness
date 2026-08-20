@@ -2,6 +2,9 @@ $schema: asset_manifest.schema.json
 version: 3
 
 skills:
+  - id: delegated-nlr-modeling
+    source: skills/delegated_nlr_modeling.md
+    hosts: [claude, codex]
   - id: add-vav-reheat
     source: skills/add_vav_reheat.md
     hosts: [claude, codex]

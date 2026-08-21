@@ -1,6 +1,6 @@
 [project]
 name = "openstudio-ai"
-version = "0.1.5"
+version = "0.1.6"
 description = "OpenStudio AI harness with MCP runtime, host adapters, skills, and knowledge."
 requires-python = ">=3.12"
 authors = [{ name = "PNNL" }]

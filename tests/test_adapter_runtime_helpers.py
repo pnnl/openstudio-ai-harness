@@ -24,6 +24,9 @@ def test_rendered_runtime_helpers_are_executable_python(tmp_path: Path) -> None:
     _compile_script(tmp_path, "install_runtime.py", installer)
 
     assert PLUGIN_CONTRACT_VERSION in doctor
+    assert "def nlr_mcp_status" in doctor
+    assert '"nlr_openstudio": nlr_mcp_status()' in doctor
+    assert "OpenStudio AI works normally without it" in doctor
     assert '"--plugin-contract-version"' in doctor
     assert "return 1" in doctor
     assert 'runtime_cli, "install-runtime"' in installer

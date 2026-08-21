@@ -118,6 +118,11 @@ def test_claude_code_adapter_exports_plugin_package(tmp_path: Path) -> None:
     assert (
         plugin_dir / "skills" / "openstudio-hvac-air-loop-creator" / "SKILL.md"
     ).exists()
+    delegated_nlr_skill = (
+        plugin_dir / "skills" / "delegated-nlr-modeling" / "SKILL.md"
+    )
+    assert delegated_nlr_skill.exists()
+    assert "NLR Skill Guidance" in delegated_nlr_skill.read_text(encoding="utf-8")
     assert not (
         plugin_dir / "skills" / "HVAC-CHILD-SKILL-MANAGEMENT" / "SKILL.md"
     ).exists()
@@ -212,6 +217,8 @@ def test_claude_code_adapter_exports_plugin_package(tmp_path: Path) -> None:
     assert "## SDK Script Gate" in agent_prompt
     assert "do not retry an SDK method name from memory" in agent_prompt
     assert "bundled 3.x" in agent_prompt
+    assert "./.venv/bin/python" in agent_prompt
+    assert "./nlr-workspace/runs/<suffix>" in agent_prompt
     readme = (plugin_dir / "README.md").read_text(encoding="utf-8")
     assert "activating it as the main Claude Code thread" in readme
     assert "does not automatically read arbitrary plugin instruction files" in readme

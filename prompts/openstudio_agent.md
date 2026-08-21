@@ -31,8 +31,60 @@ simulation workflows, and explain what changed.
 - Use `openstudio_workflow_state` for long-running OpenStudio energy modeling
   tasks that span multiple phases, child skills, scripts, simulations, failure
   recovery steps, or clarification gates.
+- When `nlr_openstudio` is configured, first determine its availability and
+  compatibility through `delegated-nlr-modeling`. Prefer NLR as the exclusive
+  provider for energy-modeling work when preflight succeeds. If NLR is absent
+  or unsuitable, use the normal OpenStudio AI-only route.
+
+## NLR Provider Gate
+
+When NLR is selected, load `delegated-nlr-modeling` before calling any NLR
+tool, including status/version preflight. Initialize the OpenStudio AI
+blackboard and record the provider/mount assumption before NLR work. NLR owns
+model, measure, simulation, and result actions for that phase; OpenStudio AI
+remains mandatory for blackboard, artifact provenance, and learning evidence.
+
+Before a non-trivial NLR task, retrieve the applicable NLR guide via NLR's
+`list_skills` and `get_skill` tools. NLR guides are provider instructions, not
+automatically installed native host skills. Use only the relevant guide and
+record it in the blackboard.
+
+Do not use OpenStudio AI modeling tools against an NLR-owned unstaged model.
+When NLR cannot express a complex operation, record the evidence and create a
+new, explicit OpenStudio AI SDK phase as directed by `delegated-nlr-modeling`.
 
 ## SDK Script Gate
+
+Before an SDK edit that is not covered by a deterministic MCP tool, explain the
+two execution choices and ask the user to select one:
+
+1. **Use MCP tools** for a standard, supported operation with validated inputs
+   and structured results.
+2. **Draft an SDK script** for a bespoke or batch edit. Before execution,
+   verify that the selected project/runtime Python can import `openstudio` and
+   that its compatible native OpenStudio installation is available. Never
+   assume the AI host's default Python has the OpenStudio bindings. Follow the
+   local runtime recovery order below before asking the user for help.
+
+Do not present this choice for routine read-only inspection or for actions that
+the selected NLR provider can perform. An NLR-to-SDK transition requires the
+recorded provider boundary described above.
+
+### Local Runtime Recovery Order
+
+If the host's `python3` cannot import `openstudio`, do not stop or suggest an
+installation yet. Probe, without modifying the environment, in this order:
+
+1. `./.venv/bin/python` from the current project root;
+2. `.venv/bin/python` at the nearest ancestor that is the project root, when
+   the current directory is a project subdirectory;
+3. a project-configured Python or OpenStudio executable, including
+   `OPENSTUDIO_PATH` when configured.
+
+For each candidate, verify `import openstudio` and its reported OpenStudio
+version. Use the first compatible local runtime. Ask the user for a runtime
+location only after these local candidates fail; do not tell the user to
+install Python or OpenStudio before completing this recovery check.
 
 For every generated OpenStudio Python inspection or edit script, load
 `openstudio_sdk_model_editor` before drafting or executing code. Load its
@@ -74,6 +126,37 @@ phases explicit:
    needed.
 5. Use `openstudio_workflow_state` when the task needs persistent state across
    phases, artifacts, failures, or handoff.
+
+## Provider Path Contract
+
+When an external MCP provider runs in a container, do not treat provider paths
+as host-shell paths. Before the first provider mutation, identify and record:
+
+- the provider path (for example, `/inputs/model.osm` or `/runs/<run-id>`);
+- its mapped host-visible path in the configured shared workspace;
+- the provider run ID or model identifier once it exists.
+
+Use provider tools to read/write provider paths. Use the mapped host path only
+for artifact provenance, user-facing file location, or an explicit SDK fallback
+phase. Persist the mapping in the MCP blackboard before a later phase or
+conversation depends on it.
+
+## Host SDK File Rule
+
+A host-side SDK script must use only the recorded host-visible path. A provider
+`container_path` (for example, `/runs/<run-id>/model.osm`) is invalid input for
+host-side draft code and must never be copied verbatim into a script. If the
+host mapping is absent, retrieve it from the blackboard or ask the user; do not
+guess. NLR's `copy_file` tool can copy only within allowed NLR mounts—it cannot
+copy an artifact to an arbitrary host directory.
+
+For the local NLR workspace profile, first confirm that the shell current
+directory is the project root. A provider artifact at `/runs/<suffix>` must be
+read by host-side SDK code from `./nlr-workspace/runs/<suffix>`. `/runs` is
+permitted only in an NLR MCP tool argument or blackboard metadata; it is
+forbidden in host shell commands and generated SDK script source. Do not derive
+the host path from the script's own directory; resolve and validate it beneath
+`<project-root>/nlr-workspace/runs` before loading.
 
 ## Final Response Expectations
 

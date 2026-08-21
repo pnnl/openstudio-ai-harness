@@ -24,6 +24,11 @@ workflow skill owns all writes. Child skills and script phases return narrow
 - If a required value is missing, ask one focused clarification question and
   write the answer before continuing.
 - Include a compact final state summary in the task answer.
+- Never perform two critical provider mutations without an intervening
+  blackboard write. Critical boundaries include provider preflight, model
+  create/load/save, measure application, simulation submit/complete/cancel,
+  results extraction, provider transition, and final handoff.
+- Snapshot before a conversation pause and record the exact next action.
 
 ## Blackboard Operations
 

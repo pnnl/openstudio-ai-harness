@@ -20,6 +20,11 @@ approved command or script execution path, and some hosts may require asking the
 user to run the displayed script manually. Do not execute Python scripts for
 tasks that can be completed with MCP `model_*`, `sim_*`, or `results_*` tools.
 
+When NLR is selected as the modeling provider, this skill is available only
+after `delegated-nlr-modeling` records a supported provider transition. It must
+use the host-visible staged model path recorded in the blackboard, never an NLR
+container path such as `/runs/...`.
+
 Allowed uses:
 
 - inspect spaces, thermal zones, surfaces, constructions, schedules, loads, and
@@ -119,6 +124,16 @@ Disallowed uses:
    - assumptions and unresolved issues;
    - output model path;
    - recommended next step, usually validation or simulation via MCP.
+
+## Local Runtime Recovery
+
+Before concluding that the host cannot execute an SDK script, verify local
+runtimes without installing anything. If `python3 -c "import openstudio"`
+fails, try `./.venv/bin/python` from the project root, then the nearest
+project-root `.venv/bin/python` when working in a subdirectory, followed by a
+project-configured OpenStudio runtime such as `OPENSTUDIO_PATH`. Verify the
+import and OpenStudio version for every candidate and use the first compatible
+runtime. Ask the user for a runtime location only after those checks fail.
 
 ## SDK Context-Pack Selection
 

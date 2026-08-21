@@ -1,8 +1,9 @@
 name: Publish plugins marketplace
 
 on:
-  push:
-    branches: [main]
+  workflow_run:
+    workflows: ["Publish to PyPI"]
+    types: [completed]
   workflow_dispatch:
 
 permissions:
@@ -22,11 +23,17 @@ jobs:
   export:
     name: Export marketplace and open PR
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success'
+      && github.event.workflow_run.head_repository.full_name == github.repository)
 
     steps:
       - name: Check out harness
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           path: harness-repo
 
       - name: Check out plugins repository
@@ -46,6 +53,7 @@ jobs:
       - name: Export marketplace tree
         working-directory: harness-repo
         run: |
+          set -euo pipefail
           # Unquoted on purpose: EXPORT_COMMAND must word-split into arguments.
           uv run --frozen ${EXPORT_COMMAND} \
             --output-dir "${RUNNER_TEMP}/marketplace" \
@@ -66,7 +74,7 @@ jobs:
       - name: Commit and push export branch
         working-directory: plugins-repo
         env:
-          HARNESS_SHA: ${{ github.sha }}
+          HARNESS_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
           HARNESS_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
@@ -86,7 +94,7 @@ jobs:
         working-directory: plugins-repo
         env:
           GH_TOKEN: ${{ secrets.PLUGINS_PR_TOKEN }}
-          HARNESS_SHA: ${{ github.sha }}
+          HARNESS_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
           HARNESS_REPO: ${{ github.repository }}
           HARNESS_SERVER: ${{ github.server_url }}
         run: |

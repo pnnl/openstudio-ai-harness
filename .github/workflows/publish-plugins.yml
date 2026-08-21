@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  PLUGINS_REPO: pnnl-int/openstudio-ai-plugins
+  PLUGINS_REPO: pnnl/openstudio-ai-plugins
   EXPORT_BRANCH: automated/plugin-export
   BASE_BRANCH: main
   EXPORT_COMMAND: openstudio-ai export marketplace --runtime-mode marketplace

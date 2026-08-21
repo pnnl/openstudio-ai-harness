@@ -336,7 +336,7 @@ def test_claude_code_adapter_exports_skill_frontmatter(tmp_path: Path) -> None:
     assert skill.startswith("---\n")
     assert "name: openstudio-hvac-air-loop-creator\n" in skill
     assert "description: Create or confirm the parent AirLoopHVAC object" in skill
-    assert "version: 0.1.5\n" in skill
+    assert "version: 0.1.8\n" in skill
     assert "\n---\n\n## Scope" in skill
 
 

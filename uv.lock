@@ -2653,21 +2653,19 @@ wheels = [
 
 [[package]]
 name = "openstudio-ai"
-version = "0.1.5"
+version = "0.1.8"
 source = { editable = "." }
 dependencies = [
     { name = "jinja2" },
     { name = "mcp" },
     { name = "openstudio" },
+    { name = "platformdirs" },
     { name = "pydantic" },
     { name = "python-dotenv" },
     { name = "pyyaml" },
 ]
 
 [package.optional-dependencies]
-automa = [
-    { name = "automa-ai" },
-]
 dev = [
     { name = "black" },
     { name = "build" },
@@ -2675,27 +2673,29 @@ dev = [
     { name = "pytest-asyncio" },
     { name = "twine" },
 ]
-ui = [
+standalone = [
+    { name = "automa-ai" },
     { name = "streamlit" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "automa-ai", marker = "extra == 'automa'", specifier = ">=0.7.3" },
+    { name = "automa-ai", marker = "extra == 'standalone'", specifier = ">=0.7.3" },
     { name = "black", marker = "extra == 'dev'", specifier = ">=25.9.0" },
     { name = "build", marker = "extra == 'dev'", specifier = ">=1.2.0" },
     { name = "jinja2", specifier = ">=3.1.0" },
-    { name = "mcp", specifier = ">=1.0.0" },
+    { name = "mcp", specifier = ">=1.28,<2" },
     { name = "openstudio", specifier = ">=3.10.0" },
+    { name = "platformdirs", specifier = ">=4.0.0" },
     { name = "pydantic", specifier = ">=2.12.3" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.4.2" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=1.2.0" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
     { name = "pyyaml", specifier = ">=6.0.2" },
-    { name = "streamlit", marker = "extra == 'ui'", specifier = ">=1.54.0" },
+    { name = "streamlit", marker = "extra == 'standalone'", specifier = ">=1.54.0" },
     { name = "twine", marker = "extra == 'dev'", specifier = ">=5.0.0" },
 ]
-provides-extras = ["dev", "automa", "ui"]
+provides-extras = ["dev", "standalone"]
 
 [[package]]
 name = "opentelemetry-api"

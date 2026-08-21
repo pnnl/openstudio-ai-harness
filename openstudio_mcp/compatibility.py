@@ -9,7 +9,7 @@ from pathlib import Path
 import tomllib
 
 PACKAGE_NAME = "openstudio-ai"
-PACKAGE_VERSION_FALLBACK = "0.1.5"
+PACKAGE_VERSION_FALLBACK = "0.1.8"
 PLUGIN_VERSION_ENV = "OPENSTUDIO_AI_PLUGIN_VERSION"
 PLUGIN_CONTRACT_ENV = "OPENSTUDIO_AI_PLUGIN_CONTRACT_VERSION"
 # Contract 2 adds runtime_openstudio_status, which the simulation skill requires

@@ -1,7 +1,7 @@
 ---
 name: sdk_spaces_zones_loads
 description: OpenStudio Python SDK examples for spaces, thermal zones, and internal loads.
-version: 0.1.5
+version: 0.1.8
 ---
 
 # SDK Spaces, Zones, and Loads Context

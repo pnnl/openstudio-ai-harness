@@ -1,7 +1,7 @@
 ---
 name: sdk_constructions
 description: OpenStudio Python SDK examples for construction and material inspection/editing.
-version: 0.1.5
+version: 0.1.8
 ---
 
 # SDK Constructions Context

@@ -1,7 +1,7 @@
 ---
 name: sdk_geometry
 description: OpenStudio Python SDK examples for geometry inspection and scoped geometry edits.
-version: 0.1.5
+version: 0.1.8
 ---
 
 # SDK Geometry Context

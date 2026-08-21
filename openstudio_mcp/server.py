@@ -17,7 +17,10 @@ from urllib.parse import unquote, urlparse
 from uuid import uuid4
 
 from dotenv import load_dotenv
-from mcp.server import FastMCP
+# FastMCP is implemented in the ``fastmcp`` submodule.  Importing it from the
+# package root is not supported by every MCP SDK version allowed by our
+# dependency range.
+from mcp.server.fastmcp import FastMCP
 
 from blackboard.operations import (
     apply_state_patch,

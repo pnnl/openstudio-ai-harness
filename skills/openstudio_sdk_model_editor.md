@@ -1,7 +1,7 @@
 ---
 name: openstudio_sdk_model_editor
 description: Inspect and edit OpenStudio models through host Python execution and the OpenStudio Python SDK.
-version: 0.1.5
+version: 0.1.8
 output_format: markdown_with_json_summary
 ---
 

@@ -1,7 +1,7 @@
 ---
 name: openstudio_hvac_supply_fan_creator
 description: Create and attach a variable-volume supply fan for an OpenStudio VAV air loop.
-version: 0.1.5
+version: 0.1.8
 output_format: markdown_with_json_state_patch
 ---
 

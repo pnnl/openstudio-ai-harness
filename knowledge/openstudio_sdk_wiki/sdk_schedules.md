@@ -1,7 +1,7 @@
 ---
 name: sdk_schedules
 description: OpenStudio Python SDK examples for creating and editing schedules.
-version: 0.1.5
+version: 0.1.8
 ---
 
 # SDK Schedules Context

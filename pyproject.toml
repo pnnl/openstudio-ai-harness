@@ -1,6 +1,6 @@
 [project]
 name = "openstudio-ai"
-version = "0.1.7"
+version = "0.1.8"
 description = "OpenStudio AI harness with MCP runtime, host adapters, skills, and knowledge."
 requires-python = ">=3.12"
 authors = [{ name = "PNNL" }]
@@ -17,7 +17,7 @@ classifiers = [
     "Topic :: Scientific/Engineering",
 ]
 dependencies = [
-    "mcp>=1.0.0",
+    "mcp>=1.28,<2",
     "openstudio>=3.10.0",
     "platformdirs>=4.0.0",
     "pydantic>=2.12.3",

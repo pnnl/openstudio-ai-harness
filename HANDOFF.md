@@ -88,13 +88,13 @@ Run OpenStudio-gated simulation tests only with a configured native CLI:
 ```bash
 OPENSTUDIO_PATH=/path/to/openstudio \
   .venv/bin/python -m pytest -q tests/test_mcp_openstudio_smoke.py
+```
 
 Run AUTOMA-AI-only checks with Python 3.12+:
 
 ```bash
 uv sync --project standalone
 uv run --project standalone python -m pytest -q standalone/tests
-```
 ```
 
 ## Next Steps

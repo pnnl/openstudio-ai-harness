@@ -60,7 +60,8 @@ Host-specific export
 
 ## Environment Setup
 
-Use Python 3.12 or newer.
+Use Python 3.10 or newer for the production harness. The optional AUTOMA-AI
+standalone development environment requires Python 3.12 or newer.
 
 Full developer setup:
 
@@ -68,11 +69,11 @@ Full developer setup:
 python -m venv .venv
 . .venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install -e ".[dev,standalone]"
+python -m pip install -e ".[dev]"
 ```
 
-The `dev` extra installs test/build tools. The `standalone` extra installs
-AUTOMA-AI and Streamlit for local agent/UI testing.
+The `dev` extra installs test/build tools. AUTOMA-AI and Streamlit live in the
+separate `standalone/` Python 3.12+ development project.
 
 Base runtime setup:
 
@@ -122,7 +123,7 @@ Use this table when deciding where a change belongs.
 | `measures/candidates/` | Draft measures | Proposed measures awaiting review/evals | Approved runtime measures | Excluded from wheel/runtime export |
 | `harness/` | Host-agnostic package registry | Manifest and asset discovery logic | Host-specific export decisions | Used by adapters |
 | `adapters/` | Host-specific install/export logic | Claude Code and Codex plugin mapping | Product behavior or trusted modeling logic | Generates plugin folders |
-| `specs/` | Local AUTOMA-AI agent specs | `openstudio_agent.yaml` and related local agent config | Claude/Codex plugin manifests | Used for local AUTOMA-AI testing |
+| `standalone/` | Local AUTOMA-AI agent/UI project | Agent spec, launchers, UI, and AUTOMA-AI tests | Claude/Codex plugin manifests | Python 3.12+ development only |
 | `evals/` | Eval cases and datasets | Regression cases for skills, planning, measures, knowledge | Runtime state or generated logs | Developer only |
 | `policy/` | Governance and promotion policies | Review, retention, allowlist, and runtime gate policies | Runtime executable code | Developer only unless referenced by docs |
 | `scripts/` | Build/generation scripts | Skill generation, index generation, repo maintenance scripts | Runtime MCP tool implementations | Some scripts may ship in wheel, but not as plugin UI |
@@ -131,8 +132,8 @@ Use this table when deciding where a change belongs.
 | `state/`, `logs/`, `outputs/` | Local working artifacts | Local sessions, snapshots, logs, generated outputs | Trusted assets or source specs | Not trusted; do not promote without review |
 | `.openstudio_mcp_workspace/` | Local MCP runtime workspace | Local test jobs/artifacts created by MCP | Source code | Excluded from package/export |
 | `tests/fixtures/` | Local OpenStudio test fixtures | OSM and EPW files required by explicit test cases | Runtime assets, user models, or marketplace payload | Excluded from wheels and plugin exports |
-| `agent.py` | Local AUTOMA-AI bootstrap | Standalone local agent entrypoint | Claude/Codex-specific logic | Used only in standalone mode |
-| `ui.py` | Local Streamlit UI | Standalone UI code | Host plugin logic | Used only in standalone mode |
+| `standalone/agent.py` | Local AUTOMA-AI bootstrap | Standalone local agent entrypoint | Claude/Codex-specific logic | Used only in standalone mode |
+| `standalone/ui.py` | Local Streamlit UI | Standalone UI code | Host plugin logic | Used only in standalone mode |
 | `cli.py` | Package CLI | `doctor`, `install-runtime`, `repair`, `export`, `validate-export` | Host-specific implementation details beyond command routing | Shipped as `openstudio-ai` |
 | `pyproject.toml` | Package metadata | Dependencies, extras, scripts, build include/exclude rules | Runtime state | Defines release package |
 | `README.md`, `HANDOFF.md` | Top-level orientation | Stable overview and current status | Deep implementation docs | Shipped/read by developers |
@@ -448,7 +449,7 @@ Use this path when developing the standalone local agent or testing A2A behavior
 
    ```bash
    . .venv/bin/activate
-   python -m pip install -e ".[dev,standalone]"
+   uv sync --project standalone
    ```
 
 2. Configure environment:
@@ -463,21 +464,19 @@ Use this path when developing the standalone local agent or testing A2A behavior
 3. Run the local agent:
 
    ```bash
-   .venv/bin/python agent.py
+   uv run --project standalone python standalone/agent.py
    ```
 
 4. Optionally run the Streamlit UI:
 
    ```bash
-   .venv/bin/streamlit run ui.py
+   uv run --project standalone streamlit run standalone/ui.py
    ```
 
 5. Run focused AUTOMA-AI and MCP tests:
 
    ```bash
-   .venv/bin/python -m pytest -q \
-     tests/test_mcp_openstudio_smoke.py \
-     tests/test_openstudio_learning_pipeline.py
+   uv run --project standalone python -m pytest -q standalone/tests
    ```
 
    Some smoke tests require an explicit `OPENSTUDIO_PATH` so they use a known,

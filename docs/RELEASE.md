@@ -19,7 +19,7 @@ package.
    - TestPyPI: https://test.pypi.org/
    - PyPI: https://pypi.org/
 
-3. Install build tools in a clean environment:
+3. Install build tools in a clean Python 3.10 environment:
 
    ```bash
    python -m pip install --upgrade pip
@@ -151,6 +151,10 @@ included_forbidden = [name for name in forbidden if name in names]
 if included_forbidden:
     raise SystemExit(f"Release wheel includes local test fixtures: {included_forbidden}")
 
+standalone_paths = [name for name in names if name.startswith("standalone/")]
+if standalone_paths:
+    raise SystemExit(f"Release wheel includes standalone-only files: {standalone_paths[:10]}")
+
 sdist = next(Path("dist").glob("*.tar.gz"))
 with tarfile.open(sdist) as archive:
     sdist_names = [member.name.partition("/")[2] for member in archive.getmembers()]
@@ -162,6 +166,12 @@ blocked_sdist = [
 ]
 if blocked_sdist:
     raise SystemExit(f"Blocked paths found in source distribution: {blocked_sdist[:10]}")
+
+standalone_sdist_paths = [name for name in sdist_names if name.startswith("standalone/")]
+if standalone_sdist_paths:
+    raise SystemExit(
+        f"Release source distribution includes standalone-only files: {standalone_sdist_paths[:10]}"
+    )
 
 base_openstudio = [
     line

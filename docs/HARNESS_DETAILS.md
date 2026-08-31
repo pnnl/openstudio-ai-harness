@@ -156,8 +156,8 @@ them. They are not exported as root `knowledge/`, `instructions/`,
 
 The local AUTOMA-AI development agent is defined by:
 
-- `specs/openstudio_agent.yaml`
-- `agent.py`
+- `standalone/openstudio_agent.yaml`
+- `standalone/agent.py`
 - `prompts/openstudio_agent.md`
 
 It is useful for local development, A2A testing, telemetry, blackboard behavior,
@@ -227,7 +227,7 @@ Use MCP tools such as `blackboard_initialize_workflow`,
 ## Setup For Local Development
 
 1. Copy `sample.env` to `.env`.
-2. Set the model provider values used by `specs/openstudio_agent.yaml`.
+2. Set the model provider values used by `standalone/openstudio_agent.yaml`.
 3. Ensure `openstudio` is on `PATH`, or set `OPENSTUDIO_PATH` to select a local
    OpenStudio CLI executable explicitly.
 4. Ensure the configured Python executable can import the OpenStudio Python SDK
@@ -249,13 +249,13 @@ The YAML spec reads local environment settings and configures:
 Start the AUTOMA-AI agent and MCP server:
 
 ```bash
-uv run python agent.py
+uv run --project standalone python standalone/agent.py
 ```
 
 Optional Streamlit UI:
 
 ```bash
-uv run streamlit run ui.py
+uv run --project standalone streamlit run standalone/ui.py
 ```
 
 Combined launcher:
@@ -340,10 +340,10 @@ Focused test set for the current OpenStudio AI harness:
 
 ## File Map
 
-- `agent.py`: local AUTOMA-AI YAML-backed MCP and A2A bootstrap.
+- `standalone/agent.py`: local AUTOMA-AI YAML-backed MCP and A2A bootstrap.
 - `adapters/`: Claude Code and Codex export/install logic.
 - `harness/`: host-agnostic package manifest, registry, and loader.
-- `specs/openstudio_agent.yaml`: local AUTOMA-AI agent spec.
+- `standalone/openstudio_agent.yaml`: local AUTOMA-AI agent spec.
 - `prompts/`: system prompt and harness, blackboard, learning, and promotion
   contracts.
 - `openstudio_mcp/`: MCP runtime kernel.

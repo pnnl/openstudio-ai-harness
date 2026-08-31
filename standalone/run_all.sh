@@ -4,7 +4,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SERVER_SCRIPT="$SCRIPT_DIR/agent.py"
 CLIENT_SCRIPT="$SCRIPT_DIR/ui.py"
-LOG_DIR="$SCRIPT_DIR/logs"
+LOG_DIR="$SCRIPT_DIR/../logs"
 mkdir -p "$LOG_DIR"
 
 python3 "$SERVER_SCRIPT" > "$LOG_DIR/server.log" 2>&1 &

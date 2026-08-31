@@ -21,12 +21,11 @@ knowledge, and workflow-state tools for AI-assisted building-energy modeling.
 From this repository root:
 
 ```bash
-python -m pip install -e ".[dev,standalone]"
+python -m pip install -e ".[dev]"
 ```
 
-Use `.[dev,standalone]` for full local harness development. The `standalone`
-extra installs the optional AUTOMA-AI and Streamlit dependencies used by
-`agent.py`, `ui.py`, and tests that exercise the local A2A agent path.
+The production harness supports Python 3.10 or newer. The `dev` extra installs
+its test and release tools.
 
 Install the runtime package after it is published:
 
@@ -44,16 +43,17 @@ installation.
 
 The base package is the recommended install for Claude Code, Codex, and other
 marketplace-style host integrations. It intentionally does not install
-AUTOMA-AI or Streamlit. To run the standalone local AI app, install:
+AUTOMA-AI or Streamlit. The standalone local AI app is a separate Python 3.12+
+development environment:
 
 ```bash
-python -m pip install "openstudio-ai[standalone]"
-python agent.py
-streamlit run ui.py
+uv sync --project standalone
+uv run --project standalone python standalone/agent.py
+uv run --project standalone streamlit run standalone/ui.py
 ```
 
-Standalone mode requires user-provided LLM configuration, such as API keys or
-model endpoint settings, in the local environment.
+Standalone mode requires Python 3.12 and user-provided LLM configuration, such
+as API keys or model endpoint settings, in the local environment.
 
 Run focused tests:
 

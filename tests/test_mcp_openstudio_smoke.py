@@ -12,13 +12,6 @@ from dotenv import dotenv_values
 from mcp import ClientSession
 from mcp.client.sse import sse_client
 
-from automa_ai.common.agent_registry import A2AAgentServer
-from automa_ai.config.agent_spec import load_a2a_server_from_yaml
-from automa_ai.skills.manager import SkillManager
-from agent import (
-    build_openstudio_mcp_config,
-    load_openstudio_agent_spec,
-)
 import openstudio_mcp.server as mcp_server
 from openstudio_mcp.server import (
     OpenStudioModelState,
@@ -66,12 +59,6 @@ def start_mcp():
     time.sleep(2)
     yield
     process.terminate()
-
-
-@pytest.fixture(autouse=True)
-def openstudio_agent_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Provide credentials required to parse the YAML spec during smoke tests."""
-    monkeypatch.setenv("OSSTD_LLM_API", "test-api-key")
 
 
 @pytest.mark.asyncio
@@ -168,70 +155,6 @@ def test_openstudio_workspace_manager_does_not_size_external_paths(
     external.write_text("outside workspace", encoding="utf-8")
 
     assert service.workspace_manager.path_size(external) == 0
-
-
-def test_openstudio_example_loads_yaml_a2a_server_with_mcp_config() -> None:
-    mcp_config = build_openstudio_mcp_config()
-    spec = load_openstudio_agent_spec(mcp_config)
-    server = load_a2a_server_from_yaml(spec)
-    factory_kwargs = spec.to_factory_kwargs()
-
-    assert spec.agent_card["name"] == "OpenStudio AI Model Workspace Agent"
-    assert spec.instructions.path == "../prompts/openstudio_agent.md"
-    assert spec.mcp is not None
-    assert "openstudio_mcp" in spec.mcp.servers
-    assert spec.mcp.servers["openstudio_mcp"].host == mcp_config.host
-    assert spec.mcp.servers["openstudio_mcp"].port == mcp_config.port
-    assert factory_kwargs["tools_config"]["tools"][0]["type"] == "run_python"
-    workspace_root = factory_kwargs["tools_config"]["tools"][0]["config"][
-        "workspace_root"
-    ]
-    assert Path(workspace_root).resolve() == Path(".").resolve()
-    assert factory_kwargs["skills_config"]["enabled"] is True
-    assert "hvac_sizing_assistant" in factory_kwargs["skills_config"]["registry"]
-    assert "openstudio_sdk_model_editor" in factory_kwargs["skills_config"]["registry"]
-    assert "openstudio_sdk_wiki" in factory_kwargs["skills_config"]["registry"]
-    skill_manager = SkillManager.from_config(factory_kwargs["skills_config"])
-    available_context = set(skill_manager.available_skills())
-    assert "sdk_index" in available_context
-    assert "sdk_core_patterns" in available_context
-    assert "sdk_geometry" in available_context
-    assert "Purpose Routing" in skill_manager.load("sdk_index")
-    model_editor_skill = skill_manager.load("openstudio_sdk_model_editor")
-    assert "load `sdk_index`" in model_editor_skill
-    assert "SDK Context-Pack Selection" in model_editor_skill
-    assert "surface_azimuth_degrees(surface)" in model_editor_skill
-    assert "Load `sdk_geometry` for geometry" in model_editor_skill
-    instructions = spec.resolve_instructions()
-    assert "## MCP Tool Routing" in instructions
-    assert "Use `model_*` tools" in instructions
-    assert "Use `sim_*` tools" in instructions
-    assert "Use `results_*` tools" in instructions
-    assert "Use `openstudio_sdk_model_editor`" in instructions
-    assert "Use `openstudio_workflow_state`" in instructions
-    assert "hvac_sizing_assistant" in instructions
-    assert "openstudio_sdk_model_editor" in instructions
-    assert "sdk_index" not in instructions
-    assert "surface_azimuth_degrees" not in instructions
-    assert "fails three times" not in instructions
-    assert "blackboard_initialize_workflow" not in instructions
-    assert "## Python Script Safeguard" not in instructions
-    assert "Follow the skill instructions exactly" not in instructions
-    assert isinstance(server, A2AAgentServer)
-    assert server.name == "OpenStudio AI Model Workspace Agent"
-
-
-def test_openstudio_ai_uses_mcp_blackboard_not_native_blackboard() -> None:
-    spec = load_openstudio_agent_spec(build_openstudio_mcp_config())
-    factory_kwargs = spec.to_factory_kwargs()
-
-    assert factory_kwargs["blackboard_config"] is None
-    instructions = spec.resolve_instructions()
-    assert "Use `openstudio_workflow_state`" in instructions
-    skill_manager = SkillManager.from_config(factory_kwargs["skills_config"])
-    workflow_state_skill = skill_manager.load("openstudio_workflow_state")
-    assert "blackboard_initialize_workflow" in workflow_state_skill
-    assert "AUTOMA-AI native blackboard" in workflow_state_skill
 
 
 def test_openstudio_mcp_blackboard_supports_workflow_state(tmp_path: Path) -> None:

@@ -201,13 +201,13 @@ provider boundaries, SDK fallback, and production deployment requirements.
 
 ## Developer quick start
 
-Use Python 3.12 or newer. From the repository root:
+Use Python 3.10 or newer for the production harness. From the repository root:
 
 ```bash
 python -m venv .venv
 . .venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install -e ".[dev,standalone]"
+python -m pip install -e ".[dev]"
 ```
 
 Run focused checks for the runtime and plugin exporters:

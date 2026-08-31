@@ -2,7 +2,7 @@
 name = "openstudio-ai"
 version = "0.1.8"
 description = "OpenStudio AI harness with MCP runtime, host adapters, skills, and knowledge."
-requires-python = ">=3.12"
+requires-python = ">=3.10"
 authors = [{ name = "PNNL" }]
 readme = "README.md"
 license = "BSD-3-Clause"
@@ -12,6 +12,8 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: BSD License",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering",
@@ -23,6 +25,7 @@ dependencies = [
     "pydantic>=2.12.3",
     "python-dotenv>=1.0.0",
     "pyyaml>=6.0.2",
+    "tomli>=2.0.0; python_version < '3.11'",
     "jinja2>=3.1.0",
 ]
 
@@ -33,10 +36,6 @@ dev = [
     "pytest>=8.4.2",
     "pytest-asyncio>=1.2.0",
     "twine>=5.0.0",
-]
-standalone = [
-    "automa-ai>=0.7.3",
-    "streamlit>=1.54.0",
 ]
 
 [project.urls]
@@ -73,8 +72,6 @@ only-include = [
     "scripts",
     "sdk_index",
     "cli.py",
-    "agent.py",
-    "ui.py",
     "skills",
     "knowledge",
     "prompts",
@@ -121,8 +118,6 @@ include = [
     "docs/**",
     "tests/**",
     "cli.py",
-    "agent.py",
-    "ui.py",
     "*.md",
     "LICENSE",
     "*.json",
@@ -141,5 +136,6 @@ exclude = [
     ".pytest_cache",
     ".openstudio_mcp_workspace",
     "measures/candidates/**",
+    "standalone/**",
     "tests/fixtures/**",
 ]

@@ -18,7 +18,7 @@ CHAT_BOT_MODEL_NAME = os.getenv("CHAT_BOT_MODEL_NAME", "llama3.1:8b")
 CHAT_BOT_MODEL_BASE_URL = os.getenv("CHAT_BOT_MODEL_BASE_URL") or None
 OPENSTUDIO_MCP_HOST = os.getenv("OPENSTUDIO_MCP_HOST", "localhost")
 OPENSTUDIO_MCP_PORT = int(os.getenv("OPENSTUDIO_MCP_PORT", "10210"))
-AGENT_SPEC_PATH = base_dir / "specs" / "openstudio_agent.yaml"
+AGENT_SPEC_PATH = base_dir / "openstudio_agent.yaml"
 
 
 def build_openstudio_mcp_config() -> MCPServerConfig:

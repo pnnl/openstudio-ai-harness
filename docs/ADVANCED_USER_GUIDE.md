@@ -31,9 +31,9 @@ OpenStudio is not on `PATH` or when you need to select a specific installation.
 Standalone local AI app:
 
 ```bash
-python -m pip install "openstudio-ai[standalone]"
-python agent.py
-streamlit run ui.py
+uv sync --project standalone
+uv run --project standalone python standalone/agent.py
+uv run --project standalone streamlit run standalone/ui.py
 ```
 
 Use this path when you want OpenStudio AI to run as a local AUTOMA-AI-backed
@@ -171,7 +171,7 @@ Skill quality checklist:
 Useful command:
 
 ```bash
-uv run pytest -q tests/test_mcp_openstudio_smoke.py
+uv run --project standalone python -m pytest -q standalone/tests
 ```
 
 ---

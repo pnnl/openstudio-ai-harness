@@ -10,7 +10,8 @@ from automa_ai.config.agent_spec import YamlAgentSpec, load_a2a_server_from_yaml
 from openstudio_mcp.server import serve
 
 base_dir = Path(__file__).resolve().parent
-env_path = base_dir / ".env"
+repo_root = base_dir.parent
+env_path = repo_root / ".env"
 load_dotenv(dotenv_path=env_path)
 
 CHATBOT_SERVER_URL = os.getenv("CHATBOT_SERVER_URL", "http://localhost:9999")

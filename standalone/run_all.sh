@@ -2,12 +2,13 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 SERVER_SCRIPT="$SCRIPT_DIR/agent.py"
 CLIENT_SCRIPT="$SCRIPT_DIR/ui.py"
-LOG_DIR="$SCRIPT_DIR/../logs"
+LOG_DIR="$REPO_ROOT/logs"
 mkdir -p "$LOG_DIR"
 
-python3 "$SERVER_SCRIPT" > "$LOG_DIR/server.log" 2>&1 &
+uv run --project "$SCRIPT_DIR" python "$SERVER_SCRIPT" > "$LOG_DIR/server.log" 2>&1 &
 SERVER_PID=$!
 
 MAX_WAIT=60
@@ -22,7 +23,7 @@ until grep -q "✅ A2A Server started" "$LOG_DIR/server.log" 2>/dev/null; do
   fi
 done
 
-streamlit run "$CLIENT_SCRIPT" > "$LOG_DIR/client.log" 2>&1 &
+uv run --project "$SCRIPT_DIR" streamlit run "$CLIENT_SCRIPT" > "$LOG_DIR/client.log" 2>&1 &
 CLIENT_PID=$!
 
 echo "Server PID: $SERVER_PID"

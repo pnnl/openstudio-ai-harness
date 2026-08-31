@@ -261,7 +261,7 @@ uv run --project standalone streamlit run standalone/ui.py
 Combined launcher:
 
 ```bash
-bash run_all.sh
+bash standalone/run_all.sh
 ```
 
 ## SDK Documentation Tools

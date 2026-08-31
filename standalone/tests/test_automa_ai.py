@@ -4,7 +4,26 @@ from automa_ai.common.agent_registry import A2AAgentServer
 from automa_ai.config.agent_spec import YamlAgentSpec, load_a2a_server_from_yaml
 from automa_ai.skills.manager import SkillManager
 
-from standalone.agent import build_openstudio_mcp_config, load_openstudio_agent_spec
+from standalone.agent import (
+    build_openstudio_mcp_config,
+    env_path as agent_env_path,
+    load_openstudio_agent_spec,
+    repo_root,
+)
+from standalone.ui import TELEMETRY_LOG_PATH, env_path as ui_env_path
+
+
+def test_standalone_uses_repository_environment_and_telemetry_paths(
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv("OSSTD_LLM_API", "test-api-key")
+    spec = load_openstudio_agent_spec()
+    telemetry_path = Path(spec.to_factory_kwargs()["telemetry_config"]["path"])
+
+    assert agent_env_path == repo_root / ".env"
+    assert ui_env_path == repo_root / ".env"
+    assert telemetry_path.resolve() == repo_root / "logs" / "telemetry.jsonl"
+    assert TELEMETRY_LOG_PATH == repo_root / "logs" / "telemetry.jsonl"
 
 
 def test_openstudio_agent_yaml_loads_with_mcp_config(monkeypatch) -> None:

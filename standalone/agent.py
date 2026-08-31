@@ -10,7 +10,8 @@ from automa_ai.config.agent_spec import YamlAgentSpec, load_a2a_server_from_yaml
 from openstudio_mcp.server import serve
 
 base_dir = Path(__file__).resolve().parent
-env_path = base_dir / ".env"
+repo_root = base_dir.parent
+env_path = repo_root / ".env"
 load_dotenv(dotenv_path=env_path)
 
 CHATBOT_SERVER_URL = os.getenv("CHATBOT_SERVER_URL", "http://localhost:9999")
@@ -18,7 +19,7 @@ CHAT_BOT_MODEL_NAME = os.getenv("CHAT_BOT_MODEL_NAME", "llama3.1:8b")
 CHAT_BOT_MODEL_BASE_URL = os.getenv("CHAT_BOT_MODEL_BASE_URL") or None
 OPENSTUDIO_MCP_HOST = os.getenv("OPENSTUDIO_MCP_HOST", "localhost")
 OPENSTUDIO_MCP_PORT = int(os.getenv("OPENSTUDIO_MCP_PORT", "10210"))
-AGENT_SPEC_PATH = base_dir / "specs" / "openstudio_agent.yaml"
+AGENT_SPEC_PATH = base_dir / "openstudio_agent.yaml"
 
 
 def build_openstudio_mcp_config() -> MCPServerConfig:

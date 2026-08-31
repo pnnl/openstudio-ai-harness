@@ -3,8 +3,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from automa_ai.config.agent_spec import YamlAgentSpec
-
 from learning.developer_pipeline.run_pipeline import (
     run_developer_learning_pipeline,
 )
@@ -38,18 +36,3 @@ def test_developer_learning_pipeline_writes_candidate_lesson(tmp_path: Path) -> 
     assert candidate["target"]["asset"] == "knowledge/openstudio_sdk_wiki/sdk_geometry.md"
     assert candidate["recommended_eval"]["expected_behavior"]
     assert candidate["evidence"][0]["line_number"] == 1
-
-
-def test_developer_learning_agent_yaml_matches_automa_ai_spec() -> None:
-    spec_path = Path(
-        "learning/developer_agent/developer_learning_agent.yaml"
-    )
-
-    spec = YamlAgentSpec.from_yaml_file(spec_path)
-    instructions = spec.resolve_instructions()
-
-    assert spec.agent_card["name"] == "OpenStudio Developer Learning Agent"
-    assert spec.runtime.agent_type.value == "langgraph-chat"
-    assert "Create candidates only." in instructions
-    assert "Do not promote trusted assets." in instructions
-    assert "review queue" in instructions

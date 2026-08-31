@@ -1,0 +1,19 @@
+[project]
+name = "openstudio-ai-standalone"
+version = "0.1.8"
+description = "Python 3.12+ AUTOMA-AI and Streamlit development environment for OpenStudio AI."
+requires-python = ">=3.12"
+dependencies = [
+    "automa-ai>=0.7.3",
+    "openstudio-ai",
+    "pytest>=8.4.2",
+    "pytest-asyncio>=1.2.0",
+    "streamlit>=1.54.0",
+]
+
+[tool.uv.sources]
+openstudio-ai = { path = "..", editable = true }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+

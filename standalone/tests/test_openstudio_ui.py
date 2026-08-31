@@ -1,4 +1,4 @@
-from ui import (
+from standalone.ui import (
     _artifact_contains_json_fence,
     _artifact_contains_python_fence,
     _format_status_text_for_display,

@@ -52,9 +52,10 @@
 - `openstudio-ai export marketplace` emits a paired Claude/Codex marketplace
   tree with separate host install guides, stable source provenance, and strict
   validation of both generated plugin packages.
-- AUTOMA-AI and Streamlit are only supplied through the `standalone` extra for
-  local developer testing. Host-facing skills use host-neutral Python execution
-  instructions.
+- The production package supports Python 3.10+ and does not include AUTOMA-AI
+  or Streamlit. The `standalone/` subproject is separately locked for Python
+  3.12+ local AUTOMA-AI and Streamlit testing. Host-facing skills use
+  host-neutral Python execution instructions.
 
 ## Current Boundaries
 
@@ -89,12 +90,19 @@ OPENSTUDIO_PATH=/path/to/openstudio \
   .venv/bin/python -m pytest -q tests/test_mcp_openstudio_smoke.py
 ```
 
+Run AUTOMA-AI-only checks with Python 3.12+:
+
+```bash
+uv sync --project standalone
+uv run --project standalone python -m pytest -q standalone/tests
+```
+
 ## Next Steps
 
 1. Add CI for focused tests, build, wheel-content inspection, `doctor`, and
    marketplace export validation.
-2. Decide and document the long-term supply-chain source for the optional
-   `automa-ai` standalone dependency before PyPI publication.
+2. Decide and document the long-term supply-chain source for the Python-3.12+
+   `automa-ai` standalone dependency before publishing a standalone workflow.
 3. Align `measures/approved/` with the live measure registry before exposing it
    as the trusted measure source.
 4. Design end-user configuration for runtime retention and installed-measure

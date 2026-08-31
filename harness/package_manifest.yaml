@@ -3,7 +3,6 @@ version: 0.1.8
 description: Portable OpenStudio AI harness for agent hosts.
 entrypoints:
   mcp_server: openstudio_mcp/server.py
-  primary_agent_spec: specs/openstudio_agent.yaml
 assets:
   asset_manifest: harness/asset_manifest.yaml
   asset_manifest_schema: harness/asset_manifest.schema.json

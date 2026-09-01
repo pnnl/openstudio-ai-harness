@@ -15,6 +15,7 @@ from adapters.claude_code_adapter import ClaudeCodeAdapter
 from adapters.codex_adapter import CodexAdapter
 from adapters.contracts import RUNTIME_MODES, HostAdapterConfig
 from openstudio_mcp.runtime_config import (
+    openstudio_version_from_output,
     resolve_openstudio_executable_with_source,
     set_openstudio_path,
     user_data_dir,
@@ -600,8 +601,18 @@ def _doctor_payload(
     )
     if resolved_openstudio:
         version_probe = _run_probe([resolved_openstudio, "--version"])
+        version_output = str(
+            version_probe.get("stdout") or version_probe.get("stderr") or ""
+        )
+        version = openstudio_version_from_output(version_output)
+        version_probe["openstudio_version"] = version
         checks["openstudio"]["version_probe"] = version_probe
-        checks["openstudio"]["ok"] = version_probe["ok"]
+        checks["openstudio"]["ok"] = version_probe["ok"] and version is not None
+        if checks["openstudio"]["ok"] is False:
+            checks["openstudio"]["error"] = (
+                "The configured executable did not return a recognized OpenStudio "
+                "version from `--version`."
+            )
     else:
         checks["openstudio"]["error"] = (
             "OpenStudio executable not found. Save a confirmed path with "
@@ -756,8 +767,20 @@ def _cmd_configure_openstudio(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
         return 2
+    version_probe = _run_probe([str(path), "--version"])
+    version_output = str(
+        version_probe.get("stdout") or version_probe.get("stderr") or ""
+    )
+    version = openstudio_version_from_output(version_output)
+    if not version_probe["ok"] or version is None:
+        print(
+            "OpenStudio path did not return a recognized OpenStudio version from "
+            f"`--version`: {path}",
+            file=sys.stderr,
+        )
+        return 2
     destination = set_openstudio_path(path)
-    print(f"Saved OpenStudio executable: {path.resolve()}")
+    print(f"Saved OpenStudio executable: {path.resolve()} ({version})")
     print(f"Runtime configuration: {destination}")
     print("Reconnect Claude Code or Codex, then run `openstudio-ai doctor`.")
     return 0

@@ -32,7 +32,10 @@ from blackboard.operations import (
     record_failure,
 )
 from openstudio_mcp.compatibility import evaluate_plugin_compatibility
-from openstudio_mcp.runtime_config import resolve_openstudio_executable_with_source
+from openstudio_mcp.runtime_config import (
+    openstudio_version_from_output,
+    resolve_openstudio_executable_with_source,
+)
 from blackboard.snapshot import snapshot_workflow
 from openstudio_mcp.runtime.artifact_store import ArtifactStore
 from openstudio_mcp.runtime.job_manager import JobManager
@@ -398,17 +401,19 @@ class OpenStudioService:
             timeout=10,
         )
         version_output = (version_probe.stdout or version_probe.stderr).strip()
+        version = openstudio_version_from_output(version_output)
+        available = version_probe.returncode == 0 and version is not None
         return {
             "ok": True,
-            "available": version_probe.returncode == 0,
+            "available": available,
             "path": self.openstudio_path,
             "source": self.openstudio_path_source,
-            "version": version_output[:2000] or None,
+            "version": version,
             "recommendation": (
                 None
-                if version_probe.returncode == 0
-                else "An OpenStudio executable was found, but its version check failed. "
-                "Run the OpenStudio AI doctor workflow before simulation."
+                if available
+                else "An executable was found, but it did not return a recognized "
+                "OpenStudio version. Run the OpenStudio AI doctor workflow before simulation."
             ),
         }
 

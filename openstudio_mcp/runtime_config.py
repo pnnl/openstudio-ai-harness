@@ -4,9 +4,21 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import sys
 from pathlib import Path
+
+_OPENSTUDIO_VERSION_RE = re.compile(
+    r"^\s*(?:openstudio\s+)?(?P<version>\d+\.\d+\.\d+(?:[+-][0-9A-Za-z.-]+)?)\s*$",
+    re.IGNORECASE,
+)
+
+
+def openstudio_version_from_output(output: str) -> str | None:
+    """Return a recognized OpenStudio CLI version from `openstudio --version` output."""
+    match = _OPENSTUDIO_VERSION_RE.match(output)
+    return match.group("version") if match else None
 
 
 def user_data_dir() -> Path:
@@ -53,16 +65,18 @@ def configured_openstudio_path() -> str | None:
 
 def resolve_openstudio_executable_with_source() -> tuple[str | None, str | None]:
     """Resolve the native executable using the runtime's canonical precedence."""
-    configured_path = os.getenv("OPENSTUDIO_PATH", "").strip()
-    source = "OPENSTUDIO_PATH"
-    if not configured_path:
-        configured_path = configured_openstudio_path() or ""
-        source = "runtime configuration"
-    if configured_path:
-        candidate = Path(configured_path).expanduser()
+    explicit_path = os.getenv("OPENSTUDIO_PATH", "").strip()
+    if explicit_path:
+        candidate = Path(explicit_path).expanduser()
         if candidate.is_file() and os.access(candidate, os.X_OK):
-            return str(candidate.resolve()), source
+            return str(candidate.resolve()), "OPENSTUDIO_PATH"
         return None, None
+
+    saved_path = configured_openstudio_path()
+    if saved_path:
+        candidate = Path(saved_path).expanduser()
+        if candidate.is_file() and os.access(candidate, os.X_OK):
+            return str(candidate.resolve()), "runtime configuration"
 
     discovered_path = shutil.which("openstudio")
     if discovered_path:

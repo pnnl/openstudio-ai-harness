@@ -102,7 +102,7 @@ def test_cli_configure_openstudio_persists_confirmed_executable(
     monkeypatch, tmp_path: Path, capsys
 ) -> None:
     executable = tmp_path / "openstudio"
-    executable.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    executable.write_text("#!/bin/sh\necho 3.10.0\n", encoding="utf-8")
     executable.chmod(executable.stat().st_mode | stat.S_IXUSR)
     data_dir = tmp_path / "runtime-data"
     monkeypatch.setenv("OPENSTUDIO_AI_DATA_DIR", str(data_dir))
@@ -112,6 +112,21 @@ def test_cli_configure_openstudio_persists_confirmed_executable(
     config = json.loads((data_dir / "runtime.json").read_text(encoding="utf-8"))
     assert config["openstudio_path"] == str(executable.resolve())
     assert "Saved OpenStudio executable" in capsys.readouterr().out
+
+
+def test_cli_configure_openstudio_rejects_unrecognized_executable(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    executable = tmp_path / "not-openstudio"
+    executable.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    executable.chmod(executable.stat().st_mode | stat.S_IXUSR)
+    data_dir = tmp_path / "runtime-data"
+    monkeypatch.setenv("OPENSTUDIO_AI_DATA_DIR", str(data_dir))
+
+    assert main(["configure-openstudio", "--path", str(executable)]) == 2
+
+    assert not (data_dir / "runtime.json").exists()
+    assert "recognized OpenStudio version" in capsys.readouterr().err
 
 
 def test_cli_install_codex_creates_managed_agents_guidance(
@@ -190,7 +205,8 @@ def test_cli_doctor_falls_back_from_invalid_sdk_docs_override(
         return {"command": command, "available": True, "path": command}
 
     def fake_run_probe(command: list[str], *, timeout_seconds: int = 10) -> dict:
-        return {"ok": True, "returncode": 0, "stdout": "help", "stderr": ""}
+        stdout = "3.10.0+test" if "--version" in command else "help"
+        return {"ok": True, "returncode": 0, "stdout": stdout, "stderr": ""}
 
     monkeypatch.setattr(cli, "_command_available", fake_command_available)
     monkeypatch.setattr(cli, "_run_probe", fake_run_probe)
@@ -227,7 +243,8 @@ def test_cli_doctor_text_reports_missing_openstudio_sdk(
         return {"command": command, "available": True, "path": command}
 
     def fake_run_probe(command: list[str], *, timeout_seconds: int = 10) -> dict:
-        return {"ok": True, "returncode": 0, "stdout": "help", "stderr": ""}
+        stdout = "3.10.0+test" if "--version" in command else "help"
+        return {"ok": True, "returncode": 0, "stdout": stdout, "stderr": ""}
 
     monkeypatch.setattr(cli, "_command_available", fake_command_available)
     monkeypatch.setattr(cli, "_run_probe", fake_run_probe)
@@ -265,7 +282,8 @@ def test_cli_doctor_reports_plugin_runtime_contract_mismatch(
         return {"command": command, "available": True, "path": command}
 
     def fake_run_probe(command: list[str], *, timeout_seconds: int = 10) -> dict:
-        return {"ok": True, "returncode": 0, "stdout": "help", "stderr": ""}
+        stdout = "3.10.0+test" if "--version" in command else "help"
+        return {"ok": True, "returncode": 0, "stdout": stdout, "stderr": ""}
 
     monkeypatch.setattr(cli, "_command_available", fake_command_available)
     monkeypatch.setattr(cli, "_run_probe", fake_run_probe)
@@ -325,7 +343,7 @@ def test_cli_doctor_blocks_core_readiness_when_openstudio_is_missing(
         lambda command, *, timeout_seconds=10: {
             "ok": True,
             "returncode": 0,
-            "stdout": "ok",
+            "stdout": "3.10.0+test" if "--version" in command else "help",
             "stderr": "",
         },
     )

@@ -14,13 +14,22 @@ from typing import Any
 from adapters.claude_code_adapter import ClaudeCodeAdapter
 from adapters.codex_adapter import CodexAdapter
 from adapters.contracts import RUNTIME_MODES, HostAdapterConfig
-from openstudio_mcp.runtime_config import set_openstudio_path, user_data_dir
+from openstudio_mcp.runtime_config import (
+    resolve_openstudio_executable_with_source,
+    set_openstudio_path,
+    user_data_dir,
+)
 from openstudio_mcp.compatibility import (
     PLUGIN_CONTRACT_VERSION,
     evaluate_plugin_compatibility,
     package_version,
     plugin_mcp_environment,
 )
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # Python 3.10 uses the declared tomli dependency.
+    import tomli as tomllib
 
 
 def _version() -> str:
@@ -128,13 +137,17 @@ def _nlr_mcp_status() -> dict[str, Any]:
     checked_paths.append(str(codex_config))
     if codex_config.is_file():
         try:
-            if "nlr_openstudio" in codex_config.read_text(encoding="utf-8"):
+            config = tomllib.loads(codex_config.read_text(encoding="utf-8"))
+            if (
+                isinstance(config.get("mcp_servers"), dict)
+                and "nlr_openstudio" in config["mcp_servers"]
+            ):
                 return {
                     "configured": True,
                     "source": str(codex_config),
                     "checked_paths": checked_paths,
                 }
-        except (OSError, UnicodeDecodeError):
+        except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
             pass
 
     for directory in (Path.cwd(), *Path.cwd().parents):
@@ -146,7 +159,8 @@ def _nlr_mcp_status() -> dict[str, Any]:
             config = json.loads(mcp_config.read_text(encoding="utf-8"))
         except (OSError, UnicodeDecodeError, json.JSONDecodeError):
             continue
-        if "nlr_openstudio" in config.get("mcpServers", {}):
+        servers = config.get("mcpServers") if isinstance(config, dict) else None
+        if isinstance(servers, dict) and "nlr_openstudio" in servers:
             return {
                 "configured": True,
                 "source": str(mcp_config),
@@ -171,7 +185,9 @@ def _optional_capabilities() -> dict[str, Any]:
         message = "Docker is not installed, so NLR OpenStudio-MCP is unavailable."
     elif not docker["running"]:
         status = "unavailable"
-        message = "Docker is installed but not running, so NLR OpenStudio-MCP is unavailable."
+        message = (
+            "Docker is installed but not running, so NLR OpenStudio-MCP is unavailable."
+        )
     else:
         status = "not_configured"
         message = "NLR OpenStudio-MCP is optional and has not been configured."
@@ -571,20 +587,24 @@ def _doctor_payload(
         ) as exc:  # pragma: no cover - environment-specific service failures.
             checks["measures"] = {"ok": False, "error": str(exc)}
 
-    configured_openstudio = os.getenv("OPENSTUDIO_PATH", "").strip()
-    openstudio_command = configured_openstudio or "openstudio"
-    openstudio_status = _command_available(openstudio_command)
-    checks["openstudio"].update(openstudio_status)
-    if openstudio_status["available"]:
-        version_probe = _run_probe(
-            [openstudio_status["path"] or openstudio_command, "--version"]
-        )
+    resolved_openstudio, openstudio_source = resolve_openstudio_executable_with_source()
+    checks["openstudio"].update(
+        {
+            "command": resolved_openstudio or "openstudio",
+            "available": resolved_openstudio is not None,
+            "path": resolved_openstudio,
+            "source": openstudio_source,
+        }
+    )
+    if resolved_openstudio:
+        version_probe = _run_probe([resolved_openstudio, "--version"])
         checks["openstudio"]["version_probe"] = version_probe
         checks["openstudio"]["ok"] = version_probe["ok"]
     else:
         checks["openstudio"]["error"] = (
-            "OpenStudio command not found. Set OPENSTUDIO_PATH or add openstudio to PATH "
-            "before running model edits or simulations."
+            "OpenStudio executable not found. Save a confirmed path with "
+            "`openstudio-ai configure-openstudio --path <executable>`, set "
+            "OPENSTUDIO_PATH, or add openstudio to PATH before model edits or simulations."
         )
 
     checks["mcp_ready"] = (
@@ -604,8 +624,7 @@ def _doctor_payload(
         and checks["openstudio"].get("ok") is True
     )
     checks["core_ready"] = (
-        checks["simulation_ready"]
-        and checks["plugin_compatibility"].get("ok") is True
+        checks["simulation_ready"] and checks["plugin_compatibility"].get("ok") is True
     )
     checks["plugin_ready"] = checks["core_ready"]
     checks["ready"] = checks["core_ready"]
@@ -731,8 +750,7 @@ def _cmd_configure_openstudio(args: argparse.Namespace) -> int:
     path = args.path.expanduser()
     if not path.is_file() or not os.access(path, os.X_OK):
         print(
-            "OpenStudio path must be an executable file. "
-            f"Received: {path}",
+            "OpenStudio path must be an executable file. " f"Received: {path}",
             file=sys.stderr,
         )
         return 2

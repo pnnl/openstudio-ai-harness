@@ -7,6 +7,7 @@ import stat
 from pathlib import Path
 
 import openstudio_mcp.server as mcp_server
+from openstudio_mcp.runtime_config import configured_openstudio_path
 from openstudio_mcp.server import OpenStudioService
 
 
@@ -88,3 +89,14 @@ def test_saved_openstudio_path_is_used_when_environment_is_unset(
 
     assert service.openstudio_path == str(configured.resolve())
     assert service.openstudio_path_source == "runtime configuration"
+
+
+def test_non_object_runtime_configuration_is_ignored(
+    monkeypatch, tmp_path: Path
+) -> None:
+    data_dir = tmp_path / "runtime-data"
+    data_dir.mkdir()
+    (data_dir / "runtime.json").write_text("null\n", encoding="utf-8")
+    monkeypatch.setenv("OPENSTUDIO_AI_DATA_DIR", str(data_dir))
+
+    assert configured_openstudio_path() is None

@@ -29,6 +29,11 @@ def test_cli_doctor_json_reports_mcp_readiness(
     (data_dir / "workspace").mkdir(parents=True)
     monkeypatch.setenv("OPENSTUDIO_AI_DATA_DIR", str(data_dir))
     monkeypatch.setenv("OPENSTUDIO_PATH", "/fake/openstudio")
+    monkeypatch.setattr(
+        cli,
+        "resolve_openstudio_executable_with_source",
+        lambda: ("/fake/openstudio", "OPENSTUDIO_PATH"),
+    )
 
     def fake_command_available(command: str) -> dict:
         return {"command": command, "available": True, "path": command}
@@ -139,6 +144,11 @@ def test_cli_doctor_text_output_reports_checks(
     (data_dir / "workspace").mkdir(parents=True)
     monkeypatch.setenv("OPENSTUDIO_AI_DATA_DIR", str(data_dir))
     monkeypatch.setenv("OPENSTUDIO_PATH", "/fake/openstudio")
+    monkeypatch.setattr(
+        cli,
+        "resolve_openstudio_executable_with_source",
+        lambda: ("/fake/openstudio", "OPENSTUDIO_PATH"),
+    )
 
     def fake_command_available(command: str) -> dict:
         return {"command": command, "available": True, "path": command}
@@ -170,6 +180,11 @@ def test_cli_doctor_falls_back_from_invalid_sdk_docs_override(
     monkeypatch.setenv("OPENSTUDIO_AI_DATA_DIR", str(data_dir))
     monkeypatch.setenv("OPENSTUDIO_SDK_DOCS_DIR", str(tmp_path / "missing-sdk-docs"))
     monkeypatch.setenv("OPENSTUDIO_PATH", "/fake/openstudio")
+    monkeypatch.setattr(
+        cli,
+        "resolve_openstudio_executable_with_source",
+        lambda: ("/fake/openstudio", "OPENSTUDIO_PATH"),
+    )
 
     def fake_command_available(command: str) -> dict:
         return {"command": command, "available": True, "path": command}
@@ -202,6 +217,11 @@ def test_cli_doctor_text_reports_missing_openstudio_sdk(
     (data_dir / "workspace").mkdir(parents=True)
     monkeypatch.setenv("OPENSTUDIO_AI_DATA_DIR", str(data_dir))
     monkeypatch.setenv("OPENSTUDIO_PATH", "/fake/openstudio")
+    monkeypatch.setattr(
+        cli,
+        "resolve_openstudio_executable_with_source",
+        lambda: ("/fake/openstudio", "OPENSTUDIO_PATH"),
+    )
 
     def fake_command_available(command: str) -> dict:
         return {"command": command, "available": True, "path": command}
@@ -235,6 +255,11 @@ def test_cli_doctor_reports_plugin_runtime_contract_mismatch(
     (data_dir / "workspace").mkdir(parents=True)
     monkeypatch.setenv("OPENSTUDIO_AI_DATA_DIR", str(data_dir))
     monkeypatch.setenv("OPENSTUDIO_PATH", "/fake/openstudio")
+    monkeypatch.setattr(
+        cli,
+        "resolve_openstudio_executable_with_source",
+        lambda: ("/fake/openstudio", "OPENSTUDIO_PATH"),
+    )
 
     def fake_command_available(command: str) -> dict:
         return {"command": command, "available": True, "path": command}
@@ -277,6 +302,9 @@ def test_cli_doctor_blocks_core_readiness_when_openstudio_is_missing(
     (data_dir / "workspace").mkdir(parents=True)
     monkeypatch.setenv("OPENSTUDIO_AI_DATA_DIR", str(data_dir))
     monkeypatch.delenv("OPENSTUDIO_PATH", raising=False)
+    monkeypatch.setattr(
+        cli, "resolve_openstudio_executable_with_source", lambda: (None, None)
+    )
 
     def fake_command_available(command: str) -> dict:
         if command == "openstudio":
@@ -321,6 +349,25 @@ def test_optional_nlr_capability_does_not_block_core_readiness(monkeypatch) -> N
     assert capability["blocking"] is False
     assert capability["status"] == "unavailable"
     assert "Docker is not installed" in capability["message"]
+
+
+def test_nlr_status_ignores_unrelated_mentions(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli.Path, "home", staticmethod(lambda: tmp_path))
+    codex_dir = tmp_path / ".codex"
+    codex_dir.mkdir()
+    (codex_dir / "config.toml").write_text(
+        '# nlr_openstudio is optional\nlabel = "nlr_openstudio"\n',
+        encoding="utf-8",
+    )
+    (tmp_path / ".mcp.json").write_text(
+        json.dumps({"mcpServers": {"other": {"description": "nlr_openstudio"}}}),
+        encoding="utf-8",
+    )
+
+    status = cli._nlr_mcp_status()
+
+    assert status["configured"] is False
 
 
 def test_cli_export_claude_marketplace(tmp_path: Path) -> None:

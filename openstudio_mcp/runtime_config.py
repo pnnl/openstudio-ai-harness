@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import sys
 from pathlib import Path
 
@@ -44,8 +45,29 @@ def configured_openstudio_path() -> str | None:
         config = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError):
         return None
+    if not isinstance(config, dict):
+        return None
     value = config.get("openstudio_path")
     return value.strip() if isinstance(value, str) and value.strip() else None
+
+
+def resolve_openstudio_executable_with_source() -> tuple[str | None, str | None]:
+    """Resolve the native executable using the runtime's canonical precedence."""
+    configured_path = os.getenv("OPENSTUDIO_PATH", "").strip()
+    source = "OPENSTUDIO_PATH"
+    if not configured_path:
+        configured_path = configured_openstudio_path() or ""
+        source = "runtime configuration"
+    if configured_path:
+        candidate = Path(configured_path).expanduser()
+        if candidate.is_file() and os.access(candidate, os.X_OK):
+            return str(candidate.resolve()), source
+        return None, None
+
+    discovered_path = shutil.which("openstudio")
+    if discovered_path:
+        return str(Path(discovered_path).resolve()), "PATH"
+    return None, None
 
 
 def set_openstudio_path(path: Path) -> Path:

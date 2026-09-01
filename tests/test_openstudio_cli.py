@@ -51,6 +51,7 @@ def test_cli_doctor_json_reports_mcp_readiness(
     assert exit_code == 0
     assert payload["ready"] is True
     assert payload["core_ready"] is True
+    assert payload["commands"]["openstudio"]["path"] == "/fake/openstudio"
     assert payload["mcp_ready"] is True
     assert payload["simulation_ready"] is True
     assert payload["assets"]["ok"] is True

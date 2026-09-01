@@ -29,7 +29,7 @@ def test_rendered_runtime_helpers_are_executable_python(tmp_path: Path) -> None:
     assert "optional_capabilities" in doctor
     assert '"--plugin-contract-version"' in doctor
     assert "return doctor.returncode or 1" in doctor
-    assert "return doctor.returncode or 2" in doctor
+    assert "return 2" in doctor
     assert "core_ready" in doctor
     assert "ready for energy modeling" in doctor
     assert 'runtime_cli, "install-runtime"' in installer

@@ -599,6 +599,12 @@ def _doctor_payload(
             checks["measures"] = {"ok": False, "error": str(exc)}
 
     resolved_openstudio, openstudio_source = resolve_openstudio_executable_with_source()
+    checks["commands"]["openstudio"] = {
+        "command": resolved_openstudio or "openstudio",
+        "available": resolved_openstudio is not None,
+        "path": resolved_openstudio,
+        "source": openstudio_source,
+    }
     checks["openstudio"].update(
         {
             "command": resolved_openstudio or "openstudio",

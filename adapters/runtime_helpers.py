@@ -118,7 +118,7 @@ def main() -> int:
         print("\\nThe runtime doctor returned an unreadable report. Run `openstudio-ai doctor` directly.")
         if doctor.stderr.strip():
             print(doctor.stderr.strip())
-        return doctor.returncode or 2
+        return 2
 
     if doctor.returncode != 0 or payload.get("core_ready") is not True:
         print("\\nOpenStudio AI is not ready for energy modeling. Resolve the blocking diagnostics, reconnect the host, and rerun setup.")

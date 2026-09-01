@@ -70,15 +70,21 @@ Use this form after exporting a plugin or when repairing a failed MCP
 connection. Re-exporting the plugin and upgrading the runtime are the normal
 recovery path for a contract mismatch.
 
-`doctor` reports `mcp_ready` for the runtime itself and `plugin_ready` for the
-selected plugin. A contract mismatch leaves `mcp_ready` true when the runtime
-otherwise works, emits a compatibility notice, and lets existing compatible MCP
-tools remain available.
+`doctor` reports `mcp_ready` for the runtime itself and `plugin_ready` when the
+selected plugin is compatible with that running MCP runtime. `core_ready` is the
+blocking energy-modeling readiness signal: it additionally requires supported
+Python, the OpenStudio Python SDK, and a native OpenStudio executable that
+returns a recognized version. A contract mismatch can leave `mcp_ready` true,
+so existing compatible MCP tools may remain available even though
+`plugin_ready` and `core_ready` are false.
 
-The bundled `doctor_runtime.py` helper returns exit code `1` for a contract
-mismatch so setup automation can require acknowledgement, while the MCP server
-itself continues to start. It returns `0` only when the plugin and runtime are
-compatible.
+`openstudio-ai doctor` and the bundled `doctor_runtime.py` helper return exit
+code `0` only when `core_ready` is true. They return `1` when a core readiness
+check fails, including a contract mismatch or a missing/unusable native
+OpenStudio CLI. The helper returns `2` when its prerequisite commands are
+missing or its doctor response cannot be parsed. Setup automation must treat a
+nonzero exit code as not ready for energy modeling; optional MCP capabilities
+such as NLR do not affect this result.
 
 `openstudio-ai validate-export` validates the structure and presence of
 compatibility metadata for any export by default. Use

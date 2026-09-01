@@ -762,7 +762,7 @@ def _cmd_install_runtime(_: argparse.Namespace) -> int:
 
 def _cmd_configure_openstudio(args: argparse.Namespace) -> int:
     """Persist a user-confirmed OpenStudio executable for future MCP launches."""
-    path = args.path.expanduser()
+    path = args.path.expanduser().resolve()
     if not path.is_file() or not os.access(path, os.X_OK):
         print(
             "OpenStudio path must be an executable file. " f"Received: {path}",

@@ -114,6 +114,23 @@ def test_cli_configure_openstudio_persists_confirmed_executable(
     assert "Saved OpenStudio executable" in capsys.readouterr().out
 
 
+def test_cli_configure_openstudio_resolves_relative_path_before_probing(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    executable = tmp_path / "openstudio"
+    executable.write_text("#!/bin/sh\necho 3.10.0\n", encoding="utf-8")
+    executable.chmod(executable.stat().st_mode | stat.S_IXUSR)
+    data_dir = tmp_path / "runtime-data"
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("OPENSTUDIO_AI_DATA_DIR", str(data_dir))
+
+    assert main(["configure-openstudio", "--path", "openstudio"]) == 0
+
+    config = json.loads((data_dir / "runtime.json").read_text(encoding="utf-8"))
+    assert config["openstudio_path"] == str(executable.resolve())
+    assert str(executable.resolve()) in capsys.readouterr().out
+
+
 def test_cli_configure_openstudio_rejects_unrecognized_executable(
     monkeypatch, tmp_path: Path, capsys
 ) -> None:

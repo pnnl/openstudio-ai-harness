@@ -388,8 +388,8 @@ class OpenStudioService:
                 "recommendation": (
                     "No native OpenStudio CLI is visible to this MCP server. "
                     "First perform read-only platform-specific discovery. If no "
-                    "executable is found, save it with `openstudio-ai configure-openstudio` "
-                    "or set OPENSTUDIO_PATH, then reconnect."
+                    "executable is found, save it with `openstudio-ai configure-openstudio "
+                    "--path <confirmed-executable>` or set OPENSTUDIO_PATH, then reconnect."
                 ),
             }
 

@@ -781,7 +781,15 @@ def _cmd_configure_openstudio(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
         return 2
-    destination = set_openstudio_path(path)
+    try:
+        destination = set_openstudio_path(path)
+    except OSError as exc:
+        print(
+            "Could not save the OpenStudio runtime configuration. Check write "
+            f"permissions for the user data directory, then retry: {exc}",
+            file=sys.stderr,
+        )
+        return 2
     print(f"Saved OpenStudio executable: {path.resolve()} ({version})")
     print(f"Runtime configuration: {destination}")
     print("Reconnect Claude Code or Codex, then run `openstudio-ai doctor`.")

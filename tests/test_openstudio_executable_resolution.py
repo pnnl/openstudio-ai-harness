@@ -66,6 +66,7 @@ def test_openstudio_status_explains_missing_cli(monkeypatch, tmp_path: Path) -> 
         "shutil.which('openstudio')",
     ]
     assert "read-only platform-specific discovery" in status["recommendation"]
+    assert "--path <confirmed-executable>" in status["recommendation"]
 
 
 def test_invalid_openstudio_path_does_not_select_a_different_installation(

@@ -129,6 +129,23 @@ def test_cli_configure_openstudio_rejects_unrecognized_executable(
     assert "recognized OpenStudio version" in capsys.readouterr().err
 
 
+def test_cli_configure_openstudio_reports_configuration_write_failure(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    executable = tmp_path / "openstudio"
+    executable.write_text("#!/bin/sh\necho 3.10.0\n", encoding="utf-8")
+    executable.chmod(executable.stat().st_mode | stat.S_IXUSR)
+    monkeypatch.setattr(
+        cli,
+        "set_openstudio_path",
+        lambda _: (_ for _ in ()).throw(OSError("read-only filesystem")),
+    )
+
+    assert main(["configure-openstudio", "--path", str(executable)]) == 2
+
+    assert "Could not save" in capsys.readouterr().err
+
+
 def test_cli_install_codex_creates_managed_agents_guidance(
     tmp_path: Path, capsys
 ) -> None:

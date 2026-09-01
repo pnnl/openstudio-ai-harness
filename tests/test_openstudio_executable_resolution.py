@@ -32,6 +32,7 @@ def test_openstudio_path_falls_back_to_path_discovery(
 ) -> None:
     discovered = _executable(tmp_path / "openstudio")
     monkeypatch.delenv("OPENSTUDIO_PATH", raising=False)
+    monkeypatch.setenv("OPENSTUDIO_AI_DATA_DIR", str(tmp_path / "runtime-data"))
     monkeypatch.setattr(mcp_server.shutil, "which", lambda _: str(discovered))
 
     service = OpenStudioService(workspace_root=tmp_path / "workspace")
@@ -46,6 +47,7 @@ def test_openstudio_path_falls_back_to_path_discovery(
 
 def test_openstudio_status_explains_missing_cli(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.delenv("OPENSTUDIO_PATH", raising=False)
+    monkeypatch.setenv("OPENSTUDIO_AI_DATA_DIR", str(tmp_path / "runtime-data"))
     monkeypatch.setattr(mcp_server.shutil, "which", lambda _: None)
 
     status = OpenStudioService(
@@ -53,7 +55,11 @@ def test_openstudio_status_explains_missing_cli(monkeypatch, tmp_path: Path) -> 
     ).runtime_openstudio_status()
 
     assert status["available"] is False
-    assert status["checks"] == ["OPENSTUDIO_PATH", "shutil.which('openstudio')"]
+    assert status["checks"] == [
+        "OPENSTUDIO_PATH",
+        "runtime configuration",
+        "shutil.which('openstudio')",
+    ]
     assert "read-only platform-specific discovery" in status["recommendation"]
 
 
@@ -65,3 +71,20 @@ def test_invalid_openstudio_path_does_not_select_a_different_installation(
     monkeypatch.setattr(mcp_server.shutil, "which", lambda _: str(discovered))
 
     assert OpenStudioService._resolve_openstudio_executable() is None
+
+
+def test_saved_openstudio_path_is_used_when_environment_is_unset(
+    monkeypatch, tmp_path: Path
+) -> None:
+    configured = _executable(tmp_path / "configured-openstudio")
+    monkeypatch.delenv("OPENSTUDIO_PATH", raising=False)
+    monkeypatch.setenv("OPENSTUDIO_AI_DATA_DIR", str(tmp_path / "runtime-data"))
+    from openstudio_mcp.runtime_config import set_openstudio_path
+
+    set_openstudio_path(configured)
+    monkeypatch.setattr(mcp_server.shutil, "which", lambda _: None)
+
+    service = OpenStudioService(workspace_root=tmp_path / "workspace")
+
+    assert service.openstudio_path == str(configured.resolve())
+    assert service.openstudio_path_source == "runtime configuration"

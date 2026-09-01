@@ -111,11 +111,6 @@ def main() -> int:
     )
     if doctor.stdout:
         print(doctor.stdout.strip())
-    if doctor.returncode != 0:
-        print("\\nThe OpenStudio AI runtime is not ready for MCP work.")
-        if doctor.stderr.strip():
-            print(doctor.stderr.strip())
-        return doctor.returncode
 
     try:
         payload = json.loads(doctor.stdout)
@@ -123,23 +118,16 @@ def main() -> int:
         print("\\nThe runtime doctor returned an unreadable report. Run `openstudio-ai doctor` directly.")
         return 2
 
-    compatibility = payload.get("plugin_compatibility", {})
-    if compatibility.get("ok") is False:
-        print("\\nCompatibility notice: the plugin and runtime use different MCP interface versions.")
-        print(compatibility.get("message", "The plugin may use unavailable MCP tools."))
-        print("Next step: refresh the plugin or update the OpenStudio AI runtime through pip.")
-        print("The MCP server remains connected so existing compatible tools can still be used.")
-        return 1
+    if doctor.returncode != 0 or payload.get("core_ready") is not True:
+        print("\\nOpenStudio AI is not ready for energy modeling. Resolve the blocking diagnostics, reconnect the host, and rerun setup.")
+        if doctor.stderr.strip():
+            print(doctor.stderr.strip())
+        return doctor.returncode or 1
 
-    print("\\nOpenStudio AI MCP runtime is ready for this plugin.")
-    if report["nlr_openstudio"]["configured"]:
-        print("NLR OpenStudio-MCP is configured locally and can be selected as the core modeling backend.")
-    else:
-        print(
-            "NLR OpenStudio-MCP is not configured locally. OpenStudio AI works normally without it; "
-            "you can optionally use NLR as the core modeling backend. Docker setup: "
-            "https://pnnl.github.io/openstudio-ai-plugins/#quick-start"
-        )
+    print("\\nOpenStudio AI is ready for energy modeling.")
+    nlr = payload.get("optional_capabilities", {}).get("nlr_openstudio", {})
+    if nlr:
+        print(f"NLR OpenStudio-MCP: {nlr.get('status', 'unknown')} — {nlr.get('message', '')}")
     return 0
 
 
@@ -206,6 +194,13 @@ def main() -> int:
     print("===============================")
     print(f"Python executable: {sys.executable}")
     print(f"Python version: {sys.version.split()[0]}")
+
+    if sys.version_info < (3, 10):
+        print(
+            "\\nOpenStudio AI requires Python 3.10 or newer. Install a supported "
+            "Python version, then rerun setup."
+        )
+        return 2
 
     package_spec = os.getenv("OPENSTUDIO_AI_PACKAGE_SPEC", DEFAULT_PACKAGE_SPEC)
     if shutil.which("openstudio-ai") and shutil.which("openstudio-ai-mcp"):

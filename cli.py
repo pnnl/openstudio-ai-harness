@@ -14,6 +14,7 @@ from typing import Any
 from adapters.claude_code_adapter import ClaudeCodeAdapter
 from adapters.codex_adapter import CodexAdapter
 from adapters.contracts import RUNTIME_MODES, HostAdapterConfig
+from openstudio_mcp.runtime_config import set_openstudio_path, user_data_dir
 from openstudio_mcp.compatibility import (
     PLUGIN_CONTRACT_VERSION,
     evaluate_plugin_compatibility,
@@ -34,32 +35,7 @@ def _default_root() -> Path:
 
 def _user_data_dir() -> Path:
     """Return a cross-platform local data directory."""
-    override = os.getenv("OPENSTUDIO_AI_DATA_DIR")
-    if override:
-        return Path(override).expanduser()
-
-    try:
-        from platformdirs import user_data_path
-
-        return Path(
-            user_data_path(
-                appname="OpenStudioAI",
-                appauthor="PNNL",
-                roaming=False,
-            )
-        )
-    except ImportError:
-        pass
-
-    if sys.platform == "darwin":
-        return Path.home() / "Library" / "Application Support" / "OpenStudioAI"
-    if os.name == "nt":
-        base = os.getenv("LOCALAPPDATA") or str(Path.home() / "AppData" / "Local")
-        return Path(base) / "PNNL" / "OpenStudioAI"
-    return (
-        Path(os.getenv("XDG_DATA_HOME", Path.home() / ".local" / "share"))
-        / "openstudio-ai"
-    )
+    return user_data_dir()
 
 
 def _command_available(command: str) -> dict[str, Any]:
@@ -117,6 +93,97 @@ def _python_openstudio_probe() -> dict[str, Any]:
         Exception
     ) as exc:  # pragma: no cover - import failures depend on environment.
         return {"ok": False, "error": str(exc)}
+
+
+def _python_runtime_status() -> dict[str, Any]:
+    """Report whether this interpreter meets the published runtime floor."""
+    minimum = (3, 10)
+    return {
+        "executable": sys.executable,
+        "version": sys.version.split()[0],
+        "minimum_version": ".".join(str(part) for part in minimum),
+        "supported": sys.version_info >= minimum,
+    }
+
+
+def _docker_status() -> dict[str, Any]:
+    """Return a non-blocking Docker availability check for optional MCPs."""
+    command = _command_available("docker")
+    if not command["available"]:
+        return {"installed": False, "running": False, "command": command}
+
+    probe = _run_probe([command["path"] or "docker", "info"])
+    return {
+        "installed": True,
+        "running": probe["ok"],
+        "command": command,
+        "probe": probe,
+    }
+
+
+def _nlr_mcp_status() -> dict[str, Any]:
+    """Find an optional NLR MCP declaration without changing host configuration."""
+    checked_paths: list[str] = []
+    codex_config = Path.home() / ".codex" / "config.toml"
+    checked_paths.append(str(codex_config))
+    if codex_config.is_file():
+        try:
+            if "nlr_openstudio" in codex_config.read_text(encoding="utf-8"):
+                return {
+                    "configured": True,
+                    "source": str(codex_config),
+                    "checked_paths": checked_paths,
+                }
+        except (OSError, UnicodeDecodeError):
+            pass
+
+    for directory in (Path.cwd(), *Path.cwd().parents):
+        mcp_config = directory / ".mcp.json"
+        checked_paths.append(str(mcp_config))
+        if not mcp_config.is_file():
+            continue
+        try:
+            config = json.loads(mcp_config.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            continue
+        if "nlr_openstudio" in config.get("mcpServers", {}):
+            return {
+                "configured": True,
+                "source": str(mcp_config),
+                "checked_paths": checked_paths,
+            }
+
+    return {"configured": False, "checked_paths": checked_paths}
+
+
+def _optional_capabilities() -> dict[str, Any]:
+    """Report optional integrations without making them core setup blockers."""
+    docker = _docker_status()
+    nlr = _nlr_mcp_status()
+    if nlr["configured"] and docker["running"]:
+        status = "configured"
+        message = "NLR OpenStudio-MCP is configured; reconnect the host to verify it."
+    elif nlr["configured"]:
+        status = "needs_docker"
+        message = "NLR OpenStudio-MCP is configured, but Docker is not running."
+    elif not docker["installed"]:
+        status = "unavailable"
+        message = "Docker is not installed, so NLR OpenStudio-MCP is unavailable."
+    elif not docker["running"]:
+        status = "unavailable"
+        message = "Docker is installed but not running, so NLR OpenStudio-MCP is unavailable."
+    else:
+        status = "not_configured"
+        message = "NLR OpenStudio-MCP is optional and has not been configured."
+    return {
+        "nlr_openstudio": {
+            "blocking": False,
+            "status": status,
+            "message": message,
+            "docker": docker,
+            "mcp": nlr,
+        }
+    }
 
 
 def _sdk_docs_probe() -> dict[str, Any]:
@@ -276,6 +343,19 @@ def _diagnostic(
 def _doctor_diagnostics(checks: dict[str, Any]) -> list[dict[str, str]]:
     """Translate low-level checks into actionable user-facing failures."""
     diagnostics: list[dict[str, str]] = []
+    if not checks["python"]["supported"]:
+        diagnostics.append(
+            _diagnostic(
+                "python_version_unsupported",
+                "error",
+                "The current Python version is unsupported for OpenStudio AI.",
+                "Install Python 3.10 or newer, then rerun setup with that Python.",
+                (
+                    f"Found Python {checks['python']['version']}; requires "
+                    f"{checks['python']['minimum_version']} or newer."
+                ),
+            )
+        )
     compatibility = checks["plugin_compatibility"]
     if not compatibility["ok"]:
         diagnostics.append(
@@ -411,10 +491,7 @@ def _doctor_payload(
     workspace_dir = data_dir / "workspace"
     checks: dict[str, Any] = {
         "version": _version(),
-        "python": {
-            "executable": sys.executable,
-            "version": sys.version.split()[0],
-        },
+        "python": _python_runtime_status(),
         "paths": {
             "harness_root": str(harness_root),
             "data_dir": str(data_dir),
@@ -520,15 +597,19 @@ def _doctor_payload(
         is True
         and checks["measures"].get("ok") is True
     )
-    checks["plugin_ready"] = (
-        checks["mcp_ready"] and checks["plugin_compatibility"].get("ok") is True
-    )
     checks["simulation_ready"] = (
         checks["mcp_ready"]
+        and checks["python"].get("supported") is True
         and checks["python_openstudio"].get("ok") is True
         and checks["openstudio"].get("ok") is True
     )
-    checks["ready"] = checks["mcp_ready"]
+    checks["core_ready"] = (
+        checks["simulation_ready"]
+        and checks["plugin_compatibility"].get("ok") is True
+    )
+    checks["plugin_ready"] = checks["core_ready"]
+    checks["ready"] = checks["core_ready"]
+    checks["optional_capabilities"] = _optional_capabilities()
     checks["diagnostics"] = _doctor_diagnostics(checks)
     return checks
 
@@ -543,9 +624,12 @@ def _print_json_or_text(payload: dict[str, Any], *, as_json: bool) -> None:
     if "mcp_ready" in payload:
         status = "ready" if payload["mcp_ready"] else "not ready"
         print(f"MCP runtime status: {status}")
-        if "simulation_ready" in payload:
-            sim_status = "ready" if payload["simulation_ready"] else "not ready"
-            print(f"OpenStudio execution status: {sim_status}")
+    if "core_ready" in payload:
+        status = "ready" if payload["core_ready"] else "not ready"
+        print(f"Core plugin readiness: {status}")
+    if "simulation_ready" in payload:
+        sim_status = "ready" if payload["simulation_ready"] else "not ready"
+        print(f"OpenStudio execution status: {sim_status}")
     if "paths" in payload:
         print("\nPaths:")
         for key, value in payload["paths"].items():
@@ -564,6 +648,7 @@ def _print_json_or_text(payload: dict[str, Any], *, as_json: bool) -> None:
         ("mcp startup", payload.get("mcp_startup", {}).get("ok")),
         ("measure registry", payload.get("measures", {}).get("ok")),
         ("plugin compatibility", payload.get("plugin_compatibility", {}).get("ok")),
+        ("supported Python", payload.get("python", {}).get("supported")),
         ("python openstudio sdk", payload.get("python_openstudio", {}).get("ok")),
         ("sdk docs lookup", payload.get("sdk_docs", {}).get("ok")),
         ("openstudio command", payload.get("openstudio", {}).get("ok")),
@@ -586,10 +671,10 @@ def _print_json_or_text(payload: dict[str, Any], *, as_json: bool) -> None:
             print(f"  Next step: {diagnostic['remediation']}")
             if diagnostic.get("detail"):
                 print(f"  Technical detail: {diagnostic['detail']}")
-    if payload.get("ready") is False:
+    if payload.get("core_ready") is False:
         print(
-            "\nOpenStudio AI can still provide planning, skills, and SDK guidance, "
-            "but runtime setup must be fixed before full MCP execution is reliable."
+            "\nOpenStudio AI is not ready for energy modeling. Resolve the blocking "
+            "checks above, reconnect the MCP server, and rerun setup."
         )
         storage_message = payload.get("runtime_storage", {}).get("message")
         if storage_message:
@@ -597,23 +682,10 @@ def _print_json_or_text(payload: dict[str, Any], *, as_json: bool) -> None:
         asset_message = payload.get("assets", {}).get("message")
         if asset_message:
             print(f"Runtime assets: {asset_message}")
-    elif payload.get("plugin_ready") is False:
-        print(
-            "\nThe MCP runtime is available, but this plugin targets a different MCP "
-            "interface version. Refresh the plugin or update openstudio-ai through pip."
-        )
-    elif payload.get("simulation_ready") is False:
-        print(
-            "\nThe MCP runtime is available, but OpenStudio execution is not ready. "
-            "Install OpenStudio or set OPENSTUDIO_PATH before model edits and simulations."
-        )
-        sdk_error = payload.get("python_openstudio", {}).get("error")
-        if sdk_error:
-            print(
-                "OpenStudio Python SDK: the `openstudio` Python package is a required "
-                "dependency for model editing and measures. Reinstall openstudio-ai, "
-                "confirm the native OpenStudio application is installed, and rerun doctor."
-            )
+    nlr = payload.get("optional_capabilities", {}).get("nlr_openstudio")
+    if nlr:
+        print("\nOptional capabilities:")
+        print(f"- NLR OpenStudio-MCP: {nlr['status']} — {nlr['message']}")
 
 
 def _cmd_doctor(args: argparse.Namespace) -> int:
@@ -651,6 +723,23 @@ def _cmd_install_runtime(_: argparse.Namespace) -> int:
     print("The runtime package is already installed if this command is available.")
     print(f"Initialized runtime workspace at: {workspace_dir}")
     print("Run `openstudio-ai doctor` to validate MCP readiness.")
+    return 0
+
+
+def _cmd_configure_openstudio(args: argparse.Namespace) -> int:
+    """Persist a user-confirmed OpenStudio executable for future MCP launches."""
+    path = args.path.expanduser()
+    if not path.is_file() or not os.access(path, os.X_OK):
+        print(
+            "OpenStudio path must be an executable file. "
+            f"Received: {path}",
+            file=sys.stderr,
+        )
+        return 2
+    destination = set_openstudio_path(path)
+    print(f"Saved OpenStudio executable: {path.resolve()}")
+    print(f"Runtime configuration: {destination}")
+    print("Reconnect Claude Code or Codex, then run `openstudio-ai doctor`.")
     return 0
 
 
@@ -1042,6 +1131,18 @@ def _build_parser() -> argparse.ArgumentParser:
         "install-runtime", help="Validate or complete runtime installation."
     )
     install_runtime.set_defaults(func=_cmd_install_runtime)
+
+    configure_openstudio = subparsers.add_parser(
+        "configure-openstudio",
+        help="Save a confirmed native OpenStudio executable path.",
+    )
+    configure_openstudio.add_argument(
+        "--path",
+        type=Path,
+        required=True,
+        help="Full path to the OpenStudio executable.",
+    )
+    configure_openstudio.set_defaults(func=_cmd_configure_openstudio)
 
     repair = subparsers.add_parser(
         "repair", help="Run non-destructive runtime repair checks."

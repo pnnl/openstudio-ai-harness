@@ -31,6 +31,7 @@ from blackboard.operations import (
     record_failure,
 )
 from openstudio_mcp.compatibility import evaluate_plugin_compatibility
+from openstudio_mcp.runtime_config import configured_openstudio_path
 from blackboard.snapshot import snapshot_workflow
 from openstudio_mcp.runtime.artifact_store import ArtifactStore
 from openstudio_mcp.runtime.job_manager import JobManager
@@ -356,12 +357,16 @@ class OpenStudioService:
 
     @staticmethod
     def _resolve_openstudio_executable_with_source() -> tuple[str | None, str | None]:
-        """Resolve an explicit override first, then use the server's PATH."""
+        """Resolve explicit or user-confirmed configuration, then the server PATH."""
         configured_path = os.getenv("OPENSTUDIO_PATH", "").strip()
+        source = "OPENSTUDIO_PATH"
+        if not configured_path:
+            configured_path = configured_openstudio_path() or ""
+            source = "runtime configuration"
         if configured_path:
             candidate = Path(configured_path).expanduser()
             if candidate.is_file() and os.access(candidate, os.X_OK):
-                return str(candidate.resolve()), "OPENSTUDIO_PATH"
+                return str(candidate.resolve()), source
             return None, None
 
         discovered_path = shutil.which("openstudio")
@@ -385,12 +390,16 @@ class OpenStudioService:
                 "available": False,
                 "path": None,
                 "source": None,
-                "checks": ["OPENSTUDIO_PATH", "shutil.which('openstudio')"],
+                "checks": [
+                    "OPENSTUDIO_PATH",
+                    "runtime configuration",
+                    "shutil.which('openstudio')",
+                ],
                 "recommendation": (
                     "No native OpenStudio CLI is visible to this MCP server. "
                     "First perform read-only platform-specific discovery. If no "
-                    "executable is found, install OpenStudio; otherwise set "
-                    "OPENSTUDIO_PATH or the MCP server PATH and reconnect."
+                    "executable is found, save it with `openstudio-ai configure-openstudio` "
+                    "or set OPENSTUDIO_PATH, then reconnect."
                 ),
             }
 

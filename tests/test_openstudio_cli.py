@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import stat
 from pathlib import Path
 
 import cli
@@ -44,6 +45,7 @@ def test_cli_doctor_json_reports_mcp_readiness(
     payload = json.loads(capsys.readouterr().out)
     assert exit_code == 0
     assert payload["ready"] is True
+    assert payload["core_ready"] is True
     assert payload["mcp_ready"] is True
     assert payload["simulation_ready"] is True
     assert payload["assets"]["ok"] is True
@@ -91,6 +93,22 @@ def test_cli_install_runtime_initializes_storage(
     assert (data_dir / "workspace").is_dir()
 
 
+def test_cli_configure_openstudio_persists_confirmed_executable(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    executable = tmp_path / "openstudio"
+    executable.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    executable.chmod(executable.stat().st_mode | stat.S_IXUSR)
+    data_dir = tmp_path / "runtime-data"
+    monkeypatch.setenv("OPENSTUDIO_AI_DATA_DIR", str(data_dir))
+
+    assert main(["configure-openstudio", "--path", str(executable)]) == 0
+
+    config = json.loads((data_dir / "runtime.json").read_text(encoding="utf-8"))
+    assert config["openstudio_path"] == str(executable.resolve())
+    assert "Saved OpenStudio executable" in capsys.readouterr().out
+
+
 def test_cli_install_codex_creates_managed_agents_guidance(
     tmp_path: Path, capsys
 ) -> None:
@@ -135,6 +153,7 @@ def test_cli_doctor_text_output_reports_checks(
     assert main(["doctor"]) == 0
     output = capsys.readouterr().out
     assert "MCP runtime status: ready" in output
+    assert "Core plugin readiness: ready" in output
     assert "OpenStudio execution status: ready" in output
     assert "Checks:" in output
     assert "- runtime assets: ok" in output
@@ -198,9 +217,10 @@ def test_cli_doctor_text_reports_missing_openstudio_sdk(
         lambda: {"ok": False, "error": "No module named openstudio"},
     )
 
-    assert main(["doctor"]) == 0
+    assert main(["doctor"]) == 1
     output = capsys.readouterr().out
     assert "MCP runtime status: ready" in output
+    assert "Core plugin readiness: not ready" in output
     assert "OpenStudio execution status: not ready" in output
     assert "- python openstudio sdk: failed" in output
     assert "native OpenStudio application" in output
@@ -236,10 +256,11 @@ def test_cli_doctor_reports_plugin_runtime_contract_mismatch(
                 "999",
             ]
         )
-        == 0
+        == 1
     )
     payload = json.loads(capsys.readouterr().out)
     assert payload["mcp_ready"] is True
+    assert payload["core_ready"] is False
     assert payload["plugin_ready"] is False
     assert payload["plugin_compatibility"]["ok"] is False
     assert payload["plugin_compatibility"]["status"] == "incompatible"
@@ -247,6 +268,59 @@ def test_cli_doctor_reports_plugin_runtime_contract_mismatch(
         item["code"] == "plugin_runtime_incompatible" for item in payload["diagnostics"]
     )
     assert any(item["severity"] == "warning" for item in payload["diagnostics"])
+
+
+def test_cli_doctor_blocks_core_readiness_when_openstudio_is_missing(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    data_dir = tmp_path / "runtime-data"
+    (data_dir / "workspace").mkdir(parents=True)
+    monkeypatch.setenv("OPENSTUDIO_AI_DATA_DIR", str(data_dir))
+    monkeypatch.delenv("OPENSTUDIO_PATH", raising=False)
+
+    def fake_command_available(command: str) -> dict:
+        if command == "openstudio":
+            return {"command": command, "available": False, "path": None}
+        return {"command": command, "available": True, "path": command}
+
+    monkeypatch.setattr(cli, "_command_available", fake_command_available)
+    monkeypatch.setattr(
+        cli,
+        "_run_probe",
+        lambda command, *, timeout_seconds=10: {
+            "ok": True,
+            "returncode": 0,
+            "stdout": "ok",
+            "stderr": "",
+        },
+    )
+    monkeypatch.setattr(cli, "_python_openstudio_probe", lambda: {"ok": True})
+
+    assert main(["doctor", "--json"]) == 1
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["mcp_ready"] is True
+    assert payload["simulation_ready"] is False
+    assert payload["core_ready"] is False
+    assert payload["ready"] is False
+    assert any(
+        item["code"] == "openstudio_command_unavailable"
+        for item in payload["diagnostics"]
+    )
+
+
+def test_optional_nlr_capability_does_not_block_core_readiness(monkeypatch) -> None:
+    monkeypatch.setattr(
+        cli,
+        "_docker_status",
+        lambda: {"installed": False, "running": False, "command": {}},
+    )
+    monkeypatch.setattr(cli, "_nlr_mcp_status", lambda: {"configured": False})
+
+    capability = cli._optional_capabilities()["nlr_openstudio"]
+
+    assert capability["blocking"] is False
+    assert capability["status"] == "unavailable"
+    assert "Docker is not installed" in capability["message"]
 
 
 def test_cli_export_claude_marketplace(tmp_path: Path) -> None:

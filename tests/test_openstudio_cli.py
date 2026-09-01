@@ -102,7 +102,7 @@ def test_cli_configure_openstudio_persists_confirmed_executable(
     monkeypatch, tmp_path: Path, capsys
 ) -> None:
     executable = tmp_path / "openstudio"
-    executable.write_text("#!/bin/sh\necho 3.10.0\n", encoding="utf-8")
+    executable.write_text("#!/bin/sh\necho 3.0.0-rc1+baflkdhsia\n", encoding="utf-8")
     executable.chmod(executable.stat().st_mode | stat.S_IXUSR)
     data_dir = tmp_path / "runtime-data"
     monkeypatch.setenv("OPENSTUDIO_AI_DATA_DIR", str(data_dir))
@@ -354,6 +354,7 @@ def test_cli_doctor_blocks_core_readiness_when_openstudio_is_missing(
     assert payload["mcp_ready"] is True
     assert payload["simulation_ready"] is False
     assert payload["core_ready"] is False
+    assert payload["plugin_ready"] is True
     assert payload["ready"] is False
     diagnostic = next(
         item

@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 _OPENSTUDIO_VERSION_RE = re.compile(
-    r"^\s*(?:openstudio\s+)?(?P<version>\d+\.\d+\.\d+(?:[+-][0-9A-Za-z.-]+)?)\s*$",
+    r"^\s*(?:openstudio\s+)?(?P<version>\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?)\s*$",
     re.IGNORECASE,
 )
 

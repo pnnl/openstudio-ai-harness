@@ -8,7 +8,10 @@ from pathlib import Path
 
 import openstudio_mcp.server as mcp_server
 import openstudio_mcp.runtime_config as runtime_config
-from openstudio_mcp.runtime_config import configured_openstudio_path
+from openstudio_mcp.runtime_config import (
+    configured_openstudio_path,
+    openstudio_version_from_output,
+)
 from openstudio_mcp.server import OpenStudioService
 
 
@@ -101,6 +104,12 @@ def test_non_object_runtime_configuration_is_ignored(
     monkeypatch.setenv("OPENSTUDIO_AI_DATA_DIR", str(data_dir))
 
     assert configured_openstudio_path() is None
+
+
+def test_openstudio_version_parser_accepts_prerelease_build_metadata() -> None:
+    assert openstudio_version_from_output("3.0.0-rc1+baflkdhsia") == (
+        "3.0.0-rc1+baflkdhsia"
+    )
 
 
 def test_invalid_saved_path_falls_back_to_path_discovery(

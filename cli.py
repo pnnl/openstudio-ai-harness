@@ -639,7 +639,9 @@ def _doctor_payload(
     checks["core_ready"] = (
         checks["simulation_ready"] and checks["plugin_compatibility"].get("ok") is True
     )
-    checks["plugin_ready"] = checks["core_ready"]
+    checks["plugin_ready"] = (
+        checks["mcp_ready"] and checks["plugin_compatibility"].get("ok") is True
+    )
     checks["ready"] = checks["core_ready"]
     checks["optional_capabilities"] = _optional_capabilities()
     checks["diagnostics"] = _doctor_diagnostics(checks)

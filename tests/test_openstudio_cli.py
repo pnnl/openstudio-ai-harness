@@ -433,6 +433,21 @@ def test_nlr_status_ignores_unrelated_mentions(monkeypatch, tmp_path: Path) -> N
     assert status["configured"] is False
 
 
+def test_nlr_status_skips_project_scan_when_working_directory_is_unavailable(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(cli.Path, "home", staticmethod(lambda: tmp_path))
+    monkeypatch.setattr(
+        cli.Path,
+        "cwd",
+        staticmethod(lambda: (_ for _ in ()).throw(OSError("directory removed"))),
+    )
+
+    status = cli._nlr_mcp_status()
+
+    assert status["configured"] is False
+
+
 def test_cli_export_claude_marketplace(tmp_path: Path) -> None:
     assert (
         main(

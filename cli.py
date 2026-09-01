@@ -151,7 +151,12 @@ def _nlr_mcp_status() -> dict[str, Any]:
         except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
             pass
 
-    for directory in (Path.cwd(), *Path.cwd().parents):
+    try:
+        current_directory = Path.cwd()
+    except OSError:
+        return {"configured": False, "checked_paths": checked_paths}
+
+    for directory in (current_directory, *current_directory.parents):
         mcp_config = directory / ".mcp.json"
         checked_paths.append(str(mcp_config))
         if not mcp_config.is_file():

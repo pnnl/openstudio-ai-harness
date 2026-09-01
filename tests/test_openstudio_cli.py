@@ -414,6 +414,24 @@ def test_optional_nlr_capability_does_not_block_core_readiness(monkeypatch) -> N
     assert "Docker is not installed" in capability["message"]
 
 
+def test_configured_nlr_reports_missing_docker_without_claiming_it_is_stopped(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        cli,
+        "_docker_status",
+        lambda: {"installed": False, "running": False, "command": {}},
+    )
+    monkeypatch.setattr(cli, "_nlr_mcp_status", lambda: {"configured": True})
+
+    capability = cli._optional_capabilities()["nlr_openstudio"]
+
+    assert capability["status"] == "unavailable"
+    assert capability["message"] == (
+        "NLR OpenStudio-MCP is configured, but Docker is not installed."
+    )
+
+
 def test_nlr_status_ignores_unrelated_mentions(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(cli.Path, "home", staticmethod(lambda: tmp_path))

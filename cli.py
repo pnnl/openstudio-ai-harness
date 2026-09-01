@@ -183,6 +183,9 @@ def _optional_capabilities() -> dict[str, Any]:
     if nlr["configured"] and docker["running"]:
         status = "configured"
         message = "NLR OpenStudio-MCP is configured; reconnect the host to verify it."
+    elif nlr["configured"] and not docker["installed"]:
+        status = "unavailable"
+        message = "NLR OpenStudio-MCP is configured, but Docker is not installed."
     elif nlr["configured"]:
         status = "needs_docker"
         message = "NLR OpenStudio-MCP is configured, but Docker is not running."

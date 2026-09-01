@@ -377,7 +377,7 @@ def _doctor_diagnostics(checks: dict[str, Any]) -> list[dict[str, str]]:
         diagnostics.append(
             _diagnostic(
                 "plugin_runtime_incompatible",
-                "warning",
+                "error",
                 compatibility["message"],
                 compatibility["remediation"],
                 (
@@ -463,7 +463,7 @@ def _doctor_diagnostics(checks: dict[str, Any]) -> list[dict[str, str]]:
         diagnostics.append(
             _diagnostic(
                 "openstudio_python_sdk_unavailable",
-                "warning",
+                "error",
                 "The OpenStudio Python SDK is unavailable, so model editing and measures are not ready.",
                 "Install the native OpenStudio application, then reinstall openstudio-ai and rerun doctor.",
                 str(checks["python_openstudio"].get("error") or "SDK import failed"),
@@ -486,9 +486,11 @@ def _doctor_diagnostics(checks: dict[str, Any]) -> list[dict[str, str]]:
         diagnostics.append(
             _diagnostic(
                 "openstudio_command_unavailable",
-                "warning",
+                "error",
                 "The native OpenStudio command is unavailable, so simulations are not ready.",
-                "Install OpenStudio or set OPENSTUDIO_PATH, then rerun doctor.",
+                "Install OpenStudio, save a confirmed executable with "
+                "`openstudio-ai configure-openstudio --path <executable>`, set "
+                "OPENSTUDIO_PATH, or add openstudio to PATH; then rerun doctor.",
                 str(
                     checks["openstudio"].get("error")
                     or "OpenStudio version probe failed"

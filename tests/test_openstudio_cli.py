@@ -292,7 +292,14 @@ def test_cli_doctor_reports_plugin_runtime_contract_mismatch(
     assert any(
         item["code"] == "plugin_runtime_incompatible" for item in payload["diagnostics"]
     )
-    assert any(item["severity"] == "warning" for item in payload["diagnostics"])
+    assert (
+        next(
+            item
+            for item in payload["diagnostics"]
+            if item["code"] == "plugin_runtime_incompatible"
+        )["severity"]
+        == "error"
+    )
 
 
 def test_cli_doctor_blocks_core_readiness_when_openstudio_is_missing(
@@ -330,10 +337,13 @@ def test_cli_doctor_blocks_core_readiness_when_openstudio_is_missing(
     assert payload["simulation_ready"] is False
     assert payload["core_ready"] is False
     assert payload["ready"] is False
-    assert any(
-        item["code"] == "openstudio_command_unavailable"
+    diagnostic = next(
+        item
         for item in payload["diagnostics"]
+        if item["code"] == "openstudio_command_unavailable"
     )
+    assert diagnostic["severity"] == "error"
+    assert "configure-openstudio" in diagnostic["remediation"]
 
 
 def test_optional_nlr_capability_does_not_block_core_readiness(monkeypatch) -> None:

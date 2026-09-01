@@ -101,13 +101,15 @@ OpenStudio AI has a two-part OpenStudio prerequisite:
 
 1. the PyPI `openstudio` Python package, installed as a required dependency of
    `openstudio-ai`;
-2. the native OpenStudio application/CLI, visible through `OPENSTUDIO_PATH` or
-   `PATH`.
+2. the native OpenStudio application/CLI, resolved through `OPENSTUDIO_PATH`, a
+   user-confirmed path saved by `openstudio-ai configure-openstudio`, or `PATH`.
 
 The MCP runtime resolves an executable `OPENSTUDIO_PATH` first. If it is unset,
-it resolves `openstudio` from the MCP server's `PATH` using
+it resolves the user-confirmed path saved by `openstudio-ai configure-openstudio`.
+Finally, it resolves `openstudio` from the MCP server's `PATH` using
 `shutil.which("openstudio")`. Use the environment variable to select a
-nonstandard installation or a specific version.
+temporary or externally managed override; use `configure-openstudio` to persist
+a nonstandard installation or a specific version.
 
 Before a simulation, hosts should call `runtime_openstudio_status`. It reports
 the executable path and discovery source from the MCP process itself, not from

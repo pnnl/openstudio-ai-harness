@@ -24,7 +24,8 @@ def register_runtime_tools(mcp, service) -> None:
         name="runtime_openstudio_status",
         description=(
             "Report whether this MCP server can run the native OpenStudio CLI, "
-            "including whether it was found through OPENSTUDIO_PATH or PATH."
+            "including whether it was found through OPENSTUDIO_PATH, saved runtime "
+            "configuration, or PATH."
         ),
     )
     async def runtime_openstudio_status() -> dict[str, Any]:

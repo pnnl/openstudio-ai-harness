@@ -25,8 +25,11 @@ Use this path for Claude Code, Codex, and other host integrations. It installs
 the MCP runtime, skills, knowledge, OpenStudio Python SDK dependency, and CLI
 tools. It does not install AUTOMA-AI or Streamlit.
 
-The runtime discovers `openstudio` on `PATH`. Set `OPENSTUDIO_PATH` only when
-OpenStudio is not on `PATH` or when you need to select a specific installation.
+The runtime resolves the OpenStudio executable in this order: `OPENSTUDIO_PATH`,
+the user-confirmed path saved by `openstudio-ai configure-openstudio`, then
+`openstudio` on the MCP server's `PATH`. Use `OPENSTUDIO_PATH` for a temporary
+or externally managed override; use `configure-openstudio` to persist a
+confirmed installation across Claude Code and Codex MCP launches.
 
 Standalone local AI app:
 

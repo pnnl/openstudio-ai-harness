@@ -451,8 +451,10 @@ class OpenStudioService:
         if openstudio_cmd is None:
             raise ValueError(
                 "OpenStudio CLI is unavailable to this MCP server: "
-                "OPENSTUDIO_PATH was not set and shutil.which('openstudio') found "
-                "no executable on the server PATH. Install the OpenStudio CLI, or "
+                "OPENSTUDIO_PATH and the saved runtime configuration did not resolve "
+                "an executable, and shutil.which('openstudio') found no executable on "
+                "the server PATH. Install the OpenStudio CLI, save a confirmed path with "
+                "`openstudio-ai configure-openstudio --path <executable>`, or "
                 "start/reconnect the MCP server with OPENSTUDIO_PATH set or with "
                 "`openstudio` on PATH."
             )

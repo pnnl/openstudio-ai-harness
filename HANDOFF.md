@@ -25,7 +25,7 @@
   documentation.
 - The base package requires the OpenStudio Python package. Model edits,
   simulation, and measures also require the native OpenStudio application or
-  CLI through `OPENSTUDIO_PATH` or `PATH`.
+  CLI through `OPENSTUDIO_PATH`, saved runtime configuration, or `PATH`.
 - Core plugin readiness is blocking: Python 3.10+, the installed MCP command,
   MCP startup, the OpenStudio Python SDK, a native executable, and plugin
   compatibility must all pass before doctor reports the plugin ready for energy

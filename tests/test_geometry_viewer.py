@@ -40,13 +40,26 @@ def test_model_export_geometry_viewer_writes_searchable_offline_html(
     assert "resetPitch=.65" in html
     assert "frontFacing" in html
     assert "pointInPolygon" in html
+    assert "averageDepth" in html
+    assert "No visible surfaces." in html
     assert "canvas.tabIndex=0" in html
     assert 'aria-label="Surfaces"' in html
     assert 'button type="button" class="space' in html
     assert "renderSurfaceList" in html
+    assert (
+        "renderList();draw()"
+        not in html.split("renderList=function()", 1)[1].split("const resetYaw", 1)[0]
+    )
     artifact = service.artifacts.must_get(result["viewer_id"])
     assert artifact.kind == "geometry_viewer_html"
     assert artifact.parent_id == loaded["model_id"]
+    workspace = next(
+        record
+        for record in service.state_store.list_workspaces()
+        if record.kind == "geometry_viewer"
+    )
+    assert workspace.metadata["include_subsurfaces"] is True
+    assert workspace.metadata["include_shading"] is True
 
 
 def test_geometry_viewer_honors_optional_face_categories(tmp_path: Path) -> None:
@@ -138,6 +151,43 @@ def test_geometry_viewer_quota_failure_cleans_workspace_before_publishing(
     )
 
     with pytest.raises(ValueError, match="quota exceeded"):
+        service.model_export_geometry_viewer(
+            ModelExportGeometryViewerArgs(model_id=loaded["model_id"])
+        )
+
+    workspace = next(
+        record
+        for record in service.state_store.list_workspaces()
+        if record.kind == "geometry_viewer"
+    )
+    assert workspace.status == "failed"
+    assert not Path(workspace.path).exists()
+    assert not any(
+        artifact.kind == "geometry_viewer_html"
+        for artifact in service.artifacts._items.values()
+    )
+
+
+def test_geometry_viewer_publication_failure_discards_artifact_and_workspace(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    service = OpenStudioService(workspace_root=tmp_path)
+    loaded = service.model_load(
+        ModelLoadArgs(model_uri=FIXTURE_MODEL.resolve().as_uri())
+    )
+    original_register = service._register_workspace
+    calls = 0
+
+    def fail_final_registration(**kwargs) -> None:
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise RuntimeError("SQLite persistence failed for test")
+        original_register(**kwargs)
+
+    monkeypatch.setattr(service, "_register_workspace", fail_final_registration)
+
+    with pytest.raises(RuntimeError, match="persistence failed"):
         service.model_export_geometry_viewer(
             ModelExportGeometryViewerArgs(model_id=loaded["model_id"])
         )

@@ -228,44 +228,50 @@ class OpenStudioService:
         )
         workspace_id = f"geometry-viewer-{uuid4()}"
         workspace = self.workspace_manager.create_workspace(workspace_id)
-        self._register_workspace(
-            workspace_id=workspace_id,
-            kind="geometry_viewer",
-            model_id=args.model_id,
-            metadata={
-                "source_model_id": args.model_id,
-                "include_subsurfaces": args.include_subsurfaces,
-                "include_shading": args.include_shading,
-            },
-            status="running",
-        )
         viewer_path = workspace / "geometry-viewer.html"
+        workspace_metadata = {
+            "source_model_id": args.model_id,
+            "include_subsurfaces": args.include_subsurfaces,
+            "include_shading": args.include_shading,
+        }
+        artifact = None
         try:
+            self._register_workspace(
+                workspace_id=workspace_id,
+                kind="geometry_viewer",
+                model_id=args.model_id,
+                metadata=workspace_metadata,
+                status="running",
+            )
             viewer_path.write_text(render_geometry_viewer_html(scene), encoding="utf-8")
             self.workspace_manager.ensure_quota(workspace_id)
+            artifact = self.artifacts.create(
+                kind="geometry_viewer_html",
+                parent_id=args.model_id,
+                metadata={
+                    "path": str(viewer_path),
+                    "uri": viewer_path.as_uri(),
+                    "scene_version": scene["version"],
+                    "counts": scene["counts"],
+                    "warnings": scene["warnings"],
+                },
+            )
+            self._register_workspace(
+                workspace_id=workspace_id,
+                kind="geometry_viewer",
+                model_id=args.model_id,
+                artifact_id=artifact.artifact_id,
+                metadata=workspace_metadata,
+                status="succeeded",
+            )
         except Exception:
-            self.state_store.mark_workspace_status(workspace_id, "failed")
-            self.workspace_manager.cleanup_workspace(workspace_id)
+            if artifact is not None:
+                self.artifacts.discard(artifact.artifact_id)
+            try:
+                self.state_store.mark_workspace_status(workspace_id, "failed")
+            finally:
+                self.workspace_manager.cleanup_workspace(workspace_id)
             raise
-        artifact = self.artifacts.create(
-            kind="geometry_viewer_html",
-            parent_id=args.model_id,
-            metadata={
-                "path": str(viewer_path),
-                "uri": viewer_path.as_uri(),
-                "scene_version": scene["version"],
-                "counts": scene["counts"],
-                "warnings": scene["warnings"],
-            },
-        )
-        self._register_workspace(
-            workspace_id=workspace_id,
-            kind="geometry_viewer",
-            model_id=args.model_id,
-            artifact_id=artifact.artifact_id,
-            metadata={"source_model_id": args.model_id},
-            status="succeeded",
-        )
         return success_payload(
             viewer_id=artifact.artifact_id,
             viewer_path=str(viewer_path),

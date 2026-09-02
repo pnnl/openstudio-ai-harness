@@ -2,7 +2,7 @@
 
 ## Current Status
 
-- Package version: `0.1.8`.
+- Package version: `0.2.0`.
 - The package exposes an OpenStudio MCP runtime, Claude Code and Codex plugin
   exports, trusted skills and references, runtime learning contracts, and
   MCP-backed SQLite workflow state.

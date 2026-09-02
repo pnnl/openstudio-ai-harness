@@ -1,6 +1,6 @@
 [project]
 name = "openstudio-ai-standalone"
-version = "0.1.8"
+version = "0.2.0"
 description = "Python 3.12+ AUTOMA-AI and Streamlit development environment for OpenStudio AI."
 requires-python = ">=3.12"
 dependencies = [

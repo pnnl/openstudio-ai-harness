@@ -1,7 +1,7 @@
 ---
 name: openstudio_hvac_vav_terminal_creator
 description: Create VAV zone terminals, optional reheat coils, zone sizing settings, and return plenum assignments.
-version: 0.1.8
+version: 0.2.0
 output_format: markdown_with_json_state_patch
 ---
 

@@ -1,7 +1,7 @@
 ---
 name: sdk_core_patterns
 description: Core OpenStudio Python SDK scripting patterns for bounded model inspection and editing.
-version: 0.1.8
+version: 0.2.0
 ---
 
 # Core OpenStudio SDK Patterns

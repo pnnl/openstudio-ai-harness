@@ -1,6 +1,6 @@
 {
   "suite": "openstudio_ai_agent_eval_cases",
-  "version": "0.1.8",
+  "version": "0.2.0",
   "description": "Conversation-style evaluation cases for the OpenStudio AI Model Workspace Agent.",
   "default_model_path": "tests/fixtures/sample.osm",
   "evaluation_dimensions": [

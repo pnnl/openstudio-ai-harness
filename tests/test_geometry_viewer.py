@@ -114,7 +114,7 @@ def test_geometry_viewer_runs_in_a_browser_and_supports_selection(
             )
             page.goto(Path(exported["viewer_path"]).as_uri())
 
-            page.get_by_role("button", name="Core_ZN").click()
+            page.locator("#spaces").get_by_role("button", name="Core_ZN").click()
             assert "Core_ZN" in page.locator("#detail").inner_text()
 
             page.get_by_role(

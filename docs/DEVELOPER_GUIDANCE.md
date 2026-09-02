@@ -90,11 +90,11 @@ shell.
 OpenStudio has two requirements:
 
 - Python package: `openstudio>=3.10.0`.
-- Native OpenStudio application or CLI visible through `OPENSTUDIO_PATH` or
-  `PATH`.
+- Native OpenStudio application or CLI resolved through `OPENSTUDIO_PATH`, a
+  user-confirmed path saved by `openstudio-ai configure-openstudio`, or `PATH`.
 
-`OPENSTUDIO_PATH` takes priority when it is set; otherwise the runtime resolves
-`openstudio` from `PATH`.
+The runtime resolves `OPENSTUDIO_PATH` first, the saved runtime configuration
+second, and `openstudio` from `PATH` last.
 
 ## Folder Ownership
 

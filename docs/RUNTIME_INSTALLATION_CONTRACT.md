@@ -70,15 +70,22 @@ Use this form after exporting a plugin or when repairing a failed MCP
 connection. Re-exporting the plugin and upgrading the runtime are the normal
 recovery path for a contract mismatch.
 
-`doctor` reports `mcp_ready` for the runtime itself and `plugin_ready` for the
-selected plugin. A contract mismatch leaves `mcp_ready` true when the runtime
-otherwise works, emits a compatibility notice, and lets existing compatible MCP
-tools remain available.
+`doctor` reports `mcp_ready` for the runtime itself and `plugin_ready` when the
+selected plugin has no known incompatibility with that running MCP runtime.
+`core_ready` is the blocking energy-modeling readiness signal: it additionally
+requires supported Python, the OpenStudio Python SDK, and a native OpenStudio
+executable that returns a recognized version. A declared contract mismatch
+blocks both `plugin_ready` and `core_ready`. An undeclared contract produces a
+warning that compatibility cannot be verified, but does not block readiness so
+existing marketplace exports without contract metadata remain usable.
 
-The bundled `doctor_runtime.py` helper returns exit code `1` for a contract
-mismatch so setup automation can require acknowledgement, while the MCP server
-itself continues to start. It returns `0` only when the plugin and runtime are
-compatible.
+`openstudio-ai doctor` and the bundled `doctor_runtime.py` helper return exit
+code `0` only when `core_ready` is true. They return `1` when a core readiness
+check fails, including a contract mismatch or a missing/unusable native
+OpenStudio CLI. The helper returns `2` when its prerequisite commands are
+missing or its doctor response cannot be parsed. Setup automation must treat a
+nonzero exit code as not ready for energy modeling; optional MCP capabilities
+such as NLR do not affect this result.
 
 `openstudio-ai validate-export` validates the structure and presence of
 compatibility metadata for any export by default. Use
@@ -101,13 +108,15 @@ OpenStudio AI has a two-part OpenStudio prerequisite:
 
 1. the PyPI `openstudio` Python package, installed as a required dependency of
    `openstudio-ai`;
-2. the native OpenStudio application/CLI, visible through `OPENSTUDIO_PATH` or
-   `PATH`.
+2. the native OpenStudio application/CLI, resolved through `OPENSTUDIO_PATH`, a
+   user-confirmed path saved by `openstudio-ai configure-openstudio`, or `PATH`.
 
 The MCP runtime resolves an executable `OPENSTUDIO_PATH` first. If it is unset,
-it resolves `openstudio` from the MCP server's `PATH` using
+it resolves the user-confirmed path saved by `openstudio-ai configure-openstudio`.
+Finally, it resolves `openstudio` from the MCP server's `PATH` using
 `shutil.which("openstudio")`. Use the environment variable to select a
-nonstandard installation or a specific version.
+temporary or externally managed override; use `configure-openstudio` to persist
+a nonstandard installation or a specific version.
 
 Before a simulation, hosts should call `runtime_openstudio_status`. It reports
 the executable path and discovery source from the MCP process itself, not from

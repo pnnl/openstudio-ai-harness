@@ -17,6 +17,7 @@ from urllib.parse import unquote, urlparse
 from uuid import uuid4
 
 from dotenv import load_dotenv
+
 # FastMCP is implemented in the ``fastmcp`` submodule.  Importing it from the
 # package root is not supported by every MCP SDK version allowed by our
 # dependency range.
@@ -31,6 +32,10 @@ from blackboard.operations import (
     record_failure,
 )
 from openstudio_mcp.compatibility import evaluate_plugin_compatibility
+from openstudio_mcp.runtime_config import (
+    openstudio_version_from_output,
+    resolve_openstudio_executable_with_source,
+)
 from blackboard.snapshot import snapshot_workflow
 from openstudio_mcp.runtime.artifact_store import ArtifactStore
 from openstudio_mcp.runtime.job_manager import JobManager
@@ -356,18 +361,8 @@ class OpenStudioService:
 
     @staticmethod
     def _resolve_openstudio_executable_with_source() -> tuple[str | None, str | None]:
-        """Resolve an explicit override first, then use the server's PATH."""
-        configured_path = os.getenv("OPENSTUDIO_PATH", "").strip()
-        if configured_path:
-            candidate = Path(configured_path).expanduser()
-            if candidate.is_file() and os.access(candidate, os.X_OK):
-                return str(candidate.resolve()), "OPENSTUDIO_PATH"
-            return None, None
-
-        discovered_path = shutil.which("openstudio")
-        if discovered_path:
-            return str(Path(discovered_path).resolve()), "PATH"
-        return None, None
+        """Resolve explicit or user-confirmed configuration, then the server PATH."""
+        return resolve_openstudio_executable_with_source()
 
     def _openstudio_executable_or_none(self) -> str | None:
         return self.openstudio_path
@@ -385,12 +380,16 @@ class OpenStudioService:
                 "available": False,
                 "path": None,
                 "source": None,
-                "checks": ["OPENSTUDIO_PATH", "shutil.which('openstudio')"],
+                "checks": [
+                    "OPENSTUDIO_PATH",
+                    "runtime configuration",
+                    "shutil.which('openstudio')",
+                ],
                 "recommendation": (
                     "No native OpenStudio CLI is visible to this MCP server. "
                     "First perform read-only platform-specific discovery. If no "
-                    "executable is found, install OpenStudio; otherwise set "
-                    "OPENSTUDIO_PATH or the MCP server PATH and reconnect."
+                    "executable is found, save it with `openstudio-ai configure-openstudio "
+                    "--path <confirmed-executable>` or set OPENSTUDIO_PATH, then reconnect."
                 ),
             }
 
@@ -402,17 +401,19 @@ class OpenStudioService:
             timeout=10,
         )
         version_output = (version_probe.stdout or version_probe.stderr).strip()
+        version = openstudio_version_from_output(version_output)
+        available = version_probe.returncode == 0 and version is not None
         return {
             "ok": True,
-            "available": version_probe.returncode == 0,
+            "available": available,
             "path": self.openstudio_path,
             "source": self.openstudio_path_source,
-            "version": version_output[:2000] or None,
+            "version": version,
             "recommendation": (
                 None
-                if version_probe.returncode == 0
-                else "An OpenStudio executable was found, but its version check failed. "
-                "Run the OpenStudio AI doctor workflow before simulation."
+                if available
+                else "An executable was found, but it did not return a recognized "
+                "OpenStudio version. Run the OpenStudio AI doctor workflow before simulation."
             ),
         }
 
@@ -455,8 +456,10 @@ class OpenStudioService:
         if openstudio_cmd is None:
             raise ValueError(
                 "OpenStudio CLI is unavailable to this MCP server: "
-                "OPENSTUDIO_PATH was not set and shutil.which('openstudio') found "
-                "no executable on the server PATH. Install the OpenStudio CLI, or "
+                "OPENSTUDIO_PATH and the saved runtime configuration did not resolve "
+                "an executable, and shutil.which('openstudio') found no executable on "
+                "the server PATH. Install the OpenStudio CLI, save a confirmed path with "
+                "`openstudio-ai configure-openstudio --path <executable>`, or "
                 "start/reconnect the MCP server with OPENSTUDIO_PATH set or with "
                 "`openstudio` on PATH."
             )

@@ -26,14 +26,18 @@ def test_rendered_runtime_helpers_are_executable_python(tmp_path: Path) -> None:
     assert PLUGIN_CONTRACT_VERSION in doctor
     assert "def nlr_mcp_status" in doctor
     assert '"nlr_openstudio": nlr_mcp_status()' in doctor
-    assert "OpenStudio AI works normally without it" in doctor
+    assert "optional_capabilities" in doctor
     assert '"--plugin-contract-version"' in doctor
-    assert "return 1" in doctor
+    assert "return doctor.returncode or 1" in doctor
+    assert "return 2" in doctor
+    assert "core_ready" in doctor
+    assert "ready for energy modeling" in doctor
     assert 'runtime_cli, "install-runtime"' in installer
     assert "def runtime_command_path(command: str)" in installer
     assert "def runtime_cli_path" in installer
     assert 'scripts_dir / "Scripts" / f"{command}.exe"' in installer
     assert 'runtime_mcp = runtime_command_path("openstudio-ai-mcp")' in installer
+    assert "requires Python 3.10 or newer" in installer
     assert "do not replace it with this absolute path" in installer
     assert '"-m", "cli"' not in installer
     assert (

@@ -2,7 +2,7 @@
 
 ## Current Status
 
-- Package version: `0.1.5`.
+- Package version: `0.1.8`.
 - The package exposes an OpenStudio MCP runtime, Claude Code and Codex plugin
   exports, trusted skills and references, runtime learning contracts, and
   MCP-backed SQLite workflow state.
@@ -25,11 +25,15 @@
   documentation.
 - The base package requires the OpenStudio Python package. Model edits,
   simulation, and measures also require the native OpenStudio application or
-  CLI through `OPENSTUDIO_PATH` or `PATH`.
-- The MCP runtime resolves an executable `OPENSTUDIO_PATH` first, then falls
-  back to `openstudio` on its own `PATH` with `shutil.which`; the resolved
-  absolute path is used for both measures and simulations. Use the environment
-  variable for a nonstandard or version-specific installation.
+  CLI through `OPENSTUDIO_PATH`, saved runtime configuration, or `PATH`.
+- Core plugin readiness is blocking: Python 3.10+, the installed MCP command,
+  MCP startup, the OpenStudio Python SDK, a native executable, and plugin
+  compatibility must all pass before doctor reports the plugin ready for energy
+  modeling. NLR is reported as a separate optional capability.
+- The MCP runtime resolves an executable `OPENSTUDIO_PATH` first, then a
+  user-confirmed path stored by `openstudio-ai configure-openstudio`, then
+  `openstudio` on its own `PATH` with `shutil.which`. The resolved absolute path
+  is used for both measures and simulations.
 - The simulation skill prevents repeated executable failures: it does not edit
   marketplace `.mcp.json` automatically, requires a reconnect after an approved
   environment change, and retries only once.

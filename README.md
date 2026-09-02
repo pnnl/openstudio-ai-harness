@@ -39,7 +39,17 @@ openstudio-ai-mcp --transport stdio
 OpenStudio AI requires both the PyPI `openstudio` Python package, installed as
 a dependency of `openstudio-ai`, and the native OpenStudio application/CLI. Set
 `OPENSTUDIO_PATH` when the CLI is not on `PATH` or when selecting a specific
-installation.
+installation. Alternatively, after confirming the executable, save it for
+future Claude Code and Codex MCP launches with:
+
+```bash
+openstudio-ai configure-openstudio --path /path/to/openstudio
+```
+
+`openstudio-ai doctor` reports **core plugin readiness** only when the Python
+runtime, MCP command, native OpenStudio executable, and plugin compatibility
+are ready for energy modeling. Optional integrations such as NLR OpenStudio-MCP
+are reported separately and do not block core readiness.
 
 The base package is the recommended install for Claude Code, Codex, and other
 marketplace-style host integrations. It intentionally does not install

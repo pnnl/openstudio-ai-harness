@@ -13,7 +13,7 @@ except ModuleNotFoundError:  # Python 3.10
     import tomli as tomllib
 
 PACKAGE_NAME = "openstudio-ai"
-PACKAGE_VERSION_FALLBACK = "0.1.8"
+PACKAGE_VERSION_FALLBACK = "0.2.0"
 PLUGIN_VERSION_ENV = "OPENSTUDIO_AI_PLUGIN_VERSION"
 PLUGIN_CONTRACT_ENV = "OPENSTUDIO_AI_PLUGIN_CONTRACT_VERSION"
 # Contract 2 adds runtime_openstudio_status, which the simulation skill requires

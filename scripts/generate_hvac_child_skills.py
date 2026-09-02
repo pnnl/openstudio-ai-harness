@@ -90,7 +90,7 @@ def render_generated_skills(
     generated: list[GeneratedSkill] = []
     for raw_skill in specs:
         skill = dict(raw_skill)
-        skill.setdefault("version", "0.1.8")
+        skill.setdefault("version", "0.2.0")
         skill.setdefault("output_format", "markdown_with_json_state_patch")
         skill.setdefault("sdk_methods_intro", "")
         skill.setdefault("conditional_required_state", [])

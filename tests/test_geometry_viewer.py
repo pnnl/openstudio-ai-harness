@@ -4,6 +4,7 @@ import openstudio
 import pytest
 
 from openstudio_mcp.geometry_viewer import build_geometry_scene
+import openstudio_mcp.server as mcp_server
 from openstudio_mcp.server import OpenStudioService
 from openstudio_mcp.tools.schemas import (
     ModelExportGeometryViewerArgs,
@@ -42,6 +43,7 @@ def test_model_export_geometry_viewer_writes_searchable_offline_html(
     assert "pointInPolygon" in html
     assert "averageDepth" in html
     assert "face.kind==='shading'||frontFacing(face)" in html
+    assert "face.id===selectedFaceId||face.kind==='shading'||frontFacing(face)" in html
     assert "canvas.onkeydown" in html
     assert "Arrow keys orbit" in html
     assert "No visible surfaces." in html
@@ -243,3 +245,33 @@ def test_geometry_viewer_cleanup_runs_when_artifact_rollback_fails(
     )
     assert workspace.status == "failed"
     assert not Path(workspace.path).exists()
+
+
+def test_interrupted_geometry_export_remains_prunable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    service = OpenStudioService(workspace_root=tmp_path)
+    loaded = service.model_load(
+        ModelLoadArgs(model_uri=FIXTURE_MODEL.resolve().as_uri())
+    )
+
+    def interrupt_export(_scene) -> str:
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(mcp_server, "render_geometry_viewer_html", interrupt_export)
+
+    with pytest.raises(KeyboardInterrupt):
+        service.model_export_geometry_viewer(
+            ModelExportGeometryViewerArgs(model_id=loaded["model_id"])
+        )
+
+    workspace = next(
+        record
+        for record in service.state_store.list_workspaces()
+        if record.kind == "geometry_viewer"
+    )
+    assert workspace.status == "available"
+    preview = service.runtime_prune_preview()
+    assert workspace.workspace_id in {
+        item["workspace_id"] for item in preview["candidates"]
+    }

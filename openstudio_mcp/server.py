@@ -241,7 +241,9 @@ class OpenStudioService:
                 kind="geometry_viewer",
                 model_id=args.model_id,
                 metadata=workspace_metadata,
-                status="running",
+                # A synchronous export has no durable job/lease. Leaving this
+                # as available makes a process-interrupted export reclaimable.
+                status="available",
             )
             viewer_path.write_text(render_geometry_viewer_html(scene), encoding="utf-8")
             self.workspace_manager.ensure_quota(workspace_id)

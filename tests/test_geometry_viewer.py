@@ -85,6 +85,50 @@ def test_geometry_viewer_escapes_all_model_text_tag_delimiters() -> None:
     assert "\\u003c/ScRiPt>" in html
 
 
+def test_geometry_viewer_runs_in_a_browser_and_supports_selection(
+    tmp_path: Path,
+) -> None:
+    sync_api = pytest.importorskip("playwright.sync_api")
+    service = OpenStudioService(workspace_root=tmp_path)
+    loaded = service.model_load(
+        ModelLoadArgs(model_uri=FIXTURE_MODEL.resolve().as_uri())
+    )
+    exported = service.model_export_geometry_viewer(
+        ModelExportGeometryViewerArgs(model_id=loaded["model_id"])
+    )
+    errors: list[str] = []
+
+    with sync_api.sync_playwright() as playwright:
+        try:
+            browser = playwright.chromium.launch()
+        except sync_api.Error as exc:
+            pytest.skip(f"Playwright Chromium is unavailable: {exc}")
+        try:
+            page = browser.new_page()
+            page.on("pageerror", lambda error: errors.append(str(error)))
+            page.on(
+                "console",
+                lambda message: (
+                    errors.append(message.text) if message.type == "error" else None
+                ),
+            )
+            page.goto(Path(exported["viewer_path"]).as_uri())
+
+            page.get_by_role("button", name="Core_ZN").click()
+            assert "Core_ZN" in page.locator("#detail").inner_text()
+
+            page.locator("#surface-list button").first.click()
+            assert "Surface type:" in page.locator("#detail").inner_text()
+
+            page.locator("#canvas").press("ArrowRight")
+            page.locator("#story").select_option("Building Story 1")
+            assert "Attic" not in page.locator("#spaces").inner_text()
+            assert page.locator("#surface-list li[hidden]").count() > 0
+            assert errors == []
+        finally:
+            browser.close()
+
+
 def test_geometry_viewer_honors_optional_face_categories(tmp_path: Path) -> None:
     service = OpenStudioService(workspace_root=tmp_path)
     loaded = service.model_load(

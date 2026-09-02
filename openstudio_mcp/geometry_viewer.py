@@ -212,7 +212,7 @@ const search=document.querySelector('#search'),storySelect=document.querySelecto
 [...new Set(scene.spaces.map(s=>s.story))].sort().forEach(v=>storySelect.add(new Option(v,v)));document.querySelector('#summary').textContent=`${{scene.source_model}} · ${{scene.counts.spaces}} spaces · ${{scene.counts.stories}} stories · ${{scene.counts.faces}} faces${{scene.warnings.length?' · '+scene.warnings.length+' warnings':''}}`;renderList();resize();
 </script><script>
 // Keep the original renderer small, then layer exact face selection over it.
-let selectedFaceId=null,faceDrag=null;
+let selectedFaceId=null,faceDrag=null,visibleSpaceIds=new Set(scene.spaces.map(space=>space.id));
 const baseDraw=draw;
 canvas.tabIndex=0;
 canvas.setAttribute('aria-label','Building geometry. Use the surface list to inspect individual surfaces.');
@@ -221,23 +221,30 @@ surfacePanel.open=true;
 surfacePanel.innerHTML='<summary>Surfaces</summary><ul id="surface-list" aria-label="Surfaces"></ul>';
 document.querySelector('aside').appendChild(surfacePanel);
 const surfaceList=document.querySelector('#surface-list');
-function renderSurfaceList(){{let faces=scene.faces.filter(face=>{{if(face.kind==='subsurface')return document.querySelector('#sub').checked;if(face.kind==='shading')return document.querySelector('#shade').checked;return true}}).sort((a,b)=>a.name.localeCompare(b.name));surfaceList.innerHTML=faces.map(face=>'<li><button type="button" class="space" data-face-id="'+face.id+'">'+escape(face.name)+'<span class="meta">'+escape(face.surface_type)+' · '+face.area_m2+' m²</span></button></li>').join('')||'<li class="meta">No visible surfaces.</li>';surfaceList.querySelectorAll('[data-face-id]').forEach(button=>button.onclick=()=>showSurface(scene.faces.find(face=>face.id===button.dataset.faceId)))}}
+function renderSurfaceList(){{let faces=scene.faces.filter(face=>{{if(face.kind==='subsurface')return document.querySelector('#sub').checked;if(face.kind==='shading')return document.querySelector('#shade').checked;return true}}).sort((a,b)=>a.name.localeCompare(b.name));surfaceList.innerHTML=faces.map(face=>'<li><button type="button" class="space" data-face-id="'+face.id+'">'+escape(face.name)+'<span class="meta">'+escape(face.surface_type)+' · '+face.area_m2+' m²</span></button></li>').join('')||'<li class="meta">No visible surfaces.</li>';surfaceList.querySelectorAll('[data-face-id]').forEach(button=>button.onclick=()=>showSurface(scene.faces.find(face=>face.id===button.dataset.faceId)));updateSurfaceList()}}
 renderList=function(){{let items=filtered(),mode=sortSelect.value;items.sort((a,b)=>mode==='name'?a.name.localeCompare(b.name):mode==='story'?a.story.localeCompare(b.story)||a.name.localeCompare(b.name):b[mode==='area'?'floor_area_m2':'volume_m3']-a[mode==='area'?'floor_area_m2':'volume_m3']);list.innerHTML=items.map(space=>'<li><button type="button" class="space '+(space.id===selected?'active':'')+'" data-id="'+space.id+'" aria-pressed="'+(space.id===selected)+'"><strong>'+escape(space.name)+'</strong><span class="meta">'+escape(space.story)+' · '+space.floor_area_m2+' m² · '+escape(space.thermal_zone)+'</span></button></li>').join('')||'<li class="meta">No matching spaces.</li>';list.querySelectorAll('[data-id]').forEach(button=>button.onclick=()=>select(button.dataset.id))}};
 const resetYaw=-.7,resetPitch=.65;
 function camera(){{let c=Math.cos(pitch),s=Math.sin(pitch),co=Math.cos(yaw),si=Math.sin(yaw);return {{d:[si*c,-co*c,s],r:[co,si,0],u:[-si*s,co*s,c]}}}}
 project=function(point){{let v=[point[0]-cx,point[1]-cy,point[2]-cz],cam=camera(),dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2],depth=span*3-dot(v,cam.d),scale=Math.min(canvas.clientWidth,canvas.clientHeight)/span*zoom;return [canvas.clientWidth/2+dot(v,cam.r)/depth*scale*span,canvas.clientHeight/2-dot(v,cam.u)/depth*scale*span,depth]}}
 function polygonNormal(vertices){{let n=[0,0,0];for(let i=0;i<vertices.length;i++){{let a=vertices[i],b=vertices[(i+1)%vertices.length];n[0]+=(a[1]-b[1])*(a[2]+b[2]);n[1]+=(a[2]-b[2])*(a[0]+b[0]);n[2]+=(a[0]-b[0])*(a[1]+b[1])}}return n}}
 function frontFacing(face){{let n=polygonNormal(face.vertices),d=camera().d;return n[0]*d[0]+n[1]*d[1]+n[2]*d[2]>1e-7}}
-visible=function(face){{if(face.kind==='subsurface'&&!document.querySelector('#sub').checked)return false;if(face.kind==='shading'&&!document.querySelector('#shade').checked)return false;return (face.id===selectedFaceId||face.kind==='shading'||frontFacing(face))&&(!selected||face.space_id===selected||face.space_id==='__shading__')}}
+visible=function(face){{if(face.kind==='subsurface'&&!document.querySelector('#sub').checked)return false;if(face.kind==='shading'&&!document.querySelector('#shade').checked)return false;return (face.space_id==='__shading__'||visibleSpaceIds.has(face.space_id))&&(face.id===selectedFaceId||face.kind==='shading'||frontFacing(face))&&(!selected||face.space_id===selected||face.space_id==='__shading__')}}
 function pointInPolygon(x,y,points){{let inside=false;for(let i=0,j=points.length-1;i<points.length;j=i++){{let a=points[i],b=points[j];if((a[1]>y)!==(b[1]>y)&&x<(b[0]-a[0])*(y-a[1])/(b[1]-a[1])+a[0])inside=!inside}}return inside}}
 function averageDepth(points){{return points.reduce((sum,point)=>sum+point[2],0)/points.length}}
 function renderedFaces(){{return scene.faces.filter(face=>visible(face)).map(face=>({{face:face,points:face.vertices.map(project)}})).sort((a,b)=>averageDepth(b.points)-averageDepth(a.points))}}
 draw=function(){{baseDraw();if(!selectedFaceId)return;let item=renderedFaces().find(item=>item.face.id===selectedFaceId);if(!item)return;let p=item.points;ctx.beginPath();ctx.moveTo(p[0][0],p[0][1]);for(let i=1;i<p.length;i++)ctx.lineTo(p[i][0],p[i][1]);ctx.closePath();ctx.fillStyle='#ef5b5b';ctx.globalAlpha=.92;ctx.fill();ctx.globalAlpha=1;ctx.strokeStyle='#8a1010';ctx.lineWidth=3;ctx.stroke()}}
 function showSurface(face){{selected=null;selectedFaceId=face.id;let space=scene.spaces.find(space=>space.id===face.space_id),spaceName=space?space.name:'Shading geometry',story=space?space.story:'Unassigned';detail.style.display='block';detail.innerHTML='<strong>'+escape(face.name)+'</strong><div class="meta">Surface type: '+escape(face.surface_type)+'<br>Belongs to: '+escape(spaceName)+'<br>Floor: '+escape(story)+'<br>Area: '+face.area_m2+' m²<br>Boundary: '+escape(face.boundary_condition||'N/A')+'</div>';renderList();draw()}}
+function updateSurfaceList(){{surfaceList.querySelectorAll('[data-face-id]').forEach(button=>{{let face=scene.faces.find(face=>face.id===button.dataset.faceId);button.closest('li').hidden=face.space_id!=='__shading__'&&!visibleSpaceIds.has(face.space_id)}})}}
+function applySpaceFilter(){{visibleSpaceIds=new Set(filtered().map(space=>space.id));if(selected&&!visibleSpaceIds.has(selected)){{selected=null;selectedFaceId=null;detail.style.display='none'}}renderList();updateSurfaceList();draw()}}
 document.querySelector('#reset').onclick=()=>{{yaw=resetYaw;pitch=resetPitch;zoom=1;selected=null;selectedFaceId=null;detail.style.display='none';renderList();draw()}};
 document.querySelector('#showall').onclick=()=>{{selected=null;selectedFaceId=null;detail.style.display='none';renderList();draw()}};
 document.querySelector('#sub').onchange=()=>{{renderSurfaceList();draw()}};
 document.querySelector('#shade').onchange=()=>{{renderSurfaceList();draw()}};
+search.oninput=applySpaceFilter;
+storySelect.oninput=applySpaceFilter;
+storySelect.onchange=applySpaceFilter;
+sortSelect.oninput=renderList;
+sortSelect.onchange=renderList;
 list.addEventListener('click',()=>{{selectedFaceId=null}},{{capture:true}});
 canvas.onpointerdown=event=>{{faceDrag={{x:event.clientX,y:event.clientY,moved:false}};canvas.setPointerCapture(event.pointerId)}};
 canvas.onpointermove=event=>{{if(!faceDrag)return;let dx=event.clientX-faceDrag.x,dy=event.clientY-faceDrag.y;if(Math.abs(dx)+Math.abs(dy)>3)faceDrag.moved=true;yaw+=dx*.01;pitch=Math.max(-1.4,Math.min(1.4,pitch+dy*.01));faceDrag.x=event.clientX;faceDrag.y=event.clientY;draw()}};
@@ -245,5 +252,5 @@ canvas.onpointerup=event=>{{if(faceDrag&&!faceDrag.moved){{let rect=canvas.getBo
 canvas.onkeydown=event=>{{let handled=true;if(event.key==='ArrowLeft')yaw-=.1;else if(event.key==='ArrowRight')yaw+=.1;else if(event.key==='ArrowUp')pitch=Math.min(1.4,pitch+.1);else if(event.key==='ArrowDown')pitch=Math.max(-1.4,pitch-.1);else if(event.key==='+'||event.key==='=')zoom=Math.min(3,zoom*1.1);else if(event.key==='-')zoom=Math.max(.35,zoom*.9);else if(event.key==='Home'){{yaw=resetYaw;pitch=resetPitch;zoom=1}}else handled=false;if(handled){{event.preventDefault();draw()}}}};
 canvas.setAttribute('aria-label','Building geometry. Arrow keys orbit, plus and minus zoom, Home resets, and the surface list inspects individual surfaces.');
 document.querySelector('#hint').textContent='Drag or arrow keys to orbit · scroll or +/- to zoom · Home resets · click any surface for details';
-yaw=resetYaw;pitch=resetPitch;renderSurfaceList();renderList();draw();
+yaw=resetYaw;pitch=resetPitch;renderSurfaceList();applySpaceFilter();
 </script></body></html>"""

@@ -46,6 +46,10 @@ from openstudio_mcp.runtime.state_store import RuntimeStateStore
 from openstudio_mcp.runtime.workspace_manager import (
     WorkspaceManager,
 )
+from openstudio_mcp.geometry_viewer import (
+    build_geometry_scene,
+    render_geometry_viewer_html,
+)
 from openstudio_mcp.sdk_docs import OpenStudioSdkDocLookup
 from openstudio_mcp.tools.model import register_model_tools
 from openstudio_mcp.tools.blackboard import (
@@ -56,6 +60,7 @@ from openstudio_mcp.tools.runtime import register_runtime_tools
 from openstudio_mcp.tools.schemas import (
     ModelApplyMeasureArgs,
     ModelCloneArgs,
+    ModelExportGeometryViewerArgs,
     ModelLoadArgs,
     ModelSetDesignDaysArgs,
     ModelSetWeatherArgs,
@@ -199,6 +204,69 @@ class OpenStudioService:
             metadata={**base.metadata},
         )
         return success_payload(model_id=artifact.artifact_id)
+
+    def model_export_geometry_viewer(
+        self, args: ModelExportGeometryViewerArgs
+    ) -> dict[str, Any]:
+        """Export an OSM's geometry into a portable, offline inspection page."""
+        model_state = self._get_model_state(args.model_id)
+        model_path = self._resolve_model_path(model_state.metadata.get("model_uri", ""))
+        if not model_path.exists():
+            raise ValueError(f"Model file does not exist: {model_path}")
+
+        import openstudio
+
+        loaded = openstudio.osversion.VersionTranslator().loadModel(str(model_path))
+        if not loaded.is_initialized():
+            raise ValueError(f"OpenStudio could not load model: {model_path}")
+
+        scene = build_geometry_scene(
+            loaded.get(),
+            source_model=model_path.name,
+            include_subsurfaces=args.include_subsurfaces,
+            include_shading=args.include_shading,
+        )
+        workspace_id = f"geometry-viewer-{uuid4()}"
+        workspace = self.workspace_manager.create_workspace(workspace_id)
+        self._register_workspace(
+            workspace_id=workspace_id,
+            kind="geometry_viewer",
+            model_id=args.model_id,
+            metadata={
+                "source_model_id": args.model_id,
+                "include_subsurfaces": args.include_subsurfaces,
+                "include_shading": args.include_shading,
+            },
+        )
+        viewer_path = workspace / "geometry-viewer.html"
+        viewer_path.write_text(render_geometry_viewer_html(scene), encoding="utf-8")
+        artifact = self.artifacts.create(
+            kind="geometry_viewer_html",
+            parent_id=args.model_id,
+            metadata={
+                "path": str(viewer_path),
+                "uri": viewer_path.as_uri(),
+                "scene_version": scene["version"],
+                "counts": scene["counts"],
+                "warnings": scene["warnings"],
+            },
+        )
+        self._register_workspace(
+            workspace_id=workspace_id,
+            kind="geometry_viewer",
+            model_id=args.model_id,
+            artifact_id=artifact.artifact_id,
+            metadata={"source_model_id": args.model_id},
+            status="succeeded",
+        )
+        self.workspace_manager.ensure_quota(workspace_id)
+        return success_payload(
+            viewer_id=artifact.artifact_id,
+            viewer_path=str(viewer_path),
+            viewer_uri=viewer_path.as_uri(),
+            counts=scene["counts"],
+            warnings=scene["warnings"],
+        )
 
     def model_set_weather(self, args: ModelSetWeatherArgs) -> dict[str, Any]:
         model_state = self._get_model_state(args.model_id)

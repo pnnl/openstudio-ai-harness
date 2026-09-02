@@ -6,7 +6,8 @@ knowledge, and workflow-state tools for AI-assisted building-energy modeling.
 ## Current Capabilities
 
 - OpenStudio MCP server for model lifecycle, simulation, results, SDK lookup,
-  runtime storage, and MCP-backed blackboard workflow state.
+  runtime storage, MCP-backed blackboard workflow state, and downloadable
+  self-contained OSM geometry viewers.
 - Claude Code plugin export.
 - Codex plugin export.
 - Learning contracts for candidate drafting; host plugins do not persist

@@ -724,7 +724,6 @@ def _render_openstudio_modeler_agent(workspace_root: Path) -> str:
         "name: openstudio-modeler\n"
         "description: Senior OpenStudio modeler for MCP-backed model editing, "
         "simulation, results, SDK lookup, and long-running workflow state.\n"
-        "model: sonnet\n"
         "effort: high\n"
         "---\n\n"
         f"{prompt.rstrip()}\n"

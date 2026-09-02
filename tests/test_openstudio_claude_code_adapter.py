@@ -212,6 +212,7 @@ def test_claude_code_adapter_exports_plugin_package(tmp_path: Path) -> None:
     agent_prompt = (plugin_dir / "agents" / "openstudio-modeler.md").read_text(
         encoding="utf-8"
     )
+    assert "model: sonnet\n" not in agent_prompt
     assert "do not rely on host-native blackboard features" in agent_prompt
     assert "Never promote them" in agent_prompt
     assert "## SDK Script Gate" in agent_prompt

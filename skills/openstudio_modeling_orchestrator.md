@@ -19,6 +19,8 @@ task-specific skill before acting; do not recreate its procedure from memory.
 - Use `hvac-sizing-assistant` for deterministic sizing workflows.
 - Use `openstudio-sdk-model-editor` for direct `.osm` inspection or scoped
   OpenStudio Python SDK edits.
+- Use `view-openstudio-geometry` to generate a read-only, self-contained HTML
+  geometry viewer from an `.osm` model.
 - Use `openstudio-vav-reheat-system-creator` for multi-zone VAV reheat work.
 - Use `openstudio-workflow-state` for work that spans phases, scripts,
   simulations, failures, or clarification gates.

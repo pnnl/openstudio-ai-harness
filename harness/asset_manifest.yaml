@@ -47,6 +47,9 @@ skills:
   - id: openstudio-sdk-model-editor
     source: skills/openstudio_sdk_model_editor.md
     hosts: [claude, codex]
+  - id: view-openstudio-geometry
+    source: skills/view_openstudio_geometry.md
+    hosts: [claude, codex]
   - id: openstudio-vav-reheat-system-creator
     source: skills/openstudio_vav_reheat_system_creator.md
     hosts: [claude, codex]

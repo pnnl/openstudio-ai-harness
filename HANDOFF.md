@@ -6,6 +6,10 @@
 - The package exposes an OpenStudio MCP runtime, Claude Code and Codex plugin
   exports, trusted skills and references, runtime learning contracts, and
   MCP-backed SQLite workflow state.
+- `model_export_geometry_viewer` creates a self-contained, offline HTML
+  geometry viewer from a loaded OSM. The viewer supports 3D orbit/zoom, space
+  search, story filtering, sorting, selection, and highlight; it never mutates
+  the model or requires a web server.
 - Claude and Codex exports use host-native plugin structures. Shared reference
   routing is declared in `harness/asset_manifest.yaml`.
 - Marketplace exports start the installed `openstudio-ai-mcp` command. Local

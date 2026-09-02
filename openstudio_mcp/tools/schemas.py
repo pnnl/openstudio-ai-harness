@@ -20,6 +20,12 @@ class ModelCloneArgs(BaseModel):
     model_id: str = Field(min_length=1)
 
 
+class ModelExportGeometryViewerArgs(BaseModel):
+    model_id: str = Field(min_length=1)
+    include_subsurfaces: bool = True
+    include_shading: bool = True
+
+
 class ModelSetWeatherArgs(BaseModel):
     model_id: str = Field(min_length=1)
     epw_path: str = Field(

@@ -70,6 +70,7 @@ async def test_openstudio_mcp_smoke_list_and_call_model_load() -> None:
             names = {tool.name for tool in tools.tools}
             assert "model_load" in names
             assert "model_clone" in names
+            assert "model_export_geometry_viewer" in names
             assert "model_list_measures" in names
             assert "sim_run" in names
             assert "runtime_plugin_compatibility" in names

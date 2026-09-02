@@ -53,6 +53,8 @@ def test_model_export_geometry_viewer_writes_searchable_offline_html(
     assert 'aria-label="Surfaces"' in html
     assert 'button type="button" class="space' in html
     assert "renderSurfaceList" in html
+    assert "facesById=new Map" in html
+    assert "clearHiddenFaceSelection" in html
     assert (
         "renderList();draw()"
         not in html.split("renderList=function()", 1)[1].split("const resetYaw", 1)[0]
@@ -88,7 +90,8 @@ def test_geometry_viewer_escapes_all_model_text_tag_delimiters() -> None:
 def test_geometry_viewer_runs_in_a_browser_and_supports_selection(
     tmp_path: Path,
 ) -> None:
-    sync_api = pytest.importorskip("playwright.sync_api")
+    from playwright.sync_api import sync_playwright
+
     service = OpenStudioService(workspace_root=tmp_path)
     loaded = service.model_load(
         ModelLoadArgs(model_uri=FIXTURE_MODEL.resolve().as_uri())
@@ -98,11 +101,8 @@ def test_geometry_viewer_runs_in_a_browser_and_supports_selection(
     )
     errors: list[str] = []
 
-    with sync_api.sync_playwright() as playwright:
-        try:
-            browser = playwright.chromium.launch()
-        except sync_api.Error as exc:
-            pytest.skip(f"Playwright Chromium is unavailable: {exc}")
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch()
         try:
             page = browser.new_page()
             page.on("pageerror", lambda error: errors.append(str(error)))
@@ -117,13 +117,19 @@ def test_geometry_viewer_runs_in_a_browser_and_supports_selection(
             page.get_by_role("button", name="Core_ZN").click()
             assert "Core_ZN" in page.locator("#detail").inner_text()
 
-            page.locator("#surface-list button").first.click()
+            page.get_by_role(
+                "button", name="Perimeter_ZN_1_wall_south_Window_1"
+            ).click()
             assert "Surface type:" in page.locator("#detail").inner_text()
+            page.locator("#sub").uncheck()
+            assert not page.locator("#detail").is_visible()
 
             page.locator("#canvas").press("ArrowRight")
             page.locator("#story").select_option("Building Story 1")
             assert "Attic" not in page.locator("#spaces").inner_text()
             assert page.locator("#surface-list li[hidden]").count() > 0
+            page.get_by_role("button", name="Show all spaces").click()
+            assert "Attic" in page.locator("#spaces").inner_text()
             assert errors == []
         finally:
             browser.close()

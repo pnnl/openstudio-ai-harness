@@ -109,10 +109,15 @@ def test_openstudio_runtime_state_store_prunes_unprotected_workspaces(
 
     viewer_workspace = service.workspace_manager.create_workspace("geometry-stale")
     (viewer_workspace / "geometry-viewer.html").write_text("viewer", encoding="utf-8")
+    viewer_artifact = service.artifacts.create(
+        kind="geometry_viewer_html",
+        metadata={"path": str(viewer_workspace / "geometry-viewer.html")},
+    )
     service._register_workspace(
         workspace_id="geometry-stale",
         kind="geometry_viewer",
         model_id="stale-model",
+        artifact_id=viewer_artifact.artifact_id,
     )
 
     active_workspace = service.workspace_manager.create_workspace("measure-active")
@@ -159,6 +164,8 @@ def test_openstudio_runtime_state_store_prunes_unprotected_workspaces(
     assert workspaces["measure-stale"]["status"] == "pruned"
     assert workspaces["measure-stale"]["size_bytes"] == 0
     assert workspaces["geometry-stale"]["status"] == "pruned"
+    with pytest.raises(KeyError):
+        service.artifacts.must_get(viewer_artifact.artifact_id)
 
 
 def test_openstudio_workspace_manager_does_not_size_external_paths(

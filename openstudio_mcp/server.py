@@ -265,12 +265,14 @@ class OpenStudioService:
                 status="succeeded",
             )
         except Exception:
-            if artifact is not None:
-                self.artifacts.discard(artifact.artifact_id)
             try:
-                self.state_store.mark_workspace_status(workspace_id, "failed")
+                if artifact is not None:
+                    self.artifacts.discard(artifact.artifact_id)
             finally:
-                self.workspace_manager.cleanup_workspace(workspace_id)
+                try:
+                    self.state_store.mark_workspace_status(workspace_id, "failed")
+                finally:
+                    self.workspace_manager.cleanup_workspace(workspace_id)
             raise
         return success_payload(
             viewer_id=artifact.artifact_id,
@@ -1029,7 +1031,7 @@ class OpenStudioService:
             self.state_store.mark_workspace_status(workspace_id, "pruned")
             artifact_id = item.get("artifact_id")
             if isinstance(artifact_id, str) and artifact_id:
-                self.state_store.mark_artifact_status(artifact_id, "pruned")
+                self.artifacts.discard(artifact_id, status="pruned")
             deleted.append(
                 {
                     "workspace_id": workspace_id,

@@ -225,7 +225,7 @@ const resetYaw=-.7,resetPitch=.65;
 function camera(){{let c=Math.cos(pitch),s=Math.sin(pitch),co=Math.cos(yaw),si=Math.sin(yaw);return {{d:[si*c,-co*c,s],r:[co,si,0],u:[-si*s,co*s,c]}}}}
 project=function(point){{let v=[point[0]-cx,point[1]-cy,point[2]-cz],cam=camera(),dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2],depth=span*3-dot(v,cam.d),scale=Math.min(canvas.clientWidth,canvas.clientHeight)/span*zoom;return [canvas.clientWidth/2+dot(v,cam.r)/depth*scale*span,canvas.clientHeight/2-dot(v,cam.u)/depth*scale*span,depth]}}
 function frontFacing(face){{let a=face.vertices[0],b=face.vertices[1],c=face.vertices[2],u=[b[0]-a[0],b[1]-a[1],b[2]-a[2]],v=[c[0]-a[0],c[1]-a[1],c[2]-a[2]],n=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]],d=camera().d;return n[0]*d[0]+n[1]*d[1]+n[2]*d[2]>1e-7}}
-visible=function(face){{if(face.kind==='subsurface'&&!document.querySelector('#sub').checked)return false;if(face.kind==='shading'&&!document.querySelector('#shade').checked)return false;return frontFacing(face)&&(!selected||face.space_id===selected||face.space_id==='__shading__')}}
+visible=function(face){{if(face.kind==='subsurface'&&!document.querySelector('#sub').checked)return false;if(face.kind==='shading'&&!document.querySelector('#shade').checked)return false;return (face.kind==='shading'||frontFacing(face))&&(!selected||face.space_id===selected||face.space_id==='__shading__')}}
 function pointInPolygon(x,y,points){{let inside=false;for(let i=0,j=points.length-1;i<points.length;j=i++){{let a=points[i],b=points[j];if((a[1]>y)!==(b[1]>y)&&x<(b[0]-a[0])*(y-a[1])/(b[1]-a[1])+a[0])inside=!inside}}return inside}}
 function averageDepth(points){{return points.reduce((sum,point)=>sum+point[2],0)/points.length}}
 function renderedFaces(){{return scene.faces.filter(face=>visible(face)).map(face=>({{face:face,points:face.vertices.map(project)}})).sort((a,b)=>averageDepth(b.points)-averageDepth(a.points))}}
@@ -239,6 +239,8 @@ list.addEventListener('click',()=>{{selectedFaceId=null}},{{capture:true}});
 canvas.onpointerdown=event=>{{faceDrag={{x:event.clientX,y:event.clientY,moved:false}};canvas.setPointerCapture(event.pointerId)}};
 canvas.onpointermove=event=>{{if(!faceDrag)return;let dx=event.clientX-faceDrag.x,dy=event.clientY-faceDrag.y;if(Math.abs(dx)+Math.abs(dy)>3)faceDrag.moved=true;yaw+=dx*.01;pitch=Math.max(-1.4,Math.min(1.4,pitch+dy*.01));faceDrag.x=event.clientX;faceDrag.y=event.clientY;draw()}};
 canvas.onpointerup=event=>{{if(faceDrag&&!faceDrag.moved){{let rect=canvas.getBoundingClientRect(),x=event.clientX-rect.left,y=event.clientY-rect.top,item=[...renderedFaces()].reverse().find(item=>pointInPolygon(x,y,item.points));if(item)showSurface(item.face)}}faceDrag=null}};
-document.querySelector('#hint').textContent='Drag to orbit · scroll to zoom · click any surface for details';
+canvas.onkeydown=event=>{{let handled=true;if(event.key==='ArrowLeft')yaw-=.1;else if(event.key==='ArrowRight')yaw+=.1;else if(event.key==='ArrowUp')pitch=Math.min(1.4,pitch+.1);else if(event.key==='ArrowDown')pitch=Math.max(-1.4,pitch-.1);else if(event.key==='+'||event.key==='=')zoom=Math.min(3,zoom*1.1);else if(event.key==='-')zoom=Math.max(.35,zoom*.9);else if(event.key==='Home'){{yaw=resetYaw;pitch=resetPitch;zoom=1}}else handled=false;if(handled){{event.preventDefault();draw()}}}};
+canvas.setAttribute('aria-label','Building geometry. Arrow keys orbit, plus and minus zoom, Home resets, and the surface list inspects individual surfaces.');
+document.querySelector('#hint').textContent='Drag or arrow keys to orbit · scroll or +/- to zoom · Home resets · click any surface for details';
 yaw=resetYaw;pitch=resetPitch;renderSurfaceList();renderList();draw();
 </script></body></html>"""

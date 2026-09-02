@@ -41,6 +41,9 @@ def test_model_export_geometry_viewer_writes_searchable_offline_html(
     assert "frontFacing" in html
     assert "pointInPolygon" in html
     assert "averageDepth" in html
+    assert "face.kind==='shading'||frontFacing(face)" in html
+    assert "canvas.onkeydown" in html
+    assert "Arrow keys orbit" in html
     assert "No visible surfaces." in html
     assert "canvas.tabIndex=0" in html
     assert 'aria-label="Surfaces"' in html
@@ -203,3 +206,40 @@ def test_geometry_viewer_publication_failure_discards_artifact_and_workspace(
         artifact.kind == "geometry_viewer_html"
         for artifact in service.artifacts._items.values()
     )
+
+
+def test_geometry_viewer_cleanup_runs_when_artifact_rollback_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    service = OpenStudioService(workspace_root=tmp_path)
+    loaded = service.model_load(
+        ModelLoadArgs(model_uri=FIXTURE_MODEL.resolve().as_uri())
+    )
+    original_register = service._register_workspace
+    calls = 0
+
+    def fail_final_registration(**kwargs) -> None:
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise RuntimeError("final registration failed")
+        original_register(**kwargs)
+
+    def fail_artifact_rollback(*_args, **_kwargs) -> None:
+        raise RuntimeError("artifact rollback failed")
+
+    monkeypatch.setattr(service, "_register_workspace", fail_final_registration)
+    monkeypatch.setattr(service.artifacts, "discard", fail_artifact_rollback)
+
+    with pytest.raises(RuntimeError, match="artifact rollback failed"):
+        service.model_export_geometry_viewer(
+            ModelExportGeometryViewerArgs(model_id=loaded["model_id"])
+        )
+
+    workspace = next(
+        record
+        for record in service.state_store.list_workspaces()
+        if record.kind == "geometry_viewer"
+    )
+    assert workspace.status == "failed"
+    assert not Path(workspace.path).exists()

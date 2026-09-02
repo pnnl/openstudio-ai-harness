@@ -2645,6 +2645,7 @@ requires-dist = [
     { name = "mcp", specifier = ">=1.28,<2" },
     { name = "openstudio", specifier = ">=3.10.0" },
     { name = "platformdirs", specifier = ">=4.0.0" },
+    { name = "playwright", marker = "extra == 'dev'", specifier = ">=1.50.0" },
     { name = "pydantic", specifier = ">=2.12.3" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.4.2" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=1.2.0" },

@@ -1,5 +1,9 @@
 from pathlib import Path
 
+import openstudio
+import pytest
+
+from openstudio_mcp.geometry_viewer import build_geometry_scene
 from openstudio_mcp.server import OpenStudioService
 from openstudio_mcp.tools.schemas import (
     ModelExportGeometryViewerArgs,
@@ -36,6 +40,10 @@ def test_model_export_geometry_viewer_writes_searchable_offline_html(
     assert "resetPitch=.65" in html
     assert "frontFacing" in html
     assert "pointInPolygon" in html
+    assert "canvas.tabIndex=0" in html
+    assert 'aria-label="Surfaces"' in html
+    assert 'button type="button" class="space' in html
+    assert "renderSurfaceList" in html
     artifact = service.artifacts.must_get(result["viewer_id"])
     assert artifact.kind == "geometry_viewer_html"
     assert artifact.parent_id == loaded["model_id"]
@@ -60,3 +68,88 @@ def test_geometry_viewer_honors_optional_face_categories(tmp_path: Path) -> None
 
     assert opaque_only["counts"]["spaces"] == full["counts"]["spaces"]
     assert opaque_only["counts"]["faces"] < full["counts"]["faces"]
+
+
+def test_geometry_scene_uses_site_coordinates_for_spaces_and_shading() -> None:
+    loaded = openstudio.osversion.VersionTranslator().loadModel(str(FIXTURE_MODEL))
+    assert loaded.is_initialized()
+    model = loaded.get()
+    space = model.getSpaces()[0]
+    space.setXOrigin(10.0)
+    space.setYOrigin(-4.0)
+    space.setDirectionofRelativeNorth(20.0)
+    surface = space.surfaces()[0]
+    expected = space.siteTransformation() * surface.vertices()[0]
+
+    group = openstudio.model.ShadingSurfaceGroup(model)
+    group.setTransformation(
+        openstudio.Transformation.translation(openstudio.Vector3d(30, 0, 0))
+    )
+    shading = openstudio.model.ShadingSurface(
+        [
+            openstudio.Point3d(0, 0, 0),
+            openstudio.Point3d(2, 0, 0),
+            openstudio.Point3d(0, 2, 0),
+        ],
+        model,
+    )
+    shading.setName("Translated shading")
+    assert shading.setShadingSurfaceGroup(group)
+
+    scene = build_geometry_scene(
+        model,
+        source_model="transformed.osm",
+        include_subsurfaces=True,
+        include_shading=True,
+    )
+
+    exported_surface = next(
+        face for face in scene["faces"] if face["id"] == str(surface.handle())
+    )
+    assert exported_surface["vertices"][0] == pytest.approx(
+        [expected.x(), expected.y(), expected.z()]
+    )
+    exported_shading = next(
+        face for face in scene["faces"] if face["id"] == str(shading.handle())
+    )
+    assert exported_shading["surface_type"] == "Shading"
+    assert exported_shading["vertices"][0] == pytest.approx([30.0, 0.0, 0.0])
+
+
+def test_geometry_viewer_quota_failure_cleans_workspace_before_publishing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    service = OpenStudioService(workspace_root=tmp_path)
+    loaded = service.model_load(
+        ModelLoadArgs(model_uri=FIXTURE_MODEL.resolve().as_uri())
+    )
+    original_ensure_quota = service.workspace_manager.ensure_quota
+    calls = 0
+
+    def fail_after_workspace_creation(workspace_id: str) -> None:
+        nonlocal calls
+        calls += 1
+        if calls > 1:
+            raise ValueError("Workspace quota exceeded for test")
+        original_ensure_quota(workspace_id)
+
+    monkeypatch.setattr(
+        service.workspace_manager, "ensure_quota", fail_after_workspace_creation
+    )
+
+    with pytest.raises(ValueError, match="quota exceeded"):
+        service.model_export_geometry_viewer(
+            ModelExportGeometryViewerArgs(model_id=loaded["model_id"])
+        )
+
+    workspace = next(
+        record
+        for record in service.state_store.list_workspaces()
+        if record.kind == "geometry_viewer"
+    )
+    assert workspace.status == "failed"
+    assert not Path(workspace.path).exists()
+    assert not any(
+        artifact.kind == "geometry_viewer_html"
+        for artifact in service.artifacts._items.values()
+    )

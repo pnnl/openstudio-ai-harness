@@ -71,7 +71,8 @@ Default prune behavior is conservative:
 - running jobs are protected;
 - pinned workspaces are protected;
 - successful simulation workspaces are protected unless explicitly requested;
-- unprotected measure workspaces and failed simulation workspaces may be pruned.
+- unprotected measure and geometry-viewer workspaces, plus failed simulation
+  workspaces, may be pruned.
 
 ![OpenStudio MCP pruning workflow](docs/assets/pruning_workflow.svg)
 

@@ -237,9 +237,16 @@ class OpenStudioService:
                 "include_subsurfaces": args.include_subsurfaces,
                 "include_shading": args.include_shading,
             },
+            status="running",
         )
         viewer_path = workspace / "geometry-viewer.html"
-        viewer_path.write_text(render_geometry_viewer_html(scene), encoding="utf-8")
+        try:
+            viewer_path.write_text(render_geometry_viewer_html(scene), encoding="utf-8")
+            self.workspace_manager.ensure_quota(workspace_id)
+        except Exception:
+            self.state_store.mark_workspace_status(workspace_id, "failed")
+            self.workspace_manager.cleanup_workspace(workspace_id)
+            raise
         artifact = self.artifacts.create(
             kind="geometry_viewer_html",
             parent_id=args.model_id,
@@ -259,7 +266,6 @@ class OpenStudioService:
             metadata={"source_model_id": args.model_id},
             status="succeeded",
         )
-        self.workspace_manager.ensure_quota(workspace_id)
         return success_payload(
             viewer_id=artifact.artifact_id,
             viewer_path=str(viewer_path),
@@ -929,6 +935,7 @@ class OpenStudioService:
         self,
         *,
         include_measure_workspaces: bool = True,
+        include_geometry_viewers: bool = True,
         include_failed_simulations: bool = True,
         include_successful_simulations: bool = False,
     ) -> dict[str, Any]:
@@ -959,6 +966,8 @@ class OpenStudioService:
             prune_reason = None
             if include_measure_workspaces and record.kind == "measure":
                 prune_reason = "unprotected_measure_workspace"
+            elif include_geometry_viewers and record.kind == "geometry_viewer":
+                prune_reason = "unprotected_geometry_viewer_workspace"
             elif (
                 include_failed_simulations
                 and record.kind == "simulation"
@@ -990,11 +999,13 @@ class OpenStudioService:
         *,
         workspace_ids: list[str] | None = None,
         include_measure_workspaces: bool = True,
+        include_geometry_viewers: bool = True,
         include_failed_simulations: bool = True,
         include_successful_simulations: bool = False,
     ) -> dict[str, Any]:
         preview = self.runtime_prune_preview(
             include_measure_workspaces=include_measure_workspaces,
+            include_geometry_viewers=include_geometry_viewers,
             include_failed_simulations=include_failed_simulations,
             include_successful_simulations=include_successful_simulations,
         )

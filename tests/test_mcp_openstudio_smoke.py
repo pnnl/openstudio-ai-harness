@@ -107,6 +107,14 @@ def test_openstudio_runtime_state_store_prunes_unprotected_workspaces(
         metadata={"measure_id": "test"},
     )
 
+    viewer_workspace = service.workspace_manager.create_workspace("geometry-stale")
+    (viewer_workspace / "geometry-viewer.html").write_text("viewer", encoding="utf-8")
+    service._register_workspace(
+        workspace_id="geometry-stale",
+        kind="geometry_viewer",
+        model_id="stale-model",
+    )
+
     active_workspace = service.workspace_manager.create_workspace("measure-active")
     active_model = active_workspace / "out.osm"
     active_model.write_text("active model", encoding="utf-8")
@@ -128,7 +136,10 @@ def test_openstudio_runtime_state_store_prunes_unprotected_workspaces(
     preview = service.runtime_prune_preview()
 
     assert preview["ok"] is True
-    assert {item["workspace_id"] for item in preview["candidates"]} == {"measure-stale"}
+    assert {item["workspace_id"] for item in preview["candidates"]} == {
+        "measure-stale",
+        "geometry-stale",
+    }
     protected = {item["workspace_id"]: item for item in preview["protected"]}
     assert protected["measure-active"]["protection_reason"] == "active_model_state"
 
@@ -137,6 +148,7 @@ def test_openstudio_runtime_state_store_prunes_unprotected_workspaces(
     assert pruned["ok"] is True
     assert pruned["reclaimed_bytes"] > 0
     assert not stale_workspace.exists()
+    assert not viewer_workspace.exists()
     assert active_workspace.exists()
 
     usage = service.runtime_storage_usage()
@@ -146,6 +158,7 @@ def test_openstudio_runtime_state_store_prunes_unprotected_workspaces(
     workspaces = {item["workspace_id"]: item for item in usage["workspaces"]}
     assert workspaces["measure-stale"]["status"] == "pruned"
     assert workspaces["measure-stale"]["size_bytes"] == 0
+    assert workspaces["geometry-stale"]["status"] == "pruned"
 
 
 def test_openstudio_workspace_manager_does_not_size_external_paths(

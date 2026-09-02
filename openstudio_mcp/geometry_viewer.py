@@ -20,8 +20,11 @@ def _handle(item: Any) -> str:
     return str(item.handle())
 
 
-def _vertices(item: Any) -> list[list[float]]:
-    return [[float(v.x()), float(v.y()), float(v.z())] for v in item.vertices()]
+def _vertices(item: Any, transformation: Any | None = None) -> list[list[float]]:
+    vertices = item.vertices()
+    if transformation is not None:
+        vertices = [transformation * vertex for vertex in vertices]
+    return [[float(v.x()), float(v.y()), float(v.z())] for v in vertices]
 
 
 def _finite_polygon(vertices: list[list[float]]) -> bool:
@@ -30,24 +33,36 @@ def _finite_polygon(vertices: list[list[float]]) -> bool:
     )
 
 
-def _surface_record(surface: Any, space_id: str, kind: str) -> dict[str, Any] | None:
-    vertices = _vertices(surface)
+def _surface_record(
+    surface: Any,
+    space_id: str,
+    kind: str,
+    *,
+    transformation: Any | None = None,
+) -> dict[str, Any] | None:
+    vertices = _vertices(surface, transformation)
     if not _finite_polygon(vertices):
         return None
+    if kind == "surface":
+        surface_type = surface.surfaceType()
+        area = surface.grossArea()
+        boundary_condition = surface.outsideBoundaryCondition()
+    elif kind == "subsurface":
+        surface_type = surface.subSurfaceType()
+        area = surface.netArea()
+        boundary_condition = ""
+    else:
+        surface_type = "Shading"
+        area = surface.grossArea()
+        boundary_condition = ""
     return {
         "id": _handle(surface),
         "space_id": space_id,
         "name": _name(surface, "Unnamed surface"),
         "kind": kind,
-        "surface_type": (
-            surface.surfaceType() if kind == "surface" else surface.subSurfaceType()
-        ),
-        "boundary_condition": (
-            surface.outsideBoundaryCondition() if kind == "surface" else ""
-        ),
-        "area_m2": round(
-            float(surface.grossArea() if kind == "surface" else surface.netArea()), 3
-        ),
+        "surface_type": surface_type,
+        "boundary_condition": boundary_condition,
+        "area_m2": round(float(area), 3),
         "vertices": vertices,
     }
 
@@ -95,6 +110,7 @@ def build_geometry_scene(
         zone = _optional_name(space.thermalZone())
         space_type = _optional_name(space.spaceType())
         surfaces = list(space.surfaces())
+        transformation = space.siteTransformation()
         spaces.append(
             {
                 "id": space_id,
@@ -108,7 +124,9 @@ def build_geometry_scene(
             }
         )
         for surface in surfaces:
-            record = _surface_record(surface, space_id, "surface")
+            record = _surface_record(
+                surface, space_id, "surface", transformation=transformation
+            )
             if record is None:
                 warnings.append(
                     f"Skipped invalid surface: {_name(surface, _handle(surface))}"
@@ -117,7 +135,12 @@ def build_geometry_scene(
                 add_face(record)
             if include_subsurfaces:
                 for subsurface in surface.subSurfaces():
-                    record = _surface_record(subsurface, space_id, "subsurface")
+                    record = _surface_record(
+                        subsurface,
+                        space_id,
+                        "subsurface",
+                        transformation=transformation,
+                    )
                     if record is None:
                         warnings.append(
                             f"Skipped invalid subsurface: {_name(subsurface, _handle(subsurface))}"
@@ -127,7 +150,16 @@ def build_geometry_scene(
 
     if include_shading:
         for shading in model.getShadingSurfaces():
-            record = _surface_record(shading, "__shading__", "shading")
+            group = shading.shadingSurfaceGroup()
+            transformation = (
+                group.get().siteTransformation() if group.is_initialized() else None
+            )
+            record = _surface_record(
+                shading,
+                "__shading__",
+                "shading",
+                transformation=transformation,
+            )
             if record is None:
                 warnings.append(
                     f"Skipped invalid shading surface: {_name(shading, _handle(shading))}"
@@ -180,6 +212,15 @@ const search=document.querySelector('#search'),storySelect=document.querySelecto
 // Keep the original renderer small, then layer exact face selection over it.
 let selectedFaceId=null,faceDrag=null;
 const baseDraw=draw;
+canvas.tabIndex=0;
+canvas.setAttribute('aria-label','Building geometry. Use the surface list to inspect individual surfaces.');
+const surfacePanel=document.createElement('details');
+surfacePanel.open=true;
+surfacePanel.innerHTML='<summary>Surfaces</summary><ul id="surface-list" aria-label="Surfaces"></ul>';
+document.querySelector('aside').appendChild(surfacePanel);
+const surfaceList=document.querySelector('#surface-list');
+function renderSurfaceList(){{let faces=[...scene.faces].sort((a,b)=>a.name.localeCompare(b.name));surfaceList.innerHTML=faces.map(face=>'<li><button type="button" class="space" data-face-id="'+face.id+'">'+escape(face.name)+'<span class="meta">'+escape(face.surface_type)+' · '+face.area_m2+' m²</span></button></li>').join('');surfaceList.querySelectorAll('[data-face-id]').forEach(button=>button.onclick=()=>showSurface(scene.faces.find(face=>face.id===button.dataset.faceId)))}}
+renderList=function(){{let items=filtered(),mode=sortSelect.value;items.sort((a,b)=>mode==='name'?a.name.localeCompare(b.name):mode==='story'?a.story.localeCompare(b.story)||a.name.localeCompare(b.name):b[mode==='area'?'floor_area_m2':'volume_m3']-a[mode==='area'?'floor_area_m2':'volume_m3']);list.innerHTML=items.map(space=>'<li><button type="button" class="space '+(space.id===selected?'active':'')+'" data-id="'+space.id+'" aria-pressed="'+(space.id===selected)+'"><strong>'+escape(space.name)+'</strong><span class="meta">'+escape(space.story)+' · '+space.floor_area_m2+' m² · '+escape(space.thermal_zone)+'</span></button></li>').join('')||'<li class="meta">No matching spaces.</li>';list.querySelectorAll('[data-id]').forEach(button=>button.onclick=()=>select(button.dataset.id));renderSurfaceList()}};
 const resetYaw=-.7,resetPitch=.65;
 function camera(){{let c=Math.cos(pitch),s=Math.sin(pitch),co=Math.cos(yaw),si=Math.sin(yaw);return {{d:[si*c,-co*c,s],r:[co,si,0],u:[-si*s,co*s,c]}}}}
 project=function(point){{let v=[point[0]-cx,point[1]-cy,point[2]-cz],cam=camera(),dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2],depth=span*3-dot(v,cam.d),scale=Math.min(canvas.clientWidth,canvas.clientHeight)/span*zoom;return [canvas.clientWidth/2+dot(v,cam.r)/depth*scale*span,canvas.clientHeight/2-dot(v,cam.u)/depth*scale*span,depth]}}
@@ -196,5 +237,5 @@ canvas.onpointerdown=event=>{{faceDrag={{x:event.clientX,y:event.clientY,moved:f
 canvas.onpointermove=event=>{{if(!faceDrag)return;let dx=event.clientX-faceDrag.x,dy=event.clientY-faceDrag.y;if(Math.abs(dx)+Math.abs(dy)>3)faceDrag.moved=true;yaw+=dx*.01;pitch=Math.max(-1.4,Math.min(1.4,pitch+dy*.01));faceDrag.x=event.clientX;faceDrag.y=event.clientY;draw()}};
 canvas.onpointerup=event=>{{if(faceDrag&&!faceDrag.moved){{let rect=canvas.getBoundingClientRect(),x=event.clientX-rect.left,y=event.clientY-rect.top,item=[...renderedFaces()].reverse().find(item=>pointInPolygon(x,y,item.points));if(item)showSurface(item.face)}}faceDrag=null}};
 document.querySelector('#hint').textContent='Drag to orbit · scroll to zoom · click any surface for details';
-yaw=resetYaw;pitch=resetPitch;draw();
+yaw=resetYaw;pitch=resetPitch;renderList();draw();
 </script></body></html>"""

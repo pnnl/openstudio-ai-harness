@@ -189,7 +189,9 @@ def build_geometry_scene(
 
 def render_geometry_viewer_html(scene: dict[str, Any]) -> str:
     """Create a fully offline canvas viewer; no CDN, server, or local fetch is required."""
-    payload = json.dumps(scene, separators=(",", ":")).replace("</", "<\\/")
+    # Escape every less-than sign so model-provided strings cannot form an HTML
+    # tag (including mixed-case </script>) inside the embedded JSON script.
+    payload = json.dumps(scene, separators=(",", ":")).replace("<", "\\u003c")
     return f"""<!doctype html>
 <html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>OpenStudio Geometry Viewer</title>
 <style>
@@ -224,7 +226,8 @@ renderList=function(){{let items=filtered(),mode=sortSelect.value;items.sort((a,
 const resetYaw=-.7,resetPitch=.65;
 function camera(){{let c=Math.cos(pitch),s=Math.sin(pitch),co=Math.cos(yaw),si=Math.sin(yaw);return {{d:[si*c,-co*c,s],r:[co,si,0],u:[-si*s,co*s,c]}}}}
 project=function(point){{let v=[point[0]-cx,point[1]-cy,point[2]-cz],cam=camera(),dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2],depth=span*3-dot(v,cam.d),scale=Math.min(canvas.clientWidth,canvas.clientHeight)/span*zoom;return [canvas.clientWidth/2+dot(v,cam.r)/depth*scale*span,canvas.clientHeight/2-dot(v,cam.u)/depth*scale*span,depth]}}
-function frontFacing(face){{let a=face.vertices[0],b=face.vertices[1],c=face.vertices[2],u=[b[0]-a[0],b[1]-a[1],b[2]-a[2]],v=[c[0]-a[0],c[1]-a[1],c[2]-a[2]],n=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]],d=camera().d;return n[0]*d[0]+n[1]*d[1]+n[2]*d[2]>1e-7}}
+function polygonNormal(vertices){{let n=[0,0,0];for(let i=0;i<vertices.length;i++){{let a=vertices[i],b=vertices[(i+1)%vertices.length];n[0]+=(a[1]-b[1])*(a[2]+b[2]);n[1]+=(a[2]-b[2])*(a[0]+b[0]);n[2]+=(a[0]-b[0])*(a[1]+b[1])}}return n}}
+function frontFacing(face){{let n=polygonNormal(face.vertices),d=camera().d;return n[0]*d[0]+n[1]*d[1]+n[2]*d[2]>1e-7}}
 visible=function(face){{if(face.kind==='subsurface'&&!document.querySelector('#sub').checked)return false;if(face.kind==='shading'&&!document.querySelector('#shade').checked)return false;return (face.id===selectedFaceId||face.kind==='shading'||frontFacing(face))&&(!selected||face.space_id===selected||face.space_id==='__shading__')}}
 function pointInPolygon(x,y,points){{let inside=false;for(let i=0,j=points.length-1;i<points.length;j=i++){{let a=points[i],b=points[j];if((a[1]>y)!==(b[1]>y)&&x<(b[0]-a[0])*(y-a[1])/(b[1]-a[1])+a[0])inside=!inside}}return inside}}
 function averageDepth(points){{return points.reduce((sum,point)=>sum+point[2],0)/points.length}}

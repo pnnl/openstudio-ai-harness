@@ -4,6 +4,7 @@ import openstudio
 import pytest
 
 from openstudio_mcp.geometry_viewer import build_geometry_scene
+from openstudio_mcp.geometry_viewer import render_geometry_viewer_html
 import openstudio_mcp.server as mcp_server
 from openstudio_mcp.server import OpenStudioService
 from openstudio_mcp.tools.schemas import (
@@ -40,6 +41,7 @@ def test_model_export_geometry_viewer_writes_searchable_offline_html(
     assert "Belongs to:" in html
     assert "resetPitch=.65" in html
     assert "frontFacing" in html
+    assert "polygonNormal" in html
     assert "pointInPolygon" in html
     assert "averageDepth" in html
     assert "face.kind==='shading'||frontFacing(face)" in html
@@ -65,6 +67,22 @@ def test_model_export_geometry_viewer_writes_searchable_offline_html(
     )
     assert workspace.metadata["include_subsurfaces"] is True
     assert workspace.metadata["include_shading"] is True
+
+
+def test_geometry_viewer_escapes_all_model_text_tag_delimiters() -> None:
+    html = render_geometry_viewer_html(
+        {
+            "source_model": "</ScRiPt><script>window.injected=true</script>",
+            "counts": {"spaces": 0, "stories": 0, "faces": 0},
+            "warnings": [],
+            "bounds": [0, 0, 0, 1, 1, 1],
+            "spaces": [],
+            "faces": [],
+        }
+    )
+
+    assert "</ScRiPt>" not in html
+    assert "\\u003c/ScRiPt>" in html
 
 
 def test_geometry_viewer_honors_optional_face_categories(tmp_path: Path) -> None:

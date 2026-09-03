@@ -204,6 +204,9 @@ def test_geometry_viewer_runs_in_a_browser_and_supports_selection(
 
             page.locator("#spaces").get_by_role("button", name="Core_ZN").click()
             assert "Core_ZN" in page.locator("#detail").inner_text()
+            assert page.locator("#spaces [aria-pressed='true']").evaluate(
+                "button => document.activeElement === button"
+            )
 
             page.get_by_role(
                 "button", name="Perimeter_ZN_1_wall_south_Window_1"
@@ -473,6 +476,36 @@ def test_interrupted_geometry_export_discards_published_artifact(
     )
     assert workspace.status == "failed"
     assert not Path(workspace.path).exists()
+
+
+def test_runtime_prune_discards_unlinked_geometry_viewer_artifact(
+    tmp_path: Path,
+) -> None:
+    service = OpenStudioService(workspace_root=tmp_path)
+    workspace_id = "geometry-interrupted"
+    workspace = service.workspace_manager.create_workspace(workspace_id)
+    viewer_path = workspace / "geometry-viewer.html"
+    viewer_path.write_text("viewer", encoding="utf-8")
+    artifact = service.artifacts.create(
+        kind="geometry_viewer_html",
+        metadata={"path": str(viewer_path), "workspace_id": workspace_id},
+    )
+    service._register_workspace(
+        workspace_id=workspace_id,
+        kind="geometry_viewer",
+        model_id="model-id",
+        status="available",
+    )
+
+    service.runtime_prune(
+        include_measure_workspaces=False,
+        include_geometry_viewers=True,
+        include_failed_simulations=False,
+    )
+
+    assert not workspace.exists()
+    assert service.artifacts.get(artifact.artifact_id) is None
+    assert service.state_store.get_artifact(artifact.artifact_id)["status"] == "pruned"
 
 
 def test_runtime_prune_discards_every_successful_simulation_artifact(

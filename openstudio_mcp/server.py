@@ -253,6 +253,7 @@ class OpenStudioService:
                 metadata={
                     "path": str(viewer_path),
                     "uri": viewer_path.as_uri(),
+                    "workspace_id": workspace_id,
                     "scene_version": scene["version"],
                     "counts": scene["counts"],
                     "warnings": scene["warnings"],
@@ -1037,6 +1038,9 @@ class OpenStudioService:
             self.state_store.touch_workspace(workspace_id, size_bytes=0)
             self.state_store.mark_workspace_status(workspace_id, "pruned")
             artifact_ids = {item["artifact_id"]} if item.get("artifact_id") else set()
+            artifact_ids.update(
+                self.state_store.get_artifact_ids_for_workspace(workspace_id)
+            )
             if item.get("kind") == "simulation" and item.get("job_id"):
                 artifact_ids.update(
                     self.state_store.get_job_artifact_ids(item["job_id"])

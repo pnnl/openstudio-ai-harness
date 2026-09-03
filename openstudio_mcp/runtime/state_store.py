@@ -62,6 +62,8 @@ class RuntimeStateStore:
                     parent_id TEXT,
                     kind TEXT NOT NULL,
                     tool_trace_id TEXT,
+                    job_id TEXT,
+                    workspace_id TEXT,
                     metadata_json TEXT NOT NULL,
                     status TEXT NOT NULL DEFAULT 'available',
                     pinned INTEGER NOT NULL DEFAULT 0,
@@ -108,6 +110,22 @@ class RuntimeStateStore:
                     last_accessed_at TEXT NOT NULL
                 );
                 """)
+            columns = {
+                row["name"]
+                for row in conn.execute("PRAGMA table_info(artifacts)").fetchall()
+            }
+            if "job_id" not in columns:
+                conn.execute("ALTER TABLE artifacts ADD COLUMN job_id TEXT")
+            if "workspace_id" not in columns:
+                conn.execute("ALTER TABLE artifacts ADD COLUMN workspace_id TEXT")
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS artifacts_available_job_id "
+                "ON artifacts(status, job_id)"
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS artifacts_available_workspace_id "
+                "ON artifacts(status, workspace_id)"
+            )
 
     def upsert_artifact(
         self,
@@ -119,18 +137,23 @@ class RuntimeStateStore:
         tool_trace_id: str | None,
         metadata: dict[str, Any],
     ) -> None:
+        job_id = metadata.get("job_id")
+        workspace_id = metadata.get("workspace_id")
         with self._connect() as conn:
             conn.execute(
                 """
                 INSERT INTO artifacts (
-                    artifact_id, created_at, parent_id, kind, tool_trace_id,
+                    artifact_id, created_at, parent_id, kind, tool_trace_id, job_id,
+                    workspace_id,
                     metadata_json, status, pinned, last_accessed_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, 'available', 0, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'available', 0, ?)
                 ON CONFLICT(artifact_id) DO UPDATE SET
                     parent_id = excluded.parent_id,
                     kind = excluded.kind,
                     tool_trace_id = excluded.tool_trace_id,
+                    job_id = excluded.job_id,
+                    workspace_id = excluded.workspace_id,
                     metadata_json = excluded.metadata_json,
                     last_accessed_at = excluded.last_accessed_at
                 """,
@@ -140,6 +163,8 @@ class RuntimeStateStore:
                     parent_id,
                     kind,
                     tool_trace_id,
+                    job_id if isinstance(job_id, str) else None,
+                    workspace_id if isinstance(workspace_id, str) else None,
                     json.dumps(metadata, sort_keys=True),
                     utc_now(),
                 ),
@@ -336,28 +361,23 @@ class RuntimeStateStore:
         }
 
     def get_artifact_ids_for_job(self, job_id: str) -> set[str]:
-        """Return artifact IDs whose persisted metadata belongs to a job."""
+        """Return available artifact IDs indexed to a simulation job."""
         with self._connect() as conn:
             rows = conn.execute(
-                "SELECT artifact_id, metadata_json FROM artifacts WHERE status = 'available'"
+                "SELECT artifact_id FROM artifacts WHERE status = 'available' AND job_id = ?",
+                (job_id,),
             ).fetchall()
-        return {
-            row["artifact_id"]
-            for row in rows
-            if json.loads(row["metadata_json"]).get("job_id") == job_id
-        }
+        return {row["artifact_id"] for row in rows}
 
     def get_artifact_ids_for_workspace(self, workspace_id: str) -> set[str]:
-        """Return artifact IDs whose persisted metadata belongs to a workspace."""
+        """Return available artifact IDs indexed to a workspace."""
         with self._connect() as conn:
             rows = conn.execute(
-                "SELECT artifact_id, metadata_json FROM artifacts WHERE status = 'available'"
+                "SELECT artifact_id FROM artifacts "
+                "WHERE status = 'available' AND workspace_id = ?",
+                (workspace_id,),
             ).fetchall()
-        return {
-            row["artifact_id"]
-            for row in rows
-            if json.loads(row["metadata_json"]).get("workspace_id") == workspace_id
-        }
+        return {row["artifact_id"] for row in rows}
 
     def workspace_usage(self) -> dict[str, Any]:
         records = self.list_workspaces()

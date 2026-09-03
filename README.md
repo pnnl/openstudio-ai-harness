@@ -23,6 +23,7 @@ From this repository root:
 
 ```bash
 python -m pip install -e ".[dev]"
+python -m playwright install chromium
 ```
 
 The production harness supports Python 3.10 or newer. The `dev` extra installs

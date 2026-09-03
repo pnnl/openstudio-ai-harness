@@ -166,6 +166,8 @@ def build_geometry_scene(
         "version": 1,
         "source_model": source_model,
         "units": "m",
+        "include_subsurfaces": include_subsurfaces,
+        "include_shading": include_shading,
         "bounds": bounds or [0, 0, 0, 1, 1, 1],
         "spaces": sorted(
             spaces, key=lambda item: (item["story"], item["name"].lower())

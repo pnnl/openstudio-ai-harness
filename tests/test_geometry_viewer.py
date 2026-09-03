@@ -72,6 +72,15 @@ def test_model_export_geometry_viewer_writes_searchable_offline_html(
     assert workspace.metadata["include_subsurfaces"] is True
     assert workspace.metadata["include_shading"] is True
 
+    scene = build_geometry_scene(
+        openstudio.osversion.VersionTranslator().loadModel(str(FIXTURE_MODEL)).get(),
+        source_model="sample.osm",
+        include_subsurfaces=False,
+        include_shading=False,
+    )
+    assert scene["include_subsurfaces"] is False
+    assert scene["include_shading"] is False
+
 
 def test_geometry_viewer_escapes_all_model_text_tag_delimiters() -> None:
     html = render_geometry_viewer_html(

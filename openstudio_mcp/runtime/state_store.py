@@ -114,10 +114,13 @@ class RuntimeStateStore:
                 row["name"]
                 for row in conn.execute("PRAGMA table_info(artifacts)").fetchall()
             }
+            needs_backfill = False
             if "job_id" not in columns:
                 conn.execute("ALTER TABLE artifacts ADD COLUMN job_id TEXT")
+                needs_backfill = True
             if "workspace_id" not in columns:
                 conn.execute("ALTER TABLE artifacts ADD COLUMN workspace_id TEXT")
+                needs_backfill = True
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS artifacts_available_job_id "
                 "ON artifacts(status, job_id)"
@@ -126,21 +129,21 @@ class RuntimeStateStore:
                 "CREATE INDEX IF NOT EXISTS artifacts_available_workspace_id "
                 "ON artifacts(status, workspace_id)"
             )
-            legacy_artifacts = conn.execute(
-                "SELECT artifact_id, metadata_json FROM artifacts "
-                "WHERE job_id IS NULL OR workspace_id IS NULL"
-            ).fetchall()
-            for artifact in legacy_artifacts:
-                metadata = json.loads(artifact["metadata_json"])
-                conn.execute(
-                    "UPDATE artifacts SET job_id = COALESCE(job_id, ?), "
-                    "workspace_id = COALESCE(workspace_id, ?) WHERE artifact_id = ?",
-                    (
-                        metadata.get("job_id"),
-                        metadata.get("workspace_id"),
-                        artifact["artifact_id"],
-                    ),
-                )
+            if needs_backfill:
+                legacy_artifacts = conn.execute(
+                    "SELECT artifact_id, metadata_json FROM artifacts"
+                ).fetchall()
+                for artifact in legacy_artifacts:
+                    metadata = json.loads(artifact["metadata_json"])
+                    conn.execute(
+                        "UPDATE artifacts SET job_id = ?, workspace_id = ? "
+                        "WHERE artifact_id = ?",
+                        (
+                            metadata.get("job_id"),
+                            metadata.get("workspace_id"),
+                            artifact["artifact_id"],
+                        ),
+                    )
 
     def upsert_artifact(
         self,

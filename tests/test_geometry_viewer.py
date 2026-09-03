@@ -1,3 +1,5 @@
+import json
+import sqlite3
 from pathlib import Path
 
 import openstudio
@@ -7,12 +9,69 @@ from openstudio_mcp.geometry_viewer import build_geometry_scene
 from openstudio_mcp.geometry_viewer import render_geometry_viewer_html
 import openstudio_mcp.server as mcp_server
 from openstudio_mcp.server import OpenStudioService
+from openstudio_mcp.runtime.state_store import RuntimeStateStore
 from openstudio_mcp.tools.schemas import (
     ModelExportGeometryViewerArgs,
     ModelLoadArgs,
 )
 
 FIXTURE_MODEL = Path(__file__).parent / "fixtures" / "sample.osm"
+
+
+def test_state_store_migrates_and_backfills_legacy_artifact_ownership(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "runtime-state.sqlite3"
+    legacy_metadata = {"job_id": "legacy-job", "workspace_id": "legacy-workspace"}
+    with sqlite3.connect(db_path) as conn:
+        conn.execute("""
+            CREATE TABLE artifacts (
+                artifact_id TEXT PRIMARY KEY,
+                created_at TEXT NOT NULL,
+                parent_id TEXT,
+                kind TEXT NOT NULL,
+                tool_trace_id TEXT,
+                metadata_json TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'available',
+                pinned INTEGER NOT NULL DEFAULT 0,
+                last_accessed_at TEXT NOT NULL
+            )
+            """)
+        conn.execute(
+            """
+            INSERT INTO artifacts (
+                artifact_id, created_at, parent_id, kind, tool_trace_id,
+                metadata_json, status, pinned, last_accessed_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "legacy-artifact",
+                "2026-01-01T00:00:00+00:00",
+                None,
+                "simulation_sql",
+                None,
+                json.dumps(legacy_metadata),
+                "available",
+                0,
+                "2026-01-01T00:00:00+00:00",
+            ),
+        )
+
+    store = RuntimeStateStore(db_path)
+
+    with sqlite3.connect(db_path) as conn:
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(artifacts)")}
+        ownership = conn.execute(
+            "SELECT job_id, workspace_id FROM artifacts WHERE artifact_id = ?",
+            ("legacy-artifact",),
+        ).fetchone()
+
+    assert {"job_id", "workspace_id"} <= columns
+    assert ownership == ("legacy-job", "legacy-workspace")
+    assert store.get_artifact_ids_for_job("legacy-job") == {"legacy-artifact"}
+    assert store.get_artifact_ids_for_workspace("legacy-workspace") == {
+        "legacy-artifact"
+    }
 
 
 def test_model_export_geometry_viewer_writes_searchable_offline_html(

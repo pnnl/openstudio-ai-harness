@@ -269,19 +269,29 @@ class OpenStudioService:
                 status="succeeded",
             )
         except BaseException:
+            artifact_rollback_succeeded = artifact is None
             try:
                 if artifact is not None:
                     self.artifacts.discard(artifact.artifact_id)
             except BaseException:
-                pass
+                # Keep the workspace intact when its artifact could not be
+                # durably tombstoned. Its failed workspace record and indexed
+                # artifact ownership let runtime_prune retry the cleanup.
+                artifact_rollback_succeeded = False
+            else:
+                artifact_rollback_succeeded = True
+            workspace_failure_recorded = False
             try:
                 self.state_store.mark_workspace_status(workspace_id, "failed")
             except BaseException:
                 pass
-            try:
-                self.workspace_manager.cleanup_workspace(workspace_id)
-            except BaseException:
-                pass
+            else:
+                workspace_failure_recorded = True
+            if artifact_rollback_succeeded and workspace_failure_recorded:
+                try:
+                    self.workspace_manager.cleanup_workspace(workspace_id)
+                except BaseException:
+                    pass
             raise
         return success_payload(
             viewer_id=artifact.artifact_id,
@@ -749,7 +759,9 @@ class OpenStudioService:
             decoded_path = url2pathname(parsed.path)
             if parsed.netloc and parsed.netloc.lower() != "localhost":
                 decoded_path = f"//{parsed.netloc}{decoded_path}"
-            elif os.name == "nt" and decoded_path.startswith("/"):
+            elif os.name == "nt" and re.match(
+                r"^[\\\\/][A-Za-z]:[\\\\/]", decoded_path
+            ):
                 decoded_path = decoded_path[1:]
             return Path(decoded_path).resolve()
         return Path(model_uri).resolve()
@@ -1039,9 +1051,6 @@ class OpenStudioService:
         for workspace_id, item in selected.items():
             path = Path(item["path"])
             size_bytes = self.workspace_manager.path_size(path)
-            self.workspace_manager.cleanup_workspace(workspace_id)
-            self.state_store.touch_workspace(workspace_id, size_bytes=0)
-            self.state_store.mark_workspace_status(workspace_id, "pruned")
             artifact_ids = {item["artifact_id"]} if item.get("artifact_id") else set()
             artifact_ids.update(
                 self.state_store.get_artifact_ids_for_workspace(workspace_id)
@@ -1055,6 +1064,9 @@ class OpenStudioService:
                 )
             for artifact_id in artifact_ids:
                 self.artifacts.discard(artifact_id, status="pruned")
+            self.workspace_manager.cleanup_workspace(workspace_id)
+            self.state_store.touch_workspace(workspace_id, size_bytes=0)
+            self.state_store.mark_workspace_status(workspace_id, "pruned")
             deleted.append(
                 {
                     "workspace_id": workspace_id,

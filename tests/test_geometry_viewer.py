@@ -445,6 +445,7 @@ def test_geometry_viewer_cleanup_runs_when_artifact_rollback_fails(
         ModelLoadArgs(model_uri=FIXTURE_MODEL.resolve().as_uri())
     )
     original_register = service._register_workspace
+    original_discard = service.artifacts.discard
     calls = 0
 
     def fail_final_registration(**kwargs) -> None:
@@ -471,7 +472,107 @@ def test_geometry_viewer_cleanup_runs_when_artifact_rollback_fails(
         if record.kind == "geometry_viewer"
     )
     assert workspace.status == "failed"
+    assert Path(workspace.path).exists()
+    artifact_ids = service.state_store.get_artifact_ids_for_workspace(
+        workspace.workspace_id
+    )
+    assert len(artifact_ids) == 1
+
+    monkeypatch.setattr(service.artifacts, "discard", original_discard)
+    service.runtime_prune(
+        workspace_ids=[workspace.workspace_id],
+        include_measure_workspaces=False,
+        include_geometry_viewers=True,
+        include_failed_simulations=False,
+    )
+
     assert not Path(workspace.path).exists()
+    artifact_id = artifact_ids.pop()
+    assert service.artifacts.get(artifact_id) is None
+    assert service.state_store.get_artifact(artifact_id)["status"] == "pruned"
+
+
+def test_runtime_prune_keeps_workspace_when_artifact_tombstone_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    service = OpenStudioService(workspace_root=tmp_path)
+    workspace_id = "geometry-prune-retry"
+    workspace = service.workspace_manager.create_workspace(workspace_id)
+    viewer_path = workspace / "geometry-viewer.html"
+    viewer_path.write_text("viewer", encoding="utf-8")
+    artifact = service.artifacts.create(
+        kind="geometry_viewer_html",
+        metadata={"path": str(viewer_path), "workspace_id": workspace_id},
+    )
+    service._register_workspace(
+        workspace_id=workspace_id,
+        kind="geometry_viewer",
+        model_id="model-id",
+        artifact_id=artifact.artifact_id,
+        status="available",
+    )
+    original_discard = service.artifacts.discard
+
+    def fail_tombstone(*_args, **_kwargs) -> None:
+        raise RuntimeError("artifact tombstone failed")
+
+    monkeypatch.setattr(service.artifacts, "discard", fail_tombstone)
+    with pytest.raises(RuntimeError, match="artifact tombstone failed"):
+        service.runtime_prune(
+            workspace_ids=[workspace_id],
+            include_measure_workspaces=False,
+            include_geometry_viewers=True,
+            include_failed_simulations=False,
+        )
+
+    assert workspace.exists()
+    assert (
+        next(
+            record
+            for record in service.state_store.list_workspaces()
+            if record.workspace_id == workspace_id
+        ).status
+        == "available"
+    )
+    assert (
+        service.state_store.get_artifact(artifact.artifact_id)["status"] == "available"
+    )
+
+    monkeypatch.setattr(service.artifacts, "discard", original_discard)
+    service.runtime_prune(
+        workspace_ids=[workspace_id],
+        include_measure_workspaces=False,
+        include_geometry_viewers=True,
+        include_failed_simulations=False,
+    )
+    assert not workspace.exists()
+    assert service.state_store.get_artifact(artifact.artifact_id)["status"] == "pruned"
+
+
+def test_resolve_model_path_normalizes_encoded_windows_drive_uri(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    service = OpenStudioService(workspace_root=tmp_path)
+
+    class CapturedPath:
+        def __init__(self, value: str):
+            self.value = value
+
+        def resolve(self) -> str:
+            return self.value
+
+    def encoded_drive_path(path: str) -> str:
+        assert path == "/C%3A/Models/sample.osm"
+        return r"\C:\Models\sample.osm"
+
+    monkeypatch.setattr(mcp_server, "Path", CapturedPath)
+    monkeypatch.setattr(mcp_server, "url2pathname", encoded_drive_path)
+    monkeypatch.setattr(mcp_server.os, "name", "nt")
+
+    assert (
+        service._resolve_model_path("file:///C%3A/Models/sample.osm")
+        == r"C:\Models\sample.osm"
+    )
 
 
 def test_interrupted_geometry_export_cleans_workspace(

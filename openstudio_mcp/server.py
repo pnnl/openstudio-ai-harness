@@ -1041,6 +1041,9 @@ class OpenStudioService:
                 artifact_ids.update(
                     self.state_store.get_job_artifact_ids(item["job_id"])
                 )
+                artifact_ids.update(
+                    self.state_store.get_artifact_ids_for_job(item["job_id"])
+                )
             for artifact_id in artifact_ids:
                 self.artifacts.discard(artifact_id, status="pruned")
             deleted.append(

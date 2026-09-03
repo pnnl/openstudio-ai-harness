@@ -335,6 +335,18 @@ class RuntimeStateStore:
             if isinstance(artifact_id, str)
         }
 
+    def get_artifact_ids_for_job(self, job_id: str) -> set[str]:
+        """Return artifact IDs whose persisted metadata belongs to a job."""
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT artifact_id, metadata_json FROM artifacts WHERE status = 'available'"
+            ).fetchall()
+        return {
+            row["artifact_id"]
+            for row in rows
+            if json.loads(row["metadata_json"]).get("job_id") == job_id
+        }
+
     def workspace_usage(self) -> dict[str, Any]:
         records = self.list_workspaces()
         by_kind: dict[str, dict[str, int]] = {}

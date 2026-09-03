@@ -56,6 +56,11 @@ def test_model_export_geometry_viewer_writes_searchable_offline_html(
     assert "facesById=new Map" in html
     assert "clearHiddenFaceSelection" in html
     assert (
+        "#layout{display:grid;grid-template-columns:320px 1fr;height:calc(100vh - 58px)"
+        in html
+    )
+    assert "@media(max-width:700px)" in html
+    assert (
         "renderList();draw()"
         not in html.split("renderList=function()", 1)[1].split("const resetYaw", 1)[0]
     )
@@ -520,5 +525,50 @@ def test_runtime_prune_discards_every_successful_simulation_artifact(
     assert result["deleted"][0]["workspace_id"] == job.job_id
     assert not workspace.exists()
     for artifact_id in artifacts.values():
+        assert service.artifacts.get(artifact_id) is None
+        assert service.state_store.get_artifact(artifact_id)["status"] == "pruned"
+
+
+def test_runtime_prune_discards_failed_simulation_artifacts_missing_from_job_map(
+    tmp_path: Path,
+) -> None:
+    service = OpenStudioService(workspace_root=tmp_path)
+    job = service.job_manager.create_job(
+        model_id="simulation-model", run_mode="annual", options={}
+    )
+    workspace = service.workspace_manager.workspace_path(job.job_id)
+    (workspace / "eplusout.sql").write_text("simulation output", encoding="utf-8")
+    osm = service.artifacts.create(
+        kind="osm", parent_id="simulation-model", metadata={"job_id": job.job_id}
+    )
+    sql = service.artifacts.create(
+        kind="sql", parent_id=osm.artifact_id, metadata={"job_id": job.job_id}
+    )
+    logs = service.artifacts.create(
+        kind="logs", parent_id=osm.artifact_id, metadata={"job_id": job.job_id}
+    )
+    report = service.artifacts.create(
+        kind="report", parent_id=sql.artifact_id, metadata={"job_id": job.job_id}
+    )
+    artifacts = [osm.artifact_id, sql.artifact_id, logs.artifact_id, report.artifact_id]
+    service.job_manager.fail(job.job_id, error={"message": "quota failure"})
+    service._register_workspace(
+        workspace_id=job.job_id,
+        kind="simulation",
+        job_id=job.job_id,
+        model_id="simulation-model",
+        artifact_id=osm.artifact_id,
+        status="failed",
+    )
+
+    service.runtime_prune(
+        include_measure_workspaces=False,
+        include_geometry_viewers=False,
+        include_failed_simulations=True,
+        include_successful_simulations=False,
+    )
+
+    assert not workspace.exists()
+    for artifact_id in artifacts:
         assert service.artifacts.get(artifact_id) is None
         assert service.state_store.get_artifact(artifact_id)["status"] == "pruned"

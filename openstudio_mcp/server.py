@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
-from urllib.parse import unquote, urlparse
+from urllib.parse import urlparse
 from urllib.request import url2pathname
 from uuid import uuid4
 
@@ -746,7 +746,7 @@ class OpenStudioService:
     def _resolve_model_path(self, model_uri: str) -> Path:
         if model_uri.startswith("file://"):
             parsed = urlparse(model_uri)
-            decoded_path = url2pathname(unquote(parsed.path))
+            decoded_path = url2pathname(parsed.path)
             if parsed.netloc and parsed.netloc.lower() != "localhost":
                 decoded_path = f"//{parsed.netloc}{decoded_path}"
             elif os.name == "nt" and decoded_path.startswith("/"):

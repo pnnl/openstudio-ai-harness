@@ -87,6 +87,92 @@ def test_geometry_viewer_escapes_all_model_text_tag_delimiters() -> None:
     assert "\\u003c/ScRiPt>" in html
 
 
+def test_geometry_scene_warns_for_collinear_surface() -> None:
+    class Point:
+        def __init__(self, value: float):
+            self.value = value
+
+        def x(self) -> float:
+            return self.value
+
+        def y(self) -> float:
+            return self.value
+
+        def z(self) -> float:
+            return self.value
+
+    class Unassigned:
+        def is_initialized(self) -> bool:
+            return False
+
+    class Surface:
+        def vertices(self) -> list[Point]:
+            return [Point(0), Point(1), Point(2)]
+
+        def handle(self) -> str:
+            return "collinear-surface"
+
+        def nameString(self) -> str:
+            return "Collinear surface"
+
+        def surfaceType(self) -> str:
+            return "Wall"
+
+        def grossArea(self) -> float:
+            return 0.0
+
+        def outsideBoundaryCondition(self) -> str:
+            return "Outdoors"
+
+        def subSurfaces(self) -> list[object]:
+            return []
+
+    class Space:
+        def handle(self) -> str:
+            return "degenerate-space"
+
+        def nameString(self) -> str:
+            return "Degenerate space"
+
+        def buildingStory(self) -> Unassigned:
+            return Unassigned()
+
+        def thermalZone(self) -> Unassigned:
+            return Unassigned()
+
+        def spaceType(self) -> Unassigned:
+            return Unassigned()
+
+        def floorArea(self) -> float:
+            return 0.0
+
+        def volume(self) -> float:
+            return 0.0
+
+        def surfaces(self) -> list[Surface]:
+            return [Surface()]
+
+        def siteTransformation(self) -> None:
+            return None
+
+    class Model:
+        def getSpaces(self) -> list[Space]:
+            return [Space()]
+
+        def getShadingSurfaces(self) -> list[object]:
+            return []
+
+    scene = build_geometry_scene(
+        Model(),
+        source_model="degenerate.osm",
+        include_subsurfaces=False,
+        include_shading=False,
+    )
+
+    assert scene["faces"] == []
+    assert scene["warnings"] == ["Skipped invalid surface: Collinear surface"]
+
+
 def test_geometry_viewer_runs_in_a_browser_and_supports_selection(
     tmp_path: Path,
 ) -> None:
@@ -301,7 +387,7 @@ def test_geometry_viewer_cleanup_runs_when_artifact_rollback_fails(
     monkeypatch.setattr(service, "_register_workspace", fail_final_registration)
     monkeypatch.setattr(service.artifacts, "discard", fail_artifact_rollback)
 
-    with pytest.raises(RuntimeError, match="artifact rollback failed"):
+    with pytest.raises(RuntimeError, match="final registration failed"):
         service.model_export_geometry_viewer(
             ModelExportGeometryViewerArgs(model_id=loaded["model_id"])
         )
@@ -315,7 +401,7 @@ def test_geometry_viewer_cleanup_runs_when_artifact_rollback_fails(
     assert not Path(workspace.path).exists()
 
 
-def test_interrupted_geometry_export_remains_prunable(
+def test_interrupted_geometry_export_cleans_workspace(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     service = OpenStudioService(workspace_root=tmp_path)
@@ -338,8 +424,101 @@ def test_interrupted_geometry_export_remains_prunable(
         for record in service.state_store.list_workspaces()
         if record.kind == "geometry_viewer"
     )
-    assert workspace.status == "available"
-    preview = service.runtime_prune_preview()
-    assert workspace.workspace_id in {
-        item["workspace_id"] for item in preview["candidates"]
+    assert workspace.status == "failed"
+    assert not Path(workspace.path).exists()
+
+
+def test_interrupted_geometry_export_discards_published_artifact(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    service = OpenStudioService(workspace_root=tmp_path)
+    loaded = service.model_load(
+        ModelLoadArgs(model_uri=FIXTURE_MODEL.resolve().as_uri())
+    )
+    original_register = service._register_workspace
+    original_create = service.artifacts.create
+    calls = 0
+    artifact_id: str | None = None
+
+    def remember_artifact(**kwargs):
+        nonlocal artifact_id
+        artifact = original_create(**kwargs)
+        artifact_id = artifact.artifact_id
+        return artifact
+
+    def interrupt_final_registration(**kwargs) -> None:
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise KeyboardInterrupt
+        original_register(**kwargs)
+
+    monkeypatch.setattr(service.artifacts, "create", remember_artifact)
+    monkeypatch.setattr(service, "_register_workspace", interrupt_final_registration)
+
+    with pytest.raises(KeyboardInterrupt):
+        service.model_export_geometry_viewer(
+            ModelExportGeometryViewerArgs(model_id=loaded["model_id"])
+        )
+
+    assert artifact_id is not None
+    assert service.artifacts.get(artifact_id) is None
+    assert service.state_store.get_artifact(artifact_id)["status"] == "failed"
+    workspace = next(
+        record
+        for record in service.state_store.list_workspaces()
+        if record.kind == "geometry_viewer"
+    )
+    assert workspace.status == "failed"
+    assert not Path(workspace.path).exists()
+
+
+def test_runtime_prune_discards_every_successful_simulation_artifact(
+    tmp_path: Path,
+) -> None:
+    service = OpenStudioService(workspace_root=tmp_path)
+    job = service.job_manager.create_job(
+        model_id="simulation-model", run_mode="annual", options={}
+    )
+    workspace = service.workspace_manager.workspace_path(job.job_id)
+    (workspace / "eplusout.sql").write_text("simulation output", encoding="utf-8")
+    osm = service.artifacts.create(
+        kind="osm", parent_id="simulation-model", metadata={"job_id": job.job_id}
+    )
+    sql = service.artifacts.create(
+        kind="sql", parent_id=osm.artifact_id, metadata={"job_id": job.job_id}
+    )
+    logs = service.artifacts.create(
+        kind="logs", parent_id=osm.artifact_id, metadata={"job_id": job.job_id}
+    )
+    report = service.artifacts.create(
+        kind="report", parent_id=sql.artifact_id, metadata={"job_id": job.job_id}
+    )
+    artifacts = {
+        "osm_id": osm.artifact_id,
+        "sql_id": sql.artifact_id,
+        "logs_id": logs.artifact_id,
+        "report_id": report.artifact_id,
     }
+    service.job_manager.mark_succeeded(job.job_id, artifacts=artifacts)
+    service._register_workspace(
+        workspace_id=job.job_id,
+        kind="simulation",
+        job_id=job.job_id,
+        model_id="simulation-model",
+        artifact_id=osm.artifact_id,
+        status="succeeded",
+    )
+
+    result = service.runtime_prune(
+        include_measure_workspaces=False,
+        include_geometry_viewers=False,
+        include_failed_simulations=False,
+        include_successful_simulations=True,
+    )
+
+    assert result["deleted"][0]["workspace_id"] == job.job_id
+    assert not workspace.exists()
+    for artifact_id in artifacts.values():
+        assert service.artifacts.get(artifact_id) is None
+        assert service.state_store.get_artifact(artifact_id)["status"] == "pruned"

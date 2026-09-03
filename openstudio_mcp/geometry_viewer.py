@@ -28,9 +28,26 @@ def _vertices(item: Any, transformation: Any | None = None) -> list[list[float]]
 
 
 def _finite_polygon(vertices: list[list[float]]) -> bool:
-    return len(vertices) >= 3 and all(
+    if len(vertices) < 3 or not all(
         math.isfinite(value) for point in vertices for value in point
-    )
+    ):
+        return False
+    origin = vertices[0]
+    for candidate in vertices[1:]:
+        edge = [candidate[index] - origin[index] for index in range(3)]
+        if not any(edge):
+            continue
+        for point in vertices[1:]:
+            other = [point[index] - origin[index] for index in range(3)]
+            cross = [
+                edge[1] * other[2] - edge[2] * other[1],
+                edge[2] * other[0] - edge[0] * other[2],
+                edge[0] * other[1] - edge[1] * other[0],
+            ]
+            if any(cross):
+                return True
+        return False
+    return False
 
 
 def _surface_record(

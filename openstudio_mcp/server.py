@@ -266,15 +266,20 @@ class OpenStudioService:
                 metadata=workspace_metadata,
                 status="succeeded",
             )
-        except Exception:
+        except BaseException:
             try:
                 if artifact is not None:
                     self.artifacts.discard(artifact.artifact_id)
-            finally:
-                try:
-                    self.state_store.mark_workspace_status(workspace_id, "failed")
-                finally:
-                    self.workspace_manager.cleanup_workspace(workspace_id)
+            except BaseException:
+                pass
+            try:
+                self.state_store.mark_workspace_status(workspace_id, "failed")
+            except BaseException:
+                pass
+            try:
+                self.workspace_manager.cleanup_workspace(workspace_id)
+            except BaseException:
+                pass
             raise
         return success_payload(
             viewer_id=artifact.artifact_id,
@@ -1031,8 +1036,12 @@ class OpenStudioService:
             self.workspace_manager.cleanup_workspace(workspace_id)
             self.state_store.touch_workspace(workspace_id, size_bytes=0)
             self.state_store.mark_workspace_status(workspace_id, "pruned")
-            artifact_id = item.get("artifact_id")
-            if isinstance(artifact_id, str) and artifact_id:
+            artifact_ids = {item["artifact_id"]} if item.get("artifact_id") else set()
+            if item.get("kind") == "simulation" and item.get("job_id"):
+                artifact_ids.update(
+                    self.state_store.get_job_artifact_ids(item["job_id"])
+                )
+            for artifact_id in artifact_ids:
                 self.artifacts.discard(artifact_id, status="pruned")
             deleted.append(
                 {

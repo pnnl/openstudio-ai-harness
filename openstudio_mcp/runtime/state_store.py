@@ -53,8 +53,7 @@ class RuntimeStateStore:
 
     def _initialize(self) -> None:
         with self._connect() as conn:
-            conn.executescript(
-                """
+            conn.executescript("""
                 PRAGMA journal_mode=WAL;
 
                 CREATE TABLE IF NOT EXISTS artifacts (
@@ -108,8 +107,7 @@ class RuntimeStateStore:
                     updated_at TEXT NOT NULL,
                     last_accessed_at TEXT NOT NULL
                 );
-                """
-            )
+                """)
 
     def upsert_artifact(
         self,
@@ -322,6 +320,21 @@ class RuntimeStateStore:
                 ),
             )
 
+    def get_job_artifact_ids(self, job_id: str) -> set[str]:
+        """Return all artifact IDs recorded for a simulation job."""
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT artifacts_json FROM jobs WHERE job_id = ?", (job_id,)
+            ).fetchone()
+        if row is None:
+            return set()
+        artifacts = json.loads(row["artifacts_json"])
+        return {
+            artifact_id
+            for artifact_id in artifacts.values()
+            if isinstance(artifact_id, str)
+        }
+
     def workspace_usage(self) -> dict[str, Any]:
         records = self.list_workspaces()
         by_kind: dict[str, dict[str, int]] = {}
@@ -396,13 +409,11 @@ class RuntimeStateStore:
     def list_blackboard_workflows(self) -> list[dict[str, Any]]:
         """Return lightweight metadata for MCP blackboard workflows."""
         with self._connect() as conn:
-            rows = conn.execute(
-                """
+            rows = conn.execute("""
                 SELECT workflow_id, status, created_at, updated_at, last_accessed_at
                 FROM blackboard_workflows
                 ORDER BY updated_at DESC
-                """
-            ).fetchall()
+                """).fetchall()
         return [
             {
                 "workflow_id": row["workflow_id"],

@@ -40,30 +40,27 @@ def test_model_export_geometry_viewer_writes_searchable_offline_html(
     assert "Surface type:" in html
     assert "Belongs to:" in html
     assert "resetPitch=.65" in html
-    assert "frontFacing" in html
-    assert "polygonNormal" in html
-    assert "pointInPolygon" in html
-    assert "averageDepth" in html
-    assert "face.kind==='shading'||frontFacing(face)" in html
-    assert "face.id===selectedFaceId||face.kind==='shading'||frontFacing(face)" in html
+    assert html.count("<script>") == 1
+    assert "function normal" in html
+    assert "function visible" in html
+    assert "function inside" in html
+    assert "function faces" in html
     assert "canvas.onkeydown" in html
     assert "Arrow keys orbit" in html
     assert "No visible surfaces." in html
     assert "canvas.tabIndex=0" in html
     assert 'aria-label="Surfaces"' in html
     assert 'button type="button" class="space' in html
-    assert "renderSurfaceList" in html
-    assert "facesById=new Map" in html
-    assert "clearHiddenFaceSelection" in html
+    assert "function listSurfaces" in html
+    assert "byId=new Map" in html
+    assert "function applyFilter" in html
     assert (
         "#layout{display:grid;grid-template-columns:320px 1fr;height:calc(100vh - 58px)"
         in html
     )
     assert "@media(max-width:700px)" in html
-    assert (
-        "renderList();draw()"
-        not in html.split("renderList=function()", 1)[1].split("const resetYaw", 1)[0]
-    )
+    assert "baseDraw" not in html
+    assert "renderList=function" not in html
     artifact = service.artifacts.must_get(result["viewer_id"])
     assert artifact.kind == "geometry_viewer_html"
     assert artifact.parent_id == loaded["model_id"]

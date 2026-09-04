@@ -120,6 +120,7 @@ def test_codex_adapter_exports_plugin_package(tmp_path: Path) -> None:
     assert "SDK Fallback Boundary" in delegated_nlr_skill.read_text(encoding="utf-8")
     assert (plugin_dir / "skills" / "add-vav-reheat" / "SKILL.md").exists()
     assert (plugin_dir / "skills" / "propose-measure" / "SKILL.md").exists()
+    assert (plugin_dir / "skills" / "view-openstudio-geometry" / "SKILL.md").exists()
     assert (plugin_dir / "skills" / "capture-session-lesson" / "SKILL.md").exists()
     simulate_skill = (plugin_dir / "skills" / "simulate" / "SKILL.md").read_text(
         encoding="utf-8"
@@ -264,6 +265,7 @@ def test_codex_adapter_exports_valid_manifest_and_marketplace(tmp_path: Path) ->
         (plugin_dir / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8")
     )
     assert plugin_json["name"] == "openstudio-ai"
+    assert "model" not in plugin_json
     assert plugin_json["skills"] == "./skills/"
     assert plugin_json["mcpServers"] == "./.mcp.json"
     assert plugin_json["interface"]["displayName"] == "OpenStudio AI"

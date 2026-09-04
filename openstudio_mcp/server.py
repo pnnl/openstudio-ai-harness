@@ -13,7 +13,8 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
-from urllib.parse import unquote, urlparse
+from urllib.parse import urlparse
+from urllib.request import url2pathname
 from uuid import uuid4
 
 from dotenv import load_dotenv
@@ -46,6 +47,10 @@ from openstudio_mcp.runtime.state_store import RuntimeStateStore
 from openstudio_mcp.runtime.workspace_manager import (
     WorkspaceManager,
 )
+from openstudio_mcp.geometry_viewer import (
+    build_geometry_scene,
+    render_geometry_viewer_html,
+)
 from openstudio_mcp.sdk_docs import OpenStudioSdkDocLookup
 from openstudio_mcp.tools.model import register_model_tools
 from openstudio_mcp.tools.blackboard import (
@@ -56,6 +61,7 @@ from openstudio_mcp.tools.runtime import register_runtime_tools
 from openstudio_mcp.tools.schemas import (
     ModelApplyMeasureArgs,
     ModelCloneArgs,
+    ModelExportGeometryViewerArgs,
     ModelLoadArgs,
     ModelSetDesignDaysArgs,
     ModelSetWeatherArgs,
@@ -199,6 +205,101 @@ class OpenStudioService:
             metadata={**base.metadata},
         )
         return success_payload(model_id=artifact.artifact_id)
+
+    def model_export_geometry_viewer(
+        self, args: ModelExportGeometryViewerArgs
+    ) -> dict[str, Any]:
+        """Export an OSM's geometry into a portable, offline inspection page."""
+        model_state = self._get_model_state(args.model_id)
+        model_path = self._resolve_model_path(model_state.metadata.get("model_uri", ""))
+        if not model_path.exists():
+            raise ValueError(f"Model file does not exist: {model_path}")
+
+        import openstudio
+
+        loaded = openstudio.osversion.VersionTranslator().loadModel(str(model_path))
+        if not loaded.is_initialized():
+            raise ValueError(f"OpenStudio could not load model: {model_path}")
+
+        scene = build_geometry_scene(
+            loaded.get(),
+            source_model=model_path.name,
+            include_subsurfaces=args.include_subsurfaces,
+            include_shading=args.include_shading,
+        )
+        workspace_id = f"geometry-viewer-{uuid4()}"
+        workspace = self.workspace_manager.create_workspace(workspace_id)
+        viewer_path = workspace / "geometry-viewer.html"
+        workspace_metadata = {
+            "source_model_id": args.model_id,
+            "include_subsurfaces": args.include_subsurfaces,
+            "include_shading": args.include_shading,
+        }
+        artifact = None
+        try:
+            self._register_workspace(
+                workspace_id=workspace_id,
+                kind="geometry_viewer",
+                model_id=args.model_id,
+                metadata=workspace_metadata,
+                # A synchronous export has no durable job/lease. Leaving this
+                # as available makes a process-interrupted export reclaimable.
+                status="available",
+            )
+            viewer_path.write_text(render_geometry_viewer_html(scene), encoding="utf-8")
+            self.workspace_manager.ensure_quota(workspace_id)
+            artifact = self.artifacts.create(
+                kind="geometry_viewer_html",
+                parent_id=args.model_id,
+                metadata={
+                    "path": str(viewer_path),
+                    "uri": viewer_path.as_uri(),
+                    "workspace_id": workspace_id,
+                    "scene_version": scene["version"],
+                    "counts": scene["counts"],
+                    "warnings": scene["warnings"],
+                },
+            )
+            self._register_workspace(
+                workspace_id=workspace_id,
+                kind="geometry_viewer",
+                model_id=args.model_id,
+                artifact_id=artifact.artifact_id,
+                metadata=workspace_metadata,
+                status="succeeded",
+            )
+        except BaseException:
+            artifact_rollback_succeeded = artifact is None
+            try:
+                if artifact is not None:
+                    self.artifacts.discard(artifact.artifact_id)
+            except BaseException:
+                # Keep the workspace intact when its artifact could not be
+                # durably tombstoned. Its failed workspace record and indexed
+                # artifact ownership let runtime_prune retry the cleanup.
+                artifact_rollback_succeeded = False
+            else:
+                artifact_rollback_succeeded = True
+            workspace_failure_recorded = False
+            try:
+                self.state_store.mark_workspace_status(workspace_id, "failed")
+            except BaseException:
+                pass
+            else:
+                workspace_failure_recorded = True
+            if artifact_rollback_succeeded and workspace_failure_recorded:
+                try:
+                    self.workspace_manager.cleanup_workspace(workspace_id)
+                except BaseException:
+                    pass
+            raise
+        return success_payload(
+            viewer_id=artifact.artifact_id,
+            viewer_path=str(viewer_path),
+            viewer_uri=viewer_path.as_uri(),
+            counts=scene["counts"],
+            warnings=scene["warnings"],
+        )
 
     def model_set_weather(self, args: ModelSetWeatherArgs) -> dict[str, Any]:
         model_state = self._get_model_state(args.model_id)
@@ -655,7 +756,13 @@ class OpenStudioService:
     def _resolve_model_path(self, model_uri: str) -> Path:
         if model_uri.startswith("file://"):
             parsed = urlparse(model_uri)
-            decoded_path = unquote(parsed.path)
+            decoded_path = url2pathname(parsed.path)
+            if parsed.netloc and parsed.netloc.lower() != "localhost":
+                decoded_path = f"//{parsed.netloc}{decoded_path}"
+            elif os.name == "nt" and re.match(
+                r"^[\\\\/][A-Za-z]:[\\\\/]", decoded_path
+            ):
+                decoded_path = decoded_path[1:]
             return Path(decoded_path).resolve()
         return Path(model_uri).resolve()
 
@@ -861,6 +968,7 @@ class OpenStudioService:
         self,
         *,
         include_measure_workspaces: bool = True,
+        include_geometry_viewers: bool = True,
         include_failed_simulations: bool = True,
         include_successful_simulations: bool = False,
     ) -> dict[str, Any]:
@@ -891,6 +999,8 @@ class OpenStudioService:
             prune_reason = None
             if include_measure_workspaces and record.kind == "measure":
                 prune_reason = "unprotected_measure_workspace"
+            elif include_geometry_viewers and record.kind == "geometry_viewer":
+                prune_reason = "unprotected_geometry_viewer_workspace"
             elif (
                 include_failed_simulations
                 and record.kind == "simulation"
@@ -922,11 +1032,13 @@ class OpenStudioService:
         *,
         workspace_ids: list[str] | None = None,
         include_measure_workspaces: bool = True,
+        include_geometry_viewers: bool = True,
         include_failed_simulations: bool = True,
         include_successful_simulations: bool = False,
     ) -> dict[str, Any]:
         preview = self.runtime_prune_preview(
             include_measure_workspaces=include_measure_workspaces,
+            include_geometry_viewers=include_geometry_viewers,
             include_failed_simulations=include_failed_simulations,
             include_successful_simulations=include_successful_simulations,
         )
@@ -939,12 +1051,22 @@ class OpenStudioService:
         for workspace_id, item in selected.items():
             path = Path(item["path"])
             size_bytes = self.workspace_manager.path_size(path)
+            artifact_ids = {item["artifact_id"]} if item.get("artifact_id") else set()
+            artifact_ids.update(
+                self.state_store.get_artifact_ids_for_workspace(workspace_id)
+            )
+            if item.get("kind") == "simulation" and item.get("job_id"):
+                artifact_ids.update(
+                    self.state_store.get_job_artifact_ids(item["job_id"])
+                )
+                artifact_ids.update(
+                    self.state_store.get_artifact_ids_for_job(item["job_id"])
+                )
+            for artifact_id in artifact_ids:
+                self.artifacts.discard(artifact_id, status="pruned")
             self.workspace_manager.cleanup_workspace(workspace_id)
             self.state_store.touch_workspace(workspace_id, size_bytes=0)
             self.state_store.mark_workspace_status(workspace_id, "pruned")
-            artifact_id = item.get("artifact_id")
-            if isinstance(artifact_id, str) and artifact_id:
-                self.state_store.mark_artifact_status(artifact_id, "pruned")
             deleted.append(
                 {
                     "workspace_id": workspace_id,

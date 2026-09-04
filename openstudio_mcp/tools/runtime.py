@@ -53,12 +53,14 @@ def register_runtime_tools(mcp, service) -> None:
     )
     async def runtime_prune_preview(
         include_measure_workspaces: bool = True,
+        include_geometry_viewers: bool = True,
         include_failed_simulations: bool = True,
         include_successful_simulations: bool = False,
     ) -> dict[str, Any]:
         try:
             return service.runtime_prune_preview(
                 include_measure_workspaces=include_measure_workspaces,
+                include_geometry_viewers=include_geometry_viewers,
                 include_failed_simulations=include_failed_simulations,
                 include_successful_simulations=include_successful_simulations,
             )
@@ -69,12 +71,14 @@ def register_runtime_tools(mcp, service) -> None:
         name="runtime_prune",
         description=(
             "Delete safe local workspace prune candidates. By default this prunes "
-            "unprotected measure workspaces and failed simulation workspaces only."
+            "unprotected measure and geometry-viewer workspaces, plus failed "
+            "simulation workspaces."
         ),
     )
     async def runtime_prune(
         workspace_ids: list[str] | None = None,
         include_measure_workspaces: bool = True,
+        include_geometry_viewers: bool = True,
         include_failed_simulations: bool = True,
         include_successful_simulations: bool = False,
     ) -> dict[str, Any]:
@@ -82,6 +86,7 @@ def register_runtime_tools(mcp, service) -> None:
             return service.runtime_prune(
                 workspace_ids=workspace_ids,
                 include_measure_workspaces=include_measure_workspaces,
+                include_geometry_viewers=include_geometry_viewers,
                 include_failed_simulations=include_failed_simulations,
                 include_successful_simulations=include_successful_simulations,
             )

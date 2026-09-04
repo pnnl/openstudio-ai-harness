@@ -101,6 +101,7 @@ def test_claude_code_adapter_exports_plugin_package(tmp_path: Path) -> None:
     assert (plugin_dir / "skills" / "add-vav-reheat" / "SKILL.md").exists()
     assert (plugin_dir / "skills" / "propose-measure" / "SKILL.md").exists()
     assert (plugin_dir / "skills" / "capture-session-lesson" / "SKILL.md").exists()
+    assert (plugin_dir / "skills" / "view-openstudio-geometry" / "SKILL.md").exists()
     simulate_skill = (plugin_dir / "skills" / "simulate" / "SKILL.md").read_text(
         encoding="utf-8"
     )
@@ -118,9 +119,7 @@ def test_claude_code_adapter_exports_plugin_package(tmp_path: Path) -> None:
     assert (
         plugin_dir / "skills" / "openstudio-hvac-air-loop-creator" / "SKILL.md"
     ).exists()
-    delegated_nlr_skill = (
-        plugin_dir / "skills" / "delegated-nlr-modeling" / "SKILL.md"
-    )
+    delegated_nlr_skill = plugin_dir / "skills" / "delegated-nlr-modeling" / "SKILL.md"
     assert delegated_nlr_skill.exists()
     assert "NLR Skill Guidance" in delegated_nlr_skill.read_text(encoding="utf-8")
     assert not (
@@ -212,6 +211,7 @@ def test_claude_code_adapter_exports_plugin_package(tmp_path: Path) -> None:
     agent_prompt = (plugin_dir / "agents" / "openstudio-modeler.md").read_text(
         encoding="utf-8"
     )
+    assert "model: sonnet\n" not in agent_prompt
     assert "do not rely on host-native blackboard features" in agent_prompt
     assert "Never promote them" in agent_prompt
     assert "## SDK Script Gate" in agent_prompt

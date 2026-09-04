@@ -359,7 +359,7 @@ belongs in a canonical Codex skill source.
 | Measure policy | No direct user editing | Runtime enforces `allowed`, `timeout_seconds`, and `args_schema` from `policy/measure_registry.yaml` | TODO: end-user/admin configuration story for enabling/disabling installed measures without editing package files |
 | Runtime storage usage | Yes | MCP tool `runtime_storage_usage` | TODO: surface this in setup/doctor skills and host UX more explicitly |
 | Prune preview | Yes | MCP tool `runtime_prune_preview`; does not delete files | TODO: expose retention settings and explanations in user-facing skills |
-| Runtime prune | Yes, but should require approval | MCP tool `runtime_prune`; defaults prune unprotected measure workspaces and failed simulations only | TODO: user-configurable retention rules for successful simulations, old workspaces, max disk use, and pinned workspaces |
+| Runtime prune | Yes, but should require approval | MCP tool `runtime_prune`; defaults prune unprotected measure and geometry-viewer workspaces, plus failed simulations | TODO: user-configurable retention rules for successful simulations, old workspaces, max disk use, and pinned workspaces |
 
 ## Promotion Rules
 

@@ -53,8 +53,7 @@ class RuntimeStateStore:
 
     def _initialize(self) -> None:
         with self._connect() as conn:
-            conn.executescript(
-                """
+            conn.executescript("""
                 PRAGMA journal_mode=WAL;
 
                 CREATE TABLE IF NOT EXISTS artifacts (
@@ -63,6 +62,8 @@ class RuntimeStateStore:
                     parent_id TEXT,
                     kind TEXT NOT NULL,
                     tool_trace_id TEXT,
+                    job_id TEXT,
+                    workspace_id TEXT,
                     metadata_json TEXT NOT NULL,
                     status TEXT NOT NULL DEFAULT 'available',
                     pinned INTEGER NOT NULL DEFAULT 0,
@@ -108,8 +109,51 @@ class RuntimeStateStore:
                     updated_at TEXT NOT NULL,
                     last_accessed_at TEXT NOT NULL
                 );
-                """
-            )
+                """)
+            # Serialize inspection, migration, and backfill.  In particular,
+            # table_info must run after acquiring the write lock so concurrent
+            # service startups cannot both attempt the same ALTER TABLE.
+            conn.execute("BEGIN IMMEDIATE")
+            try:
+                columns = {
+                    row["name"]
+                    for row in conn.execute("PRAGMA table_info(artifacts)").fetchall()
+                }
+                needs_backfill = False
+                if "job_id" not in columns:
+                    conn.execute("ALTER TABLE artifacts ADD COLUMN job_id TEXT")
+                    needs_backfill = True
+                if "workspace_id" not in columns:
+                    conn.execute("ALTER TABLE artifacts ADD COLUMN workspace_id TEXT")
+                    needs_backfill = True
+                conn.execute(
+                    "CREATE INDEX IF NOT EXISTS artifacts_available_job_id "
+                    "ON artifacts(status, job_id)"
+                )
+                conn.execute(
+                    "CREATE INDEX IF NOT EXISTS artifacts_available_workspace_id "
+                    "ON artifacts(status, workspace_id)"
+                )
+                if needs_backfill:
+                    legacy_artifacts = conn.execute(
+                        "SELECT artifact_id, metadata_json FROM artifacts"
+                    ).fetchall()
+                    for artifact in legacy_artifacts:
+                        metadata = json.loads(artifact["metadata_json"])
+                        conn.execute(
+                            "UPDATE artifacts SET job_id = ?, workspace_id = ? "
+                            "WHERE artifact_id = ?",
+                            (
+                                metadata.get("job_id"),
+                                metadata.get("workspace_id"),
+                                artifact["artifact_id"],
+                            ),
+                        )
+            except BaseException:
+                conn.rollback()
+                raise
+            else:
+                conn.commit()
 
     def upsert_artifact(
         self,
@@ -121,18 +165,23 @@ class RuntimeStateStore:
         tool_trace_id: str | None,
         metadata: dict[str, Any],
     ) -> None:
+        job_id = metadata.get("job_id")
+        workspace_id = metadata.get("workspace_id")
         with self._connect() as conn:
             conn.execute(
                 """
                 INSERT INTO artifacts (
-                    artifact_id, created_at, parent_id, kind, tool_trace_id,
+                    artifact_id, created_at, parent_id, kind, tool_trace_id, job_id,
+                    workspace_id,
                     metadata_json, status, pinned, last_accessed_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, 'available', 0, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'available', 0, ?)
                 ON CONFLICT(artifact_id) DO UPDATE SET
                     parent_id = excluded.parent_id,
                     kind = excluded.kind,
                     tool_trace_id = excluded.tool_trace_id,
+                    job_id = excluded.job_id,
+                    workspace_id = excluded.workspace_id,
                     metadata_json = excluded.metadata_json,
                     last_accessed_at = excluded.last_accessed_at
                 """,
@@ -142,6 +191,8 @@ class RuntimeStateStore:
                     parent_id,
                     kind,
                     tool_trace_id,
+                    job_id if isinstance(job_id, str) else None,
+                    workspace_id if isinstance(workspace_id, str) else None,
                     json.dumps(metadata, sort_keys=True),
                     utc_now(),
                 ),
@@ -322,6 +373,40 @@ class RuntimeStateStore:
                 ),
             )
 
+    def get_job_artifact_ids(self, job_id: str) -> set[str]:
+        """Return all artifact IDs recorded for a simulation job."""
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT artifacts_json FROM jobs WHERE job_id = ?", (job_id,)
+            ).fetchone()
+        if row is None:
+            return set()
+        artifacts = json.loads(row["artifacts_json"])
+        return {
+            artifact_id
+            for artifact_id in artifacts.values()
+            if isinstance(artifact_id, str)
+        }
+
+    def get_artifact_ids_for_job(self, job_id: str) -> set[str]:
+        """Return available artifact IDs indexed to a simulation job."""
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT artifact_id FROM artifacts WHERE status = 'available' AND job_id = ?",
+                (job_id,),
+            ).fetchall()
+        return {row["artifact_id"] for row in rows}
+
+    def get_artifact_ids_for_workspace(self, workspace_id: str) -> set[str]:
+        """Return available artifact IDs indexed to a workspace."""
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT artifact_id FROM artifacts "
+                "WHERE status = 'available' AND workspace_id = ?",
+                (workspace_id,),
+            ).fetchall()
+        return {row["artifact_id"] for row in rows}
+
     def workspace_usage(self) -> dict[str, Any]:
         records = self.list_workspaces()
         by_kind: dict[str, dict[str, int]] = {}
@@ -396,13 +481,11 @@ class RuntimeStateStore:
     def list_blackboard_workflows(self) -> list[dict[str, Any]]:
         """Return lightweight metadata for MCP blackboard workflows."""
         with self._connect() as conn:
-            rows = conn.execute(
-                """
+            rows = conn.execute("""
                 SELECT workflow_id, status, created_at, updated_at, last_accessed_at
                 FROM blackboard_workflows
                 ORDER BY updated_at DESC
-                """
-            ).fetchall()
+                """).fetchall()
         return [
             {
                 "workflow_id": row["workflow_id"],

@@ -7,6 +7,7 @@ from pydantic import ValidationError
 from openstudio_mcp.tools.schemas import (
     ModelApplyMeasureArgs,
     ModelCloneArgs,
+    ModelExportGeometryViewerArgs,
     ModelLoadArgs,
     ModelSetDesignDaysArgs,
     ModelSetWeatherArgs,
@@ -17,7 +18,9 @@ from openstudio_mcp.tools.schemas import (
 
 
 def register_model_tools(mcp, service) -> None:
-    @mcp.tool(name="model_load", description="Load an OpenStudio model artifact from URI.")
+    @mcp.tool(
+        name="model_load", description="Load an OpenStudio model artifact from URI."
+    )
     async def model_load(model_uri: str) -> dict[str, Any]:
         try:
             args = ModelLoadArgs(model_uri=model_uri)
@@ -27,7 +30,10 @@ def register_model_tools(mcp, service) -> None:
         except Exception as exc:
             return error_payload("internal_error", str(exc), retryable=False)
 
-    @mcp.tool(name="model_clone", description="Clone an existing model artifact and return new model_id.")
+    @mcp.tool(
+        name="model_clone",
+        description="Clone an existing model artifact and return new model_id.",
+    )
     async def model_clone(model_id: str) -> dict[str, Any]:
         try:
             args = ModelCloneArgs(model_id=model_id)
@@ -39,7 +45,38 @@ def register_model_tools(mcp, service) -> None:
         except Exception as exc:
             return error_payload("internal_error", str(exc), retryable=False)
 
-    @mcp.tool(name="model_set_weather", description="Attach local weather file path to model.")
+    @mcp.tool(
+        name="model_export_geometry_viewer",
+        description=(
+            "Create a self-contained offline HTML page for inspecting an OpenStudio "
+            "model's geometry. The page supports space search, sorting, filtering, "
+            "selection, and highlighting."
+        ),
+    )
+    async def model_export_geometry_viewer(
+        model_id: str,
+        include_subsurfaces: bool = True,
+        include_shading: bool = True,
+    ) -> dict[str, Any]:
+        try:
+            args = ModelExportGeometryViewerArgs(
+                model_id=model_id,
+                include_subsurfaces=include_subsurfaces,
+                include_shading=include_shading,
+            )
+            return service.model_export_geometry_viewer(args)
+        except ValidationError as exc:
+            return validation_error_payload(exc)
+        except KeyError as exc:
+            return error_payload("not_found", str(exc), retryable=False)
+        except ValueError as exc:
+            return error_payload("invalid_state", str(exc), retryable=False)
+        except Exception as exc:
+            return error_payload("internal_error", str(exc), retryable=False)
+
+    @mcp.tool(
+        name="model_set_weather", description="Attach local weather file path to model."
+    )
     async def model_set_weather(model_id: str, epw_path: str) -> dict[str, Any]:
         try:
             args = ModelSetWeatherArgs(model_id=model_id, epw_path=epw_path)
@@ -51,7 +88,9 @@ def register_model_tools(mcp, service) -> None:
         except Exception as exc:
             return error_payload("internal_error", str(exc), retryable=False)
 
-    @mcp.tool(name="model_set_design_days", description="Configure design days for model.")
+    @mcp.tool(
+        name="model_set_design_days", description="Configure design days for model."
+    )
     async def model_set_design_days(
         model_id: str,
         ddy_id: str | None = None,
@@ -112,7 +151,9 @@ def register_model_tools(mcp, service) -> None:
         except Exception as exc:
             return error_payload("internal_error", str(exc), retryable=False)
 
-    @mcp.tool(name="model_validate", description="Validate model for simulation readiness.")
+    @mcp.tool(
+        name="model_validate", description="Validate model for simulation readiness."
+    )
     async def model_validate(model_id: str) -> dict[str, Any]:
         try:
             args = ModelCloneArgs(model_id=model_id)

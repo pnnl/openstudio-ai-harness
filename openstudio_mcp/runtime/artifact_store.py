@@ -44,7 +44,6 @@ class ArtifactStore:
             tool_trace_id=tool_trace_id,
             metadata=dict(metadata),
         )
-        self._items[artifact.artifact_id] = artifact
         if self.state_store is not None:
             self.state_store.upsert_artifact(
                 artifact_id=artifact.artifact_id,
@@ -54,7 +53,14 @@ class ArtifactStore:
                 tool_trace_id=artifact.tool_trace_id,
                 metadata=artifact.metadata,
             )
+        self._items[artifact.artifact_id] = artifact
         return artifact
+
+    def discard(self, artifact_id: str, *, status: str = "failed") -> None:
+        """Remove an unsuccessfully published artifact from the in-memory cache."""
+        self._items.pop(artifact_id, None)
+        if self.state_store is not None:
+            self.state_store.mark_artifact_status(artifact_id, status)
 
     def get(self, artifact_id: str) -> ArtifactRecord | None:
         item = self._items.get(artifact_id)

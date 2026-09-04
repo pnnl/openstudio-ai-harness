@@ -1,7 +1,7 @@
 ---
 name: openstudio_hvac_sizing_system_configurator
 description: Configure AirLoopHVAC SizingSystem and standard design temperatures for OpenStudio VAV workflows.
-version: 0.2.0
+version: 0.2.1
 output_format: markdown_with_json_state_patch
 ---
 

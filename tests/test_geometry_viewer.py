@@ -109,6 +109,7 @@ def test_model_export_geometry_viewer_writes_searchable_offline_html(
     assert "No visible surfaces." in html
     assert "canvas.tabIndex=0" in html
     assert 'aria-label="Surfaces"' in html
+    assert 'id="detail" role="status" aria-live="polite"' in html
     assert 'button type="button" class="space' in html
     assert "function listSurfaces" in html
     assert "byId=new Map" in html

@@ -132,6 +132,13 @@ def test_model_export_geometry_viewer_writes_searchable_offline_html(
     assert workspace.metadata["include_subsurfaces"] is True
     assert workspace.metadata["include_shading"] is True
 
+
+def test_geometry_viewer_skill_requires_the_mcp_export_tool() -> None:
+    skill = (Path("skills") / "view_openstudio_geometry.md").read_text(encoding="utf-8")
+
+    assert "model_export_geometry_viewer" in skill
+    assert "do not parse the OSM directly" in skill
+
     scene = build_geometry_scene(
         openstudio.osversion.VersionTranslator().loadModel(str(FIXTURE_MODEL)).get(),
         source_model="sample.osm",

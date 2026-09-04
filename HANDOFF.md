@@ -2,7 +2,7 @@
 
 ## Current Status
 
-- Package version: `0.2.1`.
+- Package version: `0.2.2`.
 - The package exposes an OpenStudio MCP runtime, Claude Code and Codex plugin
   exports, trusted skills and references, runtime learning contracts, and
   MCP-backed SQLite workflow state.
@@ -44,10 +44,11 @@
 - `runtime_openstudio_status` is the required simulation preflight. It reports
   the MCP process's executable path/source and directs the agent to read-only
   platform-specific discovery before proposing an OpenStudio installation.
-- MCP contract version `2` is required for the simulation preflight. Simulation
-  skills are MCP-only: if the preflight or reconnection is unavailable, they
-  stop and ask the user to refresh the plugin/runtime rather than invoke a
-  local OpenStudio CLI fallback.
+- MCP contract version `3` requires `model_export_geometry_viewer` for the
+  standalone geometry-viewer skill; version `2` added the simulation preflight.
+  Simulation skills are MCP-only: if the preflight or reconnection is
+  unavailable, they stop and ask the user to refresh the plugin/runtime rather
+  than invoke a local OpenStudio CLI fallback.
 - Codex projects can install a managed OpenStudio block into `AGENTS.md` with
   `openstudio-ai install codex --target-dir <project>`. The block loads
   `openstudio-modeling-orchestrator` first, then reuses the shared modeler

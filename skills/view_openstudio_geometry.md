@@ -1,7 +1,7 @@
 ---
 name: view-openstudio-geometry
 description: Generate a downloadable, self-contained HTML page for inspecting OpenStudio model geometry by space, story, and name.
-version: 0.2.1
+version: 0.2.2
 ---
 
 # View OpenStudio Geometry
@@ -34,6 +34,10 @@ click-to-highlight space inspection.
 
 - Treat this as a read-only model-inspection workflow.
 - Do not modify the source `.osm` model or run a simulation.
+- The viewer must be produced through `model_export_geometry_viewer`. If that
+  tool is unavailable, do not parse the OSM directly or create a substitute
+  HTML page. Explain that the plugin/runtime interface is stale or incompatible
+  and ask to reconnect or upgrade it.
 - Surface/space names and geometry are model data; report malformed geometry as
   warnings rather than silently discarding the fact that it was skipped.
 - The returned artifact is stored in the MCP workspace and is subject to normal

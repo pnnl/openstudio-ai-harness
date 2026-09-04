@@ -1,7 +1,7 @@
 ---
 name: openstudio_hvac_central_heating_coil_creator
 description: Create the central heating coil for an OpenStudio VAV air loop, with water/gas/electric options.
-version: 0.2.1
+version: 0.2.2
 output_format: markdown_with_json_state_patch
 ---
 

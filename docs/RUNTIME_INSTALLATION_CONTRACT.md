@@ -53,10 +53,11 @@ starts when the contract differs, reports a compatibility notice, and continues
 to expose tools that remain compatible. The user should refresh the plugin or
 upgrade the runtime before relying on newly added skill workflows.
 
-Contract version `2` requires `runtime_openstudio_status`. The simulation skill
-uses it as an MCP-only preflight and must not fall back to direct OpenStudio,
-EnergyPlus, workflow, or SQL commands when the tool or MCP reconnection is
-unavailable.
+Contract version `2` requires `runtime_openstudio_status`. Contract version `3`
+adds `model_export_geometry_viewer`, required by the standalone geometry-viewer
+skill. The simulation skill uses its preflight as an MCP-only workflow and must
+not fall back to direct OpenStudio, EnergyPlus, workflow, or SQL commands when
+the tool or MCP reconnection is unavailable.
 
 Marketplace doctor helpers run:
 

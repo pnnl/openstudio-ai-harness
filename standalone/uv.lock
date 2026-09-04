@@ -2625,7 +2625,7 @@ wheels = [
 
 [[package]]
 name = "openstudio-ai"
-version = "0.2.0"
+version = "0.2.1"
 source = { editable = "../" }
 dependencies = [
     { name = "jinja2" },
@@ -2658,7 +2658,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "openstudio-ai-standalone"
-version = "0.2.0"
+version = "0.2.1"
 source = { virtual = "." }
 dependencies = [
     { name = "automa-ai" },

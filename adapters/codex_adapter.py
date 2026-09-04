@@ -466,9 +466,11 @@ def _render_install_doc(
         "`AGENTS.md`, use `--force` only after reviewing the proposed append. "
         "Later runs update only the marked OpenStudio block.\n\n"
         "## Runtime Setup\n\n"
-        "After installation, ask Codex to run `setup-openstudio-ai`. The setup command "
-        "checks Python, checks `openstudio-ai-mcp`, and explains any missing installation "
-        "steps in energy-modeler language.\n"
+        "After installation, invoke the setup skill with `$setup-openstudio-ai` (or ask "
+        "Codex in plain language to set up OpenStudio AI). `/setup-openstudio-ai` is not "
+        "a Codex CLI skill command. The setup skill checks Python, checks "
+        "`openstudio-ai-mcp`, and explains any missing installation steps in "
+        "energy-modeler language.\n"
     )
 
 

@@ -254,6 +254,8 @@ def test_codex_adapter_exports_plugin_package(tmp_path: Path) -> None:
     install_doc = (tmp_path / "INSTALL.md").read_text(encoding="utf-8")
     assert f"codex plugin marketplace add {tmp_path}" in install_doc
     assert "openstudio-ai install codex --target-dir <path-to-project>" in install_doc
+    assert "$setup-openstudio-ai" in install_doc
+    assert "/setup-openstudio-ai` is not a Codex CLI skill command" in install_doc
     assert "openstudio-ai-codex-export install" not in install_doc
 
 

@@ -1,7 +1,7 @@
 ---
 name: hvac_sizing_assistant
 description: Run a sizing workflow through OpenStudio MCP and return structured sizing + assumptions + artifact IDs.
-version: 0.2.1
+version: 0.2.2
 output_format: json
 ---
 

@@ -57,8 +57,11 @@ def nlr_mcp_status() -> dict[str, object]:
             config = tomllib.loads(codex_config.read_text(encoding="utf-8"))
         except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
             config = {}
-        if isinstance(config.get("mcp_servers"), dict) and "nlr_openstudio" in config["mcp_servers"]:
-            return {"configured": True, "name": "nlr_openstudio", "source": str(codex_config)}
+        servers = config.get("mcp_servers") if isinstance(config, dict) else None
+        if isinstance(servers, dict):
+            for name in ("openstudio-mcp", "nlr_openstudio"):
+                if name in servers:
+                    return {"configured": True, "name": name, "source": str(codex_config)}
 
     for directory in (Path.cwd(), *Path.cwd().parents):
         mcp_config = directory / ".mcp.json"
@@ -69,8 +72,11 @@ def nlr_mcp_status() -> dict[str, object]:
             config = json.loads(mcp_config.read_text(encoding="utf-8"))
         except (OSError, UnicodeDecodeError, json.JSONDecodeError):
             continue
-        if isinstance(config.get("mcpServers"), dict) and "nlr_openstudio" in config["mcpServers"]:
-            return {"configured": True, "name": "nlr_openstudio", "source": str(mcp_config)}
+        servers = config.get("mcpServers") if isinstance(config, dict) else None
+        if isinstance(servers, dict):
+            for name in ("openstudio-mcp", "nlr_openstudio"):
+                if name in servers:
+                    return {"configured": True, "name": name, "source": str(mcp_config)}
 
     return {"configured": False, "name": "nlr_openstudio", "checked_paths": checked_paths}
 

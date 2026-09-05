@@ -1385,7 +1385,7 @@ def create_server(
 ) -> FastMCP:
     workspace = Path(workspace_root or ".openstudio_mcp_workspace")
     service = OpenStudioService(workspace_root=workspace)
-    mcp = FastMCP("openstudio-mcp", host=host, port=port)
+    mcp = FastMCP("openstudio-ai-mcp", host=host, port=port)
 
     register_blackboard_tools(mcp, service)
     register_model_tools(mcp, service)

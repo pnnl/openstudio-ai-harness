@@ -1,7 +1,12 @@
 from __future__ import annotations
 
+import json
 import py_compile
 from pathlib import Path
+
+import pytest
+
+import cli
 
 from adapters.runtime_helpers import (
     render_doctor_runtime_script,
@@ -59,3 +64,58 @@ def test_rendered_installer_includes_only_requested_host_guidance() -> None:
 
     assert "Reload the host plugin." not in without_guidance
     assert 'print("\\nReload the host plugin.")\n    return 0' in with_guidance
+
+
+@pytest.mark.parametrize("implementation", ["cli", "exported"])
+@pytest.mark.parametrize("host", ["codex", "claude", "claude_parent"])
+@pytest.mark.parametrize(
+    "names, expected",
+    [
+        (["openstudio-mcp"], "openstudio-mcp"),
+        (["nlr_openstudio"], "nlr_openstudio"),
+        (["nlr_openstudio", "openstudio-mcp"], "openstudio-mcp"),
+        (["other"], None),
+        ([], None),
+    ],
+)
+def test_nlr_discovery_names(
+    monkeypatch, tmp_path: Path, implementation, host, names, expected
+) -> None:
+    monkeypatch.setattr(Path, "home", staticmethod(lambda: tmp_path))
+    project = tmp_path / "project"
+    project.mkdir()
+    monkeypatch.chdir(project)
+    if host == "codex":
+        config_path = tmp_path / ".codex" / "config.toml"
+        config_path.parent.mkdir()
+        config_path.write_text(
+            '# openstudio-mcp and nlr_openstudio are optional\n'
+            + "\n".join(
+                f'[mcp_servers."{name}"]\ncommand = "docker"'
+                for name in names
+            ),
+            encoding="utf-8",
+        )
+    else:
+        config_path = (tmp_path if host == "claude_parent" else project) / ".mcp.json"
+        config_path.write_text(
+            json.dumps({"mcpServers": {
+                name: {"description": "openstudio-mcp nlr_openstudio"}
+                for name in names
+            }}),
+            encoding="utf-8",
+        )
+    if implementation == "cli":
+        status = cli._nlr_mcp_status()
+    else:
+        namespace = {"__name__": "test_doctor"}
+        exec(compile(render_doctor_runtime_script(), "doctor_runtime.py", "exec"), namespace)
+        # Exercise discovery with a TOML parser even on Python 3.10.
+        monkeypatch.setitem(namespace, "tomllib", cli.tomllib)
+        status = namespace["nlr_mcp_status"]()
+
+    assert status["configured"] is (expected is not None)
+    if expected is not None:
+        assert status["name"] == expected
+        assert status["source"] == str(config_path)
+    assert "ready" not in status

@@ -51,7 +51,11 @@ openstudio-ai configure-openstudio --path /path/to/openstudio
 `openstudio-ai doctor` reports **core plugin readiness** only when the Python
 runtime, MCP command, native OpenStudio executable, and plugin compatibility
 are ready for energy modeling. Optional integrations such as NLR OpenStudio-MCP
-are reported separately and do not block core readiness.
+are reported separately and do not block core readiness. NLR discovery accepts
+`openstudio-mcp` (preferred) and `nlr_openstudio` in Codex or Claude project
+configuration. Detection means configured; verify NLR status/version through
+the connected server before modeling. PNNL’s foundational MCP advertises
+`openstudio-ai-mcp` and uses the host connection name `openstudio_ai`.
 
 The base package is the recommended install for Claude Code, Codex, and other
 marketplace-style host integrations. It intentionally does not install

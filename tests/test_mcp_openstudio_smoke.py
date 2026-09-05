@@ -65,7 +65,8 @@ def start_mcp():
 async def test_openstudio_mcp_smoke_list_and_call_model_load() -> None:
     async with sse_client(MCP_URL) as (read_stream, write_stream):
         async with ClientSession(read_stream, write_stream) as session:
-            await session.initialize()
+            initialization = await session.initialize()
+            assert initialization.serverInfo.name == "openstudio-ai-mcp"
             tools = await session.list_tools()
             names = {tool.name for tool in tools.tools}
             assert "model_load" in names

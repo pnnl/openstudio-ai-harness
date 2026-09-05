@@ -68,6 +68,13 @@ The assistant should:
 6. Tell you whether OpenStudio AI is ready for model loading, HVAC workflow
    support, simulation, results, SDK lookup, and workflow state tracking.
 
+After a plugin update, run this setup flow again if the release added or changed
+MCP tools. The plugin and runtime have a shared interface contract. Updating a
+plugin does not refresh an MCP server that is already running, and the AI tool
+does not add newly available tools to the current conversation. Approve the
+runtime upgrade when the doctor reports `plugin_ready: false`, then restart the
+AI tool or reconnect its OpenStudio AI MCP server before retrying.
+
 ## Normal Outcomes
 
 ### Ready
@@ -98,6 +105,15 @@ launch environment, then restart or reconnect the plugin. It must not rewrite
 a marketplace plugin's `.mcp.json` with an absolute project virtualenv path:
 that path is machine-specific. For repository development, export a separate
 plugin with `--runtime-mode local` instead.
+
+### Plugin Updated But a New Tool Is Missing
+
+The plugin may be newer than the runtime process currently serving the
+conversation. Run the setup workflow again. When it identifies a contract
+mismatch, approve the runtime upgrade and then restart Claude Code or Codex (or
+reconnect the OpenStudio AI MCP server). Start the geometry or modeling request
+again after reconnection; the original conversation cannot dynamically acquire
+new MCP tools.
 
 ### OpenStudio Missing
 

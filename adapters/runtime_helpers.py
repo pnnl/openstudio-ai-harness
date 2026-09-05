@@ -120,6 +120,16 @@ def main() -> int:
             print(doctor.stderr.strip())
         return 2
 
+    if payload.get("plugin_ready") is False:
+        print(
+            "\\nThe plugin requires a newer OpenStudio AI MCP interface than the "
+            "running runtime provides. Ask the user before running "
+            "install_runtime.py, then restart or reconnect the host before retrying."
+        )
+        if doctor.stderr.strip():
+            print(doctor.stderr.strip())
+        return doctor.returncode or 1
+
     if doctor.returncode != 0 or payload.get("core_ready") is not True:
         print("\\nOpenStudio AI is not ready for energy modeling. Resolve the blocking diagnostics, reconnect the host, and rerun setup.")
         if doctor.stderr.strip():
@@ -156,7 +166,7 @@ import sys
 from pathlib import Path
 
 
-DEFAULT_PACKAGE_SPEC = "openstudio-ai"
+DEFAULT_PACKAGE_SPEC = "openstudio-ai==__OPENSTUDIO_AI_PLUGIN_VERSION__"
 
 
 def run(command: list[str]) -> int:
@@ -191,6 +201,15 @@ def runtime_cli_path() -> str | None:
     return runtime_command_path("openstudio-ai")
 
 
+def is_pipx_managed_runtime() -> bool:
+    """Return whether the active OpenStudio AI command belongs to a pipx venv."""
+    command = shutil.which("openstudio-ai")
+    if command is None or shutil.which("pipx") is None:
+        return False
+    resolved = Path(command).resolve()
+    return "pipx" in resolved.parts and "venvs" in resolved.parts
+
+
 def main() -> int:
     print("OpenStudio AI runtime installer")
     print("===============================")
@@ -214,7 +233,21 @@ def main() -> int:
         "Set OPENSTUDIO_AI_PACKAGE_SPEC to a wheel path, internal index spec, "
         "or pinned version if your organization does not install from PyPI."
     )
-    code = run([sys.executable, "-m", "pip", "install", "--upgrade", package_spec])
+    if is_pipx_managed_runtime() and package_spec == DEFAULT_PACKAGE_SPEC:
+        print(
+            "The active runtime is managed by pipx; upgrading that environment "
+            "so the MCP command used by the host is updated."
+        )
+        code = run(["pipx", "upgrade", "--install", "openstudio-ai"])
+    elif is_pipx_managed_runtime():
+        print(
+            "\\nThe active runtime is managed by pipx and a custom package specification "
+            "was requested. Update that pipx environment with your approved package, then "
+            "rerun doctor."
+        )
+        return 2
+    else:
+        code = run([sys.executable, "-m", "pip", "install", "--upgrade", package_spec])
     if code != 0:
         print(
             "\\nRuntime package installation failed. Check Python permissions, "
@@ -257,4 +290,6 @@ __POST_INSTALL_GUIDANCE__    return 0
 
 if __name__ == "__main__":
     raise SystemExit(main())
-'''.replace("__POST_INSTALL_GUIDANCE__", guidance)
+'''.replace("__POST_INSTALL_GUIDANCE__", guidance).replace(
+        "__OPENSTUDIO_AI_PLUGIN_VERSION__", package_version()
+    )

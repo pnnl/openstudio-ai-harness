@@ -108,11 +108,44 @@ uv run --project standalone python -m pytest -q standalone/tests
 
 ## Next Steps
 
-1. Add CI for focused tests, build, wheel-content inspection, `doctor`, and
-   marketplace export validation.
+1. Extend and verify the existing CI and publication workflows with a coherent
+   product release matrix, real simulation readiness, and cross-provider
+   contract/evaluation gates; CI definitions already exist under `.github/workflows/`.
 2. Decide and document the long-term supply-chain source for the Python-3.12+
    `automa-ai` standalone dependency before publishing a standalone workflow.
 3. Align `measures/approved/` with the live measure registry before exposing it
    as the trusted measure source.
 4. Design end-user configuration for runtime retention and installed-measure
    administration.
+
+## Multi-lab Planning Assessment — September 4, 2026
+
+- Practical follow-up: [MULTILAB_WEEK_ONE.md](docs/MULTILAB_WEEK_ONE.md)
+  drafts PNNL repository work, NLR/LBNL discussion questions, a message to the
+  labs, and a Friday checklist. Planning only; no message sent or code changed.
+- Product-lead clarification: Python 3.10 support is mandatory for installing
+  and running the PNNL foundation in the Claude Code standalone desktop
+  sandbox. The plan requires actual sandbox install/upgrade/runtime acceptance,
+  beyond ordinary Python 3.10 CI. NLR's Python 3.11 stays inside Docker; the
+  separate Python 3.12+ AUTOMA-AI `standalone/` environment is not this deployment.
+- Research and proposed September 8–October 2 delivery plan:
+  [MULTILAB_ONE_MONTH_PLAN.md](docs/MULTILAB_ONE_MONTH_PLAN.md). Includes proposed
+  PNNL/NLR/LBNL ownership, interface contract, issue-ready backlog, learning
+  lifecycle, testing framework, capacity assumptions, and acceptance gates.
+- Reviewed harness `0f188bd` plus pre-existing working changes, marketplace
+  `3951b1b`, and public NLR source `5da8784` (package metadata 1.2.1). NLR research
+  checkout is `/tmp/openstudio-mcp-multilab-research`; durable report citations
+  link to its public commit. No LBNL source was supplied.
+- Confirmed marketplace metadata remains 0.2.1 / contract 2, while this harness
+  is 0.2.2 / contract 3. Further findings: NLR host-alias discovery mismatch;
+  pipx helper drops its explicit release constraint; learning lacks host
+  candidate persistence; provider routing/checkpoints need runtime enforcement.
+- Verification: asset/helper/developer-learning selection: 9 passed, exit 0.
+  Compatibility/blackboard/NLR selection: 7 passed, 26 deselected, exit 0 after
+  rerunning with permission for its localhost test port. Initial sandbox-only
+  collection failed with `PermissionError`, exit 2. Report local links and
+  code-fence balance checked. No real simulation, NLR runtime, live agent eval,
+  pipx update, or user database migration was run.
+- Planning only: no implementation or release changes made. Lab assignments
+  and dates require team confirmation. Preserve the pre-existing working-tree
+  changes when beginning implementation.

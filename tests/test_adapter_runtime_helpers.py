@@ -7,7 +7,7 @@ from adapters.runtime_helpers import (
     render_doctor_runtime_script,
     render_install_runtime_script,
 )
-from openstudio_mcp.compatibility import PLUGIN_CONTRACT_VERSION
+from openstudio_mcp.compatibility import PLUGIN_CONTRACT_VERSION, package_version
 
 
 def _compile_script(tmp_path: Path, filename: str, content: str) -> None:
@@ -31,6 +31,8 @@ def test_rendered_runtime_helpers_are_executable_python(tmp_path: Path) -> None:
     assert "return doctor.returncode or 1" in doctor
     assert "return 2" in doctor
     assert "core_ready" in doctor
+    assert "plugin_ready" in doctor
+    assert "newer OpenStudio AI MCP interface" in doctor
     assert "ready for energy modeling" in doctor
     assert 'runtime_cli, "install-runtime"' in installer
     assert "def runtime_command_path(command: str)" in installer
@@ -38,6 +40,9 @@ def test_rendered_runtime_helpers_are_executable_python(tmp_path: Path) -> None:
     assert 'scripts_dir / "Scripts" / f"{command}.exe"' in installer
     assert 'runtime_mcp = runtime_command_path("openstudio-ai-mcp")' in installer
     assert "requires Python 3.10 or newer" in installer
+    assert f"openstudio-ai=={package_version()}" in installer
+    assert "def is_pipx_managed_runtime" in installer
+    assert '["pipx", "upgrade", "--install", "openstudio-ai"]' in installer
     assert "do not replace it with this absolute path" in installer
     assert '"-m", "cli"' not in installer
     assert (

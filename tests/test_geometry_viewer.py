@@ -137,6 +137,9 @@ def test_geometry_viewer_skill_requires_the_mcp_export_tool() -> None:
     skill = (Path("skills") / "view_openstudio_geometry.md").read_text(encoding="utf-8")
 
     assert "model_export_geometry_viewer" in skill
+    assert "runtime_plugin_compatibility" in skill
+    assert "runtime_contract_version` is `3`" in skill
+    assert "restart or reconnect the host MCP server" in skill
     assert "do not parse the OSM directly" in skill
 
     scene = build_geometry_scene(

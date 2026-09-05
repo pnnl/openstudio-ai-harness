@@ -12,13 +12,22 @@ for geometry inspection; it does not edit the model or run a simulation.
 
 ## Workflow
 
-1. Call `model_load` with the local model URI when the caller has not already
+1. Call `runtime_plugin_compatibility` before loading the model. This viewer
+   requires MCP interface contract `3`. Continue only when the returned
+   `compatibility.runtime_contract_version` is `3` and `compatibility.ok` is
+   true. If the tool is absent, reports another contract, or reports an
+   incompatibility, explain that this conversation is connected to a stale
+   runtime. Run the OpenStudio AI setup workflow to upgrade the runtime with
+   user approval, then restart or reconnect the host MCP server and retry in
+   the refreshed session. In Claude Code use `/reload-plugins` when available;
+   in Codex restart Codex or reconnect the MCP server.
+2. Call `model_load` with the local model URI when the caller has not already
    supplied a `model_id` for the same artifact.
-2. Call `model_export_geometry_viewer` with the model ID. Keep both
+3. Call `model_export_geometry_viewer` with the model ID. Keep both
    `include_subsurfaces` and `include_shading` enabled unless the user requests
    a simpler view.
-3. Report the generated `viewer_path`, `viewer_uri`, counts, and warnings.
-4. When the host supports opening a local file, open `viewer_path` for the user.
+4. Report the generated `viewer_path`, `viewer_uri`, counts, and warnings.
+5. When the host supports opening a local file, open `viewer_path` for the user.
    Otherwise provide the absolute path and explain that it can be downloaded or
    opened directly as a local HTML file.
 
@@ -36,8 +45,9 @@ click-to-highlight space inspection.
 - Do not modify the source `.osm` model or run a simulation.
 - The viewer must be produced through `model_export_geometry_viewer`. If that
   tool is unavailable, do not parse the OSM directly or create a substitute
-  HTML page. Explain that the plugin/runtime interface is stale or incompatible
-  and ask to reconnect or upgrade it.
+  HTML page. Do not retry the current connection: explain that an MCP tool list
+  is fixed for its session, then ask the user to upgrade the runtime and restart
+  or reconnect the host MCP server.
 - Surface/space names and geometry are model data; report malformed geometry as
   warnings rather than silently discarding the fact that it was skipped.
 - The returned artifact is stored in the MCP workspace and is subject to normal

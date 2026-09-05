@@ -69,7 +69,10 @@ openstudio-ai doctor \
 
 Use this form after exporting a plugin or when repairing a failed MCP
 connection. Re-exporting the plugin and upgrading the runtime are the normal
-recovery path for a contract mismatch.
+recovery path for a contract mismatch. A host discovers MCP tools when it
+starts its server connection; updating a plugin or runtime cannot add a newly
+contracted tool to an already-running conversation. After an upgrade, restart
+the host or reconnect the MCP server before retrying the workflow.
 
 `doctor` reports `mcp_ready` for the runtime itself and `plugin_ready` when the
 selected plugin has no known incompatibility with that running MCP runtime.
@@ -181,8 +184,11 @@ The setup workflow should ask the host agent to:
 1. Check whether Python is available.
 2. Check whether `openstudio-ai-mcp` is available.
 3. Run the bundled `doctor_runtime.py` helper.
-4. If the runtime is missing, run the bundled `install_runtime.py` helper after
-   explaining what will happen and receiving approval.
+4. If the runtime is missing or `plugin_ready` is false, run the bundled
+   `install_runtime.py` helper after explaining what will happen and receiving
+   approval. The helper upgrades the active pipx environment when the runtime
+   command is pipx-managed; otherwise it installs the release matching the
+   plugin with the invoking Python.
 5. Run `openstudio-ai doctor` when available.
 6. Explain failures in normal energy-modeler language.
 7. Warn at the start that setup also enables automatic OpenStudio routing in

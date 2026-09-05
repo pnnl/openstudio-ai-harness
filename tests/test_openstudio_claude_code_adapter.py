@@ -282,11 +282,19 @@ def test_claude_code_adapter_marketplace_mode_exports_runtime_setup(
     assert "do not replace it with an absolute `.venv/bin` path" in setup
     assert "--runtime-mode local" in setup
     assert "/reload-plugins" in setup
+    assert "plugin_ready: false" in setup
+    assert "new tool cannot appear in the current session" in setup
+    repair = (plugin_dir / "skills" / "repair-openstudio-ai" / "SKILL.md").read_text(
+        encoding="utf-8"
+    )
+    assert "plugin_ready: false" in repair
+    assert "/reload-plugins" in repair
     installer = (
         plugin_dir / "skills" / "setup-openstudio-ai" / "scripts" / "install_runtime.py"
     ).read_text(encoding="utf-8")
     assert "OPENSTUDIO_AI_PACKAGE_SPEC" in installer
     assert '"pip", "install", "--upgrade"' in installer
+    assert '["pipx", "upgrade", "--install", "openstudio-ai"]' in installer
     assert 'runtime_cli, "install-runtime"' in installer
     assert "run /reload-plugins" in installer
     assert "Placeholder installer" not in installer

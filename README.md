@@ -136,6 +136,7 @@ is appended.
 
 ## Key Docs
 
+- [Multi-lab Assessment and One-month Plan](docs/MULTILAB_ONE_MONTH_PLAN.md)
 - [Harness Details](docs/HARNESS_DETAILS.md)
 - [Packaging North Star](docs/PACKAGING_NORTHSTAR.md)
 - [Runtime Installation Contract](docs/RUNTIME_INSTALLATION_CONTRACT.md)

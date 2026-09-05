@@ -348,6 +348,13 @@ def test_codex_adapter_marketplace_mode_exports_runtime_setup(tmp_path: Path) ->
     assert "do not replace it with an absolute `.venv/bin` path" in setup
     assert "--runtime-mode local" in setup
     assert "restart Codex" in setup
+    assert "plugin_ready: false" in setup
+    assert "new tool cannot appear in the current session" in setup
+    repair = (plugin_dir / "skills" / "repair-openstudio-ai" / "SKILL.md").read_text(
+        encoding="utf-8"
+    )
+    assert "plugin_ready: false" in repair
+    assert "restart Codex or reconnect the MCP server" in repair
     assert "current project's `AGENTS.md`" in setup
     assert "required part of setup" in setup
     assert "openstudio-ai install codex --target-dir . --dry-run --force" in setup
@@ -358,6 +365,7 @@ def test_codex_adapter_marketplace_mode_exports_runtime_setup(tmp_path: Path) ->
     ).read_text(encoding="utf-8")
     assert "OPENSTUDIO_AI_PACKAGE_SPEC" in installer
     assert '"pip", "install", "--upgrade"' in installer
+    assert '["pipx", "upgrade", "--install", "openstudio-ai"]' in installer
     assert 'runtime_cli, "install-runtime"' in installer
     assert "Placeholder installer" not in installer
     doctor = (

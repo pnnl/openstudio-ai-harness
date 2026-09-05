@@ -114,6 +114,20 @@ method names.
 - Do not use host Python execution for simulation runs, simulation polling,
   artifact retrieval, or SQL-backed result queries.
 
+## MCP Contract Lifecycle
+
+MCP tools are discovered when the host starts its OpenStudio AI server
+connection; an existing conversation cannot dynamically acquire a tool added by
+a plugin or runtime update. Before a workflow whose loaded skill declares a
+required MCP interface contract, call `runtime_plugin_compatibility` and verify
+that the reported runtime contract satisfies that requirement. If the tool is
+unavailable or the contract is stale, do not substitute host scripting or an
+unrelated tool. Run the setup/repair workflow with user approval to upgrade the
+runtime, then restart or reconnect the host's OpenStudio AI MCP server and
+retry in the refreshed session. In Claude Code, use `/reload-plugins` when that
+is the available reload path; in Codex, restart Codex or reconnect the MCP
+server.
+
 ## Mixed Workflows
 
 For workflows that combine SDK edits with simulation or result review, keep the

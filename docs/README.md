@@ -6,6 +6,8 @@ documentation. Root-level files are kept to operational entry points only:
 
 ## Current Docs
 
+- `MULTILAB_WEEK_ONE.md`: practical first-week PNNL checklist and draft NLR/LBNL communication.
+- `MULTILAB_ONE_MONTH_PLAN.md`: source-backed PNNL/NLR assessment, proposed lab ownership, integration contract, and September 2026 delivery gates.
 - `HARNESS_DETAILS.md`: detailed product architecture and local development map.
 - `DEVELOPER_GUIDANCE.md`: developer ownership, module boundaries, and roadmap.
 - `PACKAGING_NORTHSTAR.md`: packaging and distribution roadmap.

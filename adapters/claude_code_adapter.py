@@ -628,8 +628,9 @@ def _marketplace_setup_skill_docs() -> dict[str, str]:
                 "https://pnnl.github.io/openstudio-ai-plugins/#quick-start. Explain that "
                 "Docker Desktop must be installed and running, then the user follows that "
                 "page to configure the MCP server as `nlr_openstudio` and reloads Claude Code.\n"
-                "7. If the runtime is missing, explain the issue in normal "
-                "energy-modeler language and ask before running "
+                "7. If the runtime is missing or the doctor reports `plugin_ready: false`, "
+                "explain in normal energy-modeler language that the installed plugin needs "
+                "a newer runtime interface and ask before running "
                 "`python ${CLAUDE_SKILL_DIR}/scripts/install_runtime.py`.\n"
                 "8. If installation succeeds but `openstudio-ai-mcp` is still missing, "
                 "diagnose command discovery before editing plugin files. Run "
@@ -644,9 +645,10 @@ def _marketplace_setup_skill_docs() -> dict[str, str]:
                 "environment, explain that it is local development: re-export with "
                 "`--runtime-mode local` instead of modifying a marketplace export.\n"
                 "10. When `openstudio-ai` is available, run `openstudio-ai doctor`.\n"
-                "11. If installation changed runtime command availability, tell the "
-                "user to run `/reload-plugins` or reconnect the failed MCP server so "
-                "Claude Code starts `openstudio-ai-mcp` again.\n"
+                "11. If installation changed runtime command availability or repaired a "
+                "contract mismatch, tell the user to run `/reload-plugins` or reconnect the "
+                "failed MCP server. Claude Code discovers MCP tools only when it starts the "
+                "server, so a new tool cannot appear in the current session.\n"
                 "12. Summarize core readiness separately from optional capabilities, then report "
                 "model loading, HVAC workflow support, "
                 "simulation, results, SDK lookup, and workflow state tracking.\n"
@@ -668,9 +670,11 @@ def _marketplace_setup_skill_docs() -> dict[str, str]:
             description="Guide non-destructive repair of the OpenStudio AI runtime.",
             body=(
                 "# Repair OpenStudio AI\n\n"
-                "First run the doctor skill. If the runtime is missing, ask for "
-                "approval before running `python ${CLAUDE_SKILL_DIR}/../"
-                "setup-openstudio-ai/scripts/install_runtime.py`. Do not delete user "
+                "First run the doctor skill. If the runtime is missing or it reports "
+                "`plugin_ready: false`, ask for approval before running `python "
+                "${CLAUDE_SKILL_DIR}/../setup-openstudio-ai/scripts/install_runtime.py`, "
+                "then run `/reload-plugins` or reconnect the MCP server before retrying. "
+                "Do not delete user "
                 "models, simulation outputs, or project files. If the installer found "
                 "the command beside its Python but Claude cannot find it, follow the "
                 "setup skill's PATH diagnosis. Do not hard-code a project virtualenv "
@@ -876,8 +880,8 @@ def _write_installer_assets(installers_dir: Path) -> None:
     write_runtime_helpers(
         installers_dir,
         post_install_guidance=(
-            "If Claude Code already marked the MCP server as failed, run /reload-plugins "
-            "or reconnect the failed MCP server so it starts openstudio-ai-mcp again."
+            "After the update, run /reload-plugins or reconnect the MCP server so Claude Code starts "
+            "openstudio-ai-mcp again and discovers any newly added tools."
         ),
     )
 

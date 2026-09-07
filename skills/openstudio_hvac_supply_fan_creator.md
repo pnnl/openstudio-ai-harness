@@ -1,7 +1,7 @@
 ---
 name: openstudio_hvac_supply_fan_creator
 description: Create and attach a variable-volume supply fan for an OpenStudio VAV air loop.
-version: 0.2.2
+version: 0.2.3
 output_format: markdown_with_json_state_patch
 ---
 
@@ -104,5 +104,4 @@ Return only changed fields:
 - Fan exists with expected name.
 - Fan is connected to the target air-loop supply inlet node.
 - Pressure rise is stored in Pa in the model and in state.
-
 

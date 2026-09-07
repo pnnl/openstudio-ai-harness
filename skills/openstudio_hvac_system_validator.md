@@ -1,7 +1,7 @@
 ---
 name: openstudio_hvac_system_validator
 description: Validate object counts, connections, assumptions, and output state for a phased OpenStudio HVAC workflow.
-version: 0.2.2
+version: 0.2.3
 output_format: markdown_with_json_state_patch
 ---
 
@@ -115,5 +115,4 @@ Return only changed fields:
 
 When validation passes or only accepted warnings remain, return control to the
 parent workflow for MCP `model_*`, `sim_*`, and `results_*` handoff.
-
 

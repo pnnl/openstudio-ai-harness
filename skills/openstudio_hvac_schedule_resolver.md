@@ -1,7 +1,7 @@
 ---
 name: openstudio_hvac_schedule_resolver
 description: Resolve or create HVAC operation, outdoor-air damper, and supply-air temperature schedules for OpenStudio HVAC workflows.
-version: 0.2.2
+version: 0.2.3
 output_format: markdown_with_json_state_patch
 ---
 
@@ -118,5 +118,4 @@ Return only changed fields:
 - Every named schedule in state resolves to exactly one model object.
 - Created temperature schedule stores SI values and records the originating F value in the state.
 - Setpoint manager is attached only when the target air loop exists.
-
 

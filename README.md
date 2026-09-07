@@ -19,9 +19,18 @@ knowledge, and workflow-state tools for AI-assisted building-energy modeling.
 
 ## Development Setup
 
-From this repository root:
+New contributors can choose a reproducible Python 3.12 Dev Container or a
+manual standard/full environment. The full path installs the separately locked
+AUTOMA-AI and Streamlit development project; the standard path is sufficient
+for harness, MCP, adapter, skill, packaging, and documentation work. Follow
+the [Developer Guide environment setup](docs/DEVELOPER_GUIDANCE.md#environment-setup)
+for the complete onboarding steps.
+
+For a manual standard setup from this repository root:
 
 ```bash
+python -m venv .venv
+. .venv/bin/activate
 python -m pip install -e ".[dev]"
 python -m playwright install chromium
 ```

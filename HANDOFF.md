@@ -2,6 +2,26 @@
 
 ## Current Status
 
+- PNNL's foundational MCP now advertises `openstudio-ai-mcp`, matching its
+  executable and distinguishing it from NLR's `openstudio-mcp`. The package
+  remains `openstudio-ai` and the host connection remains `openstudio_ai`.
+  The existing model-load smoke test now checks the initialization response's
+  server name; it passed (1 test) with localhost socket access after the sandbox
+  blocked socket binding during collection. Restart the runtime to see the name.
+
+- Branch `nrl_connection_name_fix`: runtime CLI and exported doctor helpers
+  recognize NLR's preferred `openstudio-mcp` connection name and the existing
+  `nlr_openstudio` alias in Codex TOML and Claude project/ancestor JSON.
+  When both appear in one config, the preferred name wins. The optional
+  capability key remains `nlr_openstudio`; discovery does not verify connectivity.
+  Generated setup instructions recommend `openstudio-mcp`.
+- Validation: 80 tests passed across `test_adapter_runtime_helpers.py`,
+  `test_openstudio_cli.py`, `test_openstudio_codex_adapter.py`, and
+  `test_openstudio_claude_code_adapter.py`; two expected SDK fallback warnings.
+  Ruff is not installed in the repository virtualenv. No live NLR connection
+  was tested. Next: export the development plugins and verify NLR status/version
+  during the shared example.
+
 - Package version: `0.2.2`.
 - The package exposes an OpenStudio MCP runtime, Claude Code and Codex plugin
   exports, trusted skills and references, runtime learning contracts, and

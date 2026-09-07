@@ -22,6 +22,7 @@ from openstudio_mcp.compatibility import package_version, plugin_mcp_environment
 DEFAULT_PLUGIN_NAME = "openstudio-ai"
 MARKETPLACE_NAME = "openstudio-ai-local"
 SERVER_NAME = "openstudio_ai"
+PLUGIN_ICON_PATH = Path(__file__).with_name("assets") / "openstudio-ai-icon.png"
 AGENTS_GENERATED_START = "<!-- BEGIN OPENSTUDIO_AI_HARNESS -->"
 AGENTS_GENERATED_END = "<!-- END OPENSTUDIO_AI_HARNESS -->"
 
@@ -222,6 +223,7 @@ def _planned_export_files(
         marketplace_path,
         export_root / "INSTALL.md",
         plugin_dir / ".codex-plugin" / "plugin.json",
+        plugin_dir / "assets" / "openstudio-ai-icon.png",
         plugin_dir / ".mcp.json",
         plugin_dir / "README.md",
         plugin_dir / "CONNECTORS.md",
@@ -264,7 +266,10 @@ def _write_plugin_package(
 ) -> None:
     """Materialize the Codex plugin package on disk."""
     (plugin_dir / ".codex-plugin").mkdir(parents=True, exist_ok=True)
+    (plugin_dir / "assets").mkdir(parents=True, exist_ok=True)
     (plugin_dir / "skills").mkdir(parents=True, exist_ok=True)
+
+    shutil.copy2(PLUGIN_ICON_PATH, plugin_dir / "assets" / "openstudio-ai-icon.png")
 
     (plugin_dir / ".codex-plugin" / "plugin.json").write_text(
         _render_plugin_json(),
@@ -341,6 +346,8 @@ def _render_plugin_json() -> str:
                         "Run simulation and summarize results.",
                     ],
                     "brandColor": "#2563EB",
+                    "composerIcon": "./assets/openstudio-ai-icon.png",
+                    "logo": "./assets/openstudio-ai-icon.png",
                 },
             },
             indent=2,
@@ -556,7 +563,7 @@ def _marketplace_setup_skill_docs() -> dict[str, str]:
                 "Docker Quick Start without installing it automatically: "
                 "https://pnnl.github.io/openstudio-ai-plugins/#quick-start. Explain that "
                 "Docker Desktop must be installed and running, then the user follows that "
-                "page to configure the MCP server as `nlr_openstudio` and restarts Codex.\n"
+                "page to configure the MCP server as `openstudio-mcp` and restarts Codex.\n"
                 "7. If the runtime is missing or the doctor reports `plugin_ready: false`, "
                 "explain in normal energy-modeler language that the installed plugin needs "
                 "a newer runtime interface and ask before running "

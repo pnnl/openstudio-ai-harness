@@ -11,7 +11,7 @@ task-specific skill before acting; do not recreate its procedure from memory.
 
 ## Routing
 
-- If `nlr_openstudio` is configured, load `delegated-nlr-modeling` first. It
+- If NLR is configured as `openstudio-mcp`, load `delegated-nlr-modeling` first. It
   performs preflight and selects NLR as the preferred exclusive provider for
   model, measure, simulation, and result work when compatible. It also owns
   the explicit NLR-to-SDK fallback boundary. If NLR is unavailable or

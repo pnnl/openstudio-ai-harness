@@ -107,6 +107,7 @@ def test_codex_adapter_exports_plugin_package(tmp_path: Path) -> None:
     assert (tmp_path / ".agents" / "plugins" / "marketplace.json").exists()
     assert (tmp_path / "INSTALL.md").exists()
     assert (plugin_dir / ".codex-plugin" / "plugin.json").exists()
+    assert (plugin_dir / "assets" / "openstudio-ai-icon.png").exists()
     assert (plugin_dir / ".mcp.json").exists()
     assert (plugin_dir / "README.md").exists()
     assert (plugin_dir / "CONNECTORS.md").exists()
@@ -272,6 +273,8 @@ def test_codex_adapter_exports_valid_manifest_and_marketplace(tmp_path: Path) ->
     assert plugin_json["mcpServers"] == "./.mcp.json"
     assert plugin_json["interface"]["displayName"] == "OpenStudio AI"
     assert plugin_json["interface"]["defaultPrompt"]
+    assert plugin_json["interface"]["composerIcon"] == "./assets/openstudio-ai-icon.png"
+    assert plugin_json["interface"]["logo"] == "./assets/openstudio-ai-icon.png"
 
     marketplace_json = json.loads(
         (tmp_path / ".agents" / "plugins" / "marketplace.json").read_text(

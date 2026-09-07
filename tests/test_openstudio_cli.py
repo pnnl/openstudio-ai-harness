@@ -521,6 +521,11 @@ def test_cli_export_paired_marketplace_includes_provenance(tmp_path: Path) -> No
     assert (tmp_path / ".agents" / "plugins" / "marketplace.json").exists()
     assert not (tmp_path / "INSTALL.md").exists()
 
+    for plugin in (claude_plugin, codex_plugin):
+        config = json.loads((plugin / ".mcp.json").read_text(encoding="utf-8"))
+        assert set(config["mcpServers"]) == {"openstudio_ai"}
+        assert config["mcpServers"]["openstudio_ai"]["command"] == "openstudio-ai-mcp"
+
     readme = (tmp_path / "README.md").read_text(encoding="utf-8")
     assert "INSTALL.claude.md" in readme
     assert "INSTALL.codex.md" in readme

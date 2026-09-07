@@ -51,7 +51,11 @@ openstudio-ai configure-openstudio --path /path/to/openstudio
 `openstudio-ai doctor` reports **core plugin readiness** only when the Python
 runtime, MCP command, native OpenStudio executable, and plugin compatibility
 are ready for energy modeling. Optional integrations such as NLR OpenStudio-MCP
-are reported separately and do not block core readiness.
+are reported separately and do not block core readiness. NLR discovery accepts
+`openstudio-mcp` in Codex or Claude project configuration. Detection means
+configured; verify NLR status/version through
+the connected server before modeling. PNNL’s foundational MCP advertises
+`openstudio-ai-mcp` and uses the host connection name `openstudio_ai`.
 
 The base package is the recommended install for Claude Code, Codex, and other
 marketplace-style host integrations. It intentionally does not install
@@ -121,6 +125,15 @@ openstudio-ai export marketplace \
 This produces a generated release tree; it validates both exports before
 completion. Keep the harness repository as the source of truth and do not edit
 generated plugin files directly.
+
+For development exports from this checkout, use `.venv/bin/openstudio-ai`
+(or activate the repository virtualenv) so the command uses the current adapter
+code. An older pipx-installed command can combine older generated setup/helpers
+with this checkout's skill files; `--workspace-root` selects assets, not the
+installed exporter code. Both exports configure PNNL as `openstudio_ai` launching
+`openstudio-ai-mcp`; NLR setup uses `openstudio-mcp`. PNNL workflow records use
+`nlr_openstudio` as their stable provider identifier, separate from the host
+connection name.
 
 After installing the Codex marketplace plugin, add the shared OpenStudio
 modeler policy to each Codex project that should route plain-language

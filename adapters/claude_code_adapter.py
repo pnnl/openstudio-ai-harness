@@ -627,7 +627,7 @@ def _marketplace_setup_skill_docs() -> dict[str, str]:
                 "Docker Quick Start without installing it automatically: "
                 "https://pnnl.github.io/openstudio-ai-plugins/#quick-start. Explain that "
                 "Docker Desktop must be installed and running, then the user follows that "
-                "page to configure the MCP server as `nlr_openstudio` and reloads Claude Code.\n"
+                "page to configure the MCP server as `openstudio-mcp` and reloads Claude Code.\n"
                 "7. If the runtime is missing or the doctor reports `plugin_ready: false`, "
                 "explain in normal energy-modeler language that the installed plugin needs "
                 "a newer runtime interface and ask before running "

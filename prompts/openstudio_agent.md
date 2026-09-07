@@ -31,7 +31,7 @@ simulation workflows, and explain what changed.
 - Use `openstudio_workflow_state` for long-running OpenStudio energy modeling
   tasks that span multiple phases, child skills, scripts, simulations, failure
   recovery steps, or clarification gates.
-- When `nlr_openstudio` is configured, first determine its availability and
+- When NLR is configured as `openstudio-mcp`, first determine its availability and
   compatibility through `delegated-nlr-modeling`. Prefer NLR as the exclusive
   provider for energy-modeling work when preflight succeeds. If NLR is absent
   or unsuitable, use the normal OpenStudio AI-only route.

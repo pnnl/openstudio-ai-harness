@@ -1,7 +1,7 @@
 ---
 name: openstudio_hvac_vav_terminal_creator
 description: Create VAV zone terminals, optional reheat coils, zone sizing settings, and return plenum assignments.
-version: 0.2.2
+version: 0.2.3
 output_format: markdown_with_json_state_patch
 ---
 
@@ -132,5 +132,4 @@ Return only changed fields:
 - Water reheat coils are attached to the selected hot-water plant loop.
 - Zone sizing temperatures are converted to SI before setters.
 - Return plenum is assigned only when present and found.
-
 

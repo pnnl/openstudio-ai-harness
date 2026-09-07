@@ -34,6 +34,13 @@ package.
 
 ## Local Verification
 
+Before building, update the release version consistently in the root and
+`standalone/` `pyproject.toml` files, `harness/package_manifest.yaml`,
+`openstudio_mcp/compatibility.py`, versioned agent/skill metadata, generated
+HVAC skill specifications, and both `uv.lock` files. Regenerate the HVAC
+child skills and confirm that the exported marketplace metadata reports the
+same version.
+
 Run the source checks:
 
 ```bash

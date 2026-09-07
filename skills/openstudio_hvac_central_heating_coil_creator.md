@@ -1,7 +1,7 @@
 ---
 name: openstudio_hvac_central_heating_coil_creator
 description: Create the central heating coil for an OpenStudio VAV air loop, with water/gas/electric options.
-version: 0.2.2
+version: 0.2.3
 output_format: markdown_with_json_state_patch
 ---
 
@@ -108,5 +108,4 @@ Return only changed fields:
 - Requested heating-coil type was created exactly once, or no coil was created only when `None` was approved.
 - Water coil is attached to the named plant loop demand side.
 - Coil is added to the target air-loop supply inlet node.
-
 

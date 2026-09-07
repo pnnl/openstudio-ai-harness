@@ -1,7 +1,7 @@
 ---
 name: openstudio_hvac_central_cooling_coil_creator
 description: Create the central cooling coil for an OpenStudio VAV air loop, with chilled-water or approved DX fallback options.
-version: 0.2.2
+version: 0.2.3
 output_format: markdown_with_json_state_patch
 ---
 
@@ -103,5 +103,4 @@ Return only changed fields:
 - Chilled-water coil is attached to the named plant loop demand side.
 - Cooling coil is added to the target air-loop supply inlet node.
 - DX fallback is never used silently.
-
 

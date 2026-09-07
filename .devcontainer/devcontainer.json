@@ -3,9 +3,6 @@
   "build": {
     "dockerfile": "Dockerfile"
   },
-  "features": {
-    "ghcr.io/astral-sh/uv:0": {}
-  },
   "postCreateCommand": "uv sync --extra dev --locked && uv sync --project standalone --locked",
   "forwardPorts": [8501],
   "portsAttributes": {

@@ -92,10 +92,10 @@ host, cannot use Docker, or only need the standard harness environment.
 
 The repository's [Dev Container configuration](../.devcontainer/devcontainer.json)
 builds from [`.devcontainer/Dockerfile`](../.devcontainer/Dockerfile), which
-selects the Dev Containers Python 3.12 image. When the container is created,
-its `postCreateCommand` uses the committed lockfiles to install the root `dev`
-extra and the `standalone/` project. The latter installs `automa-ai` and
-`streamlit`.
+selects the Dev Containers Python 3.12 image and installs a pinned `uv` release
+from PyPI. When the container is created, its `postCreateCommand` uses the
+committed lockfiles to install the root `dev` extra and the `standalone/`
+project. The latter installs `automa-ai` and `streamlit`.
 
 1. Install Docker and a Dev Containers-compatible editor (for example, VS Code
    with the Dev Containers extension).

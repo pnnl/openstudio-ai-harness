@@ -72,7 +72,7 @@ def test_rendered_installer_includes_only_requested_host_guidance() -> None:
     "names, expected",
     [
         (["openstudio-mcp"], "openstudio-mcp"),
-        (["nlr_openstudio"], "nlr_openstudio"),
+        (["nlr_openstudio"], None),
         (["nlr_openstudio", "openstudio-mcp"], "openstudio-mcp"),
         (["other"], None),
         ([], None),
@@ -89,7 +89,7 @@ def test_nlr_discovery_names(
         config_path = tmp_path / ".codex" / "config.toml"
         config_path.parent.mkdir()
         config_path.write_text(
-            '# openstudio-mcp and nlr_openstudio are optional\n'
+            '# openstudio-mcp is optional\n'
             + "\n".join(
                 f'[mcp_servers."{name}"]\ncommand = "docker"'
                 for name in names
@@ -100,7 +100,7 @@ def test_nlr_discovery_names(
         config_path = (tmp_path if host == "claude_parent" else project) / ".mcp.json"
         config_path.write_text(
             json.dumps({"mcpServers": {
-                name: {"description": "openstudio-mcp nlr_openstudio"}
+                name: {"description": "NLR OpenStudio-MCP"}
                 for name in names
             }}),
             encoding="utf-8",

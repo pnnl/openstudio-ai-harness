@@ -58,10 +58,8 @@ def nlr_mcp_status() -> dict[str, object]:
         except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
             config = {}
         servers = config.get("mcp_servers") if isinstance(config, dict) else None
-        if isinstance(servers, dict):
-            for name in ("openstudio-mcp", "nlr_openstudio"):
-                if name in servers:
-                    return {"configured": True, "name": name, "source": str(codex_config)}
+        if isinstance(servers, dict) and "openstudio-mcp" in servers:
+            return {"configured": True, "name": "openstudio-mcp", "source": str(codex_config)}
 
     for directory in (Path.cwd(), *Path.cwd().parents):
         mcp_config = directory / ".mcp.json"
@@ -73,10 +71,8 @@ def nlr_mcp_status() -> dict[str, object]:
         except (OSError, UnicodeDecodeError, json.JSONDecodeError):
             continue
         servers = config.get("mcpServers") if isinstance(config, dict) else None
-        if isinstance(servers, dict):
-            for name in ("openstudio-mcp", "nlr_openstudio"):
-                if name in servers:
-                    return {"configured": True, "name": name, "source": str(mcp_config)}
+        if isinstance(servers, dict) and "openstudio-mcp" in servers:
+            return {"configured": True, "name": "openstudio-mcp", "source": str(mcp_config)}
 
     return {"configured": False, "name": "nlr_openstudio", "checked_paths": checked_paths}
 

@@ -141,14 +141,13 @@ def _nlr_mcp_status() -> dict[str, Any]:
             config = tomllib.loads(codex_config.read_text(encoding="utf-8"))
             servers = config.get("mcp_servers")
             if isinstance(servers, dict):
-                for name in ("openstudio-mcp", "nlr_openstudio"):
-                    if name in servers:
-                        return {
-                            "configured": True,
-                            "name": name,
-                            "source": str(codex_config),
-                            "checked_paths": checked_paths,
-                        }
+                if "openstudio-mcp" in servers:
+                    return {
+                        "configured": True,
+                        "name": "openstudio-mcp",
+                        "source": str(codex_config),
+                        "checked_paths": checked_paths,
+                    }
         except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
             pass
 
@@ -167,15 +166,13 @@ def _nlr_mcp_status() -> dict[str, Any]:
         except (OSError, UnicodeDecodeError, json.JSONDecodeError):
             continue
         servers = config.get("mcpServers") if isinstance(config, dict) else None
-        if isinstance(servers, dict):
-            for name in ("openstudio-mcp", "nlr_openstudio"):
-                if name in servers:
-                    return {
-                        "configured": True,
-                        "name": name,
-                        "source": str(mcp_config),
-                        "checked_paths": checked_paths,
-                    }
+        if isinstance(servers, dict) and "openstudio-mcp" in servers:
+            return {
+                "configured": True,
+                "name": "openstudio-mcp",
+                "source": str(mcp_config),
+                "checked_paths": checked_paths,
+            }
 
     return {"configured": False, "checked_paths": checked_paths}
 

@@ -5,7 +5,7 @@ description: Use NLR OpenStudio-MCP as the preferred exclusive energy-modeling p
 
 # Delegated NLR Modeling Workflow
 
-Use this skill when `nlr_openstudio` is configured and passes preflight. NLR is
+Use this skill when NLR is configured as `openstudio-mcp` and passes preflight. NLR is
 the preferred provider for model creation, model edits, measures, simulation,
 and result retrieval. OpenStudio AI remains mandatory for blackboard state,
 artifact provenance, provider decisions, and learning capture.
@@ -16,11 +16,12 @@ blackboard and use the normal OpenStudio AI-only skill route.
 
 ## Mandatory Start
 
-1. Load this skill before calling any `nlr_openstudio` tool, including status
-   and version calls.
+1. Load this skill before calling any NLR tool, including status and version
+   calls. Use the tools exposed by the configured `openstudio-mcp` connection.
 2. Call `blackboard_initialize_workflow` and record `execution_provider` as
-   `nlr_openstudio`, the NLR endpoint/image identity when available, and the
-   configured host/container workspace mapping.
+   `nlr_openstudio` (the stable provider identifier, not the connection name).
+   Also record the actual connection name, the NLR endpoint/image identity when
+   available, and the configured host/container workspace mapping.
 3. Call NLR `get_server_status` and `get_versions`. Record the result before
    model work. Check the OpenStudio and EnergyPlus versions against the model
    and project requirements.

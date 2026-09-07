@@ -9,6 +9,13 @@ locally, in Claude Code, and in Codex.
 
 - [Mental Model](#mental-model)
 - [Environment Setup](#environment-setup)
+  - [Choose A Setup Route](#choose-a-setup-route)
+  - [Route 1: Dev Container (Recommended Full Setup)](#route-1-dev-container-recommended-full-setup)
+    - [Container Architecture Support](#container-architecture-support)
+  - [Route 2: Manual Installation](#route-2-manual-installation)
+    - [Standard Development Environment](#standard-development-environment)
+    - [Full Development Environment (AUTOMA-AI And Streamlit)](#full-development-environment-automa-ai-and-streamlit)
+  - [Verify The Installation](#verify-the-installation)
 - [Folder Ownership](#folder-ownership)
 - [Plugin Registry](#plugin-registry)
   - [Manifest Schema](#manifest-schema)
@@ -60,20 +67,148 @@ Host-specific export
 
 ## Environment Setup
 
-Use Python 3.10 or newer for the production harness. The optional AUTOMA-AI
-standalone development environment requires Python 3.12 or newer.
+Choose one of the two routes below before changing code. Both install the
+production-harness development tools. Choose the full setup when working on the
+local AUTOMA-AI agent, A2A behavior, or the Streamlit UI.
 
-Full developer setup:
+| Route | Python | Installs | Best for |
+| --- | --- | --- | --- |
+| Dev Container | 3.12 | Harness development tools, AUTOMA-AI, and Streamlit | A reproducible full environment |
+| Manual: standard | 3.10+ | Harness development tools | MCP, adapters, skills, packaging, and documentation |
+| Manual: full | 3.10+ plus 3.12 | Standard tools plus AUTOMA-AI and Streamlit in `standalone/.venv` | Local AUTOMA-AI agent or Streamlit development |
+
+The production package remains compatible with Python 3.10 or newer.
+AUTOMA-AI and Streamlit are intentionally isolated in the Python 3.12+
+`standalone/` project; they are not part of the shipped runtime package.
+
+### Choose A Setup Route
+
+Use the Dev Container route when Docker and a Dev Containers-compatible editor
+are available. It is the quickest way to get the complete, locked Python 3.12
+environment. Use manual installation when you need to work directly on the
+host, cannot use Docker, or only need the standard harness environment.
+
+### Route 1: Dev Container (Recommended Full Setup)
+
+The repository's [Dev Container configuration](../.devcontainer/devcontainer.json)
+builds from [`.devcontainer/Dockerfile`](../.devcontainer/Dockerfile), which
+selects the Dev Containers Python 3.12 image and installs a pinned `uv` release
+from PyPI. When the container is created, its `postCreateCommand` uses the
+committed lockfiles to install the root `dev` extra and the `standalone/`
+project. The latter installs `automa-ai` and `streamlit`.
+
+1. Install Docker and a Dev Containers-compatible editor (for example, VS Code
+   with the Dev Containers extension).
+2. Clone the repository and use the editor command **Reopen in Container**.
+3. Wait for the initial container creation to finish. Dependency installation
+   is performed automatically.
+4. In the container terminal, verify the setup:
+
+   ```bash
+   python --version
+   uv run --project standalone python -c "import automa_ai, streamlit; print('AUTOMA-AI and Streamlit are ready')"
+   ```
+
+   The Python version must be 3.12.x. Streamlit's port 8501 is forwarded by the
+   container configuration, so `uv run --project standalone streamlit run
+   standalone/ui.py` opens in the editor preview when available.
+
+The Dev Container installs Python packages only. It does not install the native
+OpenStudio application or CLI. To run simulations from the container, install
+or make a compatible Linux OpenStudio executable available there and set
+`OPENSTUDIO_PATH` if it is not on `PATH`.
+
+#### Container Architecture Support
+
+The base Python image supports both `linux/amd64` and `linux/arm64`. Docker
+therefore selects an amd64 image on Intel/AMD hosts and an arm64 image on Apple
+Silicon or Linux ARM hosts. Do not set a `platform` override in the Dev
+Container configuration: forcing `linux/amd64` on an arm64 host uses emulation
+and makes builds and native OpenStudio work less reliable.
+
+The committed locks include OpenStudio wheels for Linux x86_64 and aarch64, so
+the Python environments are architecture-aware. Native OpenStudio CLI testing
+still requires an executable built for the container's Linux architecture. Run
+the focused checks on both architectures before claiming cross-architecture
+simulation support.
+
+This Dev Container deliberately does not use Docker Compose. Compose is useful
+when the development environment needs a companion service such as a database
+or a separately managed NLR container. The harness setup has no such service;
+the standalone agent and Streamlit UI run in the one development container.
+
+### Route 2: Manual Installation
+
+Manual setup has two workflows. Start with the standard workflow for all
+development. Add the full workflow only when you need the standalone local
+agent or Streamlit UI.
+
+#### Standard Development Environment
+
+Install Python 3.10 or newer, then run the following from the repository root.
+The virtual environment keeps harness tooling separate from the system Python.
+
 
 ```bash
 python -m venv .venv
 . .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -e ".[dev]"
+python -m playwright install chromium
 ```
 
-The `dev` extra installs test/build tools. AUTOMA-AI and Streamlit live in the
-separate `standalone/` Python 3.12+ development project.
+On Windows PowerShell, activate with `.venv\Scripts\Activate.ps1` and replace
+`.venv/bin/python` in later commands with `.venv\Scripts\python`.
+
+The `dev` extra installs test, build, and browser-test tools. This is sufficient
+for the production harness, MCP server, adapters, skills, packaging, and docs.
+
+#### Full Development Environment (AUTOMA-AI And Streamlit)
+
+Complete the standard workflow first. Then install Python 3.12 and `uv` if they
+are not already available, and create the separately locked standalone
+environment:
+
+```bash
+python3.12 --version
+python3.12 -m pip install --user uv
+uv sync --project standalone --locked --python 3.12
+```
+
+`uv` creates `standalone/.venv`; do not reuse the root `.venv` for these
+dependencies. If your user-level Python scripts directory is not on `PATH`, run
+`python3.12 -m uv` in place of `uv`. Confirm that both optional development
+dependencies are present:
+
+```bash
+uv run --project standalone python -c "import automa_ai, streamlit; print('AUTOMA-AI and Streamlit are ready')"
+```
+
+Run the local agent or UI with the isolated environment:
+
+```bash
+uv run --project standalone python standalone/agent.py
+uv run --project standalone streamlit run standalone/ui.py
+```
+
+Before running the agent, copy `sample.env` to `.env` and provide the required
+LLM configuration. Never commit `.env`.
+
+### Verify The Installation
+
+After either route, run the smallest checks for the environment you selected:
+
+```bash
+# Standard harness check
+.venv/bin/python -m pytest -q tests/test_harness_asset_manifest.py
+
+# Full setup only
+uv run --project standalone python -m pytest -q standalone/tests
+```
+
+For Dev Container users, the root environment is also `.venv`, so the same
+commands apply. If the full check needs a native OpenStudio executable, set
+`OPENSTUDIO_PATH` to a compatible installation before retrying.
 
 Base runtime setup:
 

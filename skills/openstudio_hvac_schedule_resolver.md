@@ -118,4 +118,3 @@ Return only changed fields:
 - Every named schedule in state resolves to exactly one model object.
 - Created temperature schedule stores SI values and records the originating F value in the state.
 - Setpoint manager is attached only when the target air loop exists.
-

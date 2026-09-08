@@ -94,8 +94,10 @@ The repository's [Dev Container configuration](../.devcontainer/devcontainer.jso
 builds from [`.devcontainer/Dockerfile`](../.devcontainer/Dockerfile), which
 selects the Dev Containers Python 3.12 image and installs a pinned `uv` release
 from PyPI. When the container is created, its `postCreateCommand` uses the
-committed lockfiles to install the root `dev` extra and the `standalone/`
-project. The latter installs `automa-ai` and `streamlit`.
+committed lockfiles to install the root `dev` extra, Chromium for browser tests,
+and the `standalone/` project. The latter installs `automa-ai` and `streamlit`.
+The Dockerfile includes Chromium's Linux runtime libraries; the browser binary
+is downloaded during post-create setup.
 
 1. Install Docker and a Dev Containers-compatible editor (for example, VS Code
    with the Dev Containers extension).

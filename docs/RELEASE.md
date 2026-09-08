@@ -41,6 +41,10 @@ HVAC skill specifications, and both `uv.lock` files. Regenerate the HVAC
 child skills and confirm that the exported marketplace metadata reports the
 same version.
 
+The build backend is pinned to Hatchling 1.29.0 because it emits Core Metadata
+2.4, which the current Twine validator accepts. Do not loosen that pin until
+the release validation toolchain supports Core Metadata 2.5.
+
 Run the source checks:
 
 ```bash
@@ -263,7 +267,7 @@ python -m venv /tmp/openstudio-ai-pypi
 
 ## Release Notes
 
-For the first release, call out:
+For every release, call out:
 
 - Package name and version.
 - Supported Python versions.
@@ -271,3 +275,11 @@ For the first release, call out:
 - Whether TestPyPI install succeeded on macOS and Windows.
 - Known limitation: `openstudio-ai doctor` validates runtime scaffolding, but
   full simulation readiness still depends on the user installing OpenStudio.
+
+For 0.2.3, also call out:
+
+- NLR discovery accepts only `openstudio-mcp` as the host connection name.
+  `nlr_openstudio` remains an internal provider/capability identifier and is
+  not a supported connection-name alias.
+- The Python 3.12 Dev Container installs the locked standalone AUTOMA-AI and
+  Streamlit environment; its uv 0.12.5 pin matches the CI workflows.

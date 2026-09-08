@@ -124,4 +124,3 @@ Return only changed fields:
 - Mechanical ventilation method is set to the state value.
 - Availability schedule and night-cycle control were applied.
 - Version-specific availability manager access was handled deliberately.
-

@@ -114,4 +114,3 @@ Return only changed fields:
 - The target air loop has one sizing system.
 - Temperature values were converted to SI before SDK setters.
 - Version-specific airflow-ratio setter was selected intentionally.
-

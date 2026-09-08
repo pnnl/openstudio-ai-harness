@@ -104,4 +104,3 @@ Return only changed fields:
 - Fan exists with expected name.
 - Fan is connected to the target air-loop supply inlet node.
 - Pressure rise is stored in Pa in the model and in state.
-

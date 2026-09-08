@@ -108,4 +108,3 @@ Return only changed fields:
 - Requested heating-coil type was created exactly once, or no coil was created only when `None` was approved.
 - Water coil is attached to the named plant loop demand side.
 - Coil is added to the target air-loop supply inlet node.
-

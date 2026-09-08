@@ -115,4 +115,3 @@ Return only changed fields:
 
 When validation passes or only accepted warnings remain, return control to the
 parent workflow for MCP `model_*`, `sim_*`, and `results_*` handoff.
-

@@ -3,7 +3,7 @@
   "build": {
     "dockerfile": "Dockerfile"
   },
-  "postCreateCommand": "uv sync --extra dev --locked && uv sync --project standalone --locked",
+  "postCreateCommand": "uv sync --extra dev --locked && uv run --extra dev python -m playwright install chromium && uv sync --project standalone --locked",
   "forwardPorts": [8501],
   "portsAttributes": {
     "8501": {

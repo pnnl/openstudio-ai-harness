@@ -99,7 +99,9 @@ def render_generated_skills(
             skill["state_patch"], indent=2, ensure_ascii=True
         )
         skill["extra_sections"] = _normalize_extra_sections(skill.get("extra_sections"))
-        content = template.render(skill=skill)
+        # Normalize template-block whitespace to one POSIX trailing newline so
+        # generated skills do not accumulate blank lines at end of file.
+        content = template.render(skill=skill).rstrip() + "\n"
         generated.append(
             GeneratedSkill(
                 name=skill["name"],

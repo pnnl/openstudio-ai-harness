@@ -26,6 +26,9 @@ for harness, MCP, adapter, skill, packaging, and documentation work. Follow
 the [Developer Guide environment setup](docs/DEVELOPER_GUIDANCE.md#environment-setup)
 for the complete onboarding steps.
 
+For a short guide to repository access, folder ownership, plugin exports, and
+a focused contribution check, see [Contributing](CONTRIBUTING.md).
+
 For a manual standard setup from this repository root:
 
 ```bash
@@ -158,6 +161,7 @@ is appended.
 
 ## Key Docs
 
+- [Contributing](CONTRIBUTING.md)
 - [Multi-lab Assessment and One-month Plan](docs/MULTILAB_ONE_MONTH_PLAN.md)
 - [Harness Details](docs/HARNESS_DETAILS.md)
 - [Packaging North Star](docs/PACKAGING_NORTHSTAR.md)

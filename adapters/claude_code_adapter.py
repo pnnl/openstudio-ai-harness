@@ -394,6 +394,7 @@ def _render_install_doc(
     marketplace_dir: Path, plugin_name: str, runtime_mode: str
 ) -> str:
     """Render install instructions for using the exported package in Claude Code."""
+    version = package_version()
     marketplace_ref = "this exported marketplace folder"
     validation_command = "claude plugin validate <path-to-this-marketplace-folder>"
     marketplace_command = "/plugin marketplace add <path-to-this-marketplace-folder>"
@@ -404,26 +405,86 @@ def _render_install_doc(
     return (
         "# Install OpenStudio AI In Claude Code\n\n"
         f"This export is a Claude Code marketplace containing the OpenStudio AI plugin. Use {marketplace_ref}.\n\n"
-        "## 1. Validate The Export\n\n"
-        "From the OpenStudio AI harness repository:\n\n"
+        "## Prerequisites\n\n"
+        "Before you begin, make sure you have:\n\n"
+        "* **OpenStudio 3.11+** installed\n"
+        "* The **`openstudio-ai`** Python package installed\n"
+        "* **Claude Code** installed and functioning\n\n"
+        "## (Optional, for Developers) Validate The Export\n\n"
+        "> This step is optional and only relevant if you're developing or testing the "
+        "plugin itself. It requires access to the separate "
+        "[OpenStudio AI Harness](https://github.com/pnnl/openstudio-ai-harness) "
+        "repository, so most users can skip straight to "
+        "[Add The Local Marketplace](#1-add-the-local-marketplace).\n\n"
+        "From the [OpenStudio AI Harness](https://github.com/pnnl/openstudio-ai-harness) repository:\n\n"
         "```bash\n"
         f"{validation_command}\n"
         "```\n\n"
-        "## 2. Add The Local Marketplace\n\n"
+        "## 1. Add The Local Marketplace\n\n"
         "Open Claude Code in the target project and run:\n\n"
         "```text\n"
         f"{marketplace_command}\n"
         "```\n\n"
-        "## 3. Install The Plugin\n\n"
+        "## 2. Install The Plugin\n\n"
         "Still inside Claude Code, run:\n\n"
         "```text\n"
         f"/plugin install {plugin_name}@{MARKETPLACE_NAME}\n"
         "```\n\n"
         "If Claude Code asks for scope, choose local or project scope for testing.\n\n"
-        "## 4. Reload Plugins\n\n"
+        "## 3. Reload Plugins\n\n"
         "```text\n"
         "/reload-plugins\n"
         "```\n\n"
+        "## 4. Configure The MCP Server\n\n"
+        "Once the plugin is installed, open its `.mcp.json` file:\n\n"
+        "```text\n"
+        f"~/.claude/plugins/cache/{MARKETPLACE_NAME}/{plugin_name}/<version>/.mcp.json\n"
+        "```\n\n"
+        "Replace `<version>` with the actual installed plugin version. Add an "
+        "`OPENSTUDIO_PATH` entry to the `env` block, pointing to the OpenStudio "
+        "executable on your machine.\n\n"
+        "**Before:**\n\n"
+        "```json\n"
+        "{\n"
+        '  "mcpServers": {\n'
+        '    "openstudio_ai": {\n'
+        '      "command": "openstudio-ai-mcp",\n'
+        '      "args": [\n'
+        '        "--transport",\n'
+        '        "stdio"\n'
+        "      ],\n"
+        '      "env": {\n'
+        f'        "OPENSTUDIO_AI_PLUGIN_VERSION": "{version}",\n'
+        '        "OPENSTUDIO_AI_PLUGIN_CONTRACT_VERSION": "2"\n'
+        "      }\n"
+        "    }\n"
+        "  }\n"
+        "}\n"
+        "```\n\n"
+        "**After:**\n\n"
+        "```json\n"
+        "{\n"
+        '  "mcpServers": {\n'
+        '    "openstudio_ai": {\n'
+        '      "command": "openstudio-ai-mcp",\n'
+        '      "args": [\n'
+        '        "--transport",\n'
+        '        "stdio"\n'
+        "      ],\n"
+        '      "env": {\n'
+        f'        "OPENSTUDIO_AI_PLUGIN_VERSION": "{version}",\n'
+        '        "OPENSTUDIO_AI_PLUGIN_CONTRACT_VERSION": "2",\n'
+        '        "OPENSTUDIO_PATH": "C:\\\\openstudio-3.11.0\\\\bin\\\\openstudio.exe"\n'
+        "      }\n"
+        "    }\n"
+        "  }\n"
+        "}\n"
+        "```\n\n"
+        "`OPENSTUDIO_PATH` should point to the OpenStudio executable itself, and the "
+        "exact path will vary by operating system, for example:\n\n"
+        "* **Windows:** `C:\\\\openstudio-3.11.0\\\\bin\\\\openstudio.exe`\n"
+        "* **macOS:** `/Applications/OpenStudio-3.11.0/bin/openstudio`\n"
+        "* **Linux:** `/usr/local/openstudio-3.11.0/bin/openstudio`\n\n"
         "## 5. Try The Plugin\n\n"
         "Use one of the namespaced skills:\n\n"
         "```text\n"

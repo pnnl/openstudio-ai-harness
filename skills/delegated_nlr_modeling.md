@@ -34,6 +34,37 @@ blackboard write. Critical boundaries include model creation/load/save, measure
 creation/application, simulation submission/completion, results extraction,
 provider transition, and final handoff.
 
+## NLR Mount-Access Recovery
+
+Before loading, copying, or submitting a host model to NLR, compare its
+absolute host path with the recorded host folder mapped to `/inputs`. Docker
+and NLR's sandbox permit access only below the configured mounts; an active
+chat or project directory is not automatically shared with the container.
+
+If the model is outside that input mount, or NLR reports that it cannot upload
+or transfer a model to its local simulation server:
+
+1. Do not retry the transfer or diagnose this first as a `localhost` networking
+   failure. State that the model is outside NLR's Docker mount scope unless
+   evidence shows otherwise.
+2. Offer the user two narrow remedies: stage/copy the model in the existing
+   mounted input folder and use `/inputs/<filename>`, or reconfigure NLR to use
+   a dedicated workspace for the current project.
+3. For standalone Claude Desktop, explain that the MCP configuration is global:
+   **Settings → Developer → Edit Config** opens `claude_desktop_config.json`.
+   The user must change all three `-v` host paths for `inputs`, `runs`, and
+   `measures` to the selected workspace, retain the supported server name
+   `openstudio-mcp`, then quit and reopen Claude Desktop and start a new chat.
+4. Do not edit the user's global Claude Desktop configuration yourself, mount a
+   home directory, expose credentials, or add the Docker socket to work around
+   the boundary. Wait for the user to choose a workspace and complete the
+   reconfiguration.
+
+After the new server connection is available, record the replacement
+host/container mapping in the blackboard and resume from the staged model. See
+`docs/CLAUDE_DESKTOP_NLR_OPENSTUDIO_MCP.md` in the source distribution for the
+complete configuration example and troubleshooting table.
+
 ## NLR Skill Guidance
 
 NLR's user-facing skills are retrieved from its MCP server; they are not

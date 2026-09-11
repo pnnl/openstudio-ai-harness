@@ -167,6 +167,7 @@ is appended.
 - [Packaging North Star](docs/PACKAGING_NORTHSTAR.md)
 - [Runtime Installation Contract](docs/RUNTIME_INSTALLATION_CONTRACT.md)
 - [Marketplace Install Guide](docs/MARKETPLACE_INSTALL_GUIDE.md)
+- [NLR OpenStudio-MCP in Claude Desktop](docs/CLAUDE_DESKTOP_NLR_OPENSTUDIO_MCP.md)
 - [PyPI Release Guide](docs/RELEASE.md)
 - [Developer Guidance](docs/DEVELOPER_GUIDANCE.md)
 

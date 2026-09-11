@@ -53,6 +53,25 @@ Do not use OpenStudio AI modeling tools against an NLR-owned unstaged model.
 When NLR cannot express a complex operation, record the evidence and create a
 new, explicit OpenStudio AI SDK phase as directed by `delegated-nlr-modeling`.
 
+### NLR Mount-Access Recovery
+
+Before asking NLR to load, copy, or simulate a host model, compare the model's
+absolute host path with the host directory mapped to NLR's `/inputs`. A Docker
+mount and the NLR sandbox limit access to that configured workspace; the active
+chat directory is not automatically accessible.
+
+If a model is outside that mount, or Claude reports it cannot transfer a model
+to a local simulation server, do not retry or frame the problem first as a
+`localhost` failure. Explain that it is usually a Docker mount-scope issue.
+Offer the user a choice to stage the model under the existing input mount and
+use `/inputs/<filename>`, or to reconfigure the NLR workspace for the current
+project. In standalone Claude Desktop, direct the user to **Settings →
+Developer → Edit Config** and `claude_desktop_config.json`; they must update
+the `inputs`, `runs`, and `measures` `-v` mounts, keep the server name
+`openstudio-mcp`, then quit/reopen Claude Desktop and use a new chat. Never
+change global MCP configuration, broaden mounts to the home directory, or add a
+Docker socket without the user's explicit action.
+
 ## SDK Script Gate
 
 Before an SDK edit that is not covered by a deterministic MCP tool, explain the

@@ -119,6 +119,7 @@ def test_codex_adapter_exports_plugin_package(tmp_path: Path) -> None:
     )
     assert delegated_nlr_skill.exists()
     assert "SDK Fallback Boundary" in delegated_nlr_skill.read_text(encoding="utf-8")
+    assert "NLR Mount-Access Recovery" in delegated_nlr_skill.read_text(encoding="utf-8")
     assert (plugin_dir / "skills" / "add-vav-reheat" / "SKILL.md").exists()
     assert (plugin_dir / "skills" / "propose-measure" / "SKILL.md").exists()
     assert (plugin_dir / "skills" / "view-openstudio-geometry" / "SKILL.md").exists()

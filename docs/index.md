@@ -50,6 +50,9 @@ For the detailed design, see the [architecture overview](HARNESS_DETAILS.md),
 [runtime installation contract](RUNTIME_INSTALLATION_CONTRACT.md). The
 [NLR integration plan](NLR_INTEGRATION_PLAN.md) describes the optional
 NLR OpenStudio-MCP provider architecture and production delivery path.
+For standalone Claude Desktop configuration, including the global Docker-mount
+limitation and project handoff procedure, see
+[NLR OpenStudio-MCP in Claude Desktop](CLAUDE_DESKTOP_NLR_OPENSTUDIO_MCP.md).
 
 ## How to use OpenStudio AI
 

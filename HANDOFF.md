@@ -2,6 +2,17 @@
 
 ## Current Status
 
+- Documented the standalone Claude Desktop NLR OpenStudio-MCP configuration in
+  `docs/CLAUDE_DESKTOP_NLR_OPENSTUDIO_MCP.md`. The guide makes explicit that
+  `claude_desktop_config.json` is global while NLR access is constrained by its
+  Docker mounts; it gives shared-workspace and project-specific remediation,
+  requires a full Claude Desktop restart, and distinguishes this from a
+  localhost networking error. It uses `openstudio-mcp` as the supported host
+  connection name; `nlr_openstudio` remains the optional capability label.
+  `delegated-nlr-modeling` and the Claude modeler prompt now require the agent
+  to diagnose this mount boundary, offer staging or user-led reconfiguration,
+  and avoid unsafe broad mounts or misleading localhost retries.
+
 - PNNL's foundational MCP now advertises `openstudio-ai-mcp`, matching its
   executable and distinguishing it from NLR's `openstudio-mcp`. The package
   remains `openstudio-ai` and the host connection remains `openstudio_ai`.

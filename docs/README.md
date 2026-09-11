@@ -13,6 +13,8 @@ documentation. Root-level files are kept to operational entry points only:
 - `PACKAGING_NORTHSTAR.md`: packaging and distribution roadmap.
 - `RUNTIME_INSTALLATION_CONTRACT.md`: runtime command contract for plugins.
 - `MARKETPLACE_INSTALL_GUIDE.md`: no-code install flow for energy modelers.
+- `CLAUDE_DESKTOP_NLR_OPENSTUDIO_MCP.md`: standalone Claude Desktop setup for
+  NLR OpenStudio-MCP, including global configuration and Docker mount scope.
 - `RELEASE.md`: PyPI/TestPyPI release checklist.
 - `ADVANCED_USER_GUIDE.md`: advanced workflow and policy usage.
 - `architecture_diagram.md`: sponsor-oriented architecture diagram.

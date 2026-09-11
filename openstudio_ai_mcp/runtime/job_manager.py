@@ -6,9 +6,9 @@ from datetime import datetime, timezone
 from typing import Any, Literal
 from uuid import uuid4
 
-from openstudio_mcp.runtime.artifact_store import ArtifactStore
-from openstudio_mcp.runtime.state_store import RuntimeStateStore
-from openstudio_mcp.runtime.workspace_manager import (
+from openstudio_ai_mcp.runtime.artifact_store import ArtifactStore
+from openstudio_ai_mcp.runtime.state_store import RuntimeStateStore
+from openstudio_ai_mcp.runtime.workspace_manager import (
     WorkspaceManager,
 )
 

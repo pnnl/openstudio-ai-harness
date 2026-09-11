@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from automa_ai.common.agent_registry import A2AServerManager
 from automa_ai.common.mcp_registry import MCPServerConfig, MCPServerManager
 from automa_ai.config.agent_spec import YamlAgentSpec, load_a2a_server_from_yaml
-from openstudio_mcp.server import serve
+from openstudio_ai_mcp.server import serve
 
 base_dir = Path(__file__).resolve().parent
 repo_root = base_dir.parent
@@ -22,9 +22,9 @@ OPENSTUDIO_MCP_PORT = int(os.getenv("OPENSTUDIO_MCP_PORT", "10210"))
 AGENT_SPEC_PATH = base_dir / "openstudio_agent.yaml"
 
 
-def build_openstudio_mcp_config() -> MCPServerConfig:
+def build_openstudio_ai_mcp_config() -> MCPServerConfig:
     return MCPServerConfig(
-        name="openstudio_mcp",
+        name="openstudio_ai_mcp",
         host=OPENSTUDIO_MCP_HOST,
         port=OPENSTUDIO_MCP_PORT,
         serve=serve,
@@ -44,7 +44,7 @@ def load_openstudio_agent_spec(
         spec.model.base_url = CHAT_BOT_MODEL_BASE_URL
 
     if mcp_config is not None and spec.mcp is not None:
-        server = spec.mcp.servers["openstudio_mcp"]
+        server = spec.mcp.servers["openstudio_ai_mcp"]
         server.host = mcp_config.host
         server.port = mcp_config.port
         server.transport = mcp_config.transport
@@ -55,7 +55,7 @@ def load_openstudio_agent_spec(
 
 
 async def main() -> None:
-    mcp_config = build_openstudio_mcp_config()
+    mcp_config = build_openstudio_ai_mcp_config()
     agent_spec = load_openstudio_agent_spec(mcp_config)
 
     mcp_manager = MCPServerManager()

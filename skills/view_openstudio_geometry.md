@@ -1,7 +1,7 @@
 ---
 name: view-openstudio-geometry
 description: Generate a downloadable, self-contained HTML page for inspecting OpenStudio model geometry by space, story, and name.
-version: 0.2.3
+version: 0.3.0
 ---
 
 # View OpenStudio Geometry
@@ -13,8 +13,8 @@ for geometry inspection; it does not edit the model or run a simulation.
 ## Workflow
 
 1. Call `runtime_plugin_compatibility` before loading the model. This viewer
-   requires MCP interface contract `3`. Continue only when the returned
-   `compatibility.runtime_contract_version` is `3` and `compatibility.ok` is
+   requires MCP interface contract `4`. Continue only when the returned
+   `compatibility.runtime_contract_version` is `4` and `compatibility.ok` is
    true. If the tool is absent, reports another contract, or reports an
    incompatibility, explain that this conversation is connected to a stale
    runtime. Run the OpenStudio AI setup workflow to upgrade the runtime with

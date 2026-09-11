@@ -3,7 +3,7 @@ __all__ = ["create_server", "serve"]
 
 def __getattr__(name):
     if name in __all__:
-        from openstudio_mcp.server import (
+        from openstudio_ai_mcp.server import (
             create_server,
             serve,
         )

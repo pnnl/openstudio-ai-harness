@@ -7,7 +7,7 @@ import pytest
 
 from adapters.codex_adapter import AGENTS_GENERATED_START, CodexAdapter
 from adapters.contracts import HostAdapterConfig
-from openstudio_mcp.compatibility import plugin_mcp_environment
+from openstudio_ai_mcp.compatibility import plugin_mcp_environment
 
 
 def _adapter() -> CodexAdapter:
@@ -296,7 +296,7 @@ def test_codex_adapter_exports_mcp_config(tmp_path: Path) -> None:
         )
     )
     server = mcp_json["mcpServers"]["openstudio_ai"]
-    assert server["args"][:3] == ["-m", "openstudio_mcp.server", "--transport"]
+    assert server["args"][:3] == ["-m", "openstudio_ai_mcp.server", "--transport"]
     assert server["args"][3] == "stdio"
     assert "OPENSTUDIO_AI_ROOT" in server["env"]
 

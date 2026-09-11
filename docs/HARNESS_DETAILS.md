@@ -9,7 +9,7 @@ The current direction is:
 
 ```text
 OpenStudio AI runtime kernel
-  openstudio_mcp + SDK index + approved measures + future blackboard tools
+  openstudio_ai_mcp + SDK index + approved measures + future blackboard tools
         |
         v
 Host adapters
@@ -30,7 +30,7 @@ For developer ownership and roadmap details, see:
 
 OpenStudio AI currently includes:
 
-- `openstudio_mcp/`, a real MCP server for model lifecycle, simulation,
+- `openstudio_ai_mcp/`, a real MCP server for model lifecycle, simulation,
   results, SDK docs, and approved measures;
 - Claude Code plugin export;
 - Codex plugin export;
@@ -38,8 +38,8 @@ OpenStudio AI currently includes:
 - generated HVAC child skills from one YAML spec per skill plus a shared Jinja
   template;
 - reviewed knowledge folders and SDK wiki packs;
-- learning schemas and guidance exported as skill references for candidate
-  drafting; host plugins do not persist candidate records;
+- opt-in MCP-backed personal learning evidence, review-gated lessons, and a
+  shared CLI curator for Claude Code and Codex;
 - manual developer learning pipeline that distills logs into reviewable
   candidates;
 - MCP-backed blackboard schemas and operation helpers;
@@ -74,7 +74,7 @@ Developer workbench:
 
 ### MCP Runtime Kernel
 
-`openstudio_mcp/` is the deterministic runtime surface. It owns operations that
+`openstudio_ai_mcp/` is the deterministic runtime surface. It owns operations that
 should not be left to free-form agent scripting:
 
 - `model_*`: model lifecycle, weather/design-day setup, measure application,
@@ -96,7 +96,7 @@ workspace files without storing OSM/SQL/log blobs in SQLite.
 Storage pruning is not automatic. The user or agent must initiate cleanup by
 calling `runtime_storage_usage`, reviewing `runtime_prune_preview`, and then
 calling `runtime_prune` only after approval. The detailed process diagrams live
-in `openstudio_mcp/README.md`.
+in `openstudio_ai_mcp/README.md`.
 
 ### Host Adapters
 
@@ -207,7 +207,7 @@ Host learning contracts:
 - exported to Claude/Codex as skill-local instructions and schemas;
 - let host agents draft candidate recipes, session lessons, or measures without
   claiming that the candidate was persisted;
-- never directly updates trusted `knowledge/`, `skills/`, `openstudio_mcp/`, or
+- never directly updates trusted `knowledge/`, `skills/`, `openstudio_ai_mcp/`, or
   `measures/approved/`.
 
 Host learning contracts can guide drafting. Developer learning can promote.
@@ -267,7 +267,7 @@ bash standalone/run_all.sh
 ## SDK Documentation Tools
 
 The `sdk_docs_*` tools look up OpenStudio SDK class and method information from
-bundled YAML files at `openstudio_mcp/sdk_docs/docs/api/`. Set
+bundled YAML files at `openstudio_ai_mcp/sdk_docs/docs/api/`. Set
 `OPENSTUDIO_SDK_DOCS_DIR` to override the bundled directory with a custom one.
 
 Available MCP tools include:
@@ -282,7 +282,7 @@ Build an optional local cache summary:
 
 ```bash
 python3 scripts/build_sdk_doc_index.py \
-  --docs-dir openstudio_mcp/sdk_docs/docs \
+  --docs-dir openstudio_ai_mcp/sdk_docs/docs \
   --output .sdk_doc_index.json
 ```
 
@@ -299,7 +299,7 @@ Key files:
 - `policy/measure_registry.yaml`
 - `measures/approved/`
 - `measures/candidates/`
-- `openstudio_mcp/runtime/measure_registry.py`
+- `openstudio_ai_mcp/runtime/measure_registry.py`
 
 Runtime proposal is allowed through learning candidates, but publication into
 approved measures requires review and validation.
@@ -327,11 +327,11 @@ Focused test set for the current OpenStudio AI harness:
   executable and the model has a valid weather file or one is supplied through
   MCP setup.
 - Simulation runtime files are generated under
-  `.openstudio_mcp_workspace/<job_id>/`.
+  `.openstudio_ai_mcp_workspace/<job_id>/`.
 - If SDK lookup fails, verify `OPENSTUDIO_SDK_DOCS_DIR` points to a directory
   containing `api/classes-<version>.yaml.gz` (or the legacy
   `api/classes.yaml.gz`), or that the bundled docs at
-  `openstudio_mcp/sdk_docs/docs/` are present. `openstudio-ai doctor --json`
+  `openstudio_ai_mcp/sdk_docs/docs/` are present. `openstudio-ai doctor --json`
   reports the resolved path and selected documentation version.
 - If measure application fails, verify `policy/measure_registry.yaml` and the
   approved measure entrypoint.
@@ -346,9 +346,9 @@ Focused test set for the current OpenStudio AI harness:
 - `standalone/openstudio_agent.yaml`: local AUTOMA-AI agent spec.
 - `prompts/`: system prompt and harness, blackboard, learning, and promotion
   contracts.
-- `openstudio_mcp/`: MCP runtime kernel.
-- `openstudio_mcp/tools/`: model, simulation, results, and SDK docs tools.
-- `openstudio_mcp/runtime/`: workspace, artifact, job, and measure registry
+- `openstudio_ai_mcp/`: MCP runtime kernel.
+- `openstudio_ai_mcp/tools/`: model, simulation, results, and SDK docs tools.
+- `openstudio_ai_mcp/runtime/`: workspace, artifact, job, and measure registry
   managers.
 - `skills/`: parent skills, generated child skills, specs, and templates.
 - `knowledge/`: reviewed knowledge base and SDK wiki packs.

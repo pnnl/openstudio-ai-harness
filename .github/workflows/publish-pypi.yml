@@ -37,7 +37,7 @@ jobs:
 
       - name: Verify release tag matches package version
         if: github.event_name == 'release'
-        run: test "v$(python -c 'from openstudio_mcp.compatibility import package_version; print(package_version())')" = "${{ github.event.release.tag_name }}"
+        run: test "v$(python -c 'from openstudio_ai_mcp.compatibility import package_version; print(package_version())')" = "${{ github.event.release.tag_name }}"
 
       - name: Build distribution
         run: python -m build

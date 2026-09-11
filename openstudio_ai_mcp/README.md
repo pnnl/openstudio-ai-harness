@@ -12,7 +12,7 @@ Main surfaces:
   artifact tracking, job tracking, and measure registry support.
 - `sdk_docs/`: current SDK documentation lookup implementation.
 
-Imports should use `openstudio_mcp`.
+Imports should use `openstudio_ai_mcp`.
 
 ## Local Runtime Persistence
 
@@ -20,7 +20,7 @@ The MCP server stores runtime metadata in a lightweight SQLite database under
 the configured workspace root:
 
 ```text
-.openstudio_mcp_workspace/
+.openstudio_ai_mcp_workspace/
 ├── openstudio_ai_runtime.sqlite
 ├── measure-.../
 └── <simulation-job-id>/

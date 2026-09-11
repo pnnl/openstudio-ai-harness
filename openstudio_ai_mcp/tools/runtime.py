@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from openstudio_mcp.compatibility import evaluate_plugin_compatibility
-from openstudio_mcp.tools.schemas import error_payload
+from openstudio_ai_mcp.compatibility import evaluate_plugin_compatibility
+from openstudio_ai_mcp.tools.schemas import error_payload
 
 
 def register_runtime_tools(mcp, service) -> None:

@@ -32,33 +32,36 @@ from blackboard.operations import (
     record_assumption,
     record_failure,
 )
-from openstudio_mcp.compatibility import evaluate_plugin_compatibility
-from openstudio_mcp.runtime_config import (
+from openstudio_ai_mcp.compatibility import evaluate_plugin_compatibility
+from openstudio_ai_mcp.runtime_config import (
     openstudio_version_from_output,
     resolve_openstudio_executable_with_source,
+    user_data_dir,
 )
 from blackboard.snapshot import snapshot_workflow
-from openstudio_mcp.runtime.artifact_store import ArtifactStore
-from openstudio_mcp.runtime.job_manager import JobManager
-from openstudio_mcp.runtime.measure_registry import (
+from openstudio_ai_mcp.runtime.artifact_store import ArtifactStore
+from openstudio_ai_mcp.runtime.job_manager import JobManager
+from openstudio_ai_mcp.runtime.learning_store import LearningStore
+from openstudio_ai_mcp.runtime.measure_registry import (
     MeasureRegistry,
 )
-from openstudio_mcp.runtime.state_store import RuntimeStateStore
-from openstudio_mcp.runtime.workspace_manager import (
+from openstudio_ai_mcp.runtime.state_store import RuntimeStateStore
+from openstudio_ai_mcp.runtime.workspace_manager import (
     WorkspaceManager,
 )
-from openstudio_mcp.geometry_viewer import (
+from openstudio_ai_mcp.geometry_viewer import (
     build_geometry_scene,
     render_geometry_viewer_html,
 )
-from openstudio_mcp.sdk_docs import OpenStudioSdkDocLookup
-from openstudio_mcp.tools.model import register_model_tools
-from openstudio_mcp.tools.blackboard import (
+from openstudio_ai_mcp.sdk_docs import OpenStudioSdkDocLookup
+from openstudio_ai_mcp.tools.model import register_model_tools
+from openstudio_ai_mcp.tools.blackboard import (
     register_blackboard_tools,
 )
-from openstudio_mcp.tools.results import register_results_tools
-from openstudio_mcp.tools.runtime import register_runtime_tools
-from openstudio_mcp.tools.schemas import (
+from openstudio_ai_mcp.tools.results import register_results_tools
+from openstudio_ai_mcp.tools.runtime import register_runtime_tools
+from openstudio_ai_mcp.tools.learning import register_learning_tools
+from openstudio_ai_mcp.tools.schemas import (
     ModelApplyMeasureArgs,
     ModelCloneArgs,
     ModelExportGeometryViewerArgs,
@@ -73,8 +76,8 @@ from openstudio_mcp.tools.schemas import (
     error_payload,
     success_payload,
 )
-from openstudio_mcp.tools.sdk_docs import register_sdk_doc_tools
-from openstudio_mcp.tools.sim import register_sim_tools
+from openstudio_ai_mcp.tools.sdk_docs import register_sdk_doc_tools
+from openstudio_ai_mcp.tools.sim import register_sim_tools
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 load_dotenv(BASE_DIR / ".env")
@@ -148,7 +151,7 @@ class OpenStudioModelState:
 
 
 class OpenStudioService:
-    def __init__(self, workspace_root: str | Path):
+    def __init__(self, workspace_root: str | Path, *, learning_db_path: str | Path | None = None):
         self.workspace_root = Path(workspace_root).resolve()
         self.state_store = RuntimeStateStore(
             self.workspace_root / "openstudio_ai_runtime.sqlite"
@@ -162,12 +165,83 @@ class OpenStudioService:
             policy_path=BASE_DIR / "policy" / "measure_registry.yaml",
             base_dir=BASE_DIR,
         )
+        self.learning_store = LearningStore(
+            learning_db_path or user_data_dir() / "learning.sqlite"
+        )
         self.openstudio_path, self.openstudio_path_source = (
             self._resolve_openstudio_executable_with_source()
         )
         self.sdk_docs = OpenStudioSdkDocLookup.from_env()
         self._sim_tasks: dict[str, asyncio.Task] = {}
         self.model_states: dict[str, OpenStudioModelState] = {}
+
+    def learning_capture_observation(
+        self,
+        *,
+        event_type: str,
+        summary: str,
+        source: str,
+        workflow_id: str | None,
+        scope: dict[str, Any],
+        evidence: dict[str, Any],
+    ) -> dict[str, Any]:
+        event = self.learning_store.capture_event(
+            event_type=event_type,
+            summary=summary,
+            source=source,
+            workflow_id=workflow_id,
+            scope=scope,
+            evidence=evidence,
+        )
+        return success_payload(event=event, persisted=True, trusted=False)
+
+    def learning_create_candidate(
+        self,
+        *,
+        event_id: str,
+        summary: str,
+        guidance: str,
+        tags: list[str],
+        scope: dict[str, Any],
+    ) -> dict[str, Any]:
+        candidate = self.learning_store.create_candidate(
+            event_id=event_id,
+            summary=summary,
+            guidance=guidance,
+            tags=tags,
+            scope=scope,
+        )
+        return success_payload(candidate=candidate, persisted=True, trusted=False)
+
+    def learning_list_candidates(self, *, status: str | None = None) -> dict[str, Any]:
+        if status not in {None, "candidate", "approved", "rejected"}:
+            raise ValueError("status must be candidate, approved, rejected, or omitted")
+        return success_payload(candidates=self.learning_store.list_candidates(status=status))
+
+    def learning_review_candidate(
+        self, *, candidate_id: str, approved: bool, reviewer_note: str | None = None
+    ) -> dict[str, Any]:
+        review = self.learning_store.review_candidate(
+            candidate_id=candidate_id,
+            approved=approved,
+            reviewer_note=reviewer_note,
+        )
+        return success_payload(
+            **review,
+            persisted=True,
+            trusted=False,
+            scope="personal_local" if approved else "candidate_only",
+        )
+
+    def learning_search_lessons(
+        self, *, query: str, tags: list[str], limit: int
+    ) -> dict[str, Any]:
+        return success_payload(
+            lessons=self.learning_store.search_lessons(
+                query=query, tags=tags, limit=limit
+            ),
+            scope="personal_local",
+        )
 
     def _get_model_state(self, model_id: str) -> OpenStudioModelState:
         model_state = self.model_states.get(model_id)
@@ -1382,9 +1456,13 @@ def create_server(
     host: str = "127.0.0.1",
     port: int = 10210,
     workspace_root: str | Path | None = None,
+    learning_db_path: str | Path | None = None,
 ) -> FastMCP:
-    workspace = Path(workspace_root or ".openstudio_mcp_workspace")
-    service = OpenStudioService(workspace_root=workspace)
+    workspace = Path(workspace_root or ".openstudio_ai_mcp_workspace")
+    service = OpenStudioService(
+        workspace_root=workspace,
+        learning_db_path=learning_db_path,
+    )
     mcp = FastMCP("openstudio-ai-mcp", host=host, port=port)
 
     register_blackboard_tools(mcp, service)
@@ -1393,6 +1471,7 @@ def create_server(
     register_results_tools(mcp, service)
     register_sdk_doc_tools(mcp, service)
     register_runtime_tools(mcp, service)
+    register_learning_tools(mcp, service)
 
     return mcp
 

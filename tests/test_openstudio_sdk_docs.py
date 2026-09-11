@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from openstudio_mcp.sdk_docs.lookup import (
+from openstudio_ai_mcp.sdk_docs.lookup import (
     OpenStudioSdkDocLookup,
     SdkDocsUnavailableError,
 )
@@ -420,7 +420,7 @@ def test_bundled_docs_are_available():
     lookup = OpenStudioSdkDocLookup()
     assert lookup.available(), (
         "Bundled SDK docs not found. "
-        "Expected openstudio_mcp/sdk_docs/docs/api/classes.yaml.gz to exist."
+        "Expected openstudio_ai_mcp/sdk_docs/docs/api/classes.yaml.gz to exist."
     )
 
 

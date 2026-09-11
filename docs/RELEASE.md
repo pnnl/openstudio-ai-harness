@@ -36,7 +36,7 @@ package.
 
 Before building, update the release version consistently in the root and
 `standalone/` `pyproject.toml` files, `harness/package_manifest.yaml`,
-`openstudio_mcp/compatibility.py`, versioned agent/skill metadata, generated
+`openstudio_ai_mcp/compatibility.py`, versioned agent/skill metadata, generated
 HVAC skill specifications, and both `uv.lock` files. Regenerate the HVAC
 child skills and confirm that the exported marketplace metadata reports the
 same version.
@@ -62,7 +62,7 @@ python -m cli version
 python -m cli paths --json
 python -m cli install-runtime
 python -m cli doctor --json
-python -m openstudio_mcp.server --help
+python -m openstudio_ai_mcp.server --help
 ```
 
 `doctor` may return a non-zero code if runtime pieces such as the OpenStudio
@@ -141,7 +141,7 @@ if blocked:
 
 required = [
     "cli.py",
-    "openstudio_mcp/server.py",
+    "openstudio_ai_mcp/server.py",
     "adapters/claude_code_adapter.py",
     "adapters/codex_adapter.py",
     "skills/openstudio_vav_reheat_system_creator.md",

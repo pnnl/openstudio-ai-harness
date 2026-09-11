@@ -5,12 +5,12 @@ from pathlib import Path
 import openstudio
 import pytest
 
-from openstudio_mcp.geometry_viewer import build_geometry_scene
-from openstudio_mcp.geometry_viewer import render_geometry_viewer_html
-import openstudio_mcp.server as mcp_server
-from openstudio_mcp.server import OpenStudioService
-from openstudio_mcp.runtime.state_store import RuntimeStateStore
-from openstudio_mcp.tools.schemas import (
+from openstudio_ai_mcp.geometry_viewer import build_geometry_scene
+from openstudio_ai_mcp.geometry_viewer import render_geometry_viewer_html
+import openstudio_ai_mcp.server as mcp_server
+from openstudio_ai_mcp.server import OpenStudioService
+from openstudio_ai_mcp.runtime.state_store import RuntimeStateStore
+from openstudio_ai_mcp.tools.schemas import (
     ModelExportGeometryViewerArgs,
     ModelLoadArgs,
 )
@@ -138,7 +138,7 @@ def test_geometry_viewer_skill_requires_the_mcp_export_tool() -> None:
 
     assert "model_export_geometry_viewer" in skill
     assert "runtime_plugin_compatibility" in skill
-    assert "runtime_contract_version` is `3`" in skill
+    assert "runtime_contract_version` is `4`" in skill
     assert "restart or reconnect the host MCP server" in skill
     assert "do not parse the OSM directly" in skill
 

@@ -4,7 +4,7 @@ from typing import Any, Literal
 
 from pydantic import ValidationError
 
-from openstudio_mcp.tools.schemas import (
+from openstudio_ai_mcp.tools.schemas import (
     ResultsQueryArgs,
     ResultsSummarizeArgs,
     error_payload,

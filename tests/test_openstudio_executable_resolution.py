@@ -6,13 +6,13 @@ import os
 import stat
 from pathlib import Path
 
-import openstudio_mcp.server as mcp_server
-import openstudio_mcp.runtime_config as runtime_config
-from openstudio_mcp.runtime_config import (
+import openstudio_ai_mcp.server as mcp_server
+import openstudio_ai_mcp.runtime_config as runtime_config
+from openstudio_ai_mcp.runtime_config import (
     configured_openstudio_path,
     openstudio_version_from_output,
 )
-from openstudio_mcp.server import OpenStudioService
+from openstudio_ai_mcp.server import OpenStudioService
 
 
 def _executable(path: Path) -> Path:
@@ -85,7 +85,7 @@ def test_saved_openstudio_path_is_used_when_environment_is_unset(
     configured = _executable(tmp_path / "configured-openstudio")
     monkeypatch.delenv("OPENSTUDIO_PATH", raising=False)
     monkeypatch.setenv("OPENSTUDIO_AI_DATA_DIR", str(tmp_path / "runtime-data"))
-    from openstudio_mcp.runtime_config import set_openstudio_path
+    from openstudio_ai_mcp.runtime_config import set_openstudio_path
 
     set_openstudio_path(configured)
     monkeypatch.setattr(runtime_config.shutil, "which", lambda _: None)

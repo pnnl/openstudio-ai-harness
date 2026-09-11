@@ -3,9 +3,9 @@
 This folder is the planned home for the structured SDK index and knowledge
 graph layer.
 
-Current SDK documentation lookup still lives under `openstudio_mcp/sdk_docs/`. Future work
+Current SDK documentation lookup still lives under `openstudio_ai_mcp/sdk_docs/`. Future work
 should move build and query orchestration here while leaving MCP-facing tool
-registration inside `openstudio_mcp/`.
+registration inside `openstudio_ai_mcp/`.
 
 Responsibilities:
 

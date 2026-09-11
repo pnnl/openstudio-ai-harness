@@ -10,7 +10,7 @@ from adapters.claude_code_adapter import (
     ClaudeCodeAdapter,
 )
 from adapters.contracts import HostAdapterConfig
-from openstudio_mcp.compatibility import plugin_mcp_environment
+from openstudio_ai_mcp.compatibility import plugin_mcp_environment
 
 
 def _adapter() -> ClaudeCodeAdapter:
@@ -47,7 +47,7 @@ def test_claude_code_adapter_writes_mcp_config_and_instructions(tmp_path: Path) 
     assert result.dry_run is False
     mcp_config = json.loads((tmp_path / ".mcp.json").read_text(encoding="utf-8"))
     server = mcp_config["mcpServers"]["openstudio_ai"]
-    assert server["args"][:3] == ["-m", "openstudio_mcp.server", "--transport"]
+    assert server["args"][:3] == ["-m", "openstudio_ai_mcp.server", "--transport"]
     assert server["args"][3] == "stdio"
     assert "OPENSTUDIO_AI_ROOT" in server["env"]
 
@@ -346,7 +346,7 @@ def test_claude_code_adapter_exports_skill_frontmatter(tmp_path: Path) -> None:
     assert skill.startswith("---\n")
     assert "name: openstudio-hvac-air-loop-creator\n" in skill
     assert "description: Create or confirm the parent AirLoopHVAC object" in skill
-    assert "version: 0.2.3\n" in skill
+    assert "version: 0.3.0\n" in skill
     assert "\n---\n\n## Scope" in skill
 
 

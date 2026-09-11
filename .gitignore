@@ -22,6 +22,7 @@ venv/
 
 # OpenStudio AI runtime state
 .openstudio_mcp_workspace/
+.openstudio_ai_mcp_workspace/
 .openstudio_ai_blackboards/
 .sdk_doc_index.json
 logs/*

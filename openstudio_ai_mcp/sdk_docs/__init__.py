@@ -1,6 +1,6 @@
 """Local OpenStudio SDK documentation lookup helpers."""
 
-from openstudio_mcp.sdk_docs.lookup import (
+from openstudio_ai_mcp.sdk_docs.lookup import (
     OpenStudioSdkDocLookup,
     SdkDocsUnavailableError,
 )

@@ -17,7 +17,7 @@ from harness.asset_manifest import (
     skill_sources_for_host,
 )
 from harness.registry import discover_harness_assets
-from openstudio_mcp.compatibility import package_version, plugin_mcp_environment
+from openstudio_ai_mcp.compatibility import package_version, plugin_mcp_environment
 
 DEFAULT_PLUGIN_NAME = "openstudio-ai"
 MARKETPLACE_NAME = "openstudio-ai-local"
@@ -380,11 +380,11 @@ def _mcp_server_config(workspace_root: Path, runtime_mode: str) -> dict[str, obj
             "command": sys.executable,
             "args": [
                 "-m",
-                "openstudio_mcp.server",
+                "openstudio_ai_mcp.server",
                 "--transport",
                 "stdio",
                 "--workspace-root",
-                str(workspace_root / ".openstudio_mcp_workspace"),
+                str(workspace_root / ".openstudio_ai_mcp_workspace"),
             ],
             "env": {
                 "PYTHONPATH": str(workspace_root),

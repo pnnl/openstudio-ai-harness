@@ -11,17 +11,23 @@ Developer pipeline:
 - promotes approved assets into trusted knowledge, skills, SDK index notes, or
   MCP measures.
 
-Host learning contracts:
+Host learning workflow:
 
 - provide schemas and guidance for drafting candidate measures, recipes, and
   session lessons;
 - are exported under the relevant skill's `references/` directory;
-- do not execute a learning pipeline or persist candidate records in Claude
-  Code or Codex;
+- use host-neutral MCP tools to capture opt-in evidence and retrieve approved
+  personal lessons in Claude Code and Codex;
+- use `openstudio-ai learning curate` outside the primary modeling workflow to
+  create unreviewed lesson and measure candidates;
 - never directly edit trusted assets.
 
 This separation keeps "AI learns" defensible: runtime observations can create
 candidates, but trusted assets require review and validation.
+
+“Opt-in” means a host must explicitly invoke a learning MCP tool before any
+evidence is persisted. The tools are registered with the runtime; there is not
+currently a server configuration switch that disables them.
 
 ## Developer Pipeline
 
@@ -43,13 +49,19 @@ It writes reviewable candidates to:
 These candidates are not trusted assets. A modeler/developer must review them,
 add or update evals, and then promote them intentionally.
 
-## Host Learning Contracts
+## Host Learning And CLI Curation
 
 Claude/Codex exports copy selected files from `learning/harness_pipeline/` into
-`propose-measure` and `capture-session-lesson` skill references. They support
-candidate drafting only; no plugin-root `learning/` directory, candidate
-storage, or host-executed learning pipeline exists today.
+`propose-measure` and `capture-session-lesson` skill references. The shared MCP
+runtime persists opt-in evidence and approved personal lessons under the
+user-local OpenStudio AI data directory. The CLI reads the same SQLite store:
 
-A future runtime learning feature must add explicit MCP tools or an approved
-host execution path, durable storage, validation, and review before it may
-claim to capture candidates.
+```bash
+openstudio-ai learning curate
+openstudio-ai learning propose-measures
+openstudio-ai learning prune-preview
+```
+
+The CLI never approves, promotes, or deletes candidates without explicit user
+action. A measure candidate remains untrusted until reviewed, implemented,
+validated, and promoted through the developer workflow.

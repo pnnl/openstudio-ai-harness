@@ -12,8 +12,8 @@ from dotenv import dotenv_values
 from mcp import ClientSession
 from mcp.client.sse import sse_client
 
-import openstudio_mcp.server as mcp_server
-from openstudio_mcp.server import (
+import openstudio_ai_mcp.server as mcp_server
+from openstudio_ai_mcp.server import (
     OpenStudioModelState,
     OpenStudioService,
 )
@@ -62,7 +62,7 @@ def start_mcp():
 
 
 @pytest.mark.asyncio
-async def test_openstudio_mcp_smoke_list_and_call_model_load() -> None:
+async def test_openstudio_ai_mcp_smoke_list_and_call_model_load() -> None:
     async with sse_client(MCP_URL) as (read_stream, write_stream):
         async with ClientSession(read_stream, write_stream) as session:
             initialization = await session.initialize()
@@ -83,6 +83,10 @@ async def test_openstudio_mcp_smoke_list_and_call_model_load() -> None:
             assert "blackboard_get_workflow" in names
             assert "blackboard_update_state_patch" in names
             assert "blackboard_mark_step_complete" in names
+            assert "learning_capture_observation" in names
+            assert "learning_create_candidate" in names
+            assert "learning_review_candidate" in names
+            assert "learning_search_lessons" in names
 
             result = await session.call_tool(
                 name="model_load",
@@ -179,7 +183,7 @@ def test_openstudio_workspace_manager_does_not_size_external_paths(
     assert service.workspace_manager.path_size(external) == 0
 
 
-def test_openstudio_mcp_blackboard_supports_workflow_state(tmp_path: Path) -> None:
+def test_openstudio_ai_mcp_blackboard_supports_workflow_state(tmp_path: Path) -> None:
     service = OpenStudioService(workspace_root=tmp_path)
 
     initialized = service.blackboard_initialize_workflow(
@@ -230,10 +234,10 @@ def test_openstudio_mcp_blackboard_supports_workflow_state(tmp_path: Path) -> No
     assert Path(snapshot["snapshot_path"]).exists()
 
 
-def test_openstudio_mcp_warns_but_starts_for_incompatible_plugin_contract(
+def test_openstudio_ai_mcp_warns_but_starts_for_stale_learning_plugin_contract(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    monkeypatch.setenv("OPENSTUDIO_AI_PLUGIN_CONTRACT_VERSION", "999")
+    monkeypatch.setenv("OPENSTUDIO_AI_PLUGIN_CONTRACT_VERSION", "3")
 
     class FakeMcp:
         def __init__(self) -> None:
@@ -252,7 +256,7 @@ def test_openstudio_mcp_warns_but_starts_for_incompatible_plugin_contract(
 
 
 @pytest.mark.asyncio
-async def test_openstudio_mcp_apply_add_daylighting_measure() -> None:
+async def test_openstudio_ai_mcp_apply_add_daylighting_measure() -> None:
     env_path = Path(".env")
     env_values = dotenv_values(env_path) if env_path.exists() else {}
     openstudio_path = (
@@ -315,7 +319,7 @@ async def test_openstudio_mcp_apply_add_daylighting_measure() -> None:
 
 
 @pytest.mark.asyncio
-async def test_openstudio_mcp_simulation_flow_with_sample_model() -> None:
+async def test_openstudio_ai_mcp_simulation_flow_with_sample_model() -> None:
     sample_model_uri = (FIXTURE_DIR / "sample.osm").resolve().as_uri()
     async with sse_client(MCP_URL) as (read_stream, write_stream):
         async with ClientSession(read_stream, write_stream) as session:
@@ -364,7 +368,7 @@ async def test_openstudio_mcp_simulation_flow_with_sample_model() -> None:
 
 
 @pytest.mark.asyncio
-async def test_openstudio_mcp_real_simulation_with_sample_model() -> None:
+async def test_openstudio_ai_mcp_real_simulation_with_sample_model() -> None:
     env_path = Path(".env")
     env_values = dotenv_values(env_path) if env_path.exists() else {}
     openstudio_path = (
@@ -378,7 +382,7 @@ async def test_openstudio_mcp_real_simulation_with_sample_model() -> None:
         pytest.skip("Local EPW file not found for real simulation test.")
 
     sample_model_uri = (FIXTURE_DIR / "sample.osm").resolve().as_uri()
-    workspace_root = Path(".openstudio_mcp_workspace").resolve()
+    workspace_root = Path(".openstudio_ai_mcp_workspace").resolve()
     existing_sqls = (
         {str(p.resolve()) for p in workspace_root.rglob("run/eplusout.sql")}
         if workspace_root.exists()
@@ -462,5 +466,5 @@ async def test_openstudio_mcp_real_simulation_with_sample_model() -> None:
     assert workspace_root.exists()
     new_sqls = {str(p.resolve()) for p in workspace_root.rglob("run/eplusout.sql")}
     created_sqls = new_sqls - existing_sqls
-    assert created_sqls, "No new eplusout.sql found in .openstudio_mcp_workspace."
+    assert created_sqls, "No new eplusout.sql found in .openstudio_ai_mcp_workspace."
     assert any(Path(p).stat().st_mtime >= started_at for p in map(Path, created_sqls))

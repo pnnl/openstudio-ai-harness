@@ -8,7 +8,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from openstudio_mcp.sdk_docs.lookup import (
+from openstudio_ai_mcp.sdk_docs.lookup import (
     write_index_file,
 )
 
@@ -20,7 +20,7 @@ def main() -> None:
     parser.add_argument(
         "--docs-dir",
         required=True,
-        help="Directory containing api/classes.yaml (e.g. openstudio_mcp/sdk_docs/docs).",
+        help="Directory containing api/classes.yaml (e.g. openstudio_ai_mcp/sdk_docs/docs).",
     )
     parser.add_argument(
         "--output",

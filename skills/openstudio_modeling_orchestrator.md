@@ -37,5 +37,10 @@ task-specific skill before acting; do not recreate its procedure from memory.
 - Use `results_*` MCP tools for SQL-backed results.
 - Use `sdk_docs_*` only as directed by SDK-editing skills.
 - Use MCP blackboard tools as the durable source of workflow state.
-- Treat runtime observations as candidate material only; never promote them
-  directly into trusted assets.
+- Before a non-trivial modeling action, call `learning_search_lessons` with the
+  task type and relevant tags. Use only returned personal lessons that fit the
+  current model/version scope, and still validate the model independently.
+- At the end of meaningful work, offer to save a concise observation. Capture
+  or review learning only after the user explicitly agrees.
+- Personal lessons are local guidance. Never promote them directly into trusted
+  skills, knowledge, measures, or MCP tools.

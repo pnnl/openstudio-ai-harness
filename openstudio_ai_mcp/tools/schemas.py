@@ -135,6 +135,35 @@ class BlackboardSnapshotWorkflowArgs(BaseModel):
     workflow_id: str = Field(min_length=1)
 
 
+class LearningCaptureArgs(BaseModel):
+    event_type: str = Field(min_length=1, max_length=80)
+    summary: str = Field(min_length=1, max_length=2000)
+    source: str = Field(min_length=1, max_length=120)
+    workflow_id: str | None = Field(default=None, max_length=160)
+    scope: dict[str, Any] = Field(default_factory=dict)
+    evidence: dict[str, Any] = Field(default_factory=dict)
+
+
+class LearningCandidateArgs(BaseModel):
+    event_id: str = Field(min_length=1)
+    summary: str = Field(min_length=1, max_length=2000)
+    guidance: str = Field(min_length=1, max_length=4000)
+    tags: list[str] = Field(default_factory=list, max_length=20)
+    scope: dict[str, Any] = Field(default_factory=dict)
+
+
+class LearningReviewArgs(BaseModel):
+    candidate_id: str = Field(min_length=1)
+    approved: bool
+    reviewer_note: str | None = Field(default=None, max_length=2000)
+
+
+class LearningSearchArgs(BaseModel):
+    query: str = Field(default="", max_length=2000)
+    tags: list[str] = Field(default_factory=list, max_length=20)
+    limit: int = Field(default=5, ge=1, le=20)
+
+
 def success_payload(**data: Any) -> dict[str, Any]:
     return {"ok": True, **data}
 

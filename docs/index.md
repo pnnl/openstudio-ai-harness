@@ -243,10 +243,10 @@ OPENSTUDIO_PATH=/path/to/openstudio \
 
 | If you are changing… | Start here |
 | --- | --- |
-| MCP tools or runtime behavior | `openstudio_mcp/` and [Harness Details](HARNESS_DETAILS.md) |
+| MCP tools or runtime behavior | `openstudio_ai_mcp/` and [Harness Details](HARNESS_DETAILS.md) |
 | Skills, prompts, or reviewed knowledge | `skills/`, `prompts/`, and `knowledge/` |
 | Plugin package layout or export logic | `adapters/` and `harness/asset_manifest.yaml` |
-| Long-running workflow state | `blackboard/` and `openstudio_mcp/runtime/` |
+| Long-running workflow state | `blackboard/` and `openstudio_ai_mcp/runtime/` |
 | Candidate learning or promotion | `learning/`, `evals/`, and `policy/` |
 
 Read the [Developer Guide](DEVELOPER_GUIDANCE.md) before changing boundaries or

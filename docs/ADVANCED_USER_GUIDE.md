@@ -185,16 +185,16 @@ uv run --project standalone python -m pytest -q standalone/tests
 
 Check logs in the measure workspace:
 
-- `.openstudio_mcp_workspace/measure-<id>/measure.stdout.log`
-- `.openstudio_mcp_workspace/measure-<id>/measure.stderr.log`
+- `.openstudio_ai_mcp_workspace/measure-<id>/measure.stdout.log`
+- `.openstudio_ai_mcp_workspace/measure-<id>/measure.stderr.log`
 
 ### Simulation failures
 
 Check job workspace:
 
-- `.openstudio_mcp_workspace/<job_id>/run/eplusout.err`
-- `.openstudio_mcp_workspace/<job_id>/run/eplusout.end`
-- `.openstudio_mcp_workspace/<job_id>/run/eplusout.sql`
+- `.openstudio_ai_mcp_workspace/<job_id>/run/eplusout.err`
+- `.openstudio_ai_mcp_workspace/<job_id>/run/eplusout.end`
+- `.openstudio_ai_mcp_workspace/<job_id>/run/eplusout.sql`
 
 ### Common causes
 

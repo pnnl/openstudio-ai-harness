@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 import stat
 from pathlib import Path
 
 import cli
 from cli import main
+from openstudio_ai_mcp.runtime.learning_store import LearningStore
 
 
 def test_cli_version_prints_version(capsys) -> None:
@@ -97,6 +99,46 @@ def test_cli_install_runtime_initializes_storage(
     captured = capsys.readouterr()
     assert "Initialized runtime workspace" in captured.out
     assert (data_dir / "workspace").is_dir()
+
+
+def test_cli_learning_curates_measure_candidates_and_requires_prune_confirmation(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    data_dir = tmp_path / "runtime-data"
+    monkeypatch.setenv("OPENSTUDIO_AI_DATA_DIR", str(data_dir))
+    store = LearningStore(data_dir / "learning.sqlite")
+    for workflow_id in ("workflow-1", "workflow-2", "workflow-3"):
+        store.capture_event(
+            event_type="script_execution",
+            summary="Applied daylighting controls to perimeter zones.",
+            source="claude_code",
+            workflow_id=workflow_id,
+            scope={"tags": ["daylighting", "geometry"]},
+            evidence={"script_fingerprint": "daylighting-controls-v1", "outcome": "success"},
+        )
+
+    assert main(["learning", "propose-measures", "--json"]) == 0
+    curated = json.loads(capsys.readouterr().out)
+    assert len(curated["measure_candidate_ids"]) == 1
+
+    assert main(["learning", "propose-measures", "--json"]) == 0
+    assert json.loads(capsys.readouterr().out)["measure_candidate_ids"] == []
+
+    candidate_id = curated["measure_candidate_ids"][0]
+    with sqlite3.connect(data_dir / "learning.sqlite") as connection:
+        connection.execute(
+            "UPDATE learning_candidates SET created_at = ? WHERE candidate_id = ?",
+            ("2000-01-01T00:00:00+00:00", candidate_id),
+        )
+
+    assert main(["learning", "prune-preview", "--json"]) == 0
+    preview = json.loads(capsys.readouterr().out)
+    assert preview["candidates"][0]["candidate_id"] == candidate_id
+
+    assert main(["learning", "prune", "--candidate-id", candidate_id]) == 2
+    assert "Refusing to prune" in capsys.readouterr().err
+    assert main(["learning", "prune", "--candidate-id", candidate_id, "--yes", "--json"]) == 0
+    assert json.loads(capsys.readouterr().out)["deleted_candidate_ids"] == [candidate_id]
 
 
 def test_cli_configure_openstudio_persists_confirmed_executable(
@@ -251,7 +293,7 @@ def test_cli_doctor_falls_back_from_invalid_sdk_docs_override(
     assert payload["mcp_ready"] is True
     assert payload["sdk_docs"]["ok"] is True
     assert payload["sdk_docs"]["source"] == "bundled_fallback"
-    assert payload["sdk_docs"]["path"].endswith("openstudio_mcp/sdk_docs/docs")
+    assert payload["sdk_docs"]["path"].endswith("openstudio_ai_mcp/sdk_docs/docs")
     assert payload["sdk_docs"]["override_path"] == str(tmp_path / "missing-sdk-docs")
     assert (
         "using the bundled SDK documentation" in payload["sdk_docs"]["override_warning"]
@@ -331,7 +373,7 @@ def test_cli_doctor_reports_plugin_runtime_contract_mismatch(
                 "--plugin-version",
                 "9.9.9",
                 "--plugin-contract-version",
-                "999",
+                "3",
             ]
         )
         == 1
@@ -546,7 +588,7 @@ def test_cli_export_paired_marketplace_includes_provenance(tmp_path: Path) -> No
     assert provenance["package"]["name"] == "openstudio-ai"
     assert provenance["plugin"] == {
         "name": "openstudio-ai",
-        "mcp_interface_contract_version": "3",
+        "mcp_interface_contract_version": "4",
         "runtime_mode": "marketplace",
     }
     assert set(provenance["source"]) == {"revision", "dirty"}

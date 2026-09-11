@@ -10,12 +10,12 @@ plugins rather than editing generated files directly.
 
 | If you are changing… | Start in… |
 | --- | --- |
-| MCP tools or runtime behavior | `openstudio_mcp/` |
+| MCP tools or runtime behavior | `openstudio_ai_mcp/` |
 | Plugin export or host setup behavior | `adapters/` |
 | Skills, prompts, or reviewed knowledge | `skills/`, `prompts/`, or `knowledge/` |
 | Plugin asset registration | `harness/asset_manifest.yaml` |
 | Tests | `tests/` |
-| Workflow state or learning | `blackboard/`, `learning/`, or `openstudio_mcp/runtime/` |
+| Workflow state or learning | `blackboard/`, `learning/`, or `openstudio_ai_mcp/runtime/` |
 
 Read the [Developer Guide](docs/DEVELOPER_GUIDANCE.md) for setup details,
 folder ownership, promotion rules, and validation guidance.

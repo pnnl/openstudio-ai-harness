@@ -2,6 +2,23 @@
 
 ## Current Status
 
+- Renamed the PNNL runtime package directory from `openstudio_mcp/` to
+  `openstudio_ai_mcp/`.
+- Added user-local MCP learning storage. “Opt-in” means evidence is persisted
+  only when a host explicitly invokes a learning tool; it is not a server
+  configuration toggle. Evidence becomes retrievable personal guidance only
+  after an explicit candidate review. The host-neutral
+  `openstudio-ai learning` CLI shares that store and provides `curate`,
+  `candidates`, `propose-measures`, `prune-preview`, and confirmation-gated
+  `prune`. Repeated successful scripts with the same fingerprint create
+  unreviewed measure candidates; neither MCP nor CLI changes trusted assets.
+  `curate-learning` is exported to both Claude Code and Codex so curation can
+  run separately from modeling when the host supports delegation.
+- Dev-container verification: root suite passed with 159 tests collected,
+  excluding two expected OpenStudio-gated skips; standalone checks exited 0 in
+  their separate `uv` environment. The container needed the documented
+  Playwright Chromium download restored after being restarted.
+
 - Documented the standalone Claude Desktop NLR OpenStudio-MCP configuration in
   `docs/CLAUDE_DESKTOP_NLR_OPENSTUDIO_MCP.md`. The guide makes explicit that
   `claude_desktop_config.json` is global while NLR access is constrained by its
@@ -33,7 +50,7 @@
   was tested. Next: export the development plugins and verify NLR status/version
   during the shared example.
 
-- Package version: `0.2.2`.
+- Package version: `0.2.3`.
 - The package exposes an OpenStudio MCP runtime, Claude Code and Codex plugin
   exports, trusted skills and references, runtime learning contracts, and
   MCP-backed SQLite workflow state.
@@ -44,7 +61,7 @@
 - Claude and Codex exports use host-native plugin structures. Shared reference
   routing is declared in `harness/asset_manifest.yaml`.
 - Marketplace exports start the installed `openstudio-ai-mcp` command. Local
-  exports start `python -m openstudio_mcp.server` from the source virtualenv.
+  exports start `python -m openstudio_ai_mcp.server` from the source virtualenv.
 - Marketplace setup and repair skills diagnose the Python scripts directory
   when the runtime installs but the MCP command is absent from the host PATH.
   They keep `.mcp.json` portable and direct repository users to a separate
@@ -75,9 +92,10 @@
 - `runtime_openstudio_status` is the required simulation preflight. It reports
   the MCP process's executable path/source and directs the agent to read-only
   platform-specific discovery before proposing an OpenStudio installation.
-- MCP contract version `3` requires `model_export_geometry_viewer` for the
-  standalone geometry-viewer skill; version `2` added the simulation preflight.
-  Simulation skills are MCP-only: if the preflight or reconnection is
+- MCP contract version `4` requires the personal-learning tools used by
+  curate-learning; version `3` added `model_export_geometry_viewer` for the
+  standalone geometry-viewer skill, and version `2` added the simulation
+  preflight. Simulation skills are MCP-only: if the preflight or reconnection is
   unavailable, they stop and ask the user to refresh the plugin/runtime rather
   than invoke a local OpenStudio CLI fallback.
 - Codex projects can install a managed OpenStudio block into `AGENTS.md` with
@@ -99,7 +117,7 @@
 
 ## Current Boundaries
 
-- SQLite persistence is owned by `openstudio_mcp/runtime/state_store.py` and
+- SQLite persistence is owned by `openstudio_ai_mcp/runtime/state_store.py` and
   exposed through MCP blackboard tools. Plugin reference files describe that
   contract; they never write state on their own.
 - `skills/`, `prompts/`, `knowledge/`, `policy/`, and approved measures are

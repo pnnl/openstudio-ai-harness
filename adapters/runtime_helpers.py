@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from openstudio_mcp.compatibility import PLUGIN_CONTRACT_VERSION, package_version
+from openstudio_ai_mcp.compatibility import PLUGIN_CONTRACT_VERSION, package_version
 
 
 def write_runtime_helpers(

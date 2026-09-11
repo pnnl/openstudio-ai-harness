@@ -20,7 +20,7 @@ def discover_harness_assets(root: Path) -> HarnessAssets:
         skill_files=sorted(
             path for path in skills_dir.glob("*.md") if path.name not in DEVELOPER_ONLY_SKILL_FILES
         ),
-        mcp_entrypoint=root / "openstudio_mcp" / "server.py",
+        mcp_entrypoint=root / "openstudio_ai_mcp" / "server.py",
         blackboard_schema=root / "blackboard" / "schemas" / "workflow_state.schema.json",
         learning_event_log=root / "logs" / "learning_events.jsonl",
         knowledge_roots=[root / "knowledge"],

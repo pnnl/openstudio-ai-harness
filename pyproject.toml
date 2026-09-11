@@ -1,6 +1,6 @@
 [project]
 name = "openstudio-ai"
-version = "0.2.3"
+version = "0.3.0"
 description = "OpenStudio AI harness with MCP runtime, host adapters, skills, and knowledge."
 requires-python = ">=3.10"
 authors = [{ name = "PNNL" }]
@@ -46,7 +46,7 @@ Documentation = "https://gitlab.pnnl.gov/building-energy-modeling/openstudio-ai-
 
 [project.scripts]
 openstudio-ai = "cli:main"
-openstudio-ai-mcp = "openstudio_mcp.server:main"
+openstudio-ai-mcp = "openstudio_ai_mcp.server:main"
 openstudio-ai-claude-export = "adapters.claude_code_adapter:main"
 openstudio-ai-codex-export = "adapters.codex_adapter:main"
 
@@ -62,7 +62,7 @@ packages = [
     "blackboard",
     "harness",
     "learning",
-    "openstudio_mcp",
+    "openstudio_ai_mcp",
     "scripts",
     "sdk_index",
 ]
@@ -71,7 +71,7 @@ only-include = [
     "blackboard",
     "harness",
     "learning",
-    "openstudio_mcp",
+    "openstudio_ai_mcp",
     "scripts",
     "sdk_index",
     "cli.py",
@@ -95,7 +95,7 @@ exclude = [
     "dist",
     "build",
     ".pytest_cache",
-    ".openstudio_mcp_workspace",
+    ".openstudio_ai_mcp_workspace",
     "resource",
     "tests",
     "evals",
@@ -108,7 +108,7 @@ include = [
     "blackboard/**",
     "harness/**",
     "learning/**",
-    "openstudio_mcp/**",
+    "openstudio_ai_mcp/**",
     "scripts/**",
     "sdk_index/**",
     "skills/**",
@@ -137,7 +137,7 @@ exclude = [
     "dist",
     "build",
     ".pytest_cache",
-    ".openstudio_mcp_workspace",
+    ".openstudio_ai_mcp_workspace",
     "measures/candidates/**",
     "standalone/**",
     "tests/fixtures/**",

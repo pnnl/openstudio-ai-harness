@@ -15,13 +15,13 @@ The adapters render product skills, agents, and references from
 `harness/asset_manifest.yaml`. They own only host infrastructure such as
 marketplace setup/doctor/repair skills, installer scripts, and MCP configuration.
 Durable workflow state is owned by the MCP runtime in
-`openstudio_mcp/runtime/state_store.py`, not by an adapter.
+`openstudio_ai_mcp/runtime/state_store.py`, not by an adapter.
 
 ## Runtime Modes
 
 | Mode | MCP command in the export | Use |
 | --- | --- | --- |
-| `local` | Current virtualenv Python running `openstudio_mcp.server` | Source-checkout development. |
+| `local` | Current virtualenv Python running `openstudio_ai_mcp.server` | Source-checkout development. |
 | `installed` | `openstudio-ai-mcp` | An already installed runtime. |
 | `marketplace` | `openstudio-ai-mcp` | Marketplace package with setup, doctor, and repair skills. |
 

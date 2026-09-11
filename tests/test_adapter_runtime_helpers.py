@@ -12,7 +12,7 @@ from adapters.runtime_helpers import (
     render_doctor_runtime_script,
     render_install_runtime_script,
 )
-from openstudio_mcp.compatibility import PLUGIN_CONTRACT_VERSION, package_version
+from openstudio_ai_mcp.compatibility import PLUGIN_CONTRACT_VERSION, package_version
 
 
 def _compile_script(tmp_path: Path, filename: str, content: str) -> None:

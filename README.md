@@ -10,8 +10,10 @@ knowledge, and workflow-state tools for AI-assisted building-energy modeling.
   self-contained OSM geometry viewers.
 - Claude Code plugin export.
 - Codex plugin export.
-- Learning contracts for candidate drafting; host plugins do not persist
-  candidate records yet.
+- Opt-in, user-local learning evidence and review-gated personal lessons shared
+  by Claude Code and Codex through MCP; the CLI curates candidates and detects
+  repeated scripts as candidate measures. “Opt-in” means explicit learning-tool
+  invocation, not a runtime enable/disable setting.
 - HVAC workflow skills and generated child skills.
 - Reviewed OpenStudio SDK knowledge packs.
 - Packaging north-star plan for stable `pip install` and marketplace agentic
@@ -100,6 +102,17 @@ Start the MCP server in stdio mode:
 openstudio-ai-mcp --transport stdio
 ```
 
+Curate local learning outside an active modeling session:
+
+```bash
+openstudio-ai learning curate
+openstudio-ai learning propose-measures
+openstudio-ai learning prune-preview
+```
+
+These commands never approve a candidate or delete one without explicit user
+action.
+
 Export local development plugins:
 
 ```bash
@@ -175,7 +188,7 @@ is appended.
 
 Local runtime state is intentionally ignored by Git:
 
-- `.openstudio_mcp_workspace/`
+- `.openstudio_ai_mcp_workspace/`
 - `.openstudio_ai_blackboards/`
 - `logs/`
 - `outputs/`

@@ -58,7 +58,7 @@ Developer workbench
         |
         v
 Trusted runtime harness
-  openstudio_mcp, skills/*.md, prompts, knowledge, measures/approved, schemas
+  openstudio_ai_mcp, skills/*.md, prompts, knowledge, measures/approved, schemas
         |
         v
 Host-specific export
@@ -239,12 +239,12 @@ Use this table when deciding where a change belongs.
 
 | Path | Purpose | Put Here | Do Not Put Here | Export Behavior |
 | --- | --- | --- | --- | --- |
-| `openstudio_mcp/` | MCP server and tool runtime | Model lifecycle, simulation, results, SDK doc, approved measure, runtime state tools | Host-specific plugin layout, markdown-only instructions | Shipped in the package and used by `.mcp.json` |
-| `openstudio_mcp/compatibility.py` | Plugin-to-MCP interface contract | Package/contract metadata and compatibility checks | Host-specific rendering rules or individual skill content | Used by adapters, `doctor`, and MCP startup |
+| `openstudio_ai_mcp/` | MCP server and tool runtime | Model lifecycle, simulation, results, SDK doc, approved measure, runtime state tools | Host-specific plugin layout, markdown-only instructions | Shipped in the package and used by `.mcp.json` |
+| `openstudio_ai_mcp/compatibility.py` | Plugin-to-MCP interface contract | Package/contract metadata and compatibility checks | Host-specific rendering rules or individual skill content | Used by adapters, `doctor`, and MCP startup |
 | `adapters/runtime_helpers.py` | Shared marketplace setup helper rendering | Cross-host `doctor_runtime.py` and `install_runtime.py` content | Claude/Codex-specific plugin layout or reload guidance | Called by both adapters; exports identical helpers except host reload text |
-| `openstudio_mcp/runtime/` | Runtime registry and SQLite-backed state | Durable job/artifact/storage/blackboard persistence code | Source knowledge or skill content | Used by MCP tools at runtime |
-| `openstudio_mcp/tools/` | MCP tool registration | Tool wrappers that expose service behavior | Business logic that belongs in services | Used by MCP server |
-| `openstudio_mcp/simulation/`, `results/`, `sdk_docs/`, `measures/` | Runtime service modules | Deterministic runtime operations | Host adapter behavior | Used by MCP tools |
+| `openstudio_ai_mcp/runtime/` | Runtime registry and SQLite-backed state | Durable job/artifact/storage/blackboard persistence code | Source knowledge or skill content | Used by MCP tools at runtime |
+| `openstudio_ai_mcp/tools/` | MCP tool registration | Tool wrappers that expose service behavior | Business logic that belongs in services | Used by MCP server |
+| `openstudio_ai_mcp/simulation/`, `results/`, `sdk_docs/`, `measures/` | Runtime service modules | Deterministic runtime operations | Host adapter behavior | Used by MCP tools |
 | `skills/*.md` | Trusted runtime skills | Hand-authored parent skills and generated child skill outputs | Draft notes, unreviewed lessons, specs | Exported as host skills |
 | `skills/specs/` | Source specs for generated skills | YAML definitions for generated HVAC child skills | Runtime-only skill markdown edits | Not exported directly |
 | `skills/templates/` | Skill generation templates | Shared Jinja templates | One-off skill content | Not exported directly |
@@ -267,7 +267,7 @@ Use this table when deciding where a change belongs.
 | `tests/` | Automated tests | Focused unit, adapter, MCP, CLI, and integration tests | Runtime assets | Developer only |
 | `docs/` | Developer and user documentation | Stable guides, release notes, architecture docs | Runtime state | Shipped as package docs |
 | `state/`, `logs/`, `outputs/` | Local working artifacts | Local sessions, snapshots, logs, generated outputs | Trusted assets or source specs | Not trusted; do not promote without review |
-| `.openstudio_mcp_workspace/` | Local MCP runtime workspace | Local test jobs/artifacts created by MCP | Source code | Excluded from package/export |
+| `.openstudio_ai_mcp_workspace/` | Local MCP runtime workspace | Local test jobs/artifacts created by MCP | Source code | Excluded from package/export |
 | `tests/fixtures/` | Local OpenStudio test fixtures | OSM and EPW files required by explicit test cases | Runtime assets, user models, or marketplace payload | Excluded from wheels and plugin exports |
 | `standalone/agent.py` | Local AUTOMA-AI bootstrap | Standalone local agent entrypoint | Claude/Codex-specific logic | Used only in standalone mode |
 | `standalone/ui.py` | Local Streamlit UI | Standalone UI code | Host plugin logic | Used only in standalone mode |
@@ -517,7 +517,7 @@ Allowed promotion targets:
 - `skills/*.md`
 - `knowledge/`
 - `sdk_index/`
-- `openstudio_mcp/`
+- `openstudio_ai_mcp/`
 - `measures/approved/`
 - `evals/`
 - `docs/`
@@ -573,7 +573,7 @@ Persistence happens through MCP blackboard tools:
 - `blackboard_record_issue`
 - `blackboard_snapshot_workflow`
 
-The SQLite table is managed by `openstudio_mcp/runtime/state_store.py`. Plugin
+The SQLite table is managed by `openstudio_ai_mcp/runtime/state_store.py`. Plugin
 exports include `workflow_state.schema.json`, `state_patch.schema.json`, and
 `blackboard_contract.md` as references so host agents know how to call the MCP
 tools. They do not create rows unless the tools are invoked.
@@ -648,7 +648,7 @@ installation; otherwise ensure `openstudio` is on `PATH`.
 
 Use `--runtime-mode local` when testing from a source checkout. Local mode writes
 an MCP config that starts the server with the repo virtualenv Python and
-`python -m openstudio_mcp.server`.
+`python -m openstudio_ai_mcp.server`.
 
 Use `--runtime-mode marketplace` only when testing an installed package where
 `openstudio-ai-mcp` is already visible on Claude Code's PATH.

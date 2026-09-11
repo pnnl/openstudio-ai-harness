@@ -8,7 +8,7 @@ review notes, simulation warnings, and repeated successful workflows.
 - Create candidates only.
 - Do not promote trusted assets.
 - Do not directly edit `knowledge/`, `skills/*.md`, `skills/specs/*.yaml`,
-  `measures/approved/`, `openstudio_mcp/`, or `evals/`.
+  `measures/approved/`, `openstudio_ai_mcp/`, or `evals/`.
 - Write reviewable candidate assets for the developer pipeline to inspect.
 
 ## Candidate Requirements

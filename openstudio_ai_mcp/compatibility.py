@@ -13,13 +13,14 @@ except ModuleNotFoundError:  # Python 3.10
     import tomli as tomllib
 
 PACKAGE_NAME = "openstudio-ai"
-PACKAGE_VERSION_FALLBACK = "0.2.3"
+PACKAGE_VERSION_FALLBACK = "0.3.0"
 PLUGIN_VERSION_ENV = "OPENSTUDIO_AI_PLUGIN_VERSION"
 PLUGIN_CONTRACT_ENV = "OPENSTUDIO_AI_PLUGIN_CONTRACT_VERSION"
-# Contract 3 adds model_export_geometry_viewer, required by the standalone
-# geometry-viewer skill. Contract 2 added runtime_openstudio_status for the
-# simulation preflight.
-PLUGIN_CONTRACT_VERSION = "3"
+# Contract 4 adds the personal-learning MCP tools, required by the curated
+# learning workflow. Contract 3 added model_export_geometry_viewer, required by
+# the standalone geometry-viewer skill. Contract 2 added runtime_openstudio_status
+# for the simulation preflight.
+PLUGIN_CONTRACT_VERSION = "4"
 
 
 @dataclass(frozen=True)

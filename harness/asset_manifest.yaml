@@ -11,6 +11,9 @@ skills:
   - id: capture-session-lesson
     source: skills/capture_session_lesson.md
     hosts: [claude, codex]
+  - id: curate-learning
+    source: skills/curate_learning.md
+    hosts: [claude, codex]
   - id: hvac-sizing-assistant
     source: skills/hvac_sizing_assistant.md
     hosts: [claude, codex]

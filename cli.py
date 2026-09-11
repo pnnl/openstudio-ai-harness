@@ -14,18 +14,20 @@ from typing import Any
 from adapters.claude_code_adapter import ClaudeCodeAdapter
 from adapters.codex_adapter import CodexAdapter
 from adapters.contracts import RUNTIME_MODES, HostAdapterConfig
-from openstudio_mcp.runtime_config import (
+from openstudio_ai_mcp.runtime_config import (
     openstudio_version_from_output,
     resolve_openstudio_executable_with_source,
     set_openstudio_path,
     user_data_dir,
 )
-from openstudio_mcp.compatibility import (
+from openstudio_ai_mcp.compatibility import (
     PLUGIN_CONTRACT_VERSION,
     evaluate_plugin_compatibility,
     package_version,
     plugin_mcp_environment,
 )
+from openstudio_ai_mcp.runtime.learning_curation import curate_learning
+from openstudio_ai_mcp.runtime.learning_store import LearningStore
 
 try:
     import tomllib
@@ -216,7 +218,7 @@ def _sdk_docs_probe() -> dict[str, Any]:
     """Verify the configured SDK YAML bundle has a readable metadata header."""
     configured_dir = os.getenv("OPENSTUDIO_SDK_DOCS_DIR", "").strip()
     try:
-        from openstudio_mcp.sdk_docs import OpenStudioSdkDocLookup
+        from openstudio_ai_mcp.sdk_docs import OpenStudioSdkDocLookup
 
         lookup = OpenStudioSdkDocLookup.from_env()
         docs_dir = lookup.docs_dir
@@ -548,13 +550,13 @@ def _doctor_payload(
     }
 
     try:
-        from openstudio_mcp.server import BASE_DIR, OpenStudioService, create_server
+        from openstudio_ai_mcp.server import BASE_DIR, OpenStudioService, create_server
 
-        checks["imports"]["openstudio_mcp"] = {"ok": True, "base_dir": str(BASE_DIR)}
+        checks["imports"]["openstudio_ai_mcp"] = {"ok": True, "base_dir": str(BASE_DIR)}
     except (
         Exception
     ) as exc:  # pragma: no cover - exact import failure is environment-specific.
-        checks["imports"]["openstudio_mcp"] = {"ok": False, "error": str(exc)}
+        checks["imports"]["openstudio_ai_mcp"] = {"ok": False, "error": str(exc)}
         OpenStudioService = None  # type: ignore[assignment]
         create_server = None  # type: ignore[assignment]
 
@@ -563,7 +565,10 @@ def _doctor_payload(
             with tempfile.TemporaryDirectory(
                 prefix="openstudio-ai-mcp-startup-"
             ) as tmp:
-                create_server(workspace_root=Path(tmp) / "workspace")
+                create_server(
+                    workspace_root=Path(tmp) / "workspace",
+                    learning_db_path=Path(tmp) / "learning.sqlite",
+                )
             checks["mcp_startup"] = {"ok": True}
         except (
             Exception
@@ -582,7 +587,10 @@ def _doctor_payload(
     if OpenStudioService is not None:
         try:
             with tempfile.TemporaryDirectory(prefix="openstudio-ai-service-") as tmp:
-                service = OpenStudioService(workspace_root=Path(tmp) / "workspace")
+                service = OpenStudioService(
+                    workspace_root=Path(tmp) / "workspace",
+                    learning_db_path=Path(tmp) / "learning.sqlite",
+                )
                 public_measures = service.measure_registry.list_public_specs()
                 missing_entrypoints = [
                     spec.measure_id
@@ -636,7 +644,7 @@ def _doctor_payload(
         )
 
     checks["mcp_ready"] = (
-        checks["imports"].get("openstudio_mcp", {}).get("ok") is True
+        checks["imports"].get("openstudio_ai_mcp", {}).get("ok") is True
         and checks["assets"].get("ok") is True
         and checks["runtime_storage"].get("ok") is True
         and checks["sqlite_registry"].get("ok") is True
@@ -817,6 +825,85 @@ def _cmd_repair(_: argparse.Namespace) -> int:
     print("OpenStudio AI repair completed non-destructive checks.")
     print(f"Ensured runtime workspace exists at: {data_dir / 'workspace'}")
     print("Run `openstudio-ai doctor` for the current readiness report.")
+    return 0
+
+
+def _learning_store() -> LearningStore:
+    """Return the user-local learning store shared by MCP and CLI workflows."""
+    return LearningStore(_user_data_dir() / "learning.sqlite")
+
+
+def _print_learning_payload(payload: dict[str, Any], *, as_json: bool) -> None:
+    if as_json:
+        print(json.dumps(payload, indent=2, ensure_ascii=True))
+        return
+    for key, value in payload.items():
+        if isinstance(value, list):
+            print(f"{key}: {len(value)}")
+            for item in value:
+                print(f"- {item.get('candidate_id', item)}")
+        else:
+            print(f"{key}: {value}")
+
+
+def _cmd_learning_curate(args: argparse.Namespace) -> int:
+    result = curate_learning(
+        _learning_store(),
+        minimum_script_runs=args.minimum_script_runs,
+        include_measures=not args.lessons_only,
+    )
+    _print_learning_payload(result, as_json=args.json)
+    return 0
+
+
+def _cmd_learning_candidates(args: argparse.Namespace) -> int:
+    candidates = _learning_store().list_candidates(
+        status=args.status,
+        candidate_type=args.candidate_type,
+    )
+    _print_learning_payload({"candidates": candidates}, as_json=args.json)
+    return 0
+
+
+def _cmd_learning_propose_measures(args: argparse.Namespace) -> int:
+    result = curate_learning(
+        _learning_store(),
+        minimum_script_runs=args.minimum_script_runs,
+        include_lessons=False,
+    )
+    _print_learning_payload(result, as_json=args.json)
+    return 0
+
+
+def _cmd_learning_prune_preview(args: argparse.Namespace) -> int:
+    candidates = _learning_store().prune_preview(
+        candidate_days=args.candidate_days,
+        rejected_days=args.rejected_days,
+    )
+    _print_learning_payload({"candidates": candidates}, as_json=args.json)
+    return 0
+
+
+def _cmd_learning_prune(args: argparse.Namespace) -> int:
+    store = _learning_store()
+    candidate_ids = list(args.candidate_id)
+    if not candidate_ids:
+        candidate_ids = [
+            candidate["candidate_id"]
+            for candidate in store.prune_preview(
+                candidate_days=args.candidate_days,
+                rejected_days=args.rejected_days,
+            )
+        ]
+    if not args.yes:
+        print(
+            "Refusing to prune without --yes. Run learning prune-preview first, then "
+            "pass --yes with explicit candidate IDs or the configured retention policy.",
+            file=sys.stderr,
+        )
+        return 2
+    deleted = store.prune_candidates(candidate_ids)
+    _print_learning_payload({"deleted_candidate_ids": deleted}, as_json=args.json)
     return 0
 
 
@@ -1116,7 +1203,7 @@ def _cmd_validate_export(args: argparse.Namespace) -> int:
         args_list = server.get("args", [])
         if server.get("command") != sys.executable or args_list[:2] != [
             "-m",
-            "openstudio_mcp.server",
+            "openstudio_ai_mcp.server",
         ]:
             print(
                 "Local exports must start the source-checkout MCP module.",
@@ -1216,6 +1303,58 @@ def _build_parser() -> argparse.ArgumentParser:
         "repair", help="Run non-destructive runtime repair checks."
     )
     repair.set_defaults(func=_cmd_repair)
+
+    learning = subparsers.add_parser(
+        "learning", help="Curate, inspect, and prune local personal-learning records."
+    )
+    learning_subparsers = learning.add_subparsers(
+        dest="learning_command", required=True
+    )
+
+    learning_curate = learning_subparsers.add_parser(
+        "curate", help="Create unreviewed lesson and measure candidates from local evidence."
+    )
+    learning_curate.add_argument("--minimum-script-runs", type=int, default=3)
+    learning_curate.add_argument("--lessons-only", action="store_true")
+    learning_curate.add_argument("--json", action="store_true")
+    learning_curate.set_defaults(func=_cmd_learning_curate)
+
+    learning_candidates = learning_subparsers.add_parser(
+        "candidates", help="List local learning candidates."
+    )
+    learning_candidates.add_argument(
+        "--status", choices=["candidate", "approved", "rejected"]
+    )
+    learning_candidates.add_argument(
+        "--candidate-type", choices=["lesson", "measure"]
+    )
+    learning_candidates.add_argument("--json", action="store_true")
+    learning_candidates.set_defaults(func=_cmd_learning_candidates)
+
+    learning_measures = learning_subparsers.add_parser(
+        "propose-measures", help="Create candidate measures from repeated successful scripts."
+    )
+    learning_measures.add_argument("--minimum-script-runs", type=int, default=3)
+    learning_measures.add_argument("--json", action="store_true")
+    learning_measures.set_defaults(func=_cmd_learning_propose_measures)
+
+    prune_preview = learning_subparsers.add_parser(
+        "prune-preview", help="List expired unapproved candidates without deleting them."
+    )
+    prune_preview.add_argument("--candidate-days", type=int, default=30)
+    prune_preview.add_argument("--rejected-days", type=int, default=7)
+    prune_preview.add_argument("--json", action="store_true")
+    prune_preview.set_defaults(func=_cmd_learning_prune_preview)
+
+    prune = learning_subparsers.add_parser(
+        "prune", help="Delete expired or explicitly selected unapproved candidates."
+    )
+    prune.add_argument("--candidate-id", action="append", default=[])
+    prune.add_argument("--candidate-days", type=int, default=30)
+    prune.add_argument("--rejected-days", type=int, default=7)
+    prune.add_argument("--yes", action="store_true", help="Confirm candidate deletion.")
+    prune.add_argument("--json", action="store_true")
+    prune.set_defaults(func=_cmd_learning_prune)
 
     export = subparsers.add_parser("export", help="Export host plugin packages.")
     export.add_argument(

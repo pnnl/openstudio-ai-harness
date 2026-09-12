@@ -19,10 +19,12 @@ from uuid import uuid4
 
 from dotenv import load_dotenv
 
-# FastMCP is implemented in the ``fastmcp`` submodule.  Importing it from the
-# package root is not supported by every MCP SDK version allowed by our
-# dependency range.
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
+from mcp.server.subscriptions import (
+    InMemorySubscriptionBus,
+    ResourceUpdated,
+    SubscriptionBus,
+)
 
 from blackboard.operations import (
     apply_state_patch,
@@ -40,7 +42,7 @@ from openstudio_ai_mcp.runtime_config import (
 )
 from blackboard.snapshot import snapshot_workflow
 from openstudio_ai_mcp.runtime.artifact_store import ArtifactStore
-from openstudio_ai_mcp.runtime.job_manager import JobManager
+from openstudio_ai_mcp.runtime.job_manager import JobManager, JobRecord
 from openstudio_ai_mcp.runtime.learning_store import LearningStore
 from openstudio_ai_mcp.runtime.measure_registry import (
     MeasureRegistry,
@@ -151,15 +153,26 @@ class OpenStudioModelState:
 
 
 class OpenStudioService:
-    def __init__(self, workspace_root: str | Path, *, learning_db_path: str | Path | None = None):
+    def __init__(
+        self,
+        workspace_root: str | Path,
+        *,
+        learning_db_path: str | Path | None = None,
+        subscription_bus: SubscriptionBus | None = None,
+    ):
         self.workspace_root = Path(workspace_root).resolve()
         self.state_store = RuntimeStateStore(
             self.workspace_root / "openstudio_ai_runtime.sqlite"
         )
         self.artifacts = ArtifactStore(self.state_store)
         self.workspace_manager = WorkspaceManager(self.workspace_root)
+        self.subscription_bus = subscription_bus
+        self._event_loop: asyncio.AbstractEventLoop | None = None
         self.job_manager = JobManager(
-            self.workspace_manager, self.artifacts, self.state_store
+            self.workspace_manager,
+            self.artifacts,
+            self.state_store,
+            job_update_callback=self._on_job_updated,
         )
         self.measure_registry = MeasureRegistry(
             policy_path=BASE_DIR / "policy" / "measure_registry.yaml",
@@ -704,17 +717,47 @@ class OpenStudioService:
             self._sim_tasks.pop(job_id, None)
 
     def sim_status(self, args: SimStatusArgs) -> dict[str, Any]:
-        job = self.job_manager.get(args.job_id)
+        return self.job_status(args.job_id)
+
+    def job_status(self, job_id: str) -> dict[str, Any]:
+        job = self.job_manager.get(job_id)
         if not job:
-            raise KeyError(f"Unknown job_id: {args.job_id}")
-        self.state_store.touch_workspace(args.job_id)
+            raise KeyError(f"Unknown job_id: {job_id}")
+        self.state_store.touch_workspace(job_id)
         return success_payload(
+            job_id=job.job_id,
             state=job.state,
             progress=job.progress,
             warnings_count=job.warnings_count,
             severe_count=job.severe_count,
             error=job.error,
         )
+
+    @staticmethod
+    def job_status_uri(job_id: str) -> str:
+        return f"openstudio://jobs/{job_id}"
+
+    def _on_job_updated(self, job: JobRecord) -> None:
+        if self.subscription_bus is None:
+            return
+        uri = self.job_status_uri(job.job_id)
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = self._event_loop
+            if loop is None or loop.is_closed():
+                return
+            loop.call_soon_threadsafe(self._schedule_job_update, uri)
+            return
+        self._event_loop = loop
+        self._schedule_job_update(uri)
+
+    def _schedule_job_update(self, uri: str) -> None:
+        asyncio.create_task(self._publish_job_update(uri))
+
+    async def _publish_job_update(self, uri: str) -> None:
+        assert self.subscription_bus is not None
+        await self.subscription_bus.publish(ResourceUpdated(uri=uri))
 
     def sim_artifacts(self, args: SimArtifactsArgs) -> dict[str, Any]:
         job = self.job_manager.get(args.job_id)
@@ -1457,13 +1500,20 @@ def create_server(
     port: int = 10210,
     workspace_root: str | Path | None = None,
     learning_db_path: str | Path | None = None,
-) -> FastMCP:
+    service: OpenStudioService | None = None,
+    subscription_bus: SubscriptionBus | None = None,
+) -> MCPServer:
     workspace = Path(workspace_root or ".openstudio_ai_mcp_workspace")
-    service = OpenStudioService(
-        workspace_root=workspace,
-        learning_db_path=learning_db_path,
-    )
-    mcp = FastMCP("openstudio-ai-mcp", host=host, port=port)
+    bus = subscription_bus or InMemorySubscriptionBus()
+    if service is None:
+        service = OpenStudioService(
+            workspace_root=workspace,
+            learning_db_path=learning_db_path,
+            subscription_bus=bus,
+        )
+    elif service.subscription_bus is not bus:
+        raise ValueError("service and MCPServer must share a subscription bus")
+    mcp = MCPServer("openstudio-ai-mcp", subscriptions=bus)
 
     register_blackboard_tools(mcp, service)
     register_model_tools(mcp, service)
@@ -1490,7 +1540,10 @@ def serve(
             file=sys.stderr,
         )
     mcp = create_server(host=host, port=port, workspace_root=workspace_root)
-    mcp.run(transport=transport)
+    if transport == "stdio":
+        mcp.run(transport="stdio")
+    else:
+        mcp.run(transport=transport, host=host, port=port)
 
 
 def main() -> None:

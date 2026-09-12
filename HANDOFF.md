@@ -2,6 +2,21 @@
 
 ## Current Status
 
+- MCP Python SDK v2 migration (branch `update_mcp_2_0`) now uses
+  `mcp>=2,<3`, resolved to MCP 2.2.0 in both root and standalone locks.
+  The runtime now uses `MCPServer`; HTTP host/port settings are passed at
+  `run()` time, while stdio remains argument-free. MCP smoke tests were updated
+  for snake_case protocol fields and passed: 6 passed, 2 OpenStudio-gated
+  skipped. The standalone AUTOMA-AI suite is currently blocked before harness
+  import: unchanged `automa-ai` 0.8.1 / `google-adk` 2.8.0 resolve to an API
+  mismatch (`MCPToolset` is absent from `google.adk.tools.mcp_tool`).
+- Round 2 begins with live job status: `openstudio://jobs/{job_id}` returns
+  the canonical simulation status payload. Each persisted job transition
+  publishes a v2 `ResourceUpdated` event through the in-process subscription
+  bus, including transitions made by the OpenStudio CLI worker thread.
+  `sim_status` remains a diagnostic mirror for now. In-memory MCP `Client`
+  coverage verifies subscription delivery and resource reads; MCP plus
+  geometry/job-manager regressions passed: 25 passed, 2 skipped.
 - Renamed the PNNL runtime package directory from `openstudio_mcp/` to
   `openstudio_ai_mcp/`.
 - Added user-local MCP learning storage. “Opt-in” means evidence is persisted

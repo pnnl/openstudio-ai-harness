@@ -267,6 +267,45 @@ python -m venv /tmp/openstudio-ai-pypi
 
 ## Release Notes
 
+### 0.3.0 (Draft)
+
+`openstudio-ai` 0.3.0 adds a review-gated, user-local learning workflow for
+personal modeling assistance in both Codex and Claude Code.
+
+#### Added
+
+- Five MCP learning tools for capturing observations, creating and reviewing
+  candidates, listing candidates, and retrieving approved personal lessons.
+- `openstudio-ai learning` CLI commands to curate evidence, propose measure
+  candidates from repeated successful scripts, inspect candidates, and preview
+  or explicitly confirm pruning of stale unapproved candidates.
+- The `curate-learning` skill, which can run as a bounded background/subagent
+  task on hosts that support subagents without interrupting primary modeling.
+
+#### Changed
+
+- Renamed the PNNL runtime Python package from `openstudio_mcp` to
+  `openstudio_ai_mcp`. Integrations importing the former package must update
+  their imports; the runtime command remains `openstudio-ai-mcp`.
+- The MCP interface contract is now **4**. Marketplace plugins exported before
+  this release declare contract 3 and are reported as incompatible by
+  `openstudio-ai doctor` and `runtime_plugin_compatibility`. Re-export or
+  reinstall the plugin, then reconnect its MCP server.
+- Learning is explicit and local: evidence is stored only after a host invokes
+  a learning tool. Unreviewed candidates never change future assistant
+  behavior, and approving a candidate creates a personal lesson only; it does
+  not modify shared skills, knowledge, measures, or MCP tools.
+
+#### Upgrade notes
+
+- Update any Python integration from `openstudio_mcp` imports to
+  `openstudio_ai_mcp`.
+- Refresh Codex and Claude Code plugin exports, run `openstudio-ai doctor`, and
+  restart or reconnect the OpenStudio AI MCP server before using learning
+  workflows.
+- Before publishing, complete the full release checks below, including the
+  platform-specific OpenStudio simulation and TestPyPI validation.
+
 For every release, call out:
 
 - Package name and version.

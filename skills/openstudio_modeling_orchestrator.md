@@ -11,6 +11,11 @@ task-specific skill before acting; do not recreate its procedure from memory.
 
 ## Routing
 
+- For measured-bill calibration, load `calibration-mcp-orchestration` first.
+  It coordinates the separately configured optional LBNL `bem-calibration`
+  domain service (`lbnl_bem_calibration`, never an execution provider) with one
+  selected execution provider; it does not make Calibration-MCP a model editor
+  or merge its ledger with the PNNL blackboard.
 - If NLR is configured as `openstudio-mcp`, load `delegated-nlr-modeling` first. It
   performs preflight and selects NLR as the preferred exclusive provider for
   model, measure, simulation, and result work when compatible. It also owns

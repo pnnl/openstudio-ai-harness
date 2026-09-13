@@ -47,6 +47,87 @@ def command_status(command: str) -> dict[str, object]:
     return {"command": command, "available": path is not None, "path": path}
 
 
+def bem_calibration_mcp_status() -> dict[str, object]:
+    """Find a separately configured optional LBNL Calibration-MCP declaration."""
+    checked_paths = []
+    codex_config = Path.home() / ".codex" / "config.toml"
+    checked_paths.append(str(codex_config))
+    if tomllib is not None and codex_config.is_file():
+        try:
+            config = tomllib.loads(codex_config.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
+            config = {}
+        servers = config.get("mcp_servers") if isinstance(config, dict) else None
+        if isinstance(servers, dict) and "bem-calibration" in servers:
+            return {
+                "configured": True,
+                "name": "bem-calibration",
+                "domain_service": "lbnl_bem_calibration",
+                "source": str(codex_config),
+                "command": command_status("bem-calibration-mcp"),
+            }
+
+    for directory in (Path.cwd(), *Path.cwd().parents):
+        mcp_config = directory / ".mcp.json"
+        checked_paths.append(str(mcp_config))
+        if not mcp_config.is_file():
+            continue
+        try:
+            config = json.loads(mcp_config.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            continue
+        servers = config.get("mcpServers") if isinstance(config, dict) else None
+        if isinstance(servers, dict) and "bem-calibration" in servers:
+            return {
+                "configured": True,
+                "name": "bem-calibration",
+                "domain_service": "lbnl_bem_calibration",
+                "source": str(mcp_config),
+                "command": command_status("bem-calibration-mcp"),
+            }
+
+    return {
+        "configured": False,
+        "name": "bem-calibration",
+        "domain_service": "lbnl_bem_calibration",
+        "checked_paths": checked_paths,
+        "command": command_status("bem-calibration-mcp"),
+    }
+
+
+def bem_calibration_status() -> dict[str, object]:
+    """Report optional service configuration without blocking core readiness."""
+    mcp = bem_calibration_mcp_status()
+    command = mcp["command"]
+    if mcp["configured"]:
+        status = "configured"
+        message = (
+            "LBNL Calibration-MCP is separately configured. Verify its version and the exposed "
+            "tool inventory before starting calibration."
+        )
+    elif command["available"]:
+        status = "available_not_configured"
+        message = (
+            "LBNL Calibration-MCP is installed but not configured as the separate "
+            "bem-calibration host connection."
+        )
+    else:
+        status = "not_installed"
+        message = (
+            "LBNL Calibration-MCP is optional and not installed. It is distributed "
+            "separately; installing OpenStudio AI does not install it."
+        )
+    return {
+        "blocking": False,
+        "status": status,
+        "message": message,
+        "connector_name": "bem-calibration",
+        "domain_service": "lbnl_bem_calibration",
+        "command": command,
+        "mcp": mcp,
+    }
+
+
 def nlr_mcp_status() -> dict[str, object]:
     """Report whether the optional NLR MCP server is configured locally."""
     checked_paths = []
@@ -85,6 +166,7 @@ def main() -> int:
         },
         "openstudio_ai_mcp": command_status("openstudio-ai-mcp"),
         "openstudio_ai": command_status("openstudio-ai"),
+        "bem_calibration": bem_calibration_status(),
         "nlr_openstudio": nlr_mcp_status(),
     }
     print(json.dumps(report, indent=2))
@@ -140,6 +222,12 @@ def main() -> int:
 
     print("\\nOpenStudio AI is ready for energy modeling.")
     nlr = payload.get("optional_capabilities", {}).get("nlr_openstudio", {})
+    calibration = payload.get("optional_capabilities", {}).get("bem_calibration", {})
+    if calibration:
+        print(
+            "LBNL Calibration-MCP: "
+            f"{calibration.get('status', 'unknown')} — {calibration.get('message', '')}"
+        )
     if nlr:
         print(f"NLR OpenStudio-MCP: {nlr.get('status', 'unknown')} — {nlr.get('message', '')}")
     return 0

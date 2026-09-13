@@ -36,6 +36,16 @@ instructions remain intact.
 You do not need to understand Python packages or MCP servers. The setup workflow
 is designed to check these pieces for you.
 
+## Optional Calibration Service
+
+LBNL Calibration-MCP is optional, independently versioned prototype software.
+OpenStudio AI does not install it or add it to the generated plugin
+`.mcp.json`. If your deployment supplies it, configure the separate host
+connection as `bem-calibration` using LBNL's supported instructions, reconnect
+the AI tool, and ask it to verify the live service version and tools before a
+calibration request. Its absence does not affect OpenStudio AI core readiness
+or ordinary modeling workflows.
+
 ## Setup Flow
 
 After installing the plugin, run the OpenStudio AI setup workflow in your AI

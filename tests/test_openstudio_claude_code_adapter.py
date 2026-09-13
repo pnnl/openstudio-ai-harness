@@ -46,6 +46,7 @@ def test_claude_code_adapter_writes_mcp_config_and_instructions(tmp_path: Path) 
 
     assert result.dry_run is False
     mcp_config = json.loads((tmp_path / ".mcp.json").read_text(encoding="utf-8"))
+    assert set(mcp_config["mcpServers"]) == {"openstudio_ai"}
     server = mcp_config["mcpServers"]["openstudio_ai"]
     assert server["args"][:3] == ["-m", "openstudio_ai_mcp.server", "--transport"]
     assert server["args"][3] == "stdio"
@@ -59,13 +60,20 @@ def test_claude_code_adapter_writes_mcp_config_and_instructions(tmp_path: Path) 
 
 
 def test_claude_code_adapter_preserves_other_mcp_servers(tmp_path: Path) -> None:
-    existing = {"mcpServers": {"other": {"command": "node", "args": ["server.js"]}}}
+    calibration = {"command": "bem-calibration-mcp", "args": []}
+    existing = {
+        "mcpServers": {
+            "bem-calibration": calibration,
+            "other": {"command": "node", "args": ["server.js"]},
+        }
+    }
     (tmp_path / ".mcp.json").write_text(json.dumps(existing), encoding="utf-8")
 
     _adapter().install(tmp_path, dry_run=False)
 
     mcp_config = json.loads((tmp_path / ".mcp.json").read_text(encoding="utf-8"))
     assert "other" in mcp_config["mcpServers"]
+    assert mcp_config["mcpServers"]["bem-calibration"] == calibration
     assert "openstudio_ai" in mcp_config["mcpServers"]
 
 
@@ -123,6 +131,18 @@ def test_claude_code_adapter_exports_plugin_package(tmp_path: Path) -> None:
     assert delegated_nlr_skill.exists()
     assert "NLR Skill Guidance" in delegated_nlr_skill.read_text(encoding="utf-8")
     assert "NLR Mount-Access Recovery" in delegated_nlr_skill.read_text(encoding="utf-8")
+    calibration_skill = (
+        plugin_dir / "skills" / "calibration-mcp-orchestration" / "SKILL.md"
+    )
+    assert calibration_skill.exists()
+    assert "lbnl_bem_calibration" in calibration_skill.read_text(encoding="utf-8")
+    assert (
+        plugin_dir
+        / "skills"
+        / "calibration-mcp-orchestration"
+        / "references"
+        / "CALIBRATION_MCP_INTEGRATION.md"
+    ).exists()
     assert not (
         plugin_dir / "skills" / "HVAC-CHILD-SKILL-MANAGEMENT" / "SKILL.md"
     ).exists()
@@ -225,7 +245,10 @@ def test_claude_code_adapter_exports_plugin_package(tmp_path: Path) -> None:
     assert "activating it as the main Claude Code thread" in readme
     assert "does not automatically read arbitrary plugin instruction files" in readme
     mcp_json = json.loads((plugin_dir / ".mcp.json").read_text(encoding="utf-8"))
-    assert "openstudio_ai" in mcp_json["mcpServers"]
+    assert set(mcp_json["mcpServers"]) == {"openstudio_ai"}
+    connectors = (plugin_dir / "CONNECTORS.md").read_text(encoding="utf-8")
+    assert "bem-calibration" in connectors
+    assert "not merged" in connectors
     marketplace_json = json.loads(
         (tmp_path / ".claude-plugin" / "marketplace.json").read_text(encoding="utf-8")
     )
@@ -241,6 +264,7 @@ def test_claude_code_adapter_installed_mode_uses_runtime_command(
     mcp_json = json.loads(
         (tmp_path / "openstudio-ai" / ".mcp.json").read_text(encoding="utf-8")
     )
+    assert set(mcp_json["mcpServers"]) == {"openstudio_ai"}
     server = mcp_json["mcpServers"]["openstudio_ai"]
     assert server["command"] == "openstudio-ai-mcp"
     assert server["args"] == ["--transport", "stdio"]
@@ -257,6 +281,7 @@ def test_claude_code_adapter_marketplace_mode_exports_runtime_setup(
 
     plugin_dir = tmp_path / "openstudio-ai"
     mcp_json = json.loads((plugin_dir / ".mcp.json").read_text(encoding="utf-8"))
+    assert set(mcp_json["mcpServers"]) == {"openstudio_ai"}
     server = mcp_json["mcpServers"]["openstudio_ai"]
     assert server == {
         "command": "openstudio-ai-mcp",
@@ -286,6 +311,8 @@ def test_claude_code_adapter_marketplace_mode_exports_runtime_setup(
     assert "/reload-plugins" in setup
     assert "plugin_ready: false" in setup
     assert "new tool cannot appear in the current session" in setup
+    assert "bem-calibration" in setup
+    assert "not part of this plugin's `.mcp.json`" in setup
     repair = (plugin_dir / "skills" / "repair-openstudio-ai" / "SKILL.md").read_text(
         encoding="utf-8"
     )

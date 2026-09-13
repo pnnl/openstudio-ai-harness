@@ -120,6 +120,18 @@ def test_codex_adapter_exports_plugin_package(tmp_path: Path) -> None:
     assert delegated_nlr_skill.exists()
     assert "SDK Fallback Boundary" in delegated_nlr_skill.read_text(encoding="utf-8")
     assert "NLR Mount-Access Recovery" in delegated_nlr_skill.read_text(encoding="utf-8")
+    calibration_skill = (
+        plugin_dir / "skills" / "calibration-mcp-orchestration" / "SKILL.md"
+    )
+    assert calibration_skill.exists()
+    assert "lbnl_bem_calibration" in calibration_skill.read_text(encoding="utf-8")
+    assert (
+        plugin_dir
+        / "skills"
+        / "calibration-mcp-orchestration"
+        / "references"
+        / "CALIBRATION_MCP_INTEGRATION.md"
+    ).exists()
     assert (plugin_dir / "skills" / "add-vav-reheat" / "SKILL.md").exists()
     assert (plugin_dir / "skills" / "propose-measure" / "SKILL.md").exists()
     assert (plugin_dir / "skills" / "view-openstudio-geometry" / "SKILL.md").exists()
@@ -259,6 +271,11 @@ def test_codex_adapter_exports_plugin_package(tmp_path: Path) -> None:
     assert "$setup-openstudio-ai" in install_doc
     assert "/setup-openstudio-ai` is not a Codex CLI skill command" in install_doc
     assert "openstudio-ai-codex-export install" not in install_doc
+    mcp_json = json.loads((plugin_dir / ".mcp.json").read_text(encoding="utf-8"))
+    assert set(mcp_json["mcpServers"]) == {"openstudio_ai"}
+    connectors = (plugin_dir / "CONNECTORS.md").read_text(encoding="utf-8")
+    assert "bem-calibration" in connectors
+    assert "not merged" in connectors
 
 
 def test_codex_adapter_exports_valid_manifest_and_marketplace(tmp_path: Path) -> None:
@@ -295,6 +312,7 @@ def test_codex_adapter_exports_mcp_config(tmp_path: Path) -> None:
             encoding="utf-8"
         )
     )
+    assert set(mcp_json["mcpServers"]) == {"openstudio_ai"}
     server = mcp_json["mcpServers"]["openstudio_ai"]
     assert server["args"][:3] == ["-m", "openstudio_ai_mcp.server", "--transport"]
     assert server["args"][3] == "stdio"
@@ -309,6 +327,7 @@ def test_codex_adapter_installed_mode_uses_runtime_command(tmp_path: Path) -> No
             encoding="utf-8"
         )
     )
+    assert set(mcp_json["mcpServers"]) == {"openstudio_ai"}
     server = mcp_json["mcpServers"]["openstudio_ai"]
     assert server["command"] == "openstudio-ai-mcp"
     assert server["args"] == ["--transport", "stdio"]
@@ -323,6 +342,7 @@ def test_codex_adapter_marketplace_mode_exports_runtime_setup(tmp_path: Path) ->
 
     plugin_dir = tmp_path / "plugins" / "openstudio-ai"
     mcp_json = json.loads((plugin_dir / ".mcp.json").read_text(encoding="utf-8"))
+    assert set(mcp_json["mcpServers"]) == {"openstudio_ai"}
     server = mcp_json["mcpServers"]["openstudio_ai"]
     assert server == {
         "command": "openstudio-ai-mcp",
@@ -354,6 +374,8 @@ def test_codex_adapter_marketplace_mode_exports_runtime_setup(tmp_path: Path) ->
     assert "restart Codex" in setup
     assert "plugin_ready: false" in setup
     assert "new tool cannot appear in the current session" in setup
+    assert "bem-calibration" in setup
+    assert "not part of this plugin's `.mcp.json`" in setup
     repair = (plugin_dir / "skills" / "repair-openstudio-ai" / "SKILL.md").read_text(
         encoding="utf-8"
     )

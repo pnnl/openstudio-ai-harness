@@ -644,6 +644,17 @@ Focused checks for common edits:
 Use `OPENSTUDIO_PATH=/path/to/openstudio` to test a specific OpenStudio CLI
 installation; otherwise ensure `openstudio` is on `PATH`.
 
+LBNL Calibration-MCP is an optional external domain service, not a harness
+dependency. Do not add `bem-calibration` to generated plugin `.mcp.json`
+files: the current adapters do not isolate an unavailable stdio server from
+plugin startup. Instead, configure it separately in the user/deployment host
+configuration, then use doctor only to detect configuration and command
+availability. Its missing prototype runtime must not change `core_ready`.
+When testing calibration routing, verify live service identity/version and
+tool inventory, and record `lbnl_bem_calibration` as a blackboard domain
+service—not as an execution provider. See
+`docs/CALIBRATION_MCP_INTEGRATION.md`.
+
 ## Claude Code Plugin Testing
 
 Use `--runtime-mode local` when testing from a source checkout. Local mode writes
@@ -906,6 +917,8 @@ installed before claiming simulation readiness.
 - Expecting blackboard schema files to create SQLite state without MCP tool
   calls.
 - Shipping local paths such as `/Users/...` in marketplace exports.
+- Treating an optional external MCP server as a bundled plugin dependency or
+  registering its filesystem skill as a PNNL asset.
 - Including sample models, weather files, runtime workspaces, logs, or outputs in
   release payloads.
 

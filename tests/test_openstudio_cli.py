@@ -46,6 +46,16 @@ def test_cli_doctor_json_reports_mcp_readiness(
 
     monkeypatch.setattr(cli, "_command_available", fake_command_available)
     monkeypatch.setattr(cli, "_run_probe", fake_run_probe)
+    monkeypatch.setattr(
+        cli,
+        "_bem_calibration_mcp_status",
+        lambda: {
+            "configured": False,
+            "name": "bem-calibration",
+            "domain_service": "lbnl_bem_calibration",
+            "command": fake_command_available("bem-calibration-mcp"),
+        },
+    )
 
     exit_code = main(["doctor", "--json"])
 
@@ -72,6 +82,11 @@ def test_cli_doctor_json_reports_mcp_readiness(
         payload["sdk_docs"]["document_probe"]["documented_openstudio_version"]
         == "3.10.0"
     )
+    calibration = payload["optional_capabilities"]["bem_calibration"]
+    assert calibration["blocking"] is False
+    assert calibration["status"] == "available_not_configured"
+    assert calibration["connector_name"] == "bem-calibration"
+    assert calibration["domain_service"] == "lbnl_bem_calibration"
     assert "openstudio" in payload
 
 
@@ -262,6 +277,7 @@ def test_cli_doctor_text_output_reports_checks(
     assert "- runtime storage: ok" in output
     assert "- python openstudio sdk: ok" in output
     assert "- sdk docs lookup: ok" in output
+    assert "LBNL Calibration-MCP:" in output
 
 
 def test_cli_doctor_falls_back_from_invalid_sdk_docs_override(
@@ -457,6 +473,33 @@ def test_optional_nlr_capability_does_not_block_core_readiness(monkeypatch) -> N
     assert "Docker is not installed" in capability["message"]
 
 
+def test_optional_bem_calibration_capability_does_not_block_core_readiness(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        cli,
+        "_bem_calibration_mcp_status",
+        lambda: {
+            "configured": False,
+            "name": "bem-calibration",
+            "domain_service": "lbnl_bem_calibration",
+            "command": {
+                "command": "bem-calibration-mcp",
+                "available": False,
+                "path": None,
+            },
+        },
+    )
+
+    capability = cli._optional_capabilities()["bem_calibration"]
+
+    assert capability["blocking"] is False
+    assert capability["status"] == "not_installed"
+    assert capability["connector_name"] == "bem-calibration"
+    assert capability["domain_service"] == "lbnl_bem_calibration"
+    assert "does not install it" in capability["message"]
+
+
 def test_configured_nlr_reports_missing_docker_without_claiming_it_is_stopped(
     monkeypatch,
 ) -> None:
@@ -507,6 +550,29 @@ def test_nlr_status_skips_project_scan_when_working_directory_is_unavailable(
     status = cli._nlr_mcp_status()
 
     assert status["configured"] is False
+
+
+def test_bem_calibration_status_skips_project_scan_when_working_directory_is_unavailable(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(cli.Path, "home", staticmethod(lambda: tmp_path))
+    monkeypatch.setattr(
+        cli.Path,
+        "cwd",
+        staticmethod(lambda: (_ for _ in ()).throw(OSError("directory removed"))),
+    )
+    monkeypatch.setattr(
+        cli,
+        "_command_available",
+        lambda command: {"command": command, "available": False, "path": None},
+    )
+
+    status = cli._bem_calibration_mcp_status()
+
+    assert status["configured"] is False
+    assert status["name"] == "bem-calibration"
+    assert status["domain_service"] == "lbnl_bem_calibration"
+    assert status["command"]["command"] == "bem-calibration-mcp"
 
 
 def test_cli_export_claude_marketplace(tmp_path: Path) -> None:
@@ -613,6 +679,39 @@ def test_cli_validate_export(tmp_path: Path) -> None:
 
     plugin_dir = tmp_path / "plugins" / "openstudio-ai"
     assert main(["validate-export", str(plugin_dir)]) == 0
+
+
+def test_cli_validate_export_rejects_optional_service_in_generated_config(
+    tmp_path: Path,
+) -> None:
+    assert (
+        main(
+            [
+                "export",
+                "codex",
+                "--output-dir",
+                str(tmp_path),
+                "--workspace-root",
+                str(Path(".").resolve()),
+                "--runtime-mode",
+                "marketplace",
+            ]
+        )
+        == 0
+    )
+
+    plugin_dir = tmp_path / "plugins" / "openstudio-ai"
+    mcp_path = plugin_dir / ".mcp.json"
+    mcp_config = json.loads(mcp_path.read_text(encoding="utf-8"))
+    mcp_config["mcpServers"]["bem-calibration"] = {
+        "command": "bem-calibration-mcp",
+        "args": [],
+    }
+    mcp_path.write_text(json.dumps(mcp_config), encoding="utf-8")
+
+    assert (
+        main(["validate-export", str(plugin_dir), "--runtime-mode", "marketplace"]) == 1
+    )
 
 
 def test_cli_validate_export_rejects_missing_marketplace_setup(tmp_path: Path) -> None:

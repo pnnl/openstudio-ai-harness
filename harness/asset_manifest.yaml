@@ -2,6 +2,9 @@ $schema: asset_manifest.schema.json
 version: 3
 
 skills:
+  - id: calibration-mcp-orchestration
+    source: skills/calibration_mcp_orchestration.md
+    hosts: [claude, codex]
   - id: delegated-nlr-modeling
     source: skills/delegated_nlr_modeling.md
     hosts: [claude, codex]
@@ -75,6 +78,10 @@ agents:
     hosts: [claude]
 
 references:
+  - source: docs/CALIBRATION_MCP_INTEGRATION.md
+    owners:
+      - hosts: [claude, codex]
+        skill: calibration-mcp-orchestration
   - source: prompts/blackboard_contract.md
     owners:
       - hosts: [claude, codex]

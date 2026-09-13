@@ -31,6 +31,9 @@ def test_rendered_runtime_helpers_are_executable_python(tmp_path: Path) -> None:
     assert PLUGIN_CONTRACT_VERSION in doctor
     assert "def nlr_mcp_status" in doctor
     assert '"nlr_openstudio": nlr_mcp_status()' in doctor
+    assert "def bem_calibration_mcp_status" in doctor
+    assert '"bem_calibration": bem_calibration_status()' in doctor
+    assert "lbnl_bem_calibration" in doctor
     assert "optional_capabilities" in doctor
     assert '"--plugin-contract-version"' in doctor
     assert "return doctor.returncode or 1" in doctor
@@ -117,5 +120,65 @@ def test_nlr_discovery_names(
     assert status["configured"] is (expected is not None)
     if expected is not None:
         assert status["name"] == expected
+        assert status["source"] == str(config_path)
+    assert "ready" not in status
+
+
+@pytest.mark.parametrize("implementation", ["cli", "exported"])
+@pytest.mark.parametrize("host", ["codex", "claude", "claude_parent"])
+@pytest.mark.parametrize(
+    "names, expected",
+    [
+        (["bem-calibration"], "bem-calibration"),
+        (["lbnl_bem_calibration"], None),
+        (["lbnl_bem_calibration", "bem-calibration"], "bem-calibration"),
+        (["other"], None),
+        ([], None),
+    ],
+)
+def test_bem_calibration_discovery_names(
+    monkeypatch, tmp_path: Path, implementation, host, names, expected
+) -> None:
+    monkeypatch.setattr(Path, "home", staticmethod(lambda: tmp_path))
+    project = tmp_path / "project"
+    project.mkdir()
+    monkeypatch.chdir(project)
+    if host == "codex":
+        config_path = tmp_path / ".codex" / "config.toml"
+        config_path.parent.mkdir()
+        config_path.write_text(
+            "\n".join(
+                f'[mcp_servers."{name}"]\ncommand = "bem-calibration-mcp"'
+                for name in names
+            ),
+            encoding="utf-8",
+        )
+    else:
+        config_path = (tmp_path if host == "claude_parent" else project) / ".mcp.json"
+        config_path.write_text(
+            json.dumps(
+                {
+                    "mcpServers": {
+                        name: {"command": "bem-calibration-mcp"} for name in names
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+    if implementation == "cli":
+        status = cli._bem_calibration_mcp_status()
+    else:
+        namespace = {"__name__": "test_doctor"}
+        exec(
+            compile(render_doctor_runtime_script(), "doctor_runtime.py", "exec"),
+            namespace,
+        )
+        monkeypatch.setitem(namespace, "tomllib", cli.tomllib)
+        status = namespace["bem_calibration_mcp_status"]()
+
+    assert status["configured"] is (expected is not None)
+    assert status["name"] == "bem-calibration"
+    assert status["domain_service"] == "lbnl_bem_calibration"
+    if expected is not None:
         assert status["source"] == str(config_path)
     assert "ready" not in status

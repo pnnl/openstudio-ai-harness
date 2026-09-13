@@ -523,12 +523,18 @@ def _render_connectors_doc(workspace_root: Path, runtime_mode: str) -> str:
         )
     return (
         "# OpenStudio AI Connectors\n\n"
-        "This plugin uses one local MCP server.\n\n"
+        "This plugin configures one local MCP server. Optional external services are "
+        "configured separately so a missing prototype runtime cannot break the plugin.\n\n"
         "| Connector | Type | Purpose |\n"
         "| --- | --- | --- |\n"
         "| `openstudio_ai` | local stdio MCP | OpenStudio model lifecycle, simulation, "
-        "results, approved measures, and SDK documentation lookup |\n\n"
+        "results, approved measures, and SDK documentation lookup |\n"
+        "| `bem-calibration` | separately configured stdio MCP | optional LBNL calibration "
+        "domain service; its tools are not merged into `openstudio_ai` |\n\n"
         f"{runtime_text}"
+        "LBNL Calibration-MCP is separately distributed prototype software. Install it "
+        "only through its supported path, configure `bem-calibration` outside this plugin, "
+        "and reconnect Codex before using calibration.\n"
     )
 
 
@@ -564,6 +570,12 @@ def _marketplace_setup_skill_docs() -> dict[str, str]:
                 "https://pnnl.github.io/openstudio-ai-plugins/#quick-start. Explain that "
                 "Docker Desktop must be installed and running, then the user follows that "
                 "page to configure the MCP server as `openstudio-mcp` and restarts Codex.\n"
+                "Also review the optional `bem_calibration` capability. LBNL Calibration-MCP "
+                "is separately installed and configured as `bem-calibration`; it is not part "
+                "of this plugin's `.mcp.json`, does not affect core readiness, and must not be "
+                "installed or pointed at a local checkout automatically. If a user needs "
+                "calibration, direct them to its supported distribution and configuration, then "
+                "restart Codex and verify the live service version/tool inventory.\n"
                 "7. If the runtime is missing or the doctor reports `plugin_ready: false`, "
                 "explain in normal energy-modeler language that the installed plugin needs "
                 "a newer runtime interface and ask before running "

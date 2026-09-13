@@ -65,11 +65,24 @@ openstudio-ai configure-openstudio --path /path/to/openstudio
 `openstudio-ai doctor` reports **core plugin readiness** only when the Python
 runtime, MCP command, native OpenStudio executable, and plugin compatibility
 are ready for energy modeling. Optional integrations such as NLR OpenStudio-MCP
-are reported separately and do not block core readiness. NLR discovery accepts
-`openstudio-mcp` in Codex or Claude project configuration. Detection means
-configured; verify NLR status/version through
-the connected server before modeling. PNNL’s foundational MCP advertises
-`openstudio-ai-mcp` and uses the host connection name `openstudio_ai`.
+and LBNL Calibration-MCP are reported separately and do not block core
+readiness. NLR discovery accepts `openstudio-mcp`; Calibration-MCP discovery
+accepts separately configured `bem-calibration` in Codex or Claude project
+configuration. Detection means configured; verify the connected service's
+actual version and capabilities before modeling or calibration. PNNL’s
+foundational MCP advertises `openstudio-ai-mcp` and uses the host connection
+name `openstudio_ai`.
+
+Calibration-MCP is an independently versioned LBNL prototype domain service,
+not an OpenStudio AI package dependency. It owns calibration arithmetic,
+ledger, state, and reports; OpenStudio AI retains workflow, blackboard, and
+provenance ownership. Generated plugin `.mcp.json` files intentionally include
+only `openstudio_ai`; configure Calibration-MCP separately as
+`bem-calibration` when it is available. This plugin does not install, package,
+or export the former standalone LBNL calibration skill/runtime. The routing
+workflow discovers the authoritative `pattern-based-calibration` methodology
+from the connected Calibration-MCP service through its advertised
+Skill-over-MCP methods and resources.
 
 The base package is the recommended install for Claude Code, Codex, and other
 marketplace-style host integrations. It intentionally does not install
@@ -158,7 +171,9 @@ with this checkout's skill files; `--workspace-root` selects assets, not the
 installed exporter code. Both exports configure PNNL as `openstudio_ai` launching
 `openstudio-ai-mcp`; NLR setup uses `openstudio-mcp`. PNNL workflow records use
 `nlr_openstudio` as their stable provider identifier, separate from the host
-connection name.
+connection name. Calibration setup is separate: host connection
+`bem-calibration`, blackboard domain-service identifier `lbnl_bem_calibration`,
+and no Calibration-MCP execution-provider identifier.
 
 After installing the Codex marketplace plugin, add the shared OpenStudio
 modeler policy to each Codex project that should route plain-language
@@ -181,6 +196,7 @@ is appended.
 - [Runtime Installation Contract](docs/RUNTIME_INSTALLATION_CONTRACT.md)
 - [Marketplace Install Guide](docs/MARKETPLACE_INSTALL_GUIDE.md)
 - [NLR OpenStudio-MCP in Claude Desktop](docs/CLAUDE_DESKTOP_NLR_OPENSTUDIO_MCP.md)
+- [LBNL Calibration-MCP Integration Contract](docs/CALIBRATION_MCP_INTEGRATION.md)
 - [PyPI Release Guide](docs/RELEASE.md)
 - [Developer Guidance](docs/DEVELOPER_GUIDANCE.md)
 

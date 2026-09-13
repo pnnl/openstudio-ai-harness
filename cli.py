@@ -12,6 +12,11 @@ from pathlib import Path
 from typing import Any
 
 from adapters.claude_code_adapter import ClaudeCodeAdapter
+from adapters.calibration_connector import (
+    BEM_CALIBRATION_COMMAND,
+    BEM_CALIBRATION_CONNECTION_NAME,
+    BEM_CALIBRATION_DOMAIN_SERVICE,
+)
 from adapters.codex_adapter import CodexAdapter
 from adapters.contracts import RUNTIME_MODES, HostAdapterConfig
 from openstudio_ai_mcp.runtime_config import (
@@ -179,6 +184,104 @@ def _nlr_mcp_status() -> dict[str, Any]:
     return {"configured": False, "checked_paths": checked_paths}
 
 
+def _bem_calibration_mcp_status() -> dict[str, Any]:
+    """Report the separately installed LBNL calibration-domain service.
+
+    The service is a host-level optional connector, not part of the OpenStudio
+    AI wheel or its core MCP process.  Do not probe it by launching the stdio
+    server from doctor.
+    """
+    checked_paths: list[str] = []
+    codex_config = Path.home() / ".codex" / "config.toml"
+    checked_paths.append(str(codex_config))
+    if codex_config.is_file():
+        try:
+            config = tomllib.loads(codex_config.read_text(encoding="utf-8"))
+            servers = config.get("mcp_servers")
+            if isinstance(servers, dict) and BEM_CALIBRATION_CONNECTION_NAME in servers:
+                return {
+                    "configured": True,
+                    "name": BEM_CALIBRATION_CONNECTION_NAME,
+                    "domain_service": BEM_CALIBRATION_DOMAIN_SERVICE,
+                    "source": str(codex_config),
+                    "checked_paths": checked_paths,
+                    "command": _command_available(BEM_CALIBRATION_COMMAND),
+                }
+        except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
+            pass
+
+    try:
+        current_directory = Path.cwd()
+    except OSError:
+        return {
+            "configured": False,
+            "name": BEM_CALIBRATION_CONNECTION_NAME,
+            "domain_service": BEM_CALIBRATION_DOMAIN_SERVICE,
+            "checked_paths": checked_paths,
+            "command": _command_available(BEM_CALIBRATION_COMMAND),
+        }
+    for directory in (current_directory, *current_directory.parents):
+        mcp_config = directory / ".mcp.json"
+        checked_paths.append(str(mcp_config))
+        if not mcp_config.is_file():
+            continue
+        try:
+            config = json.loads(mcp_config.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            continue
+        servers = config.get("mcpServers") if isinstance(config, dict) else None
+        if isinstance(servers, dict) and BEM_CALIBRATION_CONNECTION_NAME in servers:
+            return {
+                "configured": True,
+                "name": BEM_CALIBRATION_CONNECTION_NAME,
+                "domain_service": BEM_CALIBRATION_DOMAIN_SERVICE,
+                "source": str(mcp_config),
+                "checked_paths": checked_paths,
+                "command": _command_available(BEM_CALIBRATION_COMMAND),
+            }
+    return {
+        "configured": False,
+        "name": BEM_CALIBRATION_CONNECTION_NAME,
+        "domain_service": BEM_CALIBRATION_DOMAIN_SERVICE,
+        "checked_paths": checked_paths,
+        "command": _command_available(BEM_CALIBRATION_COMMAND),
+    }
+
+
+def _bem_calibration_status() -> dict[str, Any]:
+    """Report separate host configuration and optional command availability."""
+    mcp = _bem_calibration_mcp_status()
+    command = mcp["command"]
+    if mcp["configured"]:
+        status = "configured"
+        message = (
+            "LBNL Calibration-MCP is separately configured; verify its version and "
+            "tool capabilities in the MCP session before calibration."
+        )
+    elif command["available"]:
+        status = "available_not_configured"
+        message = (
+            "LBNL Calibration-MCP is installed but not configured as the separate "
+            "bem-calibration host connection."
+        )
+    else:
+        status = "not_installed"
+        message = (
+            "LBNL Calibration-MCP is optional and its bem-calibration-mcp command "
+            "is not available. Install it through its own supported distribution; "
+            "installing OpenStudio AI does not install it."
+        )
+    return {
+        "blocking": False,
+        "status": status,
+        "message": message,
+        "connector_name": BEM_CALIBRATION_CONNECTION_NAME,
+        "domain_service": BEM_CALIBRATION_DOMAIN_SERVICE,
+        "command": command,
+        "mcp": mcp,
+    }
+
+
 def _optional_capabilities() -> dict[str, Any]:
     """Report optional integrations without making them core setup blockers."""
     docker = _docker_status()
@@ -204,13 +307,14 @@ def _optional_capabilities() -> dict[str, Any]:
         status = "not_configured"
         message = "NLR OpenStudio-MCP is optional and has not been configured."
     return {
+        "bem_calibration": _bem_calibration_status(),
         "nlr_openstudio": {
             "blocking": False,
             "status": status,
             "message": message,
             "docker": docker,
             "mcp": nlr,
-        }
+        },
     }
 
 
@@ -740,8 +844,15 @@ def _print_json_or_text(payload: dict[str, Any], *, as_json: bool) -> None:
         if asset_message:
             print(f"Runtime assets: {asset_message}")
     nlr = payload.get("optional_capabilities", {}).get("nlr_openstudio")
-    if nlr:
+    calibration = payload.get("optional_capabilities", {}).get("bem_calibration")
+    if nlr or calibration:
         print("\nOptional capabilities:")
+    if calibration:
+        print(
+            "- LBNL Calibration-MCP: "
+            f"{calibration['status']} — {calibration['message']}"
+        )
+    if nlr:
         print(f"- NLR OpenStudio-MCP: {nlr['status']} — {nlr['message']}")
 
 
@@ -1159,7 +1270,15 @@ def _cmd_validate_export(args: argparse.Namespace) -> int:
         return 1
 
     mcp_config = json.loads((plugin_dir / ".mcp.json").read_text(encoding="utf-8"))
-    server = mcp_config.get("mcpServers", {}).get("openstudio_ai")
+    mcp_servers = mcp_config.get("mcpServers")
+    if not isinstance(mcp_servers, dict) or set(mcp_servers) != {"openstudio_ai"}:
+        print(
+            "Generated OpenStudio AI plugin .mcp.json must configure only openstudio_ai; "
+            "optional external services are separately user-configured.",
+            file=sys.stderr,
+        )
+        return 1
+    server = mcp_servers["openstudio_ai"]
     if not isinstance(server, dict):
         print(
             "Export .mcp.json does not define mcpServers.openstudio_ai", file=sys.stderr

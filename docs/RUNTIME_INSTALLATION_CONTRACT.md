@@ -90,7 +90,10 @@ check fails, including a contract mismatch or a missing/unusable native
 OpenStudio CLI. The helper returns `2` when its prerequisite commands are
 missing or its doctor response cannot be parsed. Setup automation must treat a
 nonzero exit code as not ready for energy modeling; optional MCP capabilities
-such as NLR do not affect this result.
+such as NLR and separately configured LBNL Calibration-MCP do not affect this
+result. The OpenStudio AI package does not install or bundle
+`bem-calibration-mcp`; its prototype runtime is configured independently as
+the `bem-calibration` host connection.
 
 `openstudio-ai validate-export` validates the structure and presence of
 compatibility metadata for any export by default. Use

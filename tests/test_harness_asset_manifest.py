@@ -48,6 +48,11 @@ def test_asset_manifest_routes_references_by_owning_skill(tmp_path: Path) -> Non
 
     assert sdk_geometry in by_target
     assert by_target[sdk_geometry].skill == "openstudio-sdk-model-editor"
+    calibration_contract = Path(
+        "skills/calibration-mcp-orchestration/references/CALIBRATION_MCP_INTEGRATION.md"
+    )
+    assert calibration_contract in by_target
+    assert by_target[calibration_contract].skill == "calibration-mcp-orchestration"
     assert not any(target.name == "openstudio_agent.md" for target in by_target)
 
 

@@ -32,7 +32,10 @@ from blackboard.operations import (
     record_assumption,
     record_failure,
 )
-from openstudio_ai_mcp.compatibility import evaluate_plugin_compatibility
+from openstudio_ai_mcp.compatibility import (
+    evaluate_plugin_compatibility,
+    package_version,
+)
 from openstudio_ai_mcp.runtime_config import (
     openstudio_version_from_output,
     resolve_openstudio_executable_with_source,
@@ -1464,6 +1467,12 @@ def create_server(
         learning_db_path=learning_db_path,
     )
     mcp = FastMCP("openstudio-ai-mcp", host=host, port=port)
+    # FastMCP does not forward a version, so hosts would otherwise see the MCP
+    # SDK version in ``serverInfo.version``. Workflow provenance records the
+    # session identity, so advertise the OpenStudio AI package version instead.
+    low_level_server = getattr(mcp, "_mcp_server", None)
+    if low_level_server is not None and getattr(low_level_server, "version", None) is None:
+        low_level_server.version = package_version()
 
     register_blackboard_tools(mcp, service)
     register_model_tools(mcp, service)

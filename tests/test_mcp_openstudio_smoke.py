@@ -12,6 +12,8 @@ from dotenv import dotenv_values
 from mcp import ClientSession
 from mcp.client.sse import sse_client
 
+from openstudio_ai_mcp.compatibility import package_version
+
 import openstudio_ai_mcp.server as mcp_server
 from openstudio_ai_mcp.server import (
     OpenStudioModelState,
@@ -67,6 +69,9 @@ async def test_openstudio_ai_mcp_smoke_list_and_call_model_load() -> None:
         async with ClientSession(read_stream, write_stream) as session:
             initialization = await session.initialize()
             assert initialization.serverInfo.name == "openstudio-ai-mcp"
+            # Hosts record the session identity for provenance; advertise the
+            # package version rather than the MCP SDK's.
+            assert initialization.serverInfo.version == package_version()
             tools = await session.list_tools()
             names = {tool.name for tool in tools.tools}
             assert "model_load" in names

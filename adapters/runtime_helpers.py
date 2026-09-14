@@ -47,27 +47,52 @@ def command_status(command: str) -> dict[str, object]:
     return {"command": command, "available": path is not None, "path": path}
 
 
-def bem_calibration_mcp_status() -> dict[str, object]:
-    """Find a separately configured optional LBNL Calibration-MCP declaration."""
-    checked_paths = []
+def _declared_in_codex_config(name: str, checked_paths: list[str]) -> dict[str, object] | None:
+    """Return a Codex ``[mcp_servers.<name>]`` declaration, honoring ``enabled``."""
     codex_config = Path.home() / ".codex" / "config.toml"
     checked_paths.append(str(codex_config))
-    if tomllib is not None and codex_config.is_file():
-        try:
-            config = tomllib.loads(codex_config.read_text(encoding="utf-8"))
-        except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
-            config = {}
-        servers = config.get("mcp_servers") if isinstance(config, dict) else None
-        if isinstance(servers, dict) and "bem-calibration" in servers:
-            return {
-                "configured": True,
-                "name": "bem-calibration",
-                "domain_service": "lbnl_bem_calibration",
-                "source": str(codex_config),
-                "command": command_status("bem-calibration-mcp"),
-            }
+    if tomllib is None or not codex_config.is_file():
+        return None
+    try:
+        config = tomllib.loads(codex_config.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
+        return None
+    servers = config.get("mcp_servers") if isinstance(config, dict) else None
+    if not isinstance(servers, dict) or name not in servers:
+        return None
+    entry = servers[name] if isinstance(servers[name], dict) else {}
+    # ``enabled = false`` keeps the declaration but the host will not launch it.
+    return {"source": str(codex_config), "host": "codex", "enabled": entry.get("enabled", True) is not False}
 
-    for directory in (Path.cwd(), *Path.cwd().parents):
+
+def _declared_in_claude_user_config(name: str, checked_paths: list[str], directories: list[Path]) -> dict[str, object] | None:
+    """Return a ``claude mcp add`` declaration from ``~/.claude.json`` (user or local scope)."""
+    claude_config = Path.home() / ".claude.json"
+    checked_paths.append(str(claude_config))
+    if not claude_config.is_file():
+        return None
+    try:
+        config = json.loads(claude_config.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    if not isinstance(config, dict):
+        return None
+    servers = config.get("mcpServers")
+    if isinstance(servers, dict) and name in servers:
+        return {"source": str(claude_config), "host": "claude_user", "enabled": True}
+    projects = config.get("projects")
+    if isinstance(projects, dict):
+        for directory in directories:
+            project = projects.get(str(directory))
+            servers = project.get("mcpServers") if isinstance(project, dict) else None
+            if isinstance(servers, dict) and name in servers:
+                return {"source": f"{claude_config}#projects[{directory}]", "host": "claude_local", "enabled": True}
+    return None
+
+
+def _declared_in_project_mcp_json(name: str, checked_paths: list[str], directories: list[Path]) -> dict[str, object] | None:
+    """Return a project-scope ``.mcp.json`` declaration from cwd or a parent."""
+    for directory in directories:
         mcp_config = directory / ".mcp.json"
         checked_paths.append(str(mcp_config))
         if not mcp_config.is_file():
@@ -77,29 +102,61 @@ def bem_calibration_mcp_status() -> dict[str, object]:
         except (OSError, UnicodeDecodeError, json.JSONDecodeError):
             continue
         servers = config.get("mcpServers") if isinstance(config, dict) else None
-        if isinstance(servers, dict) and "bem-calibration" in servers:
-            return {
-                "configured": True,
-                "name": "bem-calibration",
-                "domain_service": "lbnl_bem_calibration",
-                "source": str(mcp_config),
-                "command": command_status("bem-calibration-mcp"),
-            }
+        if isinstance(servers, dict) and name in servers:
+            return {"source": str(mcp_config), "host": "claude_project", "enabled": True}
+    return None
 
+
+def find_host_mcp_declaration(name: str) -> dict[str, object]:
+    """Locate an optional host MCP connection without launching or changing it."""
+    checked_paths: list[str] = []
+    found = _declared_in_codex_config(name, checked_paths)
+    if found is None:
+        try:
+            current_directory = Path.cwd()
+        except OSError:
+            directories: list[Path] = []
+        else:
+            directories = [current_directory, *current_directory.parents]
+        found = _declared_in_claude_user_config(name, checked_paths, directories)
+        if found is None:
+            found = _declared_in_project_mcp_json(name, checked_paths, directories)
+    if found is None:
+        return {"configured": False, "checked_paths": checked_paths}
     return {
-        "configured": False,
-        "name": "bem-calibration",
-        "domain_service": "lbnl_bem_calibration",
+        "configured": True,
+        "enabled": found["enabled"],
+        "name": name,
+        "source": found["source"],
+        "host": found["host"],
         "checked_paths": checked_paths,
-        "command": command_status("bem-calibration-mcp"),
     }
+
+
+def bem_calibration_mcp_status() -> dict[str, object]:
+    """Find a separately configured optional LBNL Calibration-MCP declaration."""
+    status = find_host_mcp_declaration("bem-calibration")
+    status.update(
+        {
+            "name": "bem-calibration",
+            "domain_service": "lbnl_bem_calibration",
+            "command": command_status("bem-calibration-mcp"),
+        }
+    )
+    return status
 
 
 def bem_calibration_status() -> dict[str, object]:
     """Report optional service configuration without blocking core readiness."""
     mcp = bem_calibration_mcp_status()
     command = mcp["command"]
-    if mcp["configured"]:
+    if mcp["configured"] and mcp.get("enabled", True) is False:
+        status = "configured_disabled"
+        message = (
+            "LBNL Calibration-MCP is declared as bem-calibration but disabled in the "
+            f"host configuration ({mcp.get('source')}); enable it before calibration."
+        )
+    elif mcp["configured"]:
         status = "configured"
         message = (
             "LBNL Calibration-MCP is separately configured. Verify its version and the exposed "
@@ -130,32 +187,10 @@ def bem_calibration_status() -> dict[str, object]:
 
 def nlr_mcp_status() -> dict[str, object]:
     """Report whether the optional NLR MCP server is configured locally."""
-    checked_paths = []
-    codex_config = Path.home() / ".codex" / "config.toml"
-    checked_paths.append(str(codex_config))
-    if tomllib is not None and codex_config.is_file():
-        try:
-            config = tomllib.loads(codex_config.read_text(encoding="utf-8"))
-        except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
-            config = {}
-        servers = config.get("mcp_servers") if isinstance(config, dict) else None
-        if isinstance(servers, dict) and "openstudio-mcp" in servers:
-            return {"configured": True, "name": "openstudio-mcp", "source": str(codex_config)}
-
-    for directory in (Path.cwd(), *Path.cwd().parents):
-        mcp_config = directory / ".mcp.json"
-        checked_paths.append(str(mcp_config))
-        if not mcp_config.is_file():
-            continue
-        try:
-            config = json.loads(mcp_config.read_text(encoding="utf-8"))
-        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
-            continue
-        servers = config.get("mcpServers") if isinstance(config, dict) else None
-        if isinstance(servers, dict) and "openstudio-mcp" in servers:
-            return {"configured": True, "name": "openstudio-mcp", "source": str(mcp_config)}
-
-    return {"configured": False, "name": "nlr_openstudio", "checked_paths": checked_paths}
+    status = find_host_mcp_declaration("openstudio-mcp")
+    if not status["configured"]:
+        status["name"] = "nlr_openstudio"
+    return status
 
 
 def main() -> int:

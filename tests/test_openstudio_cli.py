@@ -812,3 +812,43 @@ def test_cli_validate_export_allows_historical_metadata_unless_strict(
         )
         == 1
     )
+
+
+def test_disabled_nlr_declaration_is_reported_without_claiming_readiness(monkeypatch) -> None:
+    monkeypatch.setattr(
+        cli,
+        "_docker_status",
+        lambda: {"installed": True, "running": True, "command": {}},
+    )
+    monkeypatch.setattr(
+        cli,
+        "_nlr_mcp_status",
+        lambda: {"configured": True, "enabled": False, "source": "~/.codex/config.toml"},
+    )
+
+    capability = cli._optional_capabilities()["nlr_openstudio"]
+
+    assert capability["blocking"] is False
+    assert capability["status"] == "configured_disabled"
+    assert "disabled" in capability["message"]
+
+
+def test_disabled_bem_calibration_declaration_is_reported(monkeypatch) -> None:
+    monkeypatch.setattr(
+        cli,
+        "_bem_calibration_mcp_status",
+        lambda: {
+            "configured": True,
+            "enabled": False,
+            "name": "bem-calibration",
+            "domain_service": "lbnl_bem_calibration",
+            "source": "~/.codex/config.toml",
+            "command": {"command": "bem-calibration-mcp", "available": True, "path": "/x"},
+        },
+    )
+
+    capability = cli._bem_calibration_status()
+
+    assert capability["blocking"] is False
+    assert capability["status"] == "configured_disabled"
+    assert capability["connector_name"] == "bem-calibration"

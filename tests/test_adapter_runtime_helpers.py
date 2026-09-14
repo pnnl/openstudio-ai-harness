@@ -182,3 +182,95 @@ def test_bem_calibration_discovery_names(
     if expected is not None:
         assert status["source"] == str(config_path)
     assert "ready" not in status
+
+
+def _exported_doctor_namespace(monkeypatch) -> dict:
+    namespace = {"__name__": "test_doctor"}
+    exec(compile(render_doctor_runtime_script(), "doctor_runtime.py", "exec"), namespace)
+    monkeypatch.setitem(namespace, "tomllib", cli.tomllib)
+    return namespace
+
+
+def _discover(implementation: str, monkeypatch, name: str) -> dict:
+    if implementation == "cli":
+        return cli._find_host_mcp_declaration(name)
+    return _exported_doctor_namespace(monkeypatch)["find_host_mcp_declaration"](name)
+
+
+@pytest.mark.parametrize("implementation", ["cli", "exported"])
+@pytest.mark.parametrize("name", ["openstudio-mcp", "bem-calibration"])
+def test_codex_disabled_declaration_is_configured_but_not_enabled(
+    monkeypatch, tmp_path: Path, implementation, name
+) -> None:
+    monkeypatch.setattr(Path, "home", staticmethod(lambda: tmp_path))
+    monkeypatch.chdir(tmp_path)
+    config_path = tmp_path / ".codex" / "config.toml"
+    config_path.parent.mkdir()
+    config_path.write_text(
+        f'[mcp_servers."{name}"]\ncommand = "docker"\nenabled = false\n',
+        encoding="utf-8",
+    )
+
+    status = _discover(implementation, monkeypatch, name)
+
+    assert status["configured"] is True
+    assert status["enabled"] is False
+    assert status["host"] == "codex"
+    assert status["source"] == str(config_path)
+
+
+@pytest.mark.parametrize("implementation", ["cli", "exported"])
+@pytest.mark.parametrize("scope", ["user", "local"])
+def test_claude_code_user_config_declarations_are_discovered(
+    monkeypatch, tmp_path: Path, implementation, scope
+) -> None:
+    """``claude mcp add`` writes ~/.claude.json, not a project .mcp.json."""
+    monkeypatch.setattr(Path, "home", staticmethod(lambda: tmp_path))
+    project = tmp_path / "project"
+    project.mkdir()
+    monkeypatch.chdir(project)
+    declaration = {"bem-calibration": {"command": "bem-calibration-mcp"}}
+    if scope == "user":
+        config = {"mcpServers": declaration, "projects": {}}
+    else:
+        config = {"mcpServers": {}, "projects": {str(project): {"mcpServers": declaration}}}
+    (tmp_path / ".claude.json").write_text(json.dumps(config), encoding="utf-8")
+
+    status = _discover(implementation, monkeypatch, "bem-calibration")
+
+    assert status["configured"] is True
+    assert status["enabled"] is True
+    assert status["host"] == f"claude_{scope}"
+    assert status["source"].startswith(str(tmp_path / ".claude.json"))
+    assert _discover(implementation, monkeypatch, "openstudio-mcp")["configured"] is False
+
+
+@pytest.mark.parametrize("implementation", ["cli", "exported"])
+def test_claude_code_local_scope_ignores_other_projects(
+    monkeypatch, tmp_path: Path, implementation
+) -> None:
+    monkeypatch.setattr(Path, "home", staticmethod(lambda: tmp_path))
+    project = tmp_path / "project"
+    project.mkdir()
+    monkeypatch.chdir(project)
+    config = {"projects": {str(tmp_path / "elsewhere"): {"mcpServers": {"bem-calibration": {}}}}}
+    (tmp_path / ".claude.json").write_text(json.dumps(config), encoding="utf-8")
+
+    assert _discover(implementation, monkeypatch, "bem-calibration")["configured"] is False
+
+
+def test_exported_doctor_reports_disabled_calibration_declaration(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(Path, "home", staticmethod(lambda: tmp_path))
+    monkeypatch.chdir(tmp_path)
+    config_path = tmp_path / ".codex" / "config.toml"
+    config_path.parent.mkdir()
+    config_path.write_text(
+        '[mcp_servers."bem-calibration"]\ncommand = "bem-calibration-mcp"\nenabled = false\n',
+        encoding="utf-8",
+    )
+
+    status = _exported_doctor_namespace(monkeypatch)["bem_calibration_status"]()
+
+    assert status["blocking"] is False
+    assert status["status"] == "configured_disabled"
+    assert "disabled" in status["message"]

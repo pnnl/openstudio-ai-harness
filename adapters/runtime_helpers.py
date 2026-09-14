@@ -138,21 +138,27 @@ def _declared_in_project_mcp_json(name: str, checked_paths: list[str], directori
 def find_host_mcp_declaration(name: str) -> dict[str, object]:
     """Locate an optional host MCP connection without launching or changing it."""
     checked_paths: list[str] = []
-    found = _declared_in_codex_config(name, checked_paths)
-    if found is None:
-        try:
-            current_directory = Path.cwd()
-        except OSError:
-            directories: list[Path] = []
-        else:
-            directories = [current_directory, *current_directory.parents]
-        found = _declared_in_claude_user_config(name, checked_paths, directories)
-        if found is None:
-            found = _declared_in_claude_desktop_config(name, checked_paths)
-        if found is None:
-            found = _declared_in_project_mcp_json(name, checked_paths, directories)
-    if found is None:
+    try:
+        current_directory = Path.cwd()
+    except OSError:
+        directories: list[Path] = []
+    else:
+        directories = [current_directory, *current_directory.parents]
+    # Prefer an enabled declaration wherever it lives; a disabled Codex entry
+    # must not hide an enabled Claude Desktop or project entry.
+    declarations = [
+        found
+        for found in (
+            _declared_in_codex_config(name, checked_paths),
+            _declared_in_claude_user_config(name, checked_paths, directories),
+            _declared_in_claude_desktop_config(name, checked_paths),
+            _declared_in_project_mcp_json(name, checked_paths, directories),
+        )
+        if found is not None
+    ]
+    if not declarations:
         return {"configured": False, "checked_paths": checked_paths}
+    found = next((item for item in declarations if item["enabled"]), declarations[0])
     return {
         "configured": True,
         "enabled": found["enabled"],
@@ -160,6 +166,10 @@ def find_host_mcp_declaration(name: str) -> dict[str, object]:
         "source": found["source"],
         "host": found["host"],
         "checked_paths": checked_paths,
+        "declarations": [
+            {"host": item["host"], "source": item["source"], "enabled": item["enabled"]}
+            for item in declarations
+        ],
     }
 
 

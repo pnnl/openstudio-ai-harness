@@ -325,3 +325,25 @@ def test_unreadable_claude_desktop_config_is_skipped(
 
     assert status["configured"] is False
     assert str(config_path) in status["checked_paths"]
+
+
+@pytest.mark.parametrize("implementation", ["cli", "exported"])
+def test_enabled_declaration_wins_over_a_disabled_one(monkeypatch, tmp_path: Path, implementation) -> None:
+    """A disabled Codex entry must not hide an enabled Claude Desktop entry."""
+    monkeypatch.setattr(Path, "home", staticmethod(lambda: tmp_path))
+    monkeypatch.delenv("APPDATA", raising=False)
+    monkeypatch.chdir(tmp_path)
+    codex = tmp_path / ".codex" / "config.toml"
+    codex.parent.mkdir()
+    codex.write_text('[mcp_servers."openstudio-mcp"]\ncommand = "docker"\nenabled = false\n', encoding="utf-8")
+    desktop = tmp_path / "Library" / "Application Support" / "Claude" / "claude_desktop_config.json"
+    desktop.parent.mkdir(parents=True)
+    desktop.write_text(json.dumps({"mcpServers": {"openstudio-mcp": {"command": "docker"}}}), encoding="utf-8")
+
+    status = _discover(implementation, monkeypatch, "openstudio-mcp")
+
+    assert status["configured"] is True
+    assert status["enabled"] is True
+    assert status["host"] == "claude_desktop"
+    assert [(d["host"], d["enabled"]) for d in status["declarations"]] == [
+        ("codex", False), ("claude_desktop", True)]

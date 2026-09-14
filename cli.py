@@ -197,6 +197,44 @@ def _declared_in_claude_user_config(
     return None
 
 
+def _claude_desktop_config_paths() -> list[Path]:
+    """Return every location the Claude Desktop app stores its MCP config.
+
+    All platform locations are checked regardless of the current platform so
+    detection stays deterministic and testable; missing files are skipped.
+    """
+    home = Path.home()
+    paths = [home / "Library" / "Application Support" / "Claude" / "claude_desktop_config.json"]
+    appdata = os.getenv("APPDATA", "").strip()
+    if appdata:
+        paths.append(Path(appdata) / "Claude" / "claude_desktop_config.json")
+    paths.append(home / ".config" / "Claude" / "claude_desktop_config.json")
+    return paths
+
+
+def _declared_in_claude_desktop_config(
+    name: str, checked_paths: list[str]
+) -> dict[str, Any] | None:
+    """Return a Claude Desktop ``Local MCP servers`` declaration.
+
+    The desktop app launches these servers itself and injects them into the
+    Claude Code sessions it hosts, so a declaration here is a configured host
+    connection even though no CLI config mentions it.
+    """
+    for desktop_config in _claude_desktop_config_paths():
+        checked_paths.append(str(desktop_config))
+        if not desktop_config.is_file():
+            continue
+        try:
+            config = json.loads(desktop_config.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            continue
+        servers = config.get("mcpServers") if isinstance(config, dict) else None
+        if isinstance(servers, dict) and name in servers:
+            return {"source": str(desktop_config), "host": "claude_desktop", "enabled": True}
+    return None
+
+
 def _declared_in_project_mcp_json(
     name: str, checked_paths: list[str], directories: list[Path]
 ) -> dict[str, Any] | None:
@@ -220,8 +258,9 @@ def _find_host_mcp_declaration(name: str) -> dict[str, Any]:
     """Locate an optional host MCP connection without changing host configuration.
 
     Detection only proves a declaration exists; it never launches the server
-    or verifies its version.  Codex config, Claude Code user/local config, and
-    project ``.mcp.json`` files are all read-only inputs here.
+    or verifies its version.  Codex config, Claude Code user/local config,
+    the Claude Desktop app config, and project ``.mcp.json`` files are all
+    read-only inputs here.
     """
     checked_paths: list[str] = []
     found = _declared_in_codex_config(name, checked_paths)
@@ -233,6 +272,8 @@ def _find_host_mcp_declaration(name: str) -> dict[str, Any]:
         else:
             directories = [current_directory, *current_directory.parents]
         found = _declared_in_claude_user_config(name, checked_paths, directories)
+        if found is None:
+            found = _declared_in_claude_desktop_config(name, checked_paths)
         if found is None:
             found = _declared_in_project_mcp_json(name, checked_paths, directories)
     if found is None:

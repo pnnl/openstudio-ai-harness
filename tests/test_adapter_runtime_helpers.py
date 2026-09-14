@@ -274,3 +274,54 @@ def test_exported_doctor_reports_disabled_calibration_declaration(monkeypatch, t
     assert status["blocking"] is False
     assert status["status"] == "configured_disabled"
     assert "disabled" in status["message"]
+
+
+@pytest.mark.parametrize("implementation", ["cli", "exported"])
+@pytest.mark.parametrize(
+    "location",
+    [
+        Path("Library") / "Application Support" / "Claude",  # macOS
+        Path("AppData") / "Roaming" / "Claude",  # Windows, via APPDATA
+        Path(".config") / "Claude",  # Linux
+    ],
+)
+def test_claude_desktop_config_declarations_are_discovered(
+    monkeypatch, tmp_path: Path, implementation, location
+) -> None:
+    """The desktop app launches its Local MCP servers and injects them into hosted sessions."""
+    monkeypatch.setattr(Path, "home", staticmethod(lambda: tmp_path))
+    monkeypatch.setenv("APPDATA", str(tmp_path / "AppData" / "Roaming"))
+    project = tmp_path / "project"
+    project.mkdir()
+    monkeypatch.chdir(project)
+    config_path = tmp_path / location / "claude_desktop_config.json"
+    config_path.parent.mkdir(parents=True)
+    config_path.write_text(
+        json.dumps({"mcpServers": {"bem-calibration": {"command": "uv", "args": ["run", "bem-calibration-mcp"]}}}),
+        encoding="utf-8",
+    )
+
+    status = _discover(implementation, monkeypatch, "bem-calibration")
+
+    assert status["configured"] is True
+    assert status["enabled"] is True
+    assert status["host"] == "claude_desktop"
+    assert status["source"] == str(config_path)
+    assert _discover(implementation, monkeypatch, "openstudio-mcp")["configured"] is False
+
+
+@pytest.mark.parametrize("implementation", ["cli", "exported"])
+def test_unreadable_claude_desktop_config_is_skipped(
+    monkeypatch, tmp_path: Path, implementation
+) -> None:
+    monkeypatch.setattr(Path, "home", staticmethod(lambda: tmp_path))
+    monkeypatch.delenv("APPDATA", raising=False)
+    monkeypatch.chdir(tmp_path)
+    config_path = tmp_path / "Library" / "Application Support" / "Claude" / "claude_desktop_config.json"
+    config_path.parent.mkdir(parents=True)
+    config_path.write_text("{not json", encoding="utf-8")
+
+    status = _discover(implementation, monkeypatch, "bem-calibration")
+
+    assert status["configured"] is False
+    assert str(config_path) in status["checked_paths"]

@@ -66,6 +66,7 @@ def test_calibration_contract_records_verified_live_facts() -> None:
     assert 'placeholder `decision="rejected"`' in contract
     assert "`configured_disabled`" in contract
     assert "`~/.claude.json`" in contract
+    assert "`claude_desktop_config.json`" in contract
 
 
 def test_calibration_contract_maps_extensible_blackboard_metadata() -> None:

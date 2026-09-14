@@ -28,6 +28,7 @@ def render_doctor_runtime_script() -> str:
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -90,6 +91,33 @@ def _declared_in_claude_user_config(name: str, checked_paths: list[str], directo
     return None
 
 
+def _claude_desktop_config_paths() -> list[Path]:
+    """Every location the Claude Desktop app stores its MCP config (all platforms checked)."""
+    home = Path.home()
+    paths = [home / "Library" / "Application Support" / "Claude" / "claude_desktop_config.json"]
+    appdata = os.getenv("APPDATA", "").strip()
+    if appdata:
+        paths.append(Path(appdata) / "Claude" / "claude_desktop_config.json")
+    paths.append(home / ".config" / "Claude" / "claude_desktop_config.json")
+    return paths
+
+
+def _declared_in_claude_desktop_config(name: str, checked_paths: list[str]) -> dict[str, object] | None:
+    """Return a Claude Desktop declaration; the app injects these into the sessions it hosts."""
+    for desktop_config in _claude_desktop_config_paths():
+        checked_paths.append(str(desktop_config))
+        if not desktop_config.is_file():
+            continue
+        try:
+            config = json.loads(desktop_config.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            continue
+        servers = config.get("mcpServers") if isinstance(config, dict) else None
+        if isinstance(servers, dict) and name in servers:
+            return {"source": str(desktop_config), "host": "claude_desktop", "enabled": True}
+    return None
+
+
 def _declared_in_project_mcp_json(name: str, checked_paths: list[str], directories: list[Path]) -> dict[str, object] | None:
     """Return a project-scope ``.mcp.json`` declaration from cwd or a parent."""
     for directory in directories:
@@ -119,6 +147,8 @@ def find_host_mcp_declaration(name: str) -> dict[str, object]:
         else:
             directories = [current_directory, *current_directory.parents]
         found = _declared_in_claude_user_config(name, checked_paths, directories)
+        if found is None:
+            found = _declared_in_claude_desktop_config(name, checked_paths)
         if found is None:
             found = _declared_in_project_mcp_json(name, checked_paths, directories)
     if found is None:

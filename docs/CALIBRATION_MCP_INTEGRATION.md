@@ -113,7 +113,9 @@ model, meter/evidence availability, bill units, weather, calendar, and the
 host/container path mapping. `openstudio-ai doctor` reports a `bem-calibration`
 or `openstudio-mcp` declaration from Codex `config.toml` (honoring
 `enabled = false` as `configured_disabled`), Claude Code `~/.claude.json`
-user/local scopes, or a project `.mcp.json`; detection is not a live check. Between critical mutations, simulations,
+user/local scopes, the Claude Desktop app's `claude_desktop_config.json`
+(whose Local MCP servers are injected into the sessions it hosts), or a
+project `.mcp.json`; detection is not a live check. Between critical mutations, simulations,
 provider transitions, and report handoff, write a PNNL blackboard checkpoint.
 Calibration-MCP never becomes a mutating provider; only one selected execution
 provider may mutate an unstaged model phase.

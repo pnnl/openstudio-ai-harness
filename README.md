@@ -70,7 +70,8 @@ readiness. NLR discovery accepts `openstudio-mcp`; Calibration-MCP discovery
 accepts separately configured `bem-calibration`. Both are looked up in Codex
 `~/.codex/config.toml` (an `enabled = false` entry is reported as
 `configured_disabled`), Claude Code `~/.claude.json` user and local scopes
-(`claude mcp add`), and project `.mcp.json` files. Detection means configured;
+(`claude mcp add`), the Claude Desktop app's `claude_desktop_config.json`, and
+project `.mcp.json` files. Detection means configured;
 verify the connected service's actual version and capabilities before modeling
 or calibration. PNNL’s
 foundational MCP advertises `openstudio-ai-mcp` and uses the host connection

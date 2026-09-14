@@ -108,12 +108,13 @@ async def test_in_memory_client_receives_simulation_job_resource_updates(
     bus = InMemorySubscriptionBus()
     service = OpenStudioService(workspace_root=tmp_path, subscription_bus=bus)
     server = create_server(service=service, subscription_bus=bus)
-    job = service.job_manager.create_job(
-        model_id="model-1", run_mode="sizing", options={}
-    )
-    uri = service.job_status_uri(job.job_id)
 
     async with Client(server) as client:
+        service.bind_notification_loop()
+        job = service.job_manager.create_job(
+            model_id="model-1", run_mode="sizing", options={}
+        )
+        uri = service.job_status_uri(job.job_id)
         async with client.listen(resource_subscriptions=[uri]) as subscription:
             await asyncio.to_thread(
                 service.job_manager.mark_running, job.job_id, progress=5
@@ -133,6 +134,24 @@ async def test_in_memory_client_receives_simulation_job_resource_updates(
             "severe_count": 0,
             "error": None,
         }
+
+
+@pytest.mark.asyncio
+async def test_worker_thread_job_update_requires_a_bound_notification_loop(
+    tmp_path: Path,
+) -> None:
+    service = OpenStudioService(
+        workspace_root=tmp_path,
+        subscription_bus=InMemorySubscriptionBus(),
+    )
+
+    with pytest.raises(RuntimeError, match="bind_notification_loop"):
+        await asyncio.to_thread(
+            service.job_manager.create_job,
+            model_id="model-1",
+            run_mode="sizing",
+            options={},
+        )
 
 
 def test_openstudio_runtime_state_store_prunes_unprotected_workspaces(

@@ -636,6 +636,7 @@ class OpenStudioService:
         return success_payload(status=status, issues=issues)
 
     def sim_run(self, args: SimRunArgs) -> dict[str, Any]:
+        self.bind_notification_loop()
         model_state = self._get_model_state(args.model_id)
         model_path = self._resolve_model_path(model_state.metadata.get("model_uri", ""))
         if not model_path.exists():
@@ -737,6 +738,21 @@ class OpenStudioService:
     def job_status_uri(job_id: str) -> str:
         return f"openstudio://jobs/{job_id}"
 
+    def bind_notification_loop(self) -> None:
+        """Bind subscription publishing to the running MCP event loop.
+
+        Simulation jobs can later update from an OpenStudio worker thread. Bind
+        their publishing loop before creating the job, rather than relying on a
+        callback happening to run first on the event-loop thread.
+        """
+        if self.subscription_bus is None:
+            return
+
+        loop = asyncio.get_running_loop()
+        if self._event_loop is not None and self._event_loop is not loop:
+            raise RuntimeError("Simulation job notifications are already bound to another event loop")
+        self._event_loop = loop
+
     def _on_job_updated(self, job: JobRecord) -> None:
         if self.subscription_bus is None:
             return
@@ -746,10 +762,19 @@ class OpenStudioService:
         except RuntimeError:
             loop = self._event_loop
             if loop is None or loop.is_closed():
-                return
+                raise RuntimeError(
+                    "Simulation job notifications need an event loop; call "
+                    "bind_notification_loop() before creating the job"
+                )
             loop.call_soon_threadsafe(self._schedule_job_update, uri)
             return
-        self._event_loop = loop
+        if self._event_loop is None:
+            raise RuntimeError(
+                "Simulation job notifications need an event loop; call "
+                "bind_notification_loop() before creating the job"
+            )
+        if self._event_loop is not loop:
+            raise RuntimeError("Simulation job notification arrived on an unexpected event loop")
         self._schedule_job_update(uri)
 
     def _schedule_job_update(self, uri: str) -> None:
@@ -1496,8 +1521,6 @@ class OpenStudioService:
 
 def create_server(
     *,
-    host: str = "127.0.0.1",
-    port: int = 10210,
     workspace_root: str | Path | None = None,
     learning_db_path: str | Path | None = None,
     service: OpenStudioService | None = None,
@@ -1539,7 +1562,7 @@ def serve(
             f"{compatibility.message}\nNext step: {compatibility.remediation}",
             file=sys.stderr,
         )
-    mcp = create_server(host=host, port=port, workspace_root=workspace_root)
+    mcp = create_server(workspace_root=workspace_root)
     if transport == "stdio":
         mcp.run(transport="stdio")
     else:

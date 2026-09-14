@@ -31,6 +31,13 @@ simulation workflows, and explain what changed.
 - Use `openstudio_workflow_state` for long-running OpenStudio energy modeling
   tasks that span multiple phases, child skills, scripts, simulations, failure
   recovery steps, or clarification gates.
+- For measured-bill calibration requests, load `calibration-mcp-orchestration`
+  first. It coordinates the separately configured optional LBNL
+  `bem-calibration` domain service (`lbnl_bem_calibration`, never an
+  execution provider) with exactly one selected execution provider, and it
+  discovers the authoritative methodology from that live service. If
+  `bem-calibration` is not connected, report calibration as unavailable; do
+  not substitute a remembered or copied calibration procedure.
 - When NLR is configured as `openstudio-mcp`, first determine its availability and
   compatibility through `delegated-nlr-modeling`. Prefer NLR as the exclusive
   provider for energy-modeling work when preflight succeeds. If NLR is absent

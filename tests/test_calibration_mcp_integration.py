@@ -112,3 +112,15 @@ def test_calibration_contract_maps_extensible_blackboard_metadata() -> None:
     assert workflow_schema["additionalProperties"] is True
     assert artifact_schema["additionalProperties"] is True
     assert artifact_schema["properties"]["metadata"]["type"] == "object"
+
+
+def test_claude_agent_prompt_routes_calibration_requests() -> None:
+    """The Codex orchestrator skill is not exported for Claude; the agent prompt must route."""
+    prompt = Path("prompts/openstudio_agent.md").read_text(encoding="utf-8")
+
+    assert "load `calibration-mcp-orchestration`" in prompt
+    assert "`bem-calibration`" in prompt
+    assert "`lbnl_bem_calibration`, never an\n  execution provider" in prompt
+    assert "report calibration as unavailable" in prompt
+    # Routing appears before the NLR provider gate so calibration owns the workflow shape.
+    assert prompt.index("calibration-mcp-orchestration") < prompt.index("delegated-nlr-modeling")

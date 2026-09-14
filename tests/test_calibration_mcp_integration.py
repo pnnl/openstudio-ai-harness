@@ -38,7 +38,8 @@ def test_calibration_routing_encodes_live_session_lessons() -> None:
     assert "dedicated, initially empty\n   host directory per project" in skill
     assert "Stage the incoming model through the selected provider" in skill
     assert "gates against the\n   staged seed" in skill
-    assert "expected_model_sha256=<its host\n   hash>" in skill
+    assert "reload the staged seed through the\n   provider immediately before each `apply_measure`" in skill
+    assert "expected_model_sha256=<its host hash>" in skill
     # Measure resolution stays provider-side; recipes never deliver code.
     assert "`stage_measures`" in skill
     assert "`find_measure` → `selected_measure.measure_dir`" in skill

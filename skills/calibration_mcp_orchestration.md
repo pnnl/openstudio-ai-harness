@@ -93,9 +93,14 @@ discovered from the connected service through its Skill-over-MCP interface.
    default would change something the recipe does not name (for example a
    fuel type), read the model's current value through the provider, pin it,
    and record that as a blackboard assumption. Apply every rung to the same
-   staged seed with the provider's seed guard (NLR
-   `apply_measure(model_path=<staged seed>, expected_model_sha256=<its host
-   hash>)`); the hash of a user-authored file will not match the provider's
+   staged seed, never cumulatively: reload the staged seed through the
+   provider immediately before each `apply_measure` (NLR `load_osm_model`
+   then `apply_measure`, which acts on the provider's in-memory model), and
+   verify lineage on the host by hashing the saved candidate against the
+   recorded seed. When the provider exposes a seed guard (some NLR builds
+   accept `apply_measure(model_path=<staged seed>,
+   expected_model_sha256=<its host hash>)`), pass the staged seed's host
+   hash; the hash of a user-authored file will not match the provider's
    re-serialized bytes. Save each result as a new staged model and record its
    model ID, host path, container path when applicable, hash, provider
    identity, measure/arguments, and predecessor. Take a blackboard checkpoint

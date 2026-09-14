@@ -89,10 +89,13 @@ established the following, which the routing skill now encodes:
 - NLR `serverInfo.version` is the FastMCP framework version, and
   `get_versions.energyplus` is `null`; the EnergyPlus version comes from the
   first canonical `eplusout.sql`/`eplusout.err`.
-- NLR `apply_measure` guards `expected_model_sha256` against its own
-  re-serialized seed, so the seed must be a provider-saved staged model whose
-  host hash is recorded in the blackboard; a hash of the user's original file
-  is rejected.
+- The NLR build used for the run accepted an `apply_measure` seed guard and
+  compared `expected_model_sha256` against its own re-serialized seed, so the
+  seed must be a provider-saved staged model whose host hash is recorded in
+  the blackboard; a hash of the user's original file is rejected. Upstream
+  `develop` (`cd6d6c0`, 2026-09-12) exposes no such guard: `apply_measure`
+  acts on the in-memory model only, so the agent reloads the staged seed
+  before every rung and records seed-to-candidate lineage itself.
 - Calibration-MCP binds `check_measure_reach` to the baseline model hash, so
   gates run against the staged seed that is simulated, not the original file.
 - Candidate `record_run` calls need the placeholder `decision="rejected"`;

@@ -2,6 +2,20 @@
 
 ## Current Status
 
+- MCP Python SDK v2 migration (branch `update_mcp_2_0`) now uses
+  `mcp>=2,<3`, resolved to MCP 2.2.0 in both root and standalone locks.
+  The runtime now uses `MCPServer`; HTTP host/port settings are passed at
+  `run()` time, while stdio remains argument-free. MCP smoke tests were updated
+  for snake_case protocol fields and passed: 6 passed, 2 OpenStudio-gated
+  skipped. The standalone project now uses `automa-ai` 0.9.0 with the shared
+  Python 3.10+ baseline; its focused suite passes on Python 3.10 (19 passed).
+- Round 2 begins with live job status: `openstudio://jobs/{job_id}` returns
+  the canonical simulation status payload. Each persisted job transition
+  publishes a v2 `ResourceUpdated` event through the in-process subscription
+  bus, including transitions made by the OpenStudio CLI worker thread.
+  `sim_status` remains a diagnostic mirror for now. In-memory MCP `Client`
+  coverage verifies subscription delivery and resource reads; MCP plus
+  geometry/job-manager regressions passed: 25 passed, 2 skipped.
 - Renamed the PNNL runtime package directory from `openstudio_mcp/` to
   `openstudio_ai_mcp/`.
 - Added user-local MCP learning storage. “Opt-in” means evidence is persisted
@@ -112,7 +126,7 @@
   validation of both generated plugin packages.
 - The production package supports Python 3.10+ and does not include AUTOMA-AI
   or Streamlit. The `standalone/` subproject is separately locked for Python
-  3.12+ local AUTOMA-AI and Streamlit testing. Host-facing skills use
+  3.10+ local AUTOMA-AI and Streamlit testing. Host-facing skills use
   host-neutral Python execution instructions.
 
 ## Current Boundaries
@@ -148,7 +162,7 @@ OPENSTUDIO_PATH=/path/to/openstudio \
   .venv/bin/python -m pytest -q tests/test_mcp_openstudio_smoke.py
 ```
 
-Run AUTOMA-AI-only checks with Python 3.12+:
+Run AUTOMA-AI-only checks with Python 3.10+:
 
 ```bash
 uv sync --project standalone
@@ -160,7 +174,7 @@ uv run --project standalone python -m pytest -q standalone/tests
 1. Extend and verify the existing CI and publication workflows with a coherent
    product release matrix, real simulation readiness, and cross-provider
    contract/evaluation gates; CI definitions already exist under `.github/workflows/`.
-2. Decide and document the long-term supply-chain source for the Python-3.12+
+2. Decide and document the long-term supply-chain source for the Python-3.10+
    `automa-ai` standalone dependency before publishing a standalone workflow.
 3. Align `measures/approved/` with the live measure registry before exposing it
    as the trusted measure source.
@@ -176,7 +190,7 @@ uv run --project standalone python -m pytest -q standalone/tests
   and running the PNNL foundation in the Claude Code standalone desktop
   sandbox. The plan requires actual sandbox install/upgrade/runtime acceptance,
   beyond ordinary Python 3.10 CI. NLR's Python 3.11 stays inside Docker; the
-  separate Python 3.12+ AUTOMA-AI `standalone/` environment is not this deployment.
+  separate Python 3.10+ AUTOMA-AI `standalone/` environment is not this deployment.
 - Research and proposed September 8–October 2 delivery plan:
   [MULTILAB_ONE_MONTH_PLAN.md](docs/MULTILAB_ONE_MONTH_PLAN.md). Includes proposed
   PNNL/NLR/LBNL ownership, interface contract, issue-ready backlog, learning

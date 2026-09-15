@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Literal
+from typing import Any, Callable, Literal
 from uuid import uuid4
 
 from openstudio_ai_mcp.runtime.artifact_store import ArtifactStore
@@ -37,10 +37,12 @@ class JobManager:
         workspace_manager: WorkspaceManager,
         artifact_store: ArtifactStore,
         state_store: RuntimeStateStore | None = None,
+        job_update_callback: Callable[[JobRecord], None] | None = None,
     ):
         self.workspace_manager = workspace_manager
         self.artifact_store = artifact_store
         self.state_store = state_store
+        self.job_update_callback = job_update_callback
         self._jobs: dict[str, JobRecord] = {}
 
     def create_job(
@@ -62,6 +64,7 @@ class JobManager:
         self._jobs[job.job_id] = job
         self.workspace_manager.create_workspace(job.job_id)
         self._persist(job)
+        self._notify(job)
         return job
 
     def get(self, job_id: str) -> JobRecord | None:
@@ -74,6 +77,7 @@ class JobManager:
             job.progress = progress
         job.updated_at = datetime.now(timezone.utc).isoformat()
         self._persist(job)
+        self._notify(job)
 
     def mark_succeeded(
         self,
@@ -91,6 +95,7 @@ class JobManager:
         job.artifacts = dict(artifacts)
         job.updated_at = datetime.now(timezone.utc).isoformat()
         self._persist(job)
+        self._notify(job)
 
     async def complete_stub_simulation(self, job_id: str, *, model_id: str) -> None:
         job = self._jobs[job_id]
@@ -128,6 +133,7 @@ class JobManager:
             "report_id": report.artifact_id,
         }
         self._persist(job)
+        self._notify(job)
 
     def fail(self, job_id: str, *, error: dict[str, Any]) -> None:
         job = self._jobs[job_id]
@@ -136,6 +142,7 @@ class JobManager:
         job.error = error
         job.updated_at = datetime.now(timezone.utc).isoformat()
         self._persist(job)
+        self._notify(job)
 
     def running_job_ids(self) -> set[str]:
         return {job_id for job_id, job in self._jobs.items() if job.state == "RUNNING"}
@@ -157,3 +164,7 @@ class JobManager:
             artifacts=job.artifacts,
             error=job.error,
         )
+
+    def _notify(self, job: JobRecord) -> None:
+        if self.job_update_callback is not None:
+            self.job_update_callback(job)

@@ -1,5 +1,5 @@
 {
-  "name": "OpenStudio AI Harness (Python 3.12)",
+  "name": "OpenStudio AI Harness (Python 3.10)",
   "build": {
     "dockerfile": "Dockerfile"
   },

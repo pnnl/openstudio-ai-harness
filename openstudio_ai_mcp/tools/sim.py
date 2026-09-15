@@ -14,6 +14,15 @@ from openstudio_ai_mcp.tools.schemas import (
 
 
 def register_sim_tools(mcp, service) -> None:
+    @mcp.resource(
+        "openstudio://jobs/{job_id}",
+        name="simulation_job_status",
+        description="Read the current status of one OpenStudio simulation job.",
+        mime_type="application/json",
+    )
+    async def simulation_job_status(job_id: str) -> dict[str, Any]:
+        return service.job_status(job_id)
+
     @mcp.tool(name="sim_run", description="Start an OpenStudio simulation job.")
     async def sim_run(
         model_id: str,

@@ -13,7 +13,7 @@ except ModuleNotFoundError:  # Python 3.10
     import tomli as tomllib
 
 PACKAGE_NAME = "openstudio-ai"
-PACKAGE_VERSION_FALLBACK = "0.3.0"
+PACKAGE_VERSION_FALLBACK = "0.3.1"
 PLUGIN_VERSION_ENV = "OPENSTUDIO_AI_PLUGIN_VERSION"
 PLUGIN_CONTRACT_ENV = "OPENSTUDIO_AI_PLUGIN_CONTRACT_VERSION"
 # Contract 4 adds the personal-learning MCP tools, required by the curated

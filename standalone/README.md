@@ -1,6 +1,6 @@
 # OpenStudio AI standalone development environment
 
-This Python 3.12+ subproject runs the AUTOMA-AI agent and Streamlit UI. It is
+This Python 3.10+ subproject runs the AUTOMA-AI agent and Streamlit UI. It is
 not distributed in the `openstudio-ai` production wheel or source archive.
 
 From the repository root:

@@ -1,10 +1,12 @@
 [project]
 name = "openstudio-ai-standalone"
 version = "0.3.0"
-description = "Python 3.12+ AUTOMA-AI and Streamlit development environment for OpenStudio AI."
-requires-python = ">=3.12"
+description = "Python 3.10+ AUTOMA-AI and Streamlit development environment for OpenStudio AI."
+requires-python = ">=3.10"
 dependencies = [
-    "automa-ai>=0.7.3",
+    "automa-ai>=0.9.0",
+    # onnxruntime 1.24+ no longer publishes CPython 3.10 wheels.
+    "onnxruntime>=1.23.2,<1.24; python_version < '3.11'",
     "openstudio-ai",
     "pytest>=8.4.2",
     "pytest-asyncio>=1.2.0",

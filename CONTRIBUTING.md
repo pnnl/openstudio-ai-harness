@@ -26,8 +26,8 @@ The shipped OpenStudio AI runtime supports Python 3.10 and newer. Keep runtime,
 adapter, plugin-export, and packaging changes compatible with Python 3.10.
 
 `standalone/` is a separate development application for AUTOMA-AI and Streamlit.
-It requires Python 3.12 or newer and does not define the shipped runtime's
-Python requirement.
+It uses the same Python 3.10+ baseline as the shipped runtime, while retaining
+its own optional development dependencies.
 
 ## Example: change a skill
 

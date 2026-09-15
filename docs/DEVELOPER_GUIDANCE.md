@@ -73,18 +73,18 @@ local AUTOMA-AI agent, A2A behavior, or the Streamlit UI.
 
 | Route | Python | Installs | Best for |
 | --- | --- | --- | --- |
-| Dev Container | 3.12 | Harness development tools, AUTOMA-AI, and Streamlit | A reproducible full environment |
+| Dev Container | 3.10 | Harness development tools, AUTOMA-AI, and Streamlit | A reproducible full environment |
 | Manual: standard | 3.10+ | Harness development tools | MCP, adapters, skills, packaging, and documentation |
-| Manual: full | 3.10+ plus 3.12 | Standard tools plus AUTOMA-AI and Streamlit in `standalone/.venv` | Local AUTOMA-AI agent or Streamlit development |
+| Manual: full | 3.10+ | Standard tools plus AUTOMA-AI and Streamlit in `standalone/.venv` | Local AUTOMA-AI agent or Streamlit development |
 
-The production package remains compatible with Python 3.10 or newer.
-AUTOMA-AI and Streamlit are intentionally isolated in the Python 3.12+
-`standalone/` project; they are not part of the shipped runtime package.
+The production package and the optional standalone project support Python 3.10
+or newer. AUTOMA-AI and Streamlit remain isolated in `standalone/`; they are
+not part of the shipped runtime package.
 
 ### Choose A Setup Route
 
 Use the Dev Container route when Docker and a Dev Containers-compatible editor
-are available. It is the quickest way to get the complete, locked Python 3.12
+are available. It is the quickest way to get the complete, locked Python 3.10
 environment. Use manual installation when you need to work directly on the
 host, cannot use Docker, or only need the standard harness environment.
 
@@ -92,7 +92,7 @@ host, cannot use Docker, or only need the standard harness environment.
 
 The repository's [Dev Container configuration](../.devcontainer/devcontainer.json)
 builds from [`.devcontainer/Dockerfile`](../.devcontainer/Dockerfile), which
-selects the Dev Containers Python 3.12 image and installs a pinned `uv` release
+selects the Dev Containers Python 3.10 image and installs a pinned `uv` release
 from PyPI. When the container is created, its `postCreateCommand` uses the
 committed lockfiles to install the root `dev` extra, Chromium for browser tests,
 and the `standalone/` project. The latter installs `automa-ai` and `streamlit`.
@@ -111,7 +111,7 @@ is downloaded during post-create setup.
    uv run --project standalone python -c "import automa_ai, streamlit; print('AUTOMA-AI and Streamlit are ready')"
    ```
 
-   The Python version must be 3.12.x. Streamlit's port 8501 is forwarded by the
+   The Python version must be 3.10 or newer. Streamlit's port 8501 is forwarded by the
    container configuration, so `uv run --project standalone streamlit run
    standalone/ui.py` opens in the editor preview when available.
 
@@ -167,19 +167,19 @@ for the production harness, MCP server, adapters, skills, packaging, and docs.
 
 #### Full Development Environment (AUTOMA-AI And Streamlit)
 
-Complete the standard workflow first. Then install Python 3.12 and `uv` if they
-are not already available, and create the separately locked standalone
+Complete the standard workflow first. Then install `uv` if it is not already
+available, and create the separately locked standalone
 environment:
 
 ```bash
-python3.12 --version
-python3.12 -m pip install --user uv
-uv sync --project standalone --locked --python 3.12
+python --version
+python -m pip install --user uv
+uv sync --project standalone --locked --python 3.10
 ```
 
 `uv` creates `standalone/.venv`; do not reuse the root `.venv` for these
 dependencies. If your user-level Python scripts directory is not on `PATH`, run
-`python3.12 -m uv` in place of `uv`. Confirm that both optional development
+`python -m uv` in place of `uv`. Confirm that both optional development
 dependencies are present:
 
 ```bash
@@ -260,7 +260,7 @@ Use this table when deciding where a change belongs.
 | `measures/candidates/` | Draft measures | Proposed measures awaiting review/evals | Approved runtime measures | Excluded from wheel/runtime export |
 | `harness/` | Host-agnostic package registry | Manifest and asset discovery logic | Host-specific export decisions | Used by adapters |
 | `adapters/` | Host-specific install/export logic | Claude Code and Codex plugin mapping | Product behavior or trusted modeling logic | Generates plugin folders |
-| `standalone/` | Local AUTOMA-AI agent/UI project | Agent spec, launchers, UI, and AUTOMA-AI tests | Claude/Codex plugin manifests | Python 3.12+ development only |
+| `standalone/` | Local AUTOMA-AI agent/UI project | Agent spec, launchers, UI, and AUTOMA-AI tests | Claude/Codex plugin manifests | Python 3.10+ development only |
 | `evals/` | Eval cases and datasets | Regression cases for skills, planning, measures, knowledge | Runtime state or generated logs | Developer only |
 | `policy/` | Governance and promotion policies | Review, retention, allowlist, and runtime gate policies | Runtime executable code | Developer only unless referenced by docs |
 | `scripts/` | Build/generation scripts | Skill generation, index generation, repo maintenance scripts | Runtime MCP tool implementations | Some scripts may ship in wheel, but not as plugin UI |

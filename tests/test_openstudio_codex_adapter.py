@@ -304,6 +304,38 @@ def test_codex_adapter_exports_valid_manifest_and_marketplace(tmp_path: Path) ->
     assert marketplace_json["plugins"][0]["policy"]["installation"] == "AVAILABLE"
 
 
+def test_codex_adapter_exports_distinct_development_marketplace(tmp_path: Path) -> None:
+    _adapter().export_plugin(
+        tmp_path,
+        plugin_name="openstudio-ai-lbnl-dev",
+        marketplace_name="openstudio-ai-lbnl-dev",
+        dry_run=False,
+    )
+
+    marketplace_json = json.loads(
+        (tmp_path / ".agents" / "plugins" / "marketplace.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert marketplace_json["name"] == "openstudio-ai-lbnl-dev"
+    assert marketplace_json["plugins"][0]["name"] == "openstudio-ai-lbnl-dev"
+    assert (
+        marketplace_json["plugins"][0]["source"]["path"]
+        == "./plugins/openstudio-ai-lbnl-dev"
+    )
+    plugin_json = json.loads(
+        (
+            tmp_path
+            / "plugins"
+            / "openstudio-ai-lbnl-dev"
+            / ".codex-plugin"
+            / "plugin.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert plugin_json["name"] == "openstudio-ai-lbnl-dev"
+    assert plugin_json["interface"]["displayName"] == "OpenStudio AI LBNL Dev"
+
+
 def test_codex_adapter_exports_mcp_config(tmp_path: Path) -> None:
     _adapter().export_plugin(tmp_path, dry_run=False)
 

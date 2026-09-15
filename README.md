@@ -140,6 +140,10 @@ openstudio-ai export claude \
 openstudio-ai export codex \
   --output-dir /tmp/openstudio-ai-codex-plugin \
   --runtime-mode local
+
+openstudio-ai export opencode \
+  --output-dir /tmp/openstudio-ai-opencode-plugin \
+  --runtime-mode local
 ```
 
 Export marketplace-oriented plugins that expect an installed runtime command:
@@ -178,6 +182,12 @@ installed exporter code. Both exports configure PNNL as `openstudio_ai` launchin
 connection name. Calibration setup is separate: host connection
 `bem-calibration`, blackboard domain-service identifier `lbnl_bem_calibration`,
 and no Calibration-MCP execution-provider identifier.
+
+OpenCode uses a different native plugin format from Claude Code and Codex. Its
+export is a local JavaScript policy adapter: add the exported `index.mjs` by
+absolute `file://` URL to OpenCode's global `plugin` array. It does not start
+or package MCP services, so configure `openstudio_ai` and the optional
+`bem-calibration` connection separately.
 
 After installing the Codex marketplace plugin, add the shared OpenStudio
 modeler policy to each Codex project that should route plain-language

@@ -108,6 +108,7 @@ class CodexAdapter(OpenStudioAiHostAdapter):
         output_dir: Path,
         *,
         plugin_name: str = DEFAULT_PLUGIN_NAME,
+        marketplace_name: str = MARKETPLACE_NAME,
         dry_run: bool = True,
         force: bool = False,
     ) -> CodexPluginExportResult:
@@ -144,11 +145,15 @@ class CodexAdapter(OpenStudioAiHostAdapter):
 
         marketplace_path.parent.mkdir(parents=True, exist_ok=True)
         marketplace_path.write_text(
-            _render_marketplace_json(plugin_name), encoding="utf-8"
+            _render_marketplace_json(plugin_name, marketplace_name), encoding="utf-8"
         )
         (export_root / "INSTALL.md").write_text(
             _render_install_doc(
-                export_root, marketplace_path, plugin_name, runtime_mode
+                export_root,
+                marketplace_path,
+                plugin_name,
+                marketplace_name,
+                runtime_mode,
             ),
             encoding="utf-8",
         )
@@ -272,7 +277,7 @@ def _write_plugin_package(
     shutil.copy2(PLUGIN_ICON_PATH, plugin_dir / "assets" / "openstudio-ai-icon.png")
 
     (plugin_dir / ".codex-plugin" / "plugin.json").write_text(
-        _render_plugin_json(),
+        _render_plugin_json(plugin_dir.name),
         encoding="utf-8",
     )
     (plugin_dir / ".mcp.json").write_text(
@@ -307,12 +312,25 @@ def _write_plugin_package(
     _write_skill_references(plugin_dir / "skills", workspace_root)
 
 
-def _render_plugin_json() -> str:
+def _plugin_display_name(plugin_name: str) -> str:
+    """Return a readable label for the default or a named development plugin."""
+    if plugin_name == DEFAULT_PLUGIN_NAME:
+        return "OpenStudio AI"
+    token_labels = {"openstudio": "OpenStudio", "ai": "AI", "lbnl": "LBNL"}
+    return " ".join(
+        token_labels.get(token.lower(), token.capitalize())
+        for token in plugin_name.split("-")
+        if token
+    )
+
+
+def _render_plugin_json(plugin_name: str) -> str:
     """Render Codex `.codex-plugin/plugin.json` with validation-required metadata."""
+    display_name = _plugin_display_name(plugin_name)
     return (
         json.dumps(
             {
-                "name": DEFAULT_PLUGIN_NAME,
+                "name": plugin_name,
                 "version": package_version(),
                 "description": (
                     "OpenStudio AI harness for OpenStudio model editing, simulation, "
@@ -331,7 +349,7 @@ def _render_plugin_json() -> str:
                 "skills": "./skills/",
                 "mcpServers": "./.mcp.json",
                 "interface": {
-                    "displayName": "OpenStudio AI",
+                    "displayName": display_name,
                     "shortDescription": "OpenStudio modeling, simulation, SDK lookup, and workflow skills.",
                     "longDescription": (
                         "OpenStudio AI packages MCP tools, reusable skills, reviewed knowledge, "
@@ -401,12 +419,14 @@ def _mcp_server_config(workspace_root: Path, runtime_mode: str) -> dict[str, obj
     raise ValueError(f"Unsupported runtime mode: {runtime_mode}")
 
 
-def _render_marketplace_json(plugin_name: str) -> str:
+def _render_marketplace_json(plugin_name: str, marketplace_name: str) -> str:
     """Render a repo-local Codex marketplace manifest."""
+    if not marketplace_name.strip():
+        raise ValueError("Codex marketplace name must not be empty.")
     return (
         json.dumps(
             {
-                "name": MARKETPLACE_NAME,
+                "name": marketplace_name,
                 "interface": {
                     "displayName": "OpenStudio AI Local",
                 },
@@ -436,6 +456,7 @@ def _render_install_doc(
     export_root: Path,
     marketplace_path: Path,
     plugin_name: str,
+    marketplace_name: str,
     runtime_mode: str,
 ) -> str:
     """Render installation instructions for the exported Codex plugin."""
@@ -460,7 +481,7 @@ def _render_install_doc(
         f"codex plugin marketplace add {export_ref}\n"
         "```\n\n"
         "## 3. Install Or View The Plugin\n\n"
-        "Open the Codex plugin UI and install `openstudio-ai` from `openstudio-ai-local`.\n\n"
+        f"Open the Codex plugin UI and install `{plugin_name}` from `{marketplace_name}`.\n\n"
         "## 4. Add The Modeler Policy To A Project\n\n"
         "Codex plugins load skills and MCP tools, but they do not activate a plugin "
         "agent prompt as the main thread. In each project where plain-language "

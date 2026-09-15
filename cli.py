@@ -19,6 +19,7 @@ from adapters.calibration_connector import (
 )
 from adapters.codex_adapter import CodexAdapter
 from adapters.contracts import RUNTIME_MODES, HostAdapterConfig
+from adapters.opencode_adapter import OpenCodeAdapter
 from openstudio_ai_mcp.runtime_config import (
     openstudio_version_from_output,
     resolve_openstudio_executable_with_source,
@@ -1129,11 +1130,23 @@ def _cmd_export(args: argparse.Namespace) -> int:
         result = CodexAdapter(config).export_plugin(
             args.output_dir,
             plugin_name=args.plugin_name,
+            marketplace_name=args.marketplace_name,
             dry_run=args.dry_run,
             force=args.force,
         )
         print(
             f"{'Would export' if result.dry_run else 'Exported'} Codex plugin: {result.plugin_dir}"
+        )
+        return 0
+    if args.host == "opencode":
+        result = OpenCodeAdapter(config).export_plugin(
+            args.output_dir,
+            plugin_name=args.plugin_name,
+            dry_run=args.dry_run,
+            force=args.force,
+        )
+        print(
+            f"{'Would export' if result.dry_run else 'Exported'} OpenCode plugin: {result.plugin_dir}"
         )
         return 0
     raise ValueError(f"Unsupported export host: {args.host}")
@@ -1565,7 +1578,7 @@ def _build_parser() -> argparse.ArgumentParser:
     export = subparsers.add_parser("export", help="Export host plugin packages.")
     export.add_argument(
         "host",
-        choices=["claude", "codex", "marketplace"],
+        choices=["claude", "codex", "opencode", "marketplace"],
         help="Host plugin format, or the paired Claude and Codex marketplace, to export.",
     )
     export.add_argument(
@@ -1576,6 +1589,11 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     export.add_argument(
         "--plugin-name", default="openstudio-ai", help="Plugin folder/name."
+    )
+    export.add_argument(
+        "--marketplace-name",
+        default="openstudio-ai-local",
+        help="Codex marketplace name; use a distinct name for a parallel local export.",
     )
     export.add_argument(
         "--workspace-root",

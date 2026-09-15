@@ -8,6 +8,8 @@ modeling behavior, OpenStudio operations, or durable workflow state.
 
 - `claude_code_adapter.py`: Claude Code marketplace and project-local exports.
 - `codex_adapter.py`: Codex marketplace exports and managed project guidance.
+- `opencode_adapter.py`: self-contained local JavaScript module exports for
+  OpenCode's native plugin hook.
 - `contracts.py`: shared host configuration and launch-plan types.
 - `base.py`: common adapter interface.
 
@@ -127,6 +129,19 @@ Add the exported marketplace with:
 codex plugin marketplace add /tmp/openstudio-ai-codex
 ```
 
+To test a development export alongside the public OpenStudio AI marketplace,
+give both the plugin and its local marketplace a distinct name:
+
+```bash
+.venv/bin/python -m cli export codex \
+  --output-dir ./openstudio-ai-codex-plugin \
+  --workspace-root "$PWD" \
+  --runtime-mode local \
+  --plugin-name openstudio-ai-lbnl-dev \
+  --marketplace-name openstudio-ai-lbnl-dev \
+  --force
+```
+
 Codex references also live under the relevant skill. Do not add root plugin
 folders such as `commands/`, `instructions/`, `knowledge/`, `blackboard/`,
 `learning/`, or `installers/`.
@@ -141,6 +156,27 @@ openstudio-ai install codex --target-dir /path/to/codex-project
 The command creates `AGENTS.md` if it is absent. It otherwise updates only its
 marked block; preview with `--dry-run`, and use `--force` to append to an
 unmanaged file without replacing existing instructions.
+
+## OpenCode Export
+
+OpenCode plugins are JavaScript modules, not Claude or Codex plugin folders.
+The OpenCode adapter supplies OpenStudio/calibration routing policy only;
+`openstudio_ai` and optional `bem-calibration` remain separately configured
+MCP servers.
+
+```bash
+.venv/bin/python -m cli export opencode \
+  --output-dir /tmp/openstudio-ai-opencode \
+  --workspace-root "$PWD" \
+  --runtime-mode local \
+  --plugin-name openstudio-ai-lbnl-dev \
+  --force
+```
+
+Add the exported `index.mjs` by absolute `file://` URL to OpenCode's global
+`plugin` array, then restart OpenCode. This is a local-development adapter;
+it is intentionally not bundled into the paired Claude/Codex marketplace
+export.
 
 ## Change Checklist
 

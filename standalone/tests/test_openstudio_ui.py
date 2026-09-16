@@ -2,11 +2,34 @@ from standalone.ui import (
     _artifact_contains_json_fence,
     _artifact_contains_python_fence,
     _format_status_text_for_display,
+    _normalize_agent_stream_event,
     _parse_stream_chunk,
     _should_defer_artifact_render,
     _should_suppress_status_text,
     _split_python_fenced_blocks,
 )
+
+
+def test_openstudio_ui_preserves_structured_final_data_artifacts() -> None:
+    event = _normalize_agent_stream_event(
+        {
+            "response_type": "data",
+            "is_task_complete": True,
+            "content": {"skill_count": 5},
+            "additional_artifacts": [
+                {"response_type": "text", "content": "Five skills are available."}
+            ],
+        }
+    )
+
+    assert event == {
+        "response_type": "data",
+        "content": {"skill_count": 5},
+        "is_task_complete": True,
+        "additional_artifacts": [
+            {"response_type": "text", "content": "Five skills are available."}
+        ],
+    }
 
 
 def test_openstudio_ui_parses_status_update_separately() -> None:

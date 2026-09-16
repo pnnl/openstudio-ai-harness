@@ -21,6 +21,13 @@ and approval model.
 
 ## Current Status
 
+- Diagnostic MVP: `model_inspect` provides a read-only OSM structural inventory;
+  `sim_diagnose` turns bounded simulation logs into warning/failure findings;
+  and `results_plausibility` checks interior-lighting energy against a supplied
+  benchmark without claiming an unsupported root cause. Curated fixtures cover
+  failed logs, an unzoned warning-heavy model, and a 10x lighting anomaly.
+- The MCP plugin interface contract is now `6`; hosts must refresh exported
+  plugins to use the session and diagnostic tool surfaces.
 - Current branch: `update_mcp_2_0` at `54ae210` (`0.3.1`); working tree was
   clean when this handoff was refreshed on September 15, 2026.
 - The current foundation is a Python 3.10+ package with an MCP 2.x runtime,

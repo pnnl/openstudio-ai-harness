@@ -78,12 +78,16 @@ development environment that also supports Python 3.10+:
 
 ```bash
 uv sync --project standalone
-uv run --project standalone python standalone/agent.py
-uv run --project standalone streamlit run standalone/ui.py
+uv run --project standalone streamlit run standalone/ui.py --server.port 8504
 ```
 
 Standalone mode requires Python 3.10+ and user-provided LLM configuration, such
 as API keys or model endpoint settings, in the local environment.
+
+For a browser-ready containerized demo, use `docker compose --profile standalone up --build
+standalone` and open [http://localhost:8504](http://localhost:8504). See
+[`standalone/README.md`](standalone/README.md) for the optional host-port
+override and environment setup.
 
 Run focused tests:
 

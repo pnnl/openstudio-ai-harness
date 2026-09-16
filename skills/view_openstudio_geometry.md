@@ -13,8 +13,8 @@ for geometry inspection; it does not edit the model or run a simulation.
 ## Workflow
 
 1. Call `runtime_plugin_compatibility` before loading the model. This viewer
-   requires MCP interface contract `4`. Continue only when the returned
-   `compatibility.runtime_contract_version` is `4` and `compatibility.ok` is
+   requires MCP interface contract `5`. Continue only when the returned
+   `compatibility.runtime_contract_version` is `5` and `compatibility.ok` is
    true. If the tool is absent, reports another contract, or reports an
    incompatibility, explain that this conversation is connected to a stale
    runtime. Run the OpenStudio AI setup workflow to upgrade the runtime with

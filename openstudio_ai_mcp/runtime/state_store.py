@@ -299,6 +299,16 @@ class RuntimeStateStore:
                 (1 if pinned else 0, utc_now(), artifact_id),
             )
 
+    def set_artifact_context(
+        self, artifact_id: str, *, session_id: str | None, model_revision_id: str | None
+    ) -> None:
+        with self._connect() as conn:
+            conn.execute(
+                """UPDATE artifacts SET session_id = ?, model_revision_id = ?,
+                last_accessed_at = ? WHERE artifact_id = ?""",
+                (session_id, model_revision_id, utc_now(), artifact_id),
+            )
+
     def pin_workspace(self, workspace_id: str, pinned: bool) -> None:
         with self._connect() as conn:
             conn.execute(
@@ -482,6 +492,16 @@ class RuntimeStateStore:
             rows = conn.execute("SELECT job_id FROM jobs WHERE session_id = ? ORDER BY created_at", (session_id,)).fetchall()
         return [job for row in rows if (job := self.get_job(row["job_id"])) is not None]
 
+    def list_jobs(self, *, state: str | None = None) -> list[dict[str, Any]]:
+        query = "SELECT job_id FROM jobs"
+        values: tuple[str, ...] = ()
+        if state is not None:
+            query += " WHERE state = ?"
+            values = (state,)
+        with self._connect() as conn:
+            rows = conn.execute(query, values).fetchall()
+        return [job for row in rows if (job := self.get_job(row["job_id"])) is not None]
+
     def get_job_artifact_ids(self, job_id: str) -> set[str]:
         """Return all artifact IDs recorded for a simulation job."""
         with self._connect() as conn:
@@ -499,13 +519,16 @@ class RuntimeStateStore:
 
     def create_session(self, *, session_id: str, goal: str, metadata: dict[str, Any]) -> dict[str, Any]:
         now = utc_now()
-        with self._connect() as conn:
-            conn.execute(
-                """INSERT INTO engineering_sessions
-                (session_id, goal, status, contract_version, created_at, updated_at, metadata_json)
-                VALUES (?, ?, 'active', 1, ?, ?, ?)""",
-                (session_id, goal, now, now, json.dumps(metadata, sort_keys=True)),
-            )
+        try:
+            with self._connect() as conn:
+                conn.execute(
+                    """INSERT INTO engineering_sessions
+                    (session_id, goal, status, contract_version, created_at, updated_at, metadata_json)
+                    VALUES (?, ?, 'active', 1, ?, ?, ?)""",
+                    (session_id, goal, now, now, json.dumps(metadata, sort_keys=True)),
+                )
+        except sqlite3.IntegrityError as exc:
+            raise ValueError(f"Session already exists: {session_id}") from exc
         return self.get_session(session_id) or {}
 
     def get_session(self, session_id: str) -> dict[str, Any] | None:

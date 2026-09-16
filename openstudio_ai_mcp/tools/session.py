@@ -45,9 +45,27 @@ def register_session_tools(mcp, service) -> None:
             return error_payload("internal_error", str(exc), retryable=False)
 
     @mcp.tool(name="session_record_finding", description="Record an evidence-backed engineering finding without changing the model.")
-    async def session_record_finding(**kwargs: Any) -> dict[str, Any]:
+    async def session_record_finding(
+        session_id: str,
+        category: str,
+        severity: str,
+        assertion: str,
+        confidence: str = "medium",
+        evidence: list[dict[str, Any]] | None = None,
+        affected_model_refs: list[dict[str, Any]] | None = None,
+        proposed_action: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         try:
-            return service.session_record_finding(SessionFindingArgs(**kwargs))
+            return service.session_record_finding(SessionFindingArgs(
+                session_id=session_id,
+                category=category,
+                severity=severity,
+                assertion=assertion,
+                confidence=confidence,
+                evidence=evidence or [],
+                affected_model_refs=affected_model_refs or [],
+                proposed_action=proposed_action,
+            ))
         except ValidationError as exc:
             return validation_error_payload(exc)
         except KeyError as exc:

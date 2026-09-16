@@ -46,6 +46,7 @@ class JobManager:
         self.state_store = state_store
         self.job_update_callback = job_update_callback
         self._jobs: dict[str, JobRecord] = {}
+        self._reconcile_interrupted_jobs()
 
     def create_job(
         self, *, model_id: str, run_mode: str, options: dict[str, Any],
@@ -84,7 +85,9 @@ class JobManager:
         return job
 
     def mark_running(self, job_id: str, *, progress: int | None = None) -> None:
-        job = self._jobs[job_id]
+        job = self.get(job_id)
+        if job is None:
+            raise KeyError(f"Unknown job_id: {job_id}")
         job.state = "RUNNING"
         if progress is not None:
             job.progress = progress
@@ -100,7 +103,9 @@ class JobManager:
         warnings_count: int = 0,
         severe_count: int = 0,
     ) -> None:
-        job = self._jobs[job_id]
+        job = self.get(job_id)
+        if job is None:
+            raise KeyError(f"Unknown job_id: {job_id}")
         job.state = "SUCCEEDED"
         job.progress = 100
         job.warnings_count = warnings_count
@@ -111,7 +116,9 @@ class JobManager:
         self._notify(job)
 
     async def complete_stub_simulation(self, job_id: str, *, model_id: str) -> None:
-        job = self._jobs[job_id]
+        job = self.get(job_id)
+        if job is None:
+            raise KeyError(f"Unknown job_id: {job_id}")
         await asyncio.sleep(0.05)
 
         osm = self.artifact_store.create(
@@ -162,7 +169,27 @@ class JobManager:
         self._notify(job)
 
     def running_job_ids(self) -> set[str]:
-        return {job_id for job_id, job in self._jobs.items() if job.state == "RUNNING"}
+        return {
+            job["job_id"] for job in self.state_store.list_jobs(state="RUNNING")
+        } if self.state_store is not None else {
+            job_id for job_id, job in self._jobs.items() if job.state == "RUNNING"
+        }
+
+    def _reconcile_interrupted_jobs(self) -> None:
+        if self.state_store is None:
+            return
+        for persisted in self.state_store.list_jobs(state="RUNNING"):
+            job = JobRecord(**persisted)
+            job.state = "FAILED"
+            job.progress = 100
+            job.error = {
+                "type": "interrupted",
+                "message": "The MCP runtime restarted before this local simulation completed.",
+                "retryable": True,
+            }
+            job.updated_at = datetime.now(timezone.utc).isoformat()
+            self._jobs[job.job_id] = job
+            self._persist(job)
 
     def _persist(self, job: JobRecord) -> None:
         if self.state_store is None:

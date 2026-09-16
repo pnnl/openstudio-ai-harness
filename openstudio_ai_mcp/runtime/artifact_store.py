@@ -15,6 +15,8 @@ class ArtifactRecord:
     parent_id: str | None
     kind: str
     tool_trace_id: str | None
+    session_id: str | None
+    model_revision_id: str | None
     metadata: dict[str, Any]
 
     def to_dict(self) -> dict[str, Any]:
@@ -44,6 +46,8 @@ class ArtifactStore:
             parent_id=parent_id,
             kind=kind,
             tool_trace_id=tool_trace_id,
+            session_id=session_id,
+            model_revision_id=model_revision_id,
             metadata=dict(metadata),
         )
         if self.state_store is not None:
@@ -66,6 +70,26 @@ class ArtifactStore:
         if self.state_store is not None:
             self.state_store.mark_artifact_status(artifact_id, status)
 
+    def set_context(
+        self, artifact_id: str, *, session_id: str | None, model_revision_id: str | None
+    ) -> None:
+        if self.state_store is not None:
+            self.state_store.set_artifact_context(
+                artifact_id, session_id=session_id, model_revision_id=model_revision_id
+            )
+        artifact = self._items.get(artifact_id)
+        if artifact is not None:
+            self._items[artifact_id] = ArtifactRecord(
+                artifact_id=artifact.artifact_id,
+                created_at=artifact.created_at,
+                parent_id=artifact.parent_id,
+                kind=artifact.kind,
+                tool_trace_id=artifact.tool_trace_id,
+                session_id=session_id,
+                model_revision_id=model_revision_id,
+                metadata=artifact.metadata,
+            )
+
     def get(self, artifact_id: str) -> ArtifactRecord | None:
         item = self._items.get(artifact_id)
         if item is not None:
@@ -83,6 +107,8 @@ class ArtifactStore:
             parent_id=persisted["parent_id"],
             kind=persisted["kind"],
             tool_trace_id=persisted["tool_trace_id"],
+            session_id=persisted["session_id"],
+            model_revision_id=persisted["model_revision_id"],
             metadata=persisted["metadata"],
         )
         self._items[artifact.artifact_id] = artifact

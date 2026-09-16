@@ -588,7 +588,7 @@ def test_cli_export_paired_marketplace_includes_provenance(tmp_path: Path) -> No
     assert provenance["package"]["name"] == "openstudio-ai"
     assert provenance["plugin"] == {
         "name": "openstudio-ai",
-        "mcp_interface_contract_version": "4",
+        "mcp_interface_contract_version": "5",
         "runtime_mode": "marketplace",
     }
     assert set(provenance["source"]) == {"revision", "dirty"}

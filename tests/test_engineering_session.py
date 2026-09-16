@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from openstudio_ai_mcp.server import OpenStudioService
 from openstudio_ai_mcp.tools.schemas import (
     ModelCloneArgs,
@@ -19,6 +21,9 @@ def test_session_preserves_model_lineage_findings_and_checkpoint(tmp_path: Path)
 
     session_id = service.session_create(SessionCreateArgs(goal="Diagnose lighting"))["session"]["session_id"]
     loaded = service.model_load(ModelLoadArgs(model_uri=source.as_uri(), session_id=session_id))
+    loaded_artifact = service.artifacts.must_get(loaded["model_id"])
+    assert loaded_artifact.session_id == session_id
+    assert loaded_artifact.model_revision_id == loaded["model_revision_id"]
     cloned = service.model_clone(ModelCloneArgs(model_id=loaded["model_id"]))
 
     revisions = service.session_get(session_id)["model_revisions"]
@@ -40,8 +45,22 @@ def test_session_preserves_model_lineage_findings_and_checkpoint(tmp_path: Path)
     assert cloned["model_revision_id"]
 
     restarted = OpenStudioService(workspace_root=workspace, learning_db_path=learning_db)
-    assert restarted._get_model_state(loaded["model_id"]).metadata["model_uri"]
+    rehydrated = restarted._get_model_state(loaded["model_id"])
+    assert rehydrated.metadata["model_uri"]
+    assert rehydrated.metadata["model_revision_id"] == loaded["model_revision_id"]
+    resumed_clone = restarted.model_clone(ModelCloneArgs(model_id=loaded["model_id"]))
+    assert restarted.state_store.get_model_revision(resumed_clone["model_revision_id"])["parent_revision_id"] == loaded["model_revision_id"]
     assert restarted.session_get(session_id)["checkpoint"]["checkpoint_id"] == checkpoint["checkpoint_id"]
+
+    other_session = service.session_create(SessionCreateArgs(goal="Other"))["session"]["session_id"]
+    with pytest.raises(ValueError, match="does not belong"):
+        service.session_record_finding(SessionFindingArgs(
+            session_id=other_session,
+            category="results",
+            severity="warning",
+            assertion="cross-session evidence",
+            evidence=[{"artifact_id": loaded["model_id"]}],
+        ))
 
 
 def test_persisted_job_can_be_recovered_by_new_service(tmp_path: Path) -> None:
@@ -54,3 +73,41 @@ def test_persisted_job_can_be_recovered_by_new_service(tmp_path: Path) -> None:
     assert recovered is not None
     assert recovered.state == "FAILED"
     assert recovered.session_id == "session"
+
+
+def test_running_job_is_marked_interrupted_after_restart(tmp_path: Path) -> None:
+    workspace = tmp_path / "runtime"
+    learning_db = tmp_path / "learning.sqlite"
+    service = OpenStudioService(workspace_root=workspace, learning_db_path=learning_db)
+    job = service.job_manager.create_job(model_id="model", run_mode="sizing", options={})
+
+    restarted = OpenStudioService(workspace_root=workspace, learning_db_path=learning_db)
+    recovered = restarted.job_manager.get(job.job_id)
+    assert recovered is not None
+    assert recovered.state == "FAILED"
+    assert recovered.error["type"] == "interrupted"
+    assert job.job_id not in restarted.job_manager.running_job_ids()
+
+
+def test_diagnostic_bundle_bounds_logs_and_falls_back_to_energyplus_error(tmp_path: Path) -> None:
+    service = OpenStudioService(workspace_root=tmp_path / "runtime", learning_db_path=tmp_path / "learning.sqlite")
+    job = service.job_manager.create_job(model_id="model", run_mode="sizing", options={})
+    workspace = service.workspace_manager.workspace_path(job.job_id)
+    (workspace / "openstudio.stdout.log").write_text("0123456789", encoding="utf-8")
+    (workspace / "run").mkdir()
+    (workspace / "run" / "eplusout.err").write_text("EnergyPlus failure", encoding="utf-8")
+    logs = service.artifacts.create(
+        kind="logs",
+        metadata={
+            "job_id": job.job_id,
+            "stdout_path": str(workspace / "openstudio.stdout.log"),
+            "stderr_path": str(workspace / "missing.stderr.log"),
+            "err_path": None,
+        },
+    )
+    service.job_manager.fail(job.job_id, error={"message": "failed"}, artifacts={"logs_id": logs.artifact_id})
+
+    bundle = service.session_diagnostic_bundle(job_id=job.job_id, max_chars=4)
+    assert bundle["log_excerpts"]["stdout"] == "6789"
+    assert bundle["log_excerpts"]["err"] == "lure"
+    assert "stderr" not in bundle["log_excerpts"]

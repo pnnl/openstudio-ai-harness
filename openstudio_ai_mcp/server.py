@@ -191,7 +191,6 @@ class OpenStudioService:
         )
         self.sdk_docs = OpenStudioSdkDocLookup.from_env()
         self._sim_tasks: dict[str, asyncio.Task] = {}
-        self._failed_job_artifacts: dict[str, dict[str, str]] = {}
         self.model_states: dict[str, OpenStudioModelState] = {}
 
     def learning_capture_observation(
@@ -269,14 +268,19 @@ class OpenStudioService:
             if artifact is not None and artifact.kind == "osm":
                 model_uri = artifact.metadata.get("model_uri") or artifact.metadata.get("path")
                 if isinstance(model_uri, str):
+                    revision = artifact.model_revision_id and self.state_store.get_model_revision(
+                        artifact.model_revision_id
+                    )
+                    if revision is None:
+                        revision = self.state_store.get_model_revision_for_model(model_id)
                     model_state = OpenStudioModelState(
                         model_id=model_id,
                         metadata={
                             "model_uri": model_uri,
                             "weather": artifact.metadata.get("weather"),
                             "workspace_id": artifact.metadata.get("workspace_id"),
-                            "session_id": artifact.metadata.get("session_id"),
-                            "model_revision_id": artifact.metadata.get("model_revision_id"),
+                            "session_id": artifact.session_id or (revision or {}).get("session_id"),
+                            "model_revision_id": (revision or {}).get("revision_id"),
                         },
                     )
                     self.model_states[model_id] = model_state
@@ -316,6 +320,9 @@ class OpenStudioService:
             operation="load", source_sha256=source_sha256,
             metadata={"source_uri": args.model_uri, "artifact_id": artifact.artifact_id},
         )
+        self.artifacts.set_context(
+            artifact.artifact_id, session_id=args.session_id, model_revision_id=revision_id
+        )
         self.model_states[artifact.artifact_id] = OpenStudioModelState(
             model_id=artifact.artifact_id,
             metadata={
@@ -348,6 +355,9 @@ class OpenStudioService:
             parent_revision_id=base.metadata.get("model_revision_id"), operation="clone",
             source_sha256=self._sha256_or_unavailable(base.metadata.get("model_uri")),
             metadata={"source_model_id": args.model_id, "artifact_id": artifact.artifact_id},
+        )
+        self.artifacts.set_context(
+            artifact.artifact_id, session_id=session_id, model_revision_id=revision_id
         )
         self.model_states[artifact.artifact_id] = OpenStudioModelState(
             model_id=artifact.artifact_id,
@@ -581,6 +591,9 @@ class OpenStudioService:
             source_sha256=self._sha256(output_osm),
             metadata={"source_model_id": args.model_id, "measure_args": normalized_args},
         )
+        self.artifacts.set_context(
+            output_artifact.artifact_id, session_id=session_id, model_revision_id=revision_id
+        )
         self.model_states[output_artifact.artifact_id] = OpenStudioModelState(
             model_id=output_artifact.artifact_id,
             metadata={
@@ -786,6 +799,9 @@ class OpenStudioService:
             )
             self._mark_workspace_status(job_id, "succeeded")
         except Exception as exc:
+            failure_artifacts = self._register_failure_artifacts(
+                job_id=job_id, model_id=model_id
+            )
             self.job_manager.fail(
                 job_id,
                 error=error_payload(
@@ -794,7 +810,7 @@ class OpenStudioService:
                     details={"job_id": job_id},
                     retryable=False,
                 )["error"],
-                artifacts=self._failed_job_artifacts.pop(job_id, None),
+                artifacts=failure_artifacts,
             )
             self._mark_workspace_status(job_id, "failed")
         finally:
@@ -900,6 +916,36 @@ class OpenStudioService:
             artifacts=job.artifacts, log_excerpts=excerpts, error=job.error,
         )
 
+    def _register_failure_artifacts(self, *, job_id: str, model_id: str) -> dict[str, str]:
+        """Publish the inspectable run inputs/logs left by a failed simulation."""
+        workspace = self.workspace_manager.workspace_path(job_id)
+        if not workspace.exists():
+            return {}
+        model_state = self._get_model_state(model_id)
+        session_id = model_state.metadata.get("session_id")
+        revision_id = model_state.metadata.get("model_revision_id")
+        osm_path = workspace / "in.osm"
+        osm = self.artifacts.create(
+            kind="osm",
+            parent_id=model_id,
+            metadata={"job_id": job_id, "workspace_id": job_id, "path": str(osm_path), "failure_input": True},
+            session_id=session_id,
+            model_revision_id=revision_id,
+        )
+        logs = self.artifacts.create(
+            kind="logs",
+            parent_id=osm.artifact_id,
+            metadata={
+                "job_id": job_id, "workspace_id": job_id,
+                "stdout_path": str(workspace / "openstudio.stdout.log"),
+                "stderr_path": str(workspace / "openstudio.stderr.log"),
+                "err_path": str(workspace / "run" / "eplusout.err"),
+            },
+            session_id=session_id,
+            model_revision_id=revision_id,
+        )
+        return {"osm_id": osm.artifact_id, "logs_id": logs.artifact_id}
+
     def results_query(self, args: ResultsQueryArgs) -> dict[str, Any]:
         artifact = self.artifacts.must_get(args.sql_id)
         if artifact.kind != "sql":
@@ -936,11 +982,9 @@ class OpenStudioService:
                 "query_type": args.query_type,
                 "params": args.params,
                 "data": data,
-                "session_id": artifact.metadata.get("session_id"),
-                "model_revision_id": artifact.metadata.get("model_revision_id"),
             },
-            session_id=artifact.metadata.get("session_id"),
-            model_revision_id=artifact.metadata.get("model_revision_id"),
+            session_id=artifact.session_id,
+            model_revision_id=artifact.model_revision_id,
         )
         return success_payload(data=data, analysis_id=analysis.artifact_id)
 
@@ -1171,26 +1215,6 @@ class OpenStudioService:
             session_id=session_id,
             model_revision_id=revision_id,
         )
-        logs_art = self.artifacts.create(
-            kind="logs",
-            parent_id=osm_art.artifact_id,
-            metadata={
-                "job_id": job_id,
-                "workspace_id": job_id,
-                "stdout_path": str(stdout_path),
-                "stderr_path": str(stderr_path),
-                "err_path": None,
-                "session_id": session_id,
-                "model_revision_id": revision_id,
-            },
-            session_id=session_id,
-            model_revision_id=revision_id,
-        )
-        self._failed_job_artifacts[job_id] = {
-            "osm_id": osm_art.artifact_id,
-            "logs_id": logs_art.artifact_id,
-        }
-
         self.job_manager.mark_running(job_id, progress=80)
 
         if completed.returncode != 0:
@@ -1278,7 +1302,6 @@ class OpenStudioService:
             size_bytes=self.workspace_manager.workspace_size(job_id),
         )
         self.state_store.update_workspace_artifact(job_id, osm_art.artifact_id)
-        self._failed_job_artifacts.pop(job_id, None)
         return {
             "artifacts": {
                 "osm_id": osm_art.artifact_id,
@@ -1435,8 +1458,6 @@ class OpenStudioService:
 
     def session_create(self, args: SessionCreateArgs) -> dict[str, Any]:
         session_id = args.session_id or str(uuid4())
-        if self.state_store.get_session(session_id) is not None:
-            raise ValueError(f"Session already exists: {session_id}")
         return success_payload(session=self.state_store.create_session(
             session_id=session_id, goal=args.goal, metadata=args.metadata
         ))
@@ -1455,8 +1476,14 @@ class OpenStudioService:
         self._require_session(args.session_id)
         for evidence in args.evidence:
             artifact_id = evidence.get("artifact_id")
-            if artifact_id and self.artifacts.get(artifact_id) is None:
-                raise KeyError(f"Evidence artifact not found: {artifact_id}")
+            if artifact_id:
+                artifact = self.artifacts.get(artifact_id)
+                if artifact is None:
+                    raise KeyError(f"Evidence artifact not found: {artifact_id}")
+                if artifact.session_id != args.session_id:
+                    raise ValueError(
+                        f"Evidence artifact does not belong to session: {artifact_id}"
+                    )
         finding = self.state_store.create_finding(
             finding_id=str(uuid4()), session_id=args.session_id, category=args.category,
             severity=args.severity, assertion=args.assertion, confidence=args.confidence,
@@ -1468,6 +1495,7 @@ class OpenStudioService:
     def session_checkpoint(self, args: SessionCheckpointArgs) -> dict[str, Any]:
         session = self._require_session(args.session_id)
         revisions = self.state_store.list_session_model_revisions(args.session_id)
+        jobs = self.state_store.list_session_jobs(args.session_id)
         findings = self.state_store.list_session_findings(args.session_id, status="open")
         latest_revision = revisions[-1] if revisions else None
         artifact_ids = [revision["model_id"] for revision in revisions]
@@ -1476,6 +1504,8 @@ class OpenStudioService:
                 evidence["artifact_id"] for evidence in finding["evidence"]
                 if isinstance(evidence.get("artifact_id"), str)
             )
+        for job in jobs:
+            artifact_ids.extend(job["artifacts"].values())
         artifact_ids = sorted(set(artifact_ids))
         for artifact_id in artifact_ids:
             self.state_store.pin_artifact(artifact_id, True)

@@ -102,6 +102,11 @@ def test_claude_code_adapter_exports_plugin_package(tmp_path: Path) -> None:
     assert (plugin_dir / "skills" / "propose-measure" / "SKILL.md").exists()
     assert (plugin_dir / "skills" / "capture-session-lesson" / "SKILL.md").exists()
     assert (plugin_dir / "skills" / "view-openstudio-geometry" / "SKILL.md").exists()
+    issue_submitter = (
+        plugin_dir / "skills" / "github-issue-submitter" / "SKILL.md"
+    ).read_text(encoding="utf-8")
+    assert "pnnl/openstudio-ai-plugins" in issue_submitter
+    assert "obtain explicit" in issue_submitter
     simulate_skill = (plugin_dir / "skills" / "simulate" / "SKILL.md").read_text(
         encoding="utf-8"
     )

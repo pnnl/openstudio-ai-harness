@@ -2,6 +2,9 @@ $schema: asset_manifest.schema.json
 version: 3
 
 skills:
+  - id: github-issue-submitter
+    source: skills/github_issue_submitter.md
+    hosts: [claude, codex]
   - id: delegated-nlr-modeling
     source: skills/delegated_nlr_modeling.md
     hosts: [claude, codex]

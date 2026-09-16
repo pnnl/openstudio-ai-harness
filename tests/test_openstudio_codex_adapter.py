@@ -274,6 +274,11 @@ def test_codex_adapter_exports_valid_manifest_and_marketplace(tmp_path: Path) ->
     assert plugin_json["mcpServers"] == "./.mcp.json"
     assert plugin_json["interface"]["displayName"] == "OpenStudio AI"
     assert plugin_json["interface"]["defaultPrompt"]
+    issue_submitter = (
+        plugin_dir / "skills" / "github-issue-submitter" / "SKILL.md"
+    ).read_text(encoding="utf-8")
+    assert "pnnl/openstudio-ai-plugins" in issue_submitter
+    assert "obtain explicit" in issue_submitter
     assert plugin_json["interface"]["composerIcon"] == "./assets/openstudio-ai-icon.png"
     assert plugin_json["interface"]["logo"] == "./assets/openstudio-ai-icon.png"
 

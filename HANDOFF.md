@@ -1,148 +1,86 @@
 # OpenStudio AI Harness Handoff
 
+## Product Direction
+
+OpenStudio AI is the durable, host-neutral foundation that enables LLMs to do
+reliable building-energy engineering work. It must support more than model
+creation and simulation: an agent should be able to preserve a model's lineage
+and evidence, inspect the model and run artifacts, diagnose errors and
+implausible results, propose safe corrections, and verify the outcome.
+
+The product sequence is deliberately dependency-led:
+
+1. Durable engineering sessions and reproducible execution.
+2. Model inspection and evidence-backed debugging.
+3. Results analysis and plausibility/benchmark validation.
+4. Parametric studies built on the same variant, job, and result contracts.
+5. Optimization and machine-learning extensions consuming those contracts.
+
+Do not add isolated agent features that bypass the durable artifact, provenance,
+and approval model.
+
 ## Current Status
 
-- MCP Python SDK v2 migration (branch `update_mcp_2_0`) now uses
-  `mcp>=2,<3`, resolved to MCP 2.2.0 in both root and standalone locks.
-  The runtime now uses `MCPServer`; HTTP host/port settings are passed at
-  `run()` time, while stdio remains argument-free. MCP smoke tests were updated
-  for snake_case protocol fields and passed: 6 passed, 2 OpenStudio-gated
-  skipped. The standalone project now uses `automa-ai` 0.9.0 with the shared
-  Python 3.10+ baseline; its focused suite passes on Python 3.10 (19 passed).
-- Round 2 begins with live job status: `openstudio://jobs/{job_id}` returns
-  the canonical simulation status payload. Each persisted job transition
-  publishes a v2 `ResourceUpdated` event through the in-process subscription
-  bus, including transitions made by the OpenStudio CLI worker thread.
-  `sim_status` remains a diagnostic mirror for now. In-memory MCP `Client`
-  coverage verifies subscription delivery and resource reads; MCP plus
-  geometry/job-manager regressions passed: 25 passed, 2 skipped.
-- Renamed the PNNL runtime package directory from `openstudio_mcp/` to
-  `openstudio_ai_mcp/`.
-- Added user-local MCP learning storage. “Opt-in” means evidence is persisted
-  only when a host explicitly invokes a learning tool; it is not a server
-  configuration toggle. Evidence becomes retrievable personal guidance only
-  after an explicit candidate review. The host-neutral
-  `openstudio-ai learning` CLI shares that store and provides `curate`,
-  `candidates`, `propose-measures`, `prune-preview`, and confirmation-gated
-  `prune`. Repeated successful scripts with the same fingerprint create
-  unreviewed measure candidates; neither MCP nor CLI changes trusted assets.
-  `curate-learning` is exported to both Claude Code and Codex so curation can
-  run separately from modeling when the host supports delegation.
-- Dev-container verification: root suite passed with 159 tests collected,
-  excluding two expected OpenStudio-gated skips; standalone checks exited 0 in
-  their separate `uv` environment. The container needed the documented
-  Playwright Chromium download restored after being restarted.
+- Current branch: `update_mcp_2_0` at `54ae210` (`0.3.1`); working tree was
+  clean when this handoff was refreshed on September 15, 2026.
+- The current foundation is a Python 3.10+ package with an MCP 2.x runtime,
+  Codex and Claude Code plugin exports, trusted skills/knowledge, local
+  SQLite-backed workflow state, model lifecycle support, asynchronous
+  simulation, SQL-backed results, SDK lookup, geometry export, and user-local
+  review-gated learning evidence.
+- Simulation jobs have durable records and artifacts. The canonical live status
+  resource is `openstudio://jobs/{job_id}`; transitions publish MCP resource
+  updates, including worker-thread transitions. `sim_status` remains a
+  diagnostic mirror.
+- The runtime uses per-job workspaces. A run can retain the source model,
+  EnergyPlus logs (including `eplusout.err`), SQL output, reports, and metadata
+  needed for later diagnosis, subject to runtime retention policy.
+- Host adapters distinguish PNNL's `openstudio-ai-mcp` / `openstudio_ai` from
+  NLR's optional `openstudio-mcp` connection. NLR discovery is configuration
+  detection, not a verified live connection.
+- The base package intentionally excludes AUTOMA-AI and Streamlit. The
+  standalone AUTOMA-AI/Streamlit environment is isolated under `standalone/`;
+  its dependency supply chain has been resolved and is no longer an open
+  planning item.
 
-- Documented the standalone Claude Desktop NLR OpenStudio-MCP configuration in
-  `docs/CLAUDE_DESKTOP_NLR_OPENSTUDIO_MCP.md`. The guide makes explicit that
-  `claude_desktop_config.json` is global while NLR access is constrained by its
-  Docker mounts; it gives shared-workspace and project-specific remediation,
-  requires a full Claude Desktop restart, and distinguishes this from a
-  localhost networking error. It uses `openstudio-mcp` as the supported host
-  connection name; `nlr_openstudio` remains the optional capability label.
-  `delegated-nlr-modeling` and the Claude modeler prompt now require the agent
-  to diagnose this mount boundary, offer staging or user-led reconfiguration,
-  and avoid unsafe broad mounts or misleading localhost retries.
+## This Week: Debugging Foundation Vertical Slice
 
-- PNNL's foundational MCP now advertises `openstudio-ai-mcp`, matching its
-  executable and distinguishing it from NLR's `openstudio-mcp`. The package
-  remains `openstudio-ai` and the host connection remains `openstudio_ai`.
-  The existing model-load smoke test now checks the initialization response's
-  server name; it passed (1 test) with localhost socket access after the sandbox
-  blocked socket binding during collection. Restart the runtime to see the name.
+The immediate objective is to turn existing model, job, artifact, and results
+surfaces into a reliable diagnostic workflow. Scope the work as a vertical slice
+rather than a broad new platform:
 
-- Branch `nrl_connection_name_fix`: runtime CLI and exported doctor helpers
-  recognize NLR's preferred `openstudio-mcp` connection name and the existing
-  `nlr_openstudio` alias in Codex TOML and Claude project/ancestor JSON.
-  When both appear in one config, the preferred name wins. The optional
-  capability key remains `nlr_openstudio`; discovery does not verify connectivity.
-  Generated setup instructions recommend `openstudio-mcp`.
-- Validation: 80 tests passed across `test_adapter_runtime_helpers.py`,
-  `test_openstudio_cli.py`, `test_openstudio_codex_adapter.py`, and
-  `test_openstudio_claude_code_adapter.py`; two expected SDK fallback warnings.
-  Ruff is not installed in the repository virtualenv. No live NLR connection
-  was tested. Next: export the development plugins and verify NLR status/version
-  during the shared example.
-
-- Package version: `0.2.3`.
-- The package exposes an OpenStudio MCP runtime, Claude Code and Codex plugin
-  exports, trusted skills and references, runtime learning contracts, and
-  MCP-backed SQLite workflow state.
-- `model_export_geometry_viewer` creates a self-contained, offline HTML
-  geometry viewer from a loaded OSM. The viewer supports 3D orbit/zoom, space
-  search, story filtering, sorting, selection, and highlight; it never mutates
-  the model or requires a web server.
-- Claude and Codex exports use host-native plugin structures. Shared reference
-  routing is declared in `harness/asset_manifest.yaml`.
-- Marketplace exports start the installed `openstudio-ai-mcp` command. Local
-  exports start `python -m openstudio_ai_mcp.server` from the source virtualenv.
-- Marketplace setup and repair skills diagnose the Python scripts directory
-  when the runtime installs but the MCP command is absent from the host PATH.
-  They keep `.mcp.json` portable and direct repository users to a separate
-  `--runtime-mode local` export rather than hard-coding a virtualenv path.
-- Exports declare a plugin package version and MCP interface contract version.
-  A mismatch is visible through `doctor` and `runtime_plugin_compatibility`, but
-  does not prevent MCP startup; users should refresh the plugin or upgrade the
-  runtime before using newer workflows.
-- Doctor validates the resolved versioned SDK YAML bundle with a bounded gzip
-  metadata probe. Its JSON output reports the SDK docs source, path, and
-  selected version; an invalid `OPENSTUDIO_SDK_DOCS_DIR` raises a warning but
-  does not block MCP readiness because lookup falls back to the bundled SDK
-  documentation.
-- The base package requires the OpenStudio Python package. Model edits,
-  simulation, and measures also require the native OpenStudio application or
-  CLI through `OPENSTUDIO_PATH`, saved runtime configuration, or `PATH`.
-- Core plugin readiness is blocking: Python 3.10+, the installed MCP command,
-  MCP startup, the OpenStudio Python SDK, a native executable, and plugin
-  compatibility must all pass before doctor reports the plugin ready for energy
-  modeling. NLR is reported as a separate optional capability.
-- The MCP runtime resolves an executable `OPENSTUDIO_PATH` first, then a
-  user-confirmed path stored by `openstudio-ai configure-openstudio`, then
-  `openstudio` on its own `PATH` with `shutil.which`. The resolved absolute path
-  is used for both measures and simulations.
-- The simulation skill prevents repeated executable failures: it does not edit
-  marketplace `.mcp.json` automatically, requires a reconnect after an approved
-  environment change, and retries only once.
-- `runtime_openstudio_status` is the required simulation preflight. It reports
-  the MCP process's executable path/source and directs the agent to read-only
-  platform-specific discovery before proposing an OpenStudio installation.
-- MCP contract version `4` requires the personal-learning tools used by
-  curate-learning; version `3` added `model_export_geometry_viewer` for the
-  standalone geometry-viewer skill, and version `2` added the simulation
-  preflight. Simulation skills are MCP-only: if the preflight or reconnection is
-  unavailable, they stop and ask the user to refresh the plugin/runtime rather
-  than invoke a local OpenStudio CLI fallback.
-- Codex projects can install a managed OpenStudio block into `AGENTS.md` with
-  `openstudio-ai install codex --target-dir <project>`. The block loads
-  `openstudio-modeling-orchestrator` first, then reuses the shared modeler
-  policy; it preserves surrounding project guidance and does not alter Claude's
-  plugin-agent activation.
-- The Codex marketplace setup skill installs that project guidance as a required
-  completion step after runtime readiness. It warns at setup start, previews
-  the managed `AGENTS.md` block, then creates, updates, or safely appends it
-  without replacing unrelated project instructions.
-- `openstudio-ai export marketplace` emits a paired Claude/Codex marketplace
-  tree with separate host install guides, stable source provenance, and strict
-  validation of both generated plugin packages.
-- The production package supports Python 3.10+ and does not include AUTOMA-AI
-  or Streamlit. The `standalone/` subproject is separately locked for Python
-  3.10+ local AUTOMA-AI and Streamlit testing. Host-facing skills use
-  host-neutral Python execution instructions.
+1. Define an engineering-session contract that ties model lineage, assumptions,
+   model edits, simulation jobs, retained artifacts, findings, approvals, and
+   resumable checkpoints together.
+2. Implement/standardize read-only diagnostic access to model structure, job
+   status, simulation logs, warnings/errors, and SQL result evidence.
+3. Add results plausibility checks that can identify abnormal end uses, loads,
+   schedules, unmet hours, and benchmark deltas without claiming a cause that
+   the evidence does not support.
+4. Require agents to produce evidence-linked hypotheses and minimal proposed
+   repairs; model-changing fixes remain user-approved and must be followed by a
+   before/after rerun or explicit reason verification is unavailable.
+5. Create deterministic evaluation fixtures for: a failed run, a warning-heavy
+   run, and an intentionally implausible lighting-energy result. Evaluate the
+   quality and grounding of diagnosis as well as tool completion.
+6. Record parametric-study requirements against this session/artifact contract;
+   do not start a disconnected sweep implementation this week.
 
 ## Current Boundaries
 
-- SQLite persistence is owned by `openstudio_ai_mcp/runtime/state_store.py` and
-  exposed through MCP blackboard tools. Plugin reference files describe that
-  contract; they never write state on their own.
-- `skills/`, `prompts/`, `knowledge/`, `policy/`, and approved measures are
-  trusted source assets. Candidate material remains developer-only until review
-  and validation promote it.
-- Local OpenStudio fixtures belong under `tests/fixtures/`; they are not release
+- The harness owns trusted skills, prompts, knowledge, policies, MCP runtime
+  operations, and SQLite-backed job/artifact/workflow metadata.
+- Candidate learning and proposed measures remain untrusted until explicit
+  review and validation promote them. The harness must not silently alter a
+  model, approved measures, or trusted guidance.
+- Host adapters remain host-specific only at their plugin/configuration edge;
+  runtime contracts and engineering evidence must remain host-neutral.
+- Local OpenStudio fixtures belong in `tests/fixtures/`; they are not release
   assets and must not enter wheels or plugins.
 
 ## Verification Baseline
 
-Run from the repository root with `.venv/bin/python`:
+Run from repository root with `.venv/bin/python`:
 
 ```bash
 .venv/bin/python -m pytest -q \
@@ -162,53 +100,20 @@ OPENSTUDIO_PATH=/path/to/openstudio \
   .venv/bin/python -m pytest -q tests/test_mcp_openstudio_smoke.py
 ```
 
-Run AUTOMA-AI-only checks with Python 3.10+:
+Run standalone checks in their separate locked environment:
 
 ```bash
 uv sync --project standalone
 uv run --project standalone python -m pytest -q standalone/tests
 ```
 
-## Next Steps
+## Near-Term Backlog
 
-1. Extend and verify the existing CI and publication workflows with a coherent
-   product release matrix, real simulation readiness, and cross-provider
-   contract/evaluation gates; CI definitions already exist under `.github/workflows/`.
-2. Decide and document the long-term supply-chain source for the Python-3.10+
-   `automa-ai` standalone dependency before publishing a standalone workflow.
-3. Align `measures/approved/` with the live measure registry before exposing it
-   as the trusted measure source.
-4. Design end-user configuration for runtime retention and installed-measure
-   administration.
-
-## Multi-lab Planning Assessment — September 4, 2026
-
-- Practical follow-up: [MULTILAB_WEEK_ONE.md](docs/MULTILAB_WEEK_ONE.md)
-  drafts PNNL repository work, NLR/LBNL discussion questions, a message to the
-  labs, and a Friday checklist. Planning only; no message sent or code changed.
-- Product-lead clarification: Python 3.10 support is mandatory for installing
-  and running the PNNL foundation in the Claude Code standalone desktop
-  sandbox. The plan requires actual sandbox install/upgrade/runtime acceptance,
-  beyond ordinary Python 3.10 CI. NLR's Python 3.11 stays inside Docker; the
-  separate Python 3.10+ AUTOMA-AI `standalone/` environment is not this deployment.
-- Research and proposed September 8–October 2 delivery plan:
-  [MULTILAB_ONE_MONTH_PLAN.md](docs/MULTILAB_ONE_MONTH_PLAN.md). Includes proposed
-  PNNL/NLR/LBNL ownership, interface contract, issue-ready backlog, learning
-  lifecycle, testing framework, capacity assumptions, and acceptance gates.
-- Reviewed harness `0f188bd` plus pre-existing working changes, marketplace
-  `3951b1b`, and public NLR source `5da8784` (package metadata 1.2.1). NLR research
-  checkout is `/tmp/openstudio-mcp-multilab-research`; durable report citations
-  link to its public commit. No LBNL source was supplied.
-- Confirmed marketplace metadata remains 0.2.1 / contract 2, while this harness
-  is 0.2.2 / contract 3. Further findings: NLR host-alias discovery mismatch;
-  pipx helper drops its explicit release constraint; learning lacks host
-  candidate persistence; provider routing/checkpoints need runtime enforcement.
-- Verification: asset/helper/developer-learning selection: 9 passed, exit 0.
-  Compatibility/blackboard/NLR selection: 7 passed, 26 deselected, exit 0 after
-  rerunning with permission for its localhost test port. Initial sandbox-only
-  collection failed with `PermissionError`, exit 2. Report local links and
-  code-fence balance checked. No real simulation, NLR runtime, live agent eval,
-  pipx update, or user database migration was run.
-- Planning only: no implementation or release changes made. Lab assignments
-  and dates require team confirmation. Preserve the pre-existing working-tree
-  changes when beginning implementation.
+- Refresh CI/release checks into an explicit host/runtime/version/evaluation
+  matrix, including real simulation readiness where the native executable is
+  available.
+- Align `measures/approved/` with the live measure registry before presenting
+  it as the trusted measure source.
+- Design user-facing runtime retention and installed-measure administration.
+- Add parametric-study orchestration only after the engineering-session and
+  diagnostic evidence contracts are established.

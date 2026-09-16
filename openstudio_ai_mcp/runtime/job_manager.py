@@ -29,6 +29,8 @@ class JobRecord:
     updated_at: str
     artifacts: dict[str, str] = field(default_factory=dict)
     error: dict[str, Any] | None = None
+    session_id: str | None = None
+    model_revision_id: str | None = None
 
 
 class JobManager:
@@ -46,7 +48,8 @@ class JobManager:
         self._jobs: dict[str, JobRecord] = {}
 
     def create_job(
-        self, *, model_id: str, run_mode: str, options: dict[str, Any]
+        self, *, model_id: str, run_mode: str, options: dict[str, Any],
+        session_id: str | None = None, model_revision_id: str | None = None,
     ) -> JobRecord:
         now = datetime.now(timezone.utc).isoformat()
         job = JobRecord(
@@ -60,6 +63,8 @@ class JobManager:
             severe_count=0,
             created_at=now,
             updated_at=now,
+            session_id=session_id,
+            model_revision_id=model_revision_id,
         )
         self._jobs[job.job_id] = job
         self.workspace_manager.create_workspace(job.job_id)
@@ -68,7 +73,15 @@ class JobManager:
         return job
 
     def get(self, job_id: str) -> JobRecord | None:
-        return self._jobs.get(job_id)
+        job = self._jobs.get(job_id)
+        if job is not None or self.state_store is None:
+            return job
+        persisted = self.state_store.get_job(job_id)
+        if persisted is None:
+            return None
+        job = JobRecord(**persisted)
+        self._jobs[job_id] = job
+        return job
 
     def mark_running(self, job_id: str, *, progress: int | None = None) -> None:
         job = self._jobs[job_id]
@@ -135,11 +148,15 @@ class JobManager:
         self._persist(job)
         self._notify(job)
 
-    def fail(self, job_id: str, *, error: dict[str, Any]) -> None:
+    def fail(
+        self, job_id: str, *, error: dict[str, Any], artifacts: dict[str, str] | None = None
+    ) -> None:
         job = self._jobs[job_id]
         job.state = "FAILED"
         job.progress = 100
         job.error = error
+        if artifacts is not None:
+            job.artifacts = dict(artifacts)
         job.updated_at = datetime.now(timezone.utc).isoformat()
         self._persist(job)
         self._notify(job)
@@ -163,6 +180,8 @@ class JobManager:
             updated_at=job.updated_at,
             artifacts=job.artifacts,
             error=job.error,
+            session_id=job.session_id,
+            model_revision_id=job.model_revision_id,
         )
 
     def _notify(self, job: JobRecord) -> None:

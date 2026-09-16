@@ -35,6 +35,8 @@ class ArtifactStore:
         metadata: dict[str, Any],
         parent_id: str | None = None,
         tool_trace_id: str | None = None,
+        session_id: str | None = None,
+        model_revision_id: str | None = None,
     ) -> ArtifactRecord:
         artifact = ArtifactRecord(
             artifact_id=str(uuid4()),
@@ -52,6 +54,8 @@ class ArtifactStore:
                 kind=artifact.kind,
                 tool_trace_id=artifact.tool_trace_id,
                 metadata=artifact.metadata,
+                session_id=session_id,
+                model_revision_id=model_revision_id,
             )
         self._items[artifact.artifact_id] = artifact
         return artifact

@@ -1,5 +1,5 @@
 name: openstudio_ai_harness
-version: 0.3.1
+version: 0.4.0
 description: Portable OpenStudio AI harness for agent hosts.
 entrypoints:
   mcp_server: openstudio_ai_mcp/server.py

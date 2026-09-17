@@ -1,7 +1,7 @@
 ---
 name: view-openstudio-geometry
 description: Generate a downloadable, self-contained HTML page for inspecting OpenStudio model geometry by space, story, and name.
-version: 0.3.1
+version: 0.4.0
 ---
 
 # View OpenStudio Geometry

@@ -1,23 +1,26 @@
-import asyncio
 import os
 from pathlib import Path
 
 from dotenv import load_dotenv
 
-from automa_ai.common.agent_registry import A2AServerManager
-from automa_ai.common.mcp_registry import MCPServerConfig, MCPServerManager
-from automa_ai.config.agent_spec import YamlAgentSpec, load_a2a_server_from_yaml
+from automa_ai.common.mcp_registry import MCPServerConfig
+from automa_ai.config.agent_spec import YamlAgentSpec, load_agent_factory_from_yaml
 from openstudio_ai_mcp.server import serve
 
 base_dir = Path(__file__).resolve().parent
 repo_root = base_dir.parent
 env_path = repo_root / ".env"
 load_dotenv(dotenv_path=env_path)
+# Keep demo-only learning records in the ignored MCP workspace instead of the
+# host user-data directory, which may be unavailable to the UI child process.
+os.environ.setdefault(
+    "OPENSTUDIO_AI_DATA_DIR",
+    str(repo_root / ".openstudio_ai_mcp_workspace" / "user_data"),
+)
 
-CHATBOT_SERVER_URL = os.getenv("CHATBOT_SERVER_URL", "http://localhost:9999")
 CHAT_BOT_MODEL_NAME = os.getenv("CHAT_BOT_MODEL_NAME", "llama3.1:8b")
 CHAT_BOT_MODEL_BASE_URL = os.getenv("CHAT_BOT_MODEL_BASE_URL") or None
-OPENSTUDIO_MCP_HOST = os.getenv("OPENSTUDIO_MCP_HOST", "localhost")
+OPENSTUDIO_MCP_HOST = os.getenv("OPENSTUDIO_MCP_HOST", "127.0.0.1")
 OPENSTUDIO_MCP_PORT = int(os.getenv("OPENSTUDIO_MCP_PORT", "10210"))
 AGENT_SPEC_PATH = base_dir / "openstudio_agent.yaml"
 
@@ -35,9 +38,8 @@ def build_openstudio_ai_mcp_config() -> MCPServerConfig:
 def load_openstudio_agent_spec(
     mcp_config: MCPServerConfig | None = None,
 ) -> YamlAgentSpec:
-    """Load the YAML agent spec and apply environment-specific settings."""
+    """Load the local YAML agent spec and apply environment-specific settings."""
     spec = YamlAgentSpec.from_yaml_file(AGENT_SPEC_PATH)
-    spec.agent_card["supportedInterfaces"][0]["url"] = CHATBOT_SERVER_URL
     if not spec.model.name:
         spec.model.name = CHAT_BOT_MODEL_NAME
     if not spec.model.base_url:
@@ -54,35 +56,11 @@ def load_openstudio_agent_spec(
     return spec
 
 
-async def main() -> None:
-    mcp_config = build_openstudio_ai_mcp_config()
-    agent_spec = load_openstudio_agent_spec(mcp_config)
+def build_openstudio_agent():
+    """Build the in-process agent used by the Streamlit standalone UI.
 
-    mcp_manager = MCPServerManager()
-    mcp_manager.add_server(mcp_config)
-
-    server_manager = A2AServerManager()
-    server_manager.add_server(load_a2a_server_from_yaml(agent_spec))
-
-    await mcp_manager.start_all()
-    print(f"✅ MCP Server started at http://{mcp_config.host}:{mcp_config.port}/")
-
-    await server_manager.start_all()
-    print(f"✅ A2A Server started at {CHATBOT_SERVER_URL}")
-    print("Type 'exit' or 'stop' to shut down.")
-
-    loop = asyncio.get_event_loop()
-
-    while True:
-        cmd = await loop.run_in_executor(None, input, "> ")
-        if cmd.strip().lower() in {"exit", "stop", "quit"}:
-            break
-
-    print("🛑 Stopping server...")
-    await server_manager.stop_all()
-    await mcp_manager.stop_all()
-    print("🧹 Server stopped cleanly.")
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
+    The MCP endpoint is managed by the UI runtime before this factory is used;
+    no A2A agent server or agent card is involved.
+    """
+    spec = load_openstudio_agent_spec(build_openstudio_ai_mcp_config())
+    return load_agent_factory_from_yaml(spec).get_agent()

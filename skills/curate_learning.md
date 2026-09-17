@@ -9,7 +9,7 @@ Use this skill only to curate local OpenStudio AI learning evidence. It must not
 change an OpenStudio model, approve a candidate, or delete a record.
 
 Before curation, call `runtime_plugin_compatibility`. This workflow requires
-MCP interface contract `4`; stop and ask the user to refresh the plugin/runtime
+MCP interface contract `5`; stop and ask the user to refresh the plugin/runtime
 if the compatibility result is not OK.
 
 Run `openstudio-ai learning curate --json` to create unreviewed lesson and

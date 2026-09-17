@@ -1,23 +1,28 @@
 import asyncio
+import atexit
 import html
 import json
 import os
 import re
+import uuid
 from collections import deque
 from pathlib import Path
+from queue import Queue
+from threading import Lock, Thread
 from typing import Any
 
 import streamlit as st
 from dotenv import load_dotenv
 
-from automa_ai.client.simple_client import SimpleClient
+from automa_ai.common.mcp_registry import MCPServerManager
+
+from standalone.agent import build_openstudio_agent, build_openstudio_ai_mcp_config
 
 base_dir = Path(__file__).resolve().parent
 repo_root = base_dir.parent
 env_path = repo_root / ".env"
 load_dotenv(dotenv_path=env_path)
 
-A2A_SERVER_URL = os.getenv("CHATBOT_SERVER_URL", "http://localhost:9999")
 TELEMETRY_LOG_PATH = repo_root / "logs" / "telemetry.jsonl"
 LOAD_SKILL_STATUS_RE = re.compile(
     r"\btool\s+load_skill\s+responded:\s*", re.IGNORECASE
@@ -186,15 +191,112 @@ STATUS_PANEL_CSS = """
 """
 
 
+class ChatbotRuntime:
+    """Own the local agent, its event loop, and its local MCP process."""
+
+    def __init__(self) -> None:
+        self._loop = asyncio.new_event_loop()
+        self._stream_lock = Lock()
+        self._closed = False
+        self._thread = Thread(target=self._run_loop, daemon=True)
+        self._thread.start()
+        self._mcp_manager = MCPServerManager()
+        self._mcp_manager.add_server(build_openstudio_ai_mcp_config())
+        try:
+            started = asyncio.run_coroutine_threadsafe(
+                self._mcp_manager.start_all(), self._loop
+            ).result()
+            if not all(started.values()):
+                raise RuntimeError("The local OpenStudio MCP process failed to start.")
+            self.agent = build_openstudio_agent()
+        except BaseException:
+            self._close_startup_resources()
+            raise
+        atexit.register(self.close)
+
+    def _run_loop(self) -> None:
+        asyncio.set_event_loop(self._loop)
+        self._loop.run_forever()
+
+    def stream(self, prompt: str, session_id: str):
+        # ``st.cache_resource`` shares this runtime across browser sessions.
+        # Serialize turns because the local agent owns one MCP tool session;
+        # each turn still uses its caller's session_id for conversation state.
+        with self._stream_lock:
+            if self._closed:
+                raise RuntimeError("The local OpenStudio agent has been closed.")
+            events: Queue[dict[str, Any] | BaseException | None] = Queue()
+            task_id = str(uuid.uuid4())
+
+            async def consume() -> None:
+                try:
+                    async for chunk in self.agent.stream(prompt, session_id, task_id):
+                        event = _normalize_agent_stream_event(chunk)
+                        if event["content"] is not None or event["additional_artifacts"]:
+                            events.put(event)
+                except BaseException as exc:
+                    events.put(exc)
+                finally:
+                    events.put(None)
+
+            future = asyncio.run_coroutine_threadsafe(consume(), self._loop)
+            try:
+                while True:
+                    event = events.get()
+                    if event is None:
+                        future.result()
+                        return
+                    if isinstance(event, BaseException):
+                        future.result()
+                        raise event
+                    yield event
+            finally:
+                if not future.done():
+                    future.cancel()
+
+    def close(self) -> None:
+        with self._stream_lock:
+            if self._closed:
+                return
+            self._closed = True
+            try:
+                asyncio.run_coroutine_threadsafe(
+                    self.agent.aclose(), self._loop
+                ).result()
+            finally:
+                self._close_startup_resources()
+
+    def _close_startup_resources(self) -> None:
+        """Stop resources available before the agent has been constructed."""
+        try:
+            asyncio.run_coroutine_threadsafe(
+                self._mcp_manager.stop_all(), self._loop
+            ).result()
+        finally:
+            self._loop.call_soon_threadsafe(self._loop.stop)
+            self._thread.join(timeout=5)
+
+
 @st.cache_resource
-def get_client() -> SimpleClient:
-    return SimpleClient(agent_url=A2A_SERVER_URL)
+def get_chatbot() -> ChatbotRuntime:
+    return ChatbotRuntime()
 
 
-async def send_message_async(user_message: str, context_id: str | None = None):
-    client = get_client()
-    async for chunk in client.send_streaming_message(user_message, context_id):
-        yield chunk
+def stream_reply(prompt: str, session_id: str):
+    yield from get_chatbot().stream(prompt, session_id)
+
+
+def _normalize_agent_stream_event(chunk: dict[str, Any]) -> dict[str, Any]:
+    """Preserve text and structured final artifacts from a local agent stream."""
+    additional_artifacts = chunk.get("additional_artifacts") or []
+    if not isinstance(additional_artifacts, list):
+        additional_artifacts = [additional_artifacts]
+    return {
+        "response_type": chunk.get("response_type", "text"),
+        "content": chunk.get("content"),
+        "is_task_complete": bool(chunk.get("is_task_complete")),
+        "additional_artifacts": additional_artifacts,
+    }
 
 
 def _extract_text_from_parts(parts: list[dict[str, Any]]) -> str | None:
@@ -350,6 +452,8 @@ def _render_artifact(
     streaming: bool,
     data_artifacts: list[Any] | None = None,
 ) -> None:
+    if not isinstance(artifact_text, str):
+        artifact_text = json.dumps(artifact_text, default=str)
     data_artifacts = data_artifacts or []
     if not artifact_text and not data_artifacts:
         placeholder.empty()
@@ -775,12 +879,14 @@ def main() -> None:
 
     if "messages" not in st.session_state:
         st.session_state["messages"] = []
+    if "session_id" not in st.session_state:
+        st.session_state["session_id"] = str(uuid.uuid4())
 
     with st.sidebar:
         telemetry_placeholder = st.empty()
         _render_telemetry_panel(
             telemetry_placeholder,
-            context_id=st.session_state.get("context_id"),
+            context_id=st.session_state["session_id"],
         )
 
     st.title("🏗️ OpenStudio AI")
@@ -823,60 +929,42 @@ def main() -> None:
             data_artifacts: list[Any] = []
             status_state: str | None = None
 
-            async def process_stream():
-                nonlocal response_text, status_text, status_state, data_artifacts
-                async for chunk in send_message_async(
-                    prompt, st.session_state.get("context_id")
-                ):
-                    print(chunk)
-                    event = _parse_stream_chunk(chunk)
-                    context_id = event.get("context_id")
-                    if context_id:
-                        st.session_state["context_id"] = context_id
-                        _render_telemetry_panel(
-                            telemetry_placeholder,
-                            context_id=context_id,
-                        )
+            for event in stream_reply(
+                prompt, st.session_state["session_id"]
+            ):
+                response_type = event["response_type"]
+                content = event["content"]
+                is_complete = event["is_task_complete"]
 
-                    text_part = event.get("text")
-                    event_data = event.get("data") or []
-                    if text_part and _should_suppress_status_text(str(text_part)):
+                if response_type == "data":
+                    if content is not None:
+                        data_artifacts.append(content)
+                elif isinstance(content, str):
+                    response_text = content if is_complete else response_text + content
+                elif content is not None:
+                    response_text = json.dumps(content, default=str)
+
+                for additional_artifact in event["additional_artifacts"]:
+                    if not isinstance(additional_artifact, dict):
+                        data_artifacts.append(additional_artifact)
                         continue
+                    artifact_content = additional_artifact.get("content")
+                    if additional_artifact.get("response_type") == "text":
+                        if isinstance(artifact_content, str):
+                            response_text = artifact_content
+                    elif artifact_content is not None:
+                        data_artifacts.append(artifact_content)
 
-                    if event.get("kind") == "status-update":
-                        if not text_part:
-                            continue
-                        status_text += str(text_part)
-                        status_state = event.get("state")
-                        _render_status_panel(
-                            status_placeholder,
-                            status_text,
-                            state=status_state,
-                            streaming=True,
-                        )
-                        _render_telemetry_panel(
-                            telemetry_placeholder,
-                            context_id=st.session_state.get("context_id"),
-                        )
-                        continue
-
-                    if event.get("kind") == "artifact-update":
-                        if text_part:
-                            response_text += str(text_part)
-                        if event_data:
-                            data_artifacts.extend(event_data)
-                        _render_artifact(
-                            artifact_placeholder,
-                            response_text,
-                            streaming=True,
-                            data_artifacts=data_artifacts,
-                        )
-                        _render_telemetry_panel(
-                            telemetry_placeholder,
-                            context_id=st.session_state.get("context_id"),
-                        )
-
-            asyncio.run(process_stream())
+                _render_artifact(
+                    artifact_placeholder,
+                    response_text,
+                    streaming=not is_complete,
+                    data_artifacts=data_artifacts,
+                )
+                _render_telemetry_panel(
+                    telemetry_placeholder,
+                    context_id=st.session_state["session_id"],
+                )
             _render_status_panel(
                 status_placeholder,
                 status_text,
@@ -891,7 +979,7 @@ def main() -> None:
             )
             _render_telemetry_panel(
                 telemetry_placeholder,
-                context_id=st.session_state.get("context_id"),
+                context_id=st.session_state["session_id"],
             )
 
         st.session_state["messages"].append(

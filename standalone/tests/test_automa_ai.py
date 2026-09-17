@@ -1,7 +1,6 @@
 from pathlib import Path
 
-from automa_ai.common.agent_registry import A2AAgentServer
-from automa_ai.config.agent_spec import YamlAgentSpec, load_a2a_server_from_yaml
+from automa_ai.config.agent_spec import YamlAgentSpec
 from automa_ai.skills.manager import SkillManager
 
 from standalone.agent import (
@@ -26,14 +25,16 @@ def test_standalone_uses_repository_environment_and_telemetry_paths(
     assert TELEMETRY_LOG_PATH == repo_root / "logs" / "telemetry.jsonl"
 
 
-def test_openstudio_agent_yaml_loads_with_mcp_config(monkeypatch) -> None:
+def test_openstudio_agent_yaml_loads_as_a_local_agent(monkeypatch) -> None:
     monkeypatch.setenv("OSSTD_LLM_API", "test-api-key")
     mcp_config = build_openstudio_ai_mcp_config()
     spec = load_openstudio_agent_spec(mcp_config)
-    server = load_a2a_server_from_yaml(spec)
     factory_kwargs = spec.to_factory_kwargs()
 
-    assert spec.agent_card["name"] == "OpenStudio AI Model Workspace Agent"
+    assert spec.agent is not None
+    assert spec.agent.name == "OpenStudio AI Model Workspace Agent"
+    assert spec.agent_card is None
+    assert spec.a2a is None
     assert spec.instructions.path == "../prompts/openstudio_agent.md"
     assert spec.mcp is not None
     assert spec.mcp.servers["openstudio_ai_mcp"].host == mcp_config.host
@@ -41,13 +42,13 @@ def test_openstudio_agent_yaml_loads_with_mcp_config(monkeypatch) -> None:
     assert factory_kwargs["tools_config"]["tools"][0]["type"] == "run_python"
     assert Path(factory_kwargs["tools_config"]["tools"][0]["config"]["workspace_root"]).resolve() == Path(".").resolve()
     skill_manager = SkillManager.from_config(factory_kwargs["skills_config"])
-    assert "sdk_index" in set(skill_manager.available_skills())
-    assert "Purpose Routing" in skill_manager.load("sdk_index")
+    assert set(skill_manager.available_skills()) >= {
+        path.stem for path in Path("skills").glob("*.md")
+    }
     assert "surface_azimuth_degrees(surface)" in skill_manager.load("openstudio_sdk_model_editor")
     instructions = spec.resolve_instructions()
     assert "## MCP Tool Routing" in instructions
     assert "Use `openstudio_workflow_state`" in instructions
-    assert isinstance(server, A2AAgentServer)
 
 
 def test_openstudio_agent_uses_mcp_blackboard(monkeypatch) -> None:

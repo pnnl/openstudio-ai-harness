@@ -34,6 +34,8 @@ def test_asset_manifest_registers_every_product_skill() -> None:
     assert "openstudio-modeling-orchestrator" in skill_ids_for_host(
         workspace_root, "codex"
     )
+    assert "github-issue-submitter" in skill_ids_for_host(workspace_root, "claude")
+    assert "github-issue-submitter" in skill_ids_for_host(workspace_root, "codex")
 
 
 def test_asset_manifest_routes_references_by_owning_skill(tmp_path: Path) -> None:

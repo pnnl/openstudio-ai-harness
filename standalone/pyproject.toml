@@ -4,7 +4,7 @@ version = "0.3.1"
 description = "Python 3.10+ AUTOMA-AI and Streamlit development environment for OpenStudio AI."
 requires-python = ">=3.10"
 dependencies = [
-    "automa-ai>=0.9.0",
+    "automa-ai[mcp]>=0.9.1",
     # onnxruntime 1.24+ no longer publishes CPython 3.10 wheels.
     "onnxruntime>=1.23.2,<1.24; python_version < '3.11'",
     "openstudio-ai",

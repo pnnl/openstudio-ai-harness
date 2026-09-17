@@ -1,12 +1,99 @@
+import pytest
+
+import standalone.ui as ui
 from standalone.ui import (
+    ChatbotRuntime,
     _artifact_contains_json_fence,
     _artifact_contains_python_fence,
     _format_status_text_for_display,
+    _normalize_agent_stream_event,
     _parse_stream_chunk,
     _should_defer_artifact_render,
     _should_suppress_status_text,
     _split_python_fenced_blocks,
 )
+
+
+class _FakeMcpManager:
+    def __init__(self, *, started: dict[str, bool] | None = None) -> None:
+        self.started = started or {"openstudio_ai_mcp": True}
+        self.configs = []
+        self.stopped = False
+
+    def add_server(self, config) -> bool:
+        self.configs.append(config)
+        return True
+
+    async def start_all(self) -> dict[str, bool]:
+        return self.started
+
+    async def stop_all(self) -> dict[str, bool]:
+        self.stopped = True
+        return {name: True for name in self.started}
+
+
+class _FakeAgent:
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, str, str]] = []
+        self.closed = False
+
+    async def stream(self, prompt: str, session_id: str, task_id: str):
+        self.calls.append((prompt, session_id, task_id))
+        yield {"response_type": "text", "content": prompt}
+
+    async def aclose(self) -> None:
+        self.closed = True
+
+
+def test_chatbot_runtime_streams_and_closes_local_resources(monkeypatch) -> None:
+    manager = _FakeMcpManager()
+    agent = _FakeAgent()
+    monkeypatch.setattr(ui, "MCPServerManager", lambda: manager)
+    monkeypatch.setattr(ui, "build_openstudio_ai_mcp_config", lambda: object())
+    monkeypatch.setattr(ui, "build_openstudio_agent", lambda: agent)
+
+    runtime = ChatbotRuntime()
+    events = list(runtime.stream("hello", "browser-session"))
+    runtime.close()
+
+    assert events[0]["content"] == "hello"
+    assert agent.calls[0][:2] == ("hello", "browser-session")
+    assert agent.closed is True
+    assert manager.stopped is True
+    assert not runtime._thread.is_alive()
+
+
+def test_chatbot_runtime_cleans_up_partial_mcp_startup(monkeypatch) -> None:
+    manager = _FakeMcpManager(started={"openstudio_ai_mcp": False})
+    monkeypatch.setattr(ui, "MCPServerManager", lambda: manager)
+    monkeypatch.setattr(ui, "build_openstudio_ai_mcp_config", lambda: object())
+
+    with pytest.raises(RuntimeError, match="failed to start"):
+        ChatbotRuntime()
+
+    assert manager.stopped is True
+
+
+def test_openstudio_ui_preserves_structured_final_data_artifacts() -> None:
+    event = _normalize_agent_stream_event(
+        {
+            "response_type": "data",
+            "is_task_complete": True,
+            "content": {"skill_count": 5},
+            "additional_artifacts": [
+                {"response_type": "text", "content": "Five skills are available."}
+            ],
+        }
+    )
+
+    assert event == {
+        "response_type": "data",
+        "content": {"skill_count": 5},
+        "is_task_complete": True,
+        "additional_artifacts": [
+            {"response_type": "text", "content": "Five skills are available."}
+        ],
+    }
 
 
 def test_openstudio_ui_parses_status_update_separately() -> None:

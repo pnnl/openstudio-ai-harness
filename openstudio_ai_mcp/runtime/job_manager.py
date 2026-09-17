@@ -158,7 +158,9 @@ class JobManager:
     def fail(
         self, job_id: str, *, error: dict[str, Any], artifacts: dict[str, str] | None = None
     ) -> None:
-        job = self._jobs[job_id]
+        job = self.get(job_id)
+        if job is None:
+            raise KeyError(f"Unknown job_id: {job_id}")
         job.state = "FAILED"
         job.progress = 100
         job.error = error
@@ -169,9 +171,11 @@ class JobManager:
         self._notify(job)
 
     def running_job_ids(self) -> set[str]:
+        if self.state_store is not None:
+            return {
+                job["job_id"] for job in self.state_store.list_jobs(state="RUNNING")
+            }
         return {
-            job["job_id"] for job in self.state_store.list_jobs(state="RUNNING")
-        } if self.state_store is not None else {
             job_id for job_id, job in self._jobs.items() if job.state == "RUNNING"
         }
 

@@ -70,6 +70,8 @@ def register_session_tools(mcp, service) -> None:
             return validation_error_payload(exc)
         except KeyError as exc:
             return error_payload("not_found", str(exc), retryable=False)
+        except ValueError as exc:
+            return error_payload("invalid_argument", str(exc), retryable=False)
         except Exception as exc:
             return error_payload("internal_error", str(exc), retryable=False)
 

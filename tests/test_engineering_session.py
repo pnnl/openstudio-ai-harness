@@ -1,8 +1,10 @@
+import asyncio
 from pathlib import Path
 
 import pytest
 
 from openstudio_ai_mcp.server import OpenStudioService
+from openstudio_ai_mcp.tools.session import register_session_tools
 from openstudio_ai_mcp.tools.schemas import (
     ModelCloneArgs,
     ModelLoadArgs,
@@ -61,6 +63,53 @@ def test_session_preserves_model_lineage_findings_and_checkpoint(tmp_path: Path)
             assertion="cross-session evidence",
             evidence=[{"artifact_id": loaded["model_id"]}],
         ))
+
+
+def test_session_finding_tool_reports_cross_session_evidence_as_invalid_argument(
+    tmp_path: Path,
+) -> None:
+    class FakeMcp:
+        def __init__(self) -> None:
+            self.tools: dict[str, object] = {}
+
+        def tool(self, *, name: str, description: str):
+            def register(func):
+                self.tools[name] = func
+                return func
+
+            return register
+
+        def resource(self, *_args, **_kwargs):
+            def register(func):
+                return func
+
+            return register
+
+    service = OpenStudioService(workspace_root=tmp_path / "runtime")
+    owner_session = service.session_create(SessionCreateArgs(goal="Owner"))["session"][
+        "session_id"
+    ]
+    other_session = service.session_create(SessionCreateArgs(goal="Other"))["session"][
+        "session_id"
+    ]
+    artifact = service.artifacts.create(
+        kind="osm", metadata={}, session_id=owner_session
+    )
+    mcp = FakeMcp()
+    register_session_tools(mcp, service)
+
+    payload = asyncio.run(
+        mcp.tools["session_record_finding"](
+            session_id=other_session,
+            category="results",
+            severity="warning",
+            assertion="cross-session evidence",
+            evidence=[{"artifact_id": artifact.artifact_id}],
+        )
+    )
+
+    assert payload["ok"] is False
+    assert payload["error"]["type"] == "invalid_argument"
 
 
 def test_persisted_job_can_be_recovered_by_new_service(tmp_path: Path) -> None:

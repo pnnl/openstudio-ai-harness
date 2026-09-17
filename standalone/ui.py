@@ -1,4 +1,5 @@
 import asyncio
+import atexit
 import html
 import json
 import os
@@ -7,7 +8,7 @@ import uuid
 from collections import deque
 from pathlib import Path
 from queue import Queue
-from threading import Thread
+from threading import Lock, Thread
 from typing import Any
 
 import streamlit as st
@@ -195,60 +196,83 @@ class ChatbotRuntime:
 
     def __init__(self) -> None:
         self._loop = asyncio.new_event_loop()
+        self._stream_lock = Lock()
+        self._closed = False
         self._thread = Thread(target=self._run_loop, daemon=True)
         self._thread.start()
         self._mcp_manager = MCPServerManager()
         self._mcp_manager.add_server(build_openstudio_ai_mcp_config())
-        started = asyncio.run_coroutine_threadsafe(
-            self._mcp_manager.start_all(), self._loop
-        ).result()
-        if not all(started.values()):
-            self._loop.call_soon_threadsafe(self._loop.stop)
-            self._thread.join(timeout=5)
-            raise RuntimeError("The local OpenStudio MCP process failed to start.")
-        self.agent = build_openstudio_agent()
-        self._closed = False
+        try:
+            started = asyncio.run_coroutine_threadsafe(
+                self._mcp_manager.start_all(), self._loop
+            ).result()
+            if not all(started.values()):
+                raise RuntimeError("The local OpenStudio MCP process failed to start.")
+            self.agent = build_openstudio_agent()
+        except BaseException:
+            self._close_startup_resources()
+            raise
+        atexit.register(self.close)
 
     def _run_loop(self) -> None:
         asyncio.set_event_loop(self._loop)
         self._loop.run_forever()
 
     def stream(self, prompt: str, session_id: str):
-        events: Queue[dict[str, Any] | BaseException | None] = Queue()
-        task_id = str(uuid.uuid4())
+        # ``st.cache_resource`` shares this runtime across browser sessions.
+        # Serialize turns because the local agent owns one MCP tool session;
+        # each turn still uses its caller's session_id for conversation state.
+        with self._stream_lock:
+            if self._closed:
+                raise RuntimeError("The local OpenStudio agent has been closed.")
+            events: Queue[dict[str, Any] | BaseException | None] = Queue()
+            task_id = str(uuid.uuid4())
 
-        async def consume() -> None:
+            async def consume() -> None:
+                try:
+                    async for chunk in self.agent.stream(prompt, session_id, task_id):
+                        event = _normalize_agent_stream_event(chunk)
+                        if event["content"] is not None or event["additional_artifacts"]:
+                            events.put(event)
+                except BaseException as exc:
+                    events.put(exc)
+                finally:
+                    events.put(None)
+
+            future = asyncio.run_coroutine_threadsafe(consume(), self._loop)
             try:
-                async for chunk in self.agent.stream(prompt, session_id, task_id):
-                    event = _normalize_agent_stream_event(chunk)
-                    if event["content"] is not None or event["additional_artifacts"]:
-                        events.put(event)
-            except BaseException as exc:
-                events.put(exc)
+                while True:
+                    event = events.get()
+                    if event is None:
+                        future.result()
+                        return
+                    if isinstance(event, BaseException):
+                        future.result()
+                        raise event
+                    yield event
             finally:
-                events.put(None)
-
-        future = asyncio.run_coroutine_threadsafe(consume(), self._loop)
-        while True:
-            event = events.get()
-            if event is None:
-                future.result()
-                return
-            if isinstance(event, BaseException):
-                future.result()
-                raise event
-            yield event
+                if not future.done():
+                    future.cancel()
 
     def close(self) -> None:
-        if self._closed:
-            return
-        self._closed = True
+        with self._stream_lock:
+            if self._closed:
+                return
+            self._closed = True
+            try:
+                asyncio.run_coroutine_threadsafe(
+                    self.agent.aclose(), self._loop
+                ).result()
+            finally:
+                self._close_startup_resources()
+
+    def _close_startup_resources(self) -> None:
+        """Stop resources available before the agent has been constructed."""
         try:
-            asyncio.run_coroutine_threadsafe(self.agent.aclose(), self._loop).result()
-        finally:
             asyncio.run_coroutine_threadsafe(
                 self._mcp_manager.stop_all(), self._loop
             ).result()
+        finally:
             self._loop.call_soon_threadsafe(self._loop.stop)
             self._thread.join(timeout=5)
 

@@ -799,9 +799,14 @@ class OpenStudioService:
             )
             self._mark_workspace_status(job_id, "succeeded")
         except Exception as exc:
-            failure_artifacts = self._register_failure_artifacts(
-                job_id=job_id, model_id=model_id
-            )
+            # Diagnostic artifact registration is best-effort.  A failure here
+            # must not prevent the job from reaching its terminal FAILED state.
+            try:
+                failure_artifacts = self._register_failure_artifacts(
+                    job_id=job_id, model_id=model_id
+                )
+            except Exception:
+                failure_artifacts = {}
             self.job_manager.fail(
                 job_id,
                 error=error_payload(

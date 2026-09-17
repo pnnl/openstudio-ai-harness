@@ -17,6 +17,12 @@ process it uses; no A2A agent server or agent card is required. The agent and
 UI share the repository-root `.env` and write/read telemetry at
 `logs/telemetry.jsonl`.
 
+The process owns one local agent and MCP connection shared by Streamlit browser
+sessions. Turns are intentionally serialized, while each browser session keeps
+its own conversation ID. This is appropriate for the local demo; it is not a
+multi-user throughput deployment. On graceful Streamlit shutdown, the runtime
+closes the agent and local MCP process.
+
 ## Docker Compose demo
 
 From the repository root, create `.env` with the model credential required by

@@ -38,7 +38,10 @@ def test_calibration_routing_encodes_live_session_lessons() -> None:
     assert "dedicated, initially empty\n   host directory per project" in skill
     assert "Stage the incoming model through the selected provider" in skill
     assert "gates against the\n   staged seed" in skill
-    assert "reload the staged seed through the\n   provider immediately before each `apply_measure`" in skill
+    assert "current_best_model_path" in skill
+    assert "current_best_model_sha256" in skill
+    assert "refresh both fields before" in skill
+    assert "frozen sweep seed through the\n   provider immediately before each `apply_measure`" in skill
     assert "expected_model_sha256=<its host hash>" in skill
     # Measure resolution stays provider-side; recipes never deliver code.
     assert "`stage_measures`" in skill
@@ -125,3 +128,27 @@ def test_claude_agent_prompt_routes_calibration_requests() -> None:
     assert "report calibration as unavailable" in prompt
     # Routing appears before the NLR provider gate so calibration owns the workflow shape.
     assert prompt.index("calibration-mcp-orchestration") < prompt.index("delegated-nlr-modeling")
+
+
+def test_calibration_routing_batches_ladders_instead_of_serial_rungs() -> None:
+    """Concurrency lesson from the 2026-09-15/16 synthetic-retail project."""
+    skill = Path("skills/calibration_mcp_orchestration.md").read_text(encoding="utf-8")
+    contract = Path("docs/CALIBRATION_MCP_INTEGRATION.md").read_text(encoding="utf-8")
+
+    assert "## Ladder Batching And Concurrency" in skill
+    assert "`calibration_progress(needed=<rung count>)`" in skill
+    assert "`can_start_batch: true`" in skill
+    assert "`get_server_status.max_concurrency`" in skill
+    assert "never edit host MCP configuration yourself" in skill
+    # Preparation is serial because of the provider's single loaded model;
+    # simulations are not.
+    assert "not a reason to serialize the simulations" in skill
+    assert "without waiting between calls" in skill
+    assert "`active_ladder`" in skill
+    assert "poll the *set* of runs" in skill
+    assert "Do not run two *sweeps* concurrently" in skill
+    assert "`sweep_progress` for this selection's `expected_values`" in skill
+    assert "do not simulate\n   excluded rungs" in skill
+    assert "current committed best model after the previous sweep" in skill
+    assert "or the whole prepared\n   ladder at once" in skill
+    assert "Rungs never overlapped in practice" in contract

@@ -56,7 +56,7 @@ following distinct identities rather than collapsing them into one `run_id`.
 | --- | --- | --- |
 | Workflow | `workflow_id`, `calibration_project_id`, `calibration_connector: "bem-calibration"`, `calibration_domain_service: "lbnl_bem_calibration"`, live-exposed `calibration_service_version`, `calibration_service_digest`, `calibration_tool_inventory` | PNNL workflow ID and LBNL project ID are different lifecycle identifiers. Record service metadata only when the live MCP exposes it. The domain service is never an execution provider. |
 | Provider | `execution_provider` (`nlr_openstudio` or documented fallback), `provider_connector` (`openstudio-mcp` or `openstudio_ai`), provider image/endpoint/version | Connection names and provider IDs are deliberately distinct. Take the provider version from its own version tool (NLR `get_versions`); `serverInfo.version` reports the MCP framework for NLR. |
-| Model lineage | `model_id`, `model_format`, `host_path`, `container_path` when applicable, `sha256`, `parent_model_id`, `created_by` | A container path such as `/runs/...` is never a host shell path. The staged seed is the provider-serialized copy of the user's file, recorded with that file as its parent; its host hash is the provider seed guard for every candidate. |
+| Model lineage | `model_id`, `model_format`, `host_path`, `container_path` when applicable, `sha256`, `parent_model_id`, `created_by` | A container path such as `/runs/...` is never a host shell path. The initial staged seed is the provider-serialized copy of the user's file. For each later sweep, freeze Calibration-MCP's current committed best model path and hash as the sweep seed. Every rung in that sweep uses it; after `commit_sweep`, refresh the seed from service state. |
 | Run evidence | `provider_run_id`, `calibration_ledger_run_id`, `host_runs_dir`, `provider_runs_dir`, `run_record_path`, `eplusout_sql_path`, SQL/hash evidence | IDs may initially match but must be stored separately. Calibration-MCP consumes the host-visible evidence layout. `run_record.json` status vocabularies differ by provider (NLR `success`/`failed`/`cancelled`; EnergyPlus-MCP `completed`/`failed`). |
 | Compatibility | `openstudio_version`, `energyplus_version`, `weather_path`, `weather_sha256`, `calendar_year`, `bill_electricity_unit`, `bill_gas_unit`, unit-provenance source | Record qualification evidence before a state-changing decision. |
 | Calibration report | `calibration_report_path`, `calibration_report_sha256`, `calibration_status`, `termination_basis`, warnings | A final report/hash belongs in PNNL artifacts; Calibration-MCP remains the source of its contents. |
@@ -104,9 +104,23 @@ established the following, which the routing skill now encodes:
   is the acceptance signal.
 - `finalize_report` refuses while the termination basis is `pattern_loop`, so
   a single committed sweep is reported as in progress, never as a report.
+- Rungs never overlapped in practice. Across 128 physical runs of the
+  2026-09-15/16 synthetic-retail project (NLR `OSMCP_MAX_CONCURRENCY=2`),
+  EnergyPlus took ~10 s per run while consecutive rungs were 60-90 s apart,
+  because the loop submitted, waited, and recorded one candidate at a time
+  and honored a one-minute first poll. The routing skill now prescribes
+  ladder batching: prepare all candidates serially from the seed, submit them
+  together, poll the set, record each, then commit.
 - A recipe's `fixed_arguments` may leave a measure default in force (the
   water-heater efficiency measure defaults `fuel_type` to `NaturalGas`);
   pinned values read through the provider are recorded as assumptions.
+- The 2026-09-29 harness comparison showed that using the original baseline
+  after adopting a COOL-STP candidate leaves later sweep lineage invalid.
+  The parent workflow now freezes the current committed model per sweep and
+  checks its hash before simulations. Calibration-MCP also rejects a
+  wrong-seed candidate at record/commit time. Its SHW progress can exclude
+  later rungs only when the seed model proves every heater has reached the
+  measure's pinned efficiency cap; the excluded values remain audit evidence.
 
 ## Routing And Completion
 

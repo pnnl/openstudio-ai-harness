@@ -93,20 +93,30 @@ discovered from the connected service through its Skill-over-MCP interface.
    default would change something the recipe does not name (for example a
    fuel type), read the model's current value through the provider, pin it,
    and record that as a blackboard assumption. Apply every rung to the same
-   staged seed, never cumulatively: reload the staged seed through the
+   sweep seed, never cumulatively. At the start of each sweep, read
+   `calibration_state.current_best_model_path` and
+   `current_best_model_sha256`; freeze that committed model as this sweep's
+   seed in the blackboard. After `commit_sweep`, refresh both fields before
+   selecting or preparing another parameter. The initial provider-staged
+   baseline is the seed only until a candidate is committed. Reload the
+   frozen sweep seed through the
    provider immediately before each `apply_measure` (NLR `load_osm_model`
    then `apply_measure`, which acts on the provider's in-memory model), and
-   verify lineage on the host by hashing the saved candidate against the
-   recorded seed. When the provider exposes a seed guard (some NLR builds
-   accept `apply_measure(model_path=<staged seed>,
-   expected_model_sha256=<its host hash>)`), pass the staged seed's host
+   record the candidate hash and its seed hash on the host. Before submitting
+   each candidate, verify its saved
+   seed hash equals the frozen sweep seed hash and the service's current-best
+   hash. Stop on a mismatch; never submit or record it as a valid candidate.
+   When the provider exposes a seed guard (some NLR builds
+   accept `apply_measure(model_path=<sweep seed>,
+   expected_model_sha256=<its host hash>)`), pass the sweep seed's host
    hash; the hash of a user-authored file will not match the provider's
    re-serialized bytes. Save each result as a new staged model and record its
    model ID, host path, container path when applicable, hash, provider
    identity, measure/arguments, and predecessor. Take a blackboard checkpoint
    before and after each critical mutation, simulation submission/completion,
    and provider transition.
-4. Submit the candidate through the selected provider. Map the provider run ID
+4. Submit the candidate through the selected provider, or the whole prepared
+   ladder at once (see Ladder Batching And Concurrency). Map the provider run ID
    and provider/container run path to the host-visible `runs_dir`; wait for
    canonical `<runs_dir>/<run_id>/run_record.json` and
    `<runs_dir>/<run_id>/run/eplusout.sql` evidence before asking
@@ -130,6 +140,62 @@ discovered from the connected service through its Skill-over-MCP interface.
    budget accounting, and report finalization. PNNL records the returned
    project/report paths and hashes as artifacts; it does not recompute or
    silently override calibration arithmetic.
+
+## Ladder Batching And Concurrency
+
+Rungs of one sweep are independent work: every candidate starts from the same
+frozen sweep seed, Calibration-MCP records each run separately, and `commit_sweep`
+only needs the complete set. Execute a ladder as a **batch**, not as N
+sequential submit-wait-record cycles. In the 2026-09-15/16 synthetic-retail
+project each EnergyPlus run took ~10 s but rungs were spaced 60-90 s apart and
+none of 128 runs overlapped: more than 85 % of wall time was orchestration
+waiting, and the provider's `max_concurrency` of 2 was never used.
+
+1. Ask `sweep_progress` for this selection's `expected_values` and
+   `bound_evidence` before touching the model. For SHW, the service may
+   exclude increasing percentage rungs after every water heater reaches its
+   pinned `max_eff=1.0` cap. Preserve the returned seed hash, starting
+   efficiencies, and excluded values in the blackboard; do not simulate
+   excluded rungs or treat a repeated result as a new candidate. If the
+   service returns `at_bound: true` with no feasible rung, stop and report
+   that selection as blocked; do not fabricate a complete sweep. Budget the
+   returned feasible ladder:
+   `calibration_progress(needed=<rung count>)` must return
+   `can_start_batch: true`. Never start a partial sweep.
+2. Read the provider's concurrency (NLR `get_server_status.max_concurrency`)
+   and record it. If it is 1, tell the user that raising
+   `OSMCP_MAX_CONCURRENCY` (NLR docker env; Claude Desktop config requires a
+   restart and a new chat) will shorten sweeps, and let the user change it;
+   never edit host MCP configuration yourself. Batching still helps at 1,
+   because the provider queue removes the per-rung polling gap.
+3. Prepare phase (serial; this is the only provider constraint): for each
+   rung, reload the frozen sweep seed, `apply_measure`, save the candidate to its
+   own distinct path, hash it on the host, and record its lineage. The
+   provider's single in-memory model is why *preparation* is serial; it is
+   not a reason to serialize the simulations. One blackboard checkpoint
+   before the first apply and one after the last save satisfy the
+   critical-mutation checkpoint rule for the ladder.
+4. Submit phase: call `run_simulation(osm_path=<candidate>)` for every
+   prepared candidate without waiting between calls; the provider queues runs
+   beyond `max_concurrency`. Record every provider run ID in one blackboard
+   patch as `active_ladder` (a list of `{parameter, value, model_path,
+   sha256, provider_run_id, status}`), not as a single `active_candidate`.
+5. Poll phase: poll the *set* of runs, not one run to completion at a time.
+   When the baseline showed the run is short (well under a minute), poll
+   every 15-30 s; otherwise follow the provider's one-minute cadence. Do
+   not wait a fixed minute before the first status check of a 10-second run.
+6. Verify and record phase: apply the step-4 evidence checks to each completed
+   run, then `record_run` each one (any order) and check `kind` on every
+   response. One failed run neither blocks recording the others nor is
+   re-simulated; record it as a failure and let the service's sweep rules
+   decide. Then `commit_sweep`, with one checkpoint after the last record and
+   one after the commit.
+7. Do not run two *sweeps* concurrently: the next parameter's seed is the
+   current committed best model after the previous sweep (the winner if one
+   was adopted, or the unchanged incoming model otherwise). Read and verify
+   the new seed path and hash from Calibration-MCP state before preparing any
+   new rung. Do not interleave rungs of two
+   projects on one provider session; its loaded model is shared state.
 
 ## Honest Completion
 

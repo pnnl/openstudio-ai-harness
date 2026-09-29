@@ -21,7 +21,7 @@ knowledge, and workflow-state tools for AI-assisted building-energy modeling.
 
 ## Development Setup
 
-New contributors can choose a reproducible Python 3.12 Dev Container or a
+New contributors can choose a reproducible Python 3.10 Dev Container or a
 manual standard/full environment. The full path installs the separately locked
 AUTOMA-AI and Streamlit development project; the standard path is sufficient
 for harness, MCP, adapter, skill, packaging, and documentation work. Follow
@@ -90,17 +90,21 @@ Skill-over-MCP methods and resources.
 
 The base package is the recommended install for Claude Code, Codex, and other
 marketplace-style host integrations. It intentionally does not install
-AUTOMA-AI or Streamlit. The standalone local AI app is a separate Python 3.12+
-development environment:
+AUTOMA-AI or Streamlit. The standalone local AI app is a separate optional
+development environment that also supports Python 3.10+:
 
 ```bash
 uv sync --project standalone
-uv run --project standalone python standalone/agent.py
-uv run --project standalone streamlit run standalone/ui.py
+uv run --project standalone streamlit run standalone/ui.py --server.port 8504
 ```
 
-Standalone mode requires Python 3.12 and user-provided LLM configuration, such
+Standalone mode requires Python 3.10+ and user-provided LLM configuration, such
 as API keys or model endpoint settings, in the local environment.
+
+For a browser-ready containerized demo, use `docker compose --profile standalone up --build
+standalone` and open [http://localhost:8504](http://localhost:8504). See
+[`standalone/README.md`](standalone/README.md) for the optional host-port
+override and environment setup.
 
 Run focused tests:
 

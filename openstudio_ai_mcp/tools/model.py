@@ -21,9 +21,9 @@ def register_model_tools(mcp, service) -> None:
     @mcp.tool(
         name="model_load", description="Load an OpenStudio model artifact from URI."
     )
-    async def model_load(model_uri: str) -> dict[str, Any]:
+    async def model_load(model_uri: str, session_id: str | None = None) -> dict[str, Any]:
         try:
-            args = ModelLoadArgs(model_uri=model_uri)
+            args = ModelLoadArgs(model_uri=model_uri, session_id=session_id)
             return service.model_load(args)
         except ValidationError as exc:
             return validation_error_payload(exc)
@@ -34,9 +34,9 @@ def register_model_tools(mcp, service) -> None:
         name="model_clone",
         description="Clone an existing model artifact and return new model_id.",
     )
-    async def model_clone(model_id: str) -> dict[str, Any]:
+    async def model_clone(model_id: str, session_id: str | None = None) -> dict[str, Any]:
         try:
-            args = ModelCloneArgs(model_id=model_id)
+            args = ModelCloneArgs(model_id=model_id, session_id=session_id)
             return service.model_clone(args)
         except ValidationError as exc:
             return validation_error_payload(exc)

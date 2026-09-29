@@ -14,10 +14,12 @@ class ToolError(BaseModel):
 
 class ModelLoadArgs(BaseModel):
     model_uri: str = Field(min_length=1)
+    session_id: str | None = Field(default=None, min_length=1)
 
 
 class ModelCloneArgs(BaseModel):
     model_id: str = Field(min_length=1)
+    session_id: str | None = Field(default=None, min_length=1)
 
 
 class ModelExportGeometryViewerArgs(BaseModel):
@@ -56,6 +58,7 @@ class SimRunArgs(BaseModel):
     model_id: str = Field(min_length=1)
     run_mode: str = Field(default="sizing")
     options: dict[str, Any] = Field(default_factory=dict)
+    session_id: str | None = Field(default=None, min_length=1)
 
 
 class SimStatusArgs(BaseModel):
@@ -133,6 +136,32 @@ class BlackboardRecordFailureArgs(BaseModel):
 
 class BlackboardSnapshotWorkflowArgs(BaseModel):
     workflow_id: str = Field(min_length=1)
+
+
+class SessionCreateArgs(BaseModel):
+    goal: str = Field(min_length=1, max_length=2000)
+    session_id: str | None = Field(default=None, min_length=1)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class SessionIdArgs(BaseModel):
+    session_id: str = Field(min_length=1)
+
+
+class SessionFindingArgs(BaseModel):
+    session_id: str = Field(min_length=1)
+    category: str = Field(min_length=1, max_length=120)
+    severity: Literal["info", "warning", "error", "critical"]
+    assertion: str = Field(min_length=1, max_length=4000)
+    confidence: Literal["low", "medium", "high"] = "medium"
+    evidence: list[dict[str, Any]] = Field(default_factory=list)
+    affected_model_refs: list[dict[str, Any]] = Field(default_factory=list)
+    proposed_action: dict[str, Any] | None = None
+
+
+class SessionCheckpointArgs(BaseModel):
+    session_id: str = Field(min_length=1)
+    reason: str = Field(min_length=1, max_length=1000)
 
 
 class LearningCaptureArgs(BaseModel):

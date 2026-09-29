@@ -24,6 +24,7 @@ class WorkspaceRecord:
     last_accessed_at: str
     job_id: str | None
     model_id: str | None
+    session_id: str | None
     artifact_id: str | None
     size_bytes: int
     pinned: bool
@@ -109,6 +110,53 @@ class RuntimeStateStore:
                     updated_at TEXT NOT NULL,
                     last_accessed_at TEXT NOT NULL
                 );
+
+                CREATE TABLE IF NOT EXISTS engineering_sessions (
+                    session_id TEXT PRIMARY KEY,
+                    goal TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    contract_version INTEGER NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    metadata_json TEXT NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS model_revisions (
+                    revision_id TEXT PRIMARY KEY,
+                    session_id TEXT NOT NULL,
+                    model_id TEXT NOT NULL,
+                    parent_revision_id TEXT,
+                    operation TEXT NOT NULL,
+                    source_sha256 TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    metadata_json TEXT NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS findings (
+                    finding_id TEXT PRIMARY KEY,
+                    session_id TEXT NOT NULL,
+                    category TEXT NOT NULL,
+                    severity TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    assertion TEXT NOT NULL,
+                    confidence TEXT NOT NULL,
+                    evidence_json TEXT NOT NULL,
+                    affected_model_refs_json TEXT NOT NULL,
+                    proposed_action_json TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS checkpoints (
+                    checkpoint_id TEXT PRIMARY KEY,
+                    session_id TEXT NOT NULL,
+                    sequence INTEGER NOT NULL,
+                    reason TEXT NOT NULL,
+                    state_json TEXT NOT NULL,
+                    artifact_ids_json TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    UNIQUE(session_id, sequence)
+                );
                 """)
             # Serialize inspection, migration, and backfill.  In particular,
             # table_info must run after acquiring the write lock so concurrent
@@ -126,6 +174,19 @@ class RuntimeStateStore:
                 if "workspace_id" not in columns:
                     conn.execute("ALTER TABLE artifacts ADD COLUMN workspace_id TEXT")
                     needs_backfill = True
+                for table, column in (
+                    ("artifacts", "session_id"),
+                    ("artifacts", "model_revision_id"),
+                    ("workspaces", "session_id"),
+                    ("jobs", "session_id"),
+                    ("jobs", "model_revision_id"),
+                ):
+                    existing_columns = {
+                        row["name"]
+                        for row in conn.execute(f"PRAGMA table_info({table})").fetchall()
+                    }
+                    if column not in existing_columns:
+                        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} TEXT")
                 conn.execute(
                     "CREATE INDEX IF NOT EXISTS artifacts_available_job_id "
                     "ON artifacts(status, job_id)"
@@ -134,6 +195,11 @@ class RuntimeStateStore:
                     "CREATE INDEX IF NOT EXISTS artifacts_available_workspace_id "
                     "ON artifacts(status, workspace_id)"
                 )
+                conn.execute("CREATE INDEX IF NOT EXISTS artifacts_session_id ON artifacts(session_id)")
+                conn.execute("CREATE INDEX IF NOT EXISTS jobs_session_id ON jobs(session_id)")
+                conn.execute("CREATE INDEX IF NOT EXISTS workspaces_session_id ON workspaces(session_id)")
+                conn.execute("CREATE INDEX IF NOT EXISTS model_revisions_session_id ON model_revisions(session_id, created_at)")
+                conn.execute("CREATE INDEX IF NOT EXISTS findings_session_id ON findings(session_id, updated_at)")
                 if needs_backfill:
                     legacy_artifacts = conn.execute(
                         "SELECT artifact_id, metadata_json FROM artifacts"
@@ -164,6 +230,8 @@ class RuntimeStateStore:
         kind: str,
         tool_trace_id: str | None,
         metadata: dict[str, Any],
+        session_id: str | None = None,
+        model_revision_id: str | None = None,
     ) -> None:
         job_id = metadata.get("job_id")
         workspace_id = metadata.get("workspace_id")
@@ -172,16 +240,18 @@ class RuntimeStateStore:
                 """
                 INSERT INTO artifacts (
                     artifact_id, created_at, parent_id, kind, tool_trace_id, job_id,
-                    workspace_id,
+                    workspace_id, session_id, model_revision_id,
                     metadata_json, status, pinned, last_accessed_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'available', 0, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'available', 0, ?)
                 ON CONFLICT(artifact_id) DO UPDATE SET
                     parent_id = excluded.parent_id,
                     kind = excluded.kind,
                     tool_trace_id = excluded.tool_trace_id,
                     job_id = excluded.job_id,
                     workspace_id = excluded.workspace_id,
+                    session_id = excluded.session_id,
+                    model_revision_id = excluded.model_revision_id,
                     metadata_json = excluded.metadata_json,
                     last_accessed_at = excluded.last_accessed_at
                 """,
@@ -193,6 +263,8 @@ class RuntimeStateStore:
                     tool_trace_id,
                     job_id if isinstance(job_id, str) else None,
                     workspace_id if isinstance(workspace_id, str) else None,
+                    session_id,
+                    model_revision_id,
                     json.dumps(metadata, sort_keys=True),
                     utc_now(),
                 ),
@@ -227,6 +299,23 @@ class RuntimeStateStore:
                 (1 if pinned else 0, utc_now(), artifact_id),
             )
 
+    def set_artifact_context(
+        self, artifact_id: str, *, session_id: str | None, model_revision_id: str | None
+    ) -> None:
+        with self._connect() as conn:
+            conn.execute(
+                """UPDATE artifacts SET session_id = ?, model_revision_id = ?,
+                last_accessed_at = ? WHERE artifact_id = ?""",
+                (session_id, model_revision_id, utc_now(), artifact_id),
+            )
+
+    def pin_workspace(self, workspace_id: str, pinned: bool) -> None:
+        with self._connect() as conn:
+            conn.execute(
+                "UPDATE workspaces SET pinned = ?, last_accessed_at = ? WHERE workspace_id = ?",
+                (1 if pinned else 0, utc_now(), workspace_id),
+            )
+
     def upsert_workspace(
         self,
         *,
@@ -235,6 +324,7 @@ class RuntimeStateStore:
         path: str | Path,
         job_id: str | None = None,
         model_id: str | None = None,
+        session_id: str | None = None,
         artifact_id: str | None = None,
         metadata: dict[str, Any] | None = None,
         size_bytes: int = 0,
@@ -246,9 +336,9 @@ class RuntimeStateStore:
                 INSERT INTO workspaces (
                     workspace_id, kind, path, status, created_at, updated_at,
                     last_accessed_at, job_id, model_id, artifact_id, size_bytes,
-                    pinned, metadata_json
+                    pinned, metadata_json, session_id
                 )
-                VALUES (?, ?, ?, 'available', ?, ?, ?, ?, ?, ?, ?, 0, ?)
+                VALUES (?, ?, ?, 'available', ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
                 ON CONFLICT(workspace_id) DO UPDATE SET
                     kind = excluded.kind,
                     path = excluded.path,
@@ -259,6 +349,7 @@ class RuntimeStateStore:
                     artifact_id = excluded.artifact_id,
                     size_bytes = excluded.size_bytes,
                     metadata_json = excluded.metadata_json
+                    , session_id = excluded.session_id
                 """,
                 (
                     workspace_id,
@@ -272,6 +363,7 @@ class RuntimeStateStore:
                     artifact_id,
                     size_bytes,
                     json.dumps(metadata or {}, sort_keys=True),
+                    session_id,
                 ),
             )
 
@@ -335,6 +427,8 @@ class RuntimeStateStore:
         updated_at: str,
         artifacts: dict[str, str],
         error: dict[str, Any] | None,
+        session_id: str | None = None,
+        model_revision_id: str | None = None,
     ) -> None:
         with self._connect() as conn:
             conn.execute(
@@ -342,9 +436,9 @@ class RuntimeStateStore:
                 INSERT INTO jobs (
                     job_id, model_id, run_mode, options_json, state, progress,
                     warnings_count, severe_count, created_at, updated_at,
-                    artifacts_json, error_json
+                    artifacts_json, error_json, session_id, model_revision_id
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(job_id) DO UPDATE SET
                     model_id = excluded.model_id,
                     run_mode = excluded.run_mode,
@@ -355,7 +449,9 @@ class RuntimeStateStore:
                     severe_count = excluded.severe_count,
                     updated_at = excluded.updated_at,
                     artifacts_json = excluded.artifacts_json,
-                    error_json = excluded.error_json
+                    error_json = excluded.error_json,
+                    session_id = excluded.session_id,
+                    model_revision_id = excluded.model_revision_id
                 """,
                 (
                     job_id,
@@ -370,8 +466,41 @@ class RuntimeStateStore:
                     updated_at,
                     json.dumps(artifacts, sort_keys=True),
                     json.dumps(error, sort_keys=True) if error is not None else None,
+                    session_id,
+                    model_revision_id,
                 ),
             )
+
+    def get_job(self, job_id: str) -> dict[str, Any] | None:
+        with self._connect() as conn:
+            row = conn.execute("SELECT * FROM jobs WHERE job_id = ?", (job_id,)).fetchone()
+        if row is None:
+            return None
+        return {
+            "job_id": row["job_id"], "model_id": row["model_id"],
+            "run_mode": row["run_mode"], "options": json.loads(row["options_json"]),
+            "state": row["state"], "progress": row["progress"],
+            "warnings_count": row["warnings_count"], "severe_count": row["severe_count"],
+            "created_at": row["created_at"], "updated_at": row["updated_at"],
+            "artifacts": json.loads(row["artifacts_json"]),
+            "error": json.loads(row["error_json"]) if row["error_json"] else None,
+            "session_id": row["session_id"], "model_revision_id": row["model_revision_id"],
+        }
+
+    def list_session_jobs(self, session_id: str) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            rows = conn.execute("SELECT job_id FROM jobs WHERE session_id = ? ORDER BY created_at", (session_id,)).fetchall()
+        return [job for row in rows if (job := self.get_job(row["job_id"])) is not None]
+
+    def list_jobs(self, *, state: str | None = None) -> list[dict[str, Any]]:
+        query = "SELECT job_id FROM jobs"
+        values: tuple[str, ...] = ()
+        if state is not None:
+            query += " WHERE state = ?"
+            values = (state,)
+        with self._connect() as conn:
+            rows = conn.execute(query, values).fetchall()
+        return [job for row in rows if (job := self.get_job(row["job_id"])) is not None]
 
     def get_job_artifact_ids(self, job_id: str) -> set[str]:
         """Return all artifact IDs recorded for a simulation job."""
@@ -387,6 +516,128 @@ class RuntimeStateStore:
             for artifact_id in artifacts.values()
             if isinstance(artifact_id, str)
         }
+
+    def create_session(self, *, session_id: str, goal: str, metadata: dict[str, Any]) -> dict[str, Any]:
+        now = utc_now()
+        try:
+            with self._connect() as conn:
+                conn.execute(
+                    """INSERT INTO engineering_sessions
+                    (session_id, goal, status, contract_version, created_at, updated_at, metadata_json)
+                    VALUES (?, ?, 'active', 1, ?, ?, ?)""",
+                    (session_id, goal, now, now, json.dumps(metadata, sort_keys=True)),
+                )
+        except sqlite3.IntegrityError as exc:
+            raise ValueError(f"Session already exists: {session_id}") from exc
+        return self.get_session(session_id) or {}
+
+    def get_session(self, session_id: str) -> dict[str, Any] | None:
+        with self._connect() as conn:
+            row = conn.execute("SELECT * FROM engineering_sessions WHERE session_id = ?", (session_id,)).fetchone()
+        if row is None:
+            return None
+        return {"session_id": row["session_id"], "goal": row["goal"], "status": row["status"],
+                "contract_version": row["contract_version"], "created_at": row["created_at"],
+                "updated_at": row["updated_at"], "metadata": json.loads(row["metadata_json"])}
+
+    def create_model_revision(self, *, revision_id: str, session_id: str, model_id: str,
+                              parent_revision_id: str | None, operation: str,
+                              source_sha256: str, metadata: dict[str, Any]) -> dict[str, Any]:
+        created_at = utc_now()
+        with self._connect() as conn:
+            conn.execute(
+                """INSERT INTO model_revisions
+                (revision_id, session_id, model_id, parent_revision_id, operation, source_sha256, created_at, metadata_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (revision_id, session_id, model_id, parent_revision_id, operation, source_sha256,
+                 created_at, json.dumps(metadata, sort_keys=True)),
+            )
+        return self.get_model_revision(revision_id) or {}
+
+    def get_model_revision(self, revision_id: str) -> dict[str, Any] | None:
+        with self._connect() as conn:
+            row = conn.execute("SELECT * FROM model_revisions WHERE revision_id = ?", (revision_id,)).fetchone()
+        return self._model_revision_row(row) if row else None
+
+    def get_model_revision_for_model(self, model_id: str) -> dict[str, Any] | None:
+        with self._connect() as conn:
+            row = conn.execute("SELECT * FROM model_revisions WHERE model_id = ? ORDER BY created_at DESC LIMIT 1", (model_id,)).fetchone()
+        return self._model_revision_row(row) if row else None
+
+    def list_session_model_revisions(self, session_id: str) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            rows = conn.execute("SELECT * FROM model_revisions WHERE session_id = ? ORDER BY created_at", (session_id,)).fetchall()
+        return [self._model_revision_row(row) for row in rows]
+
+    def create_finding(self, *, finding_id: str, session_id: str, category: str, severity: str,
+                       assertion: str, confidence: str, evidence: list[dict[str, Any]],
+                       affected_model_refs: list[dict[str, Any]], proposed_action: dict[str, Any] | None) -> dict[str, Any]:
+        now = utc_now()
+        with self._connect() as conn:
+            conn.execute(
+                """INSERT INTO findings
+                (finding_id, session_id, category, severity, status, assertion, confidence,
+                 evidence_json, affected_model_refs_json, proposed_action_json, created_at, updated_at)
+                VALUES (?, ?, ?, ?, 'open', ?, ?, ?, ?, ?, ?, ?)""",
+                (finding_id, session_id, category, severity, assertion, confidence,
+                 json.dumps(evidence, sort_keys=True), json.dumps(affected_model_refs, sort_keys=True),
+                 json.dumps(proposed_action, sort_keys=True) if proposed_action is not None else None, now, now),
+            )
+        return self.get_finding(finding_id) or {}
+
+    def get_finding(self, finding_id: str) -> dict[str, Any] | None:
+        with self._connect() as conn:
+            row = conn.execute("SELECT * FROM findings WHERE finding_id = ?", (finding_id,)).fetchone()
+        return self._finding_row(row) if row else None
+
+    def list_session_findings(self, session_id: str, *, status: str | None = None) -> list[dict[str, Any]]:
+        query = "SELECT * FROM findings WHERE session_id = ?"
+        values: list[Any] = [session_id]
+        if status:
+            query += " AND status = ?"
+            values.append(status)
+        query += " ORDER BY updated_at DESC"
+        with self._connect() as conn:
+            rows = conn.execute(query, values).fetchall()
+        return [self._finding_row(row) for row in rows]
+
+    def create_checkpoint(self, *, checkpoint_id: str, session_id: str, reason: str,
+                          state: dict[str, Any], artifact_ids: list[str]) -> dict[str, Any]:
+        with self._connect() as conn:
+            sequence = conn.execute("SELECT COALESCE(MAX(sequence), 0) + 1 FROM checkpoints WHERE session_id = ?", (session_id,)).fetchone()[0]
+            conn.execute(
+                """INSERT INTO checkpoints
+                (checkpoint_id, session_id, sequence, reason, state_json, artifact_ids_json, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (checkpoint_id, session_id, sequence, reason, json.dumps(state, sort_keys=True),
+                 json.dumps(artifact_ids, sort_keys=True), utc_now()),
+            )
+        return self.get_latest_checkpoint(session_id) or {}
+
+    def get_latest_checkpoint(self, session_id: str) -> dict[str, Any] | None:
+        with self._connect() as conn:
+            row = conn.execute("SELECT * FROM checkpoints WHERE session_id = ? ORDER BY sequence DESC LIMIT 1", (session_id,)).fetchone()
+        if row is None:
+            return None
+        return {"checkpoint_id": row["checkpoint_id"], "session_id": row["session_id"], "sequence": row["sequence"],
+                "reason": row["reason"], "state": json.loads(row["state_json"]),
+                "artifact_ids": json.loads(row["artifact_ids_json"]), "created_at": row["created_at"]}
+
+    @staticmethod
+    def _model_revision_row(row: sqlite3.Row) -> dict[str, Any]:
+        return {"revision_id": row["revision_id"], "session_id": row["session_id"], "model_id": row["model_id"],
+                "parent_revision_id": row["parent_revision_id"], "operation": row["operation"],
+                "source_sha256": row["source_sha256"], "created_at": row["created_at"],
+                "metadata": json.loads(row["metadata_json"])}
+
+    @staticmethod
+    def _finding_row(row: sqlite3.Row) -> dict[str, Any]:
+        return {"finding_id": row["finding_id"], "session_id": row["session_id"], "category": row["category"],
+                "severity": row["severity"], "status": row["status"], "assertion": row["assertion"],
+                "confidence": row["confidence"], "evidence": json.loads(row["evidence_json"]),
+                "affected_model_refs": json.loads(row["affected_model_refs_json"]),
+                "proposed_action": json.loads(row["proposed_action_json"]) if row["proposed_action_json"] else None,
+                "created_at": row["created_at"], "updated_at": row["updated_at"]}
 
     def get_artifact_ids_for_job(self, job_id: str) -> set[str]:
         """Return available artifact IDs indexed to a simulation job."""
@@ -505,6 +756,8 @@ class RuntimeStateStore:
             "parent_id": row["parent_id"],
             "kind": row["kind"],
             "tool_trace_id": row["tool_trace_id"],
+            "session_id": row["session_id"],
+            "model_revision_id": row["model_revision_id"],
             "metadata": json.loads(row["metadata_json"]),
             "status": row["status"],
             "pinned": bool(row["pinned"]),
@@ -523,6 +776,7 @@ class RuntimeStateStore:
             last_accessed_at=row["last_accessed_at"],
             job_id=row["job_id"],
             model_id=row["model_id"],
+            session_id=row["session_id"],
             artifact_id=row["artifact_id"],
             size_bytes=int(row["size_bytes"]),
             pinned=bool(row["pinned"]),

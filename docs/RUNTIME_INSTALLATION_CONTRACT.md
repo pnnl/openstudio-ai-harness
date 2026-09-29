@@ -56,9 +56,10 @@ upgrade the runtime before relying on newly added skill workflows.
 Contract version `2` requires `runtime_openstudio_status`. Contract version `3`
 adds `model_export_geometry_viewer`, required by the standalone geometry-viewer
 skill. Contract version `4` adds the personal-learning tools used by the
-curate-learning workflow. The simulation skill uses its preflight as an MCP-only
-workflow and must not fall back to direct OpenStudio, EnergyPlus, workflow, or
-SQL commands when the tool or MCP reconnection is unavailable.
+curate-learning workflow. Contract version `5` adds durable engineering-session,
+finding, and checkpoint tools. The simulation skill uses its preflight as an
+MCP-only workflow and must not fall back to direct OpenStudio, EnergyPlus,
+workflow, or SQL commands when the tool or MCP reconnection is unavailable.
 
 Marketplace doctor helpers run:
 

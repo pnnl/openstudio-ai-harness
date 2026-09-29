@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import hashlib
 import json
 import os
 import re
@@ -19,10 +20,12 @@ from uuid import uuid4
 
 from dotenv import load_dotenv
 
-# FastMCP is implemented in the ``fastmcp`` submodule.  Importing it from the
-# package root is not supported by every MCP SDK version allowed by our
-# dependency range.
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
+from mcp.server.subscriptions import (
+    InMemorySubscriptionBus,
+    ResourceUpdated,
+    SubscriptionBus,
+)
 
 from blackboard.operations import (
     apply_state_patch,
@@ -43,7 +46,7 @@ from openstudio_ai_mcp.runtime_config import (
 )
 from blackboard.snapshot import snapshot_workflow
 from openstudio_ai_mcp.runtime.artifact_store import ArtifactStore
-from openstudio_ai_mcp.runtime.job_manager import JobManager
+from openstudio_ai_mcp.runtime.job_manager import JobManager, JobRecord
 from openstudio_ai_mcp.runtime.learning_store import LearningStore
 from openstudio_ai_mcp.runtime.measure_registry import (
     MeasureRegistry,
@@ -76,11 +79,15 @@ from openstudio_ai_mcp.tools.schemas import (
     SimArtifactsArgs,
     SimRunArgs,
     SimStatusArgs,
+    SessionCheckpointArgs,
+    SessionCreateArgs,
+    SessionFindingArgs,
     error_payload,
     success_payload,
 )
 from openstudio_ai_mcp.tools.sdk_docs import register_sdk_doc_tools
 from openstudio_ai_mcp.tools.sim import register_sim_tools
+from openstudio_ai_mcp.tools.session import register_session_tools
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 load_dotenv(BASE_DIR / ".env")
@@ -154,15 +161,26 @@ class OpenStudioModelState:
 
 
 class OpenStudioService:
-    def __init__(self, workspace_root: str | Path, *, learning_db_path: str | Path | None = None):
+    def __init__(
+        self,
+        workspace_root: str | Path,
+        *,
+        learning_db_path: str | Path | None = None,
+        subscription_bus: SubscriptionBus | None = None,
+    ):
         self.workspace_root = Path(workspace_root).resolve()
         self.state_store = RuntimeStateStore(
             self.workspace_root / "openstudio_ai_runtime.sqlite"
         )
         self.artifacts = ArtifactStore(self.state_store)
         self.workspace_manager = WorkspaceManager(self.workspace_root)
+        self.subscription_bus = subscription_bus
+        self._event_loop: asyncio.AbstractEventLoop | None = None
         self.job_manager = JobManager(
-            self.workspace_manager, self.artifacts, self.state_store
+            self.workspace_manager,
+            self.artifacts,
+            self.state_store,
+            job_update_callback=self._on_job_updated,
         )
         self.measure_registry = MeasureRegistry(
             policy_path=BASE_DIR / "policy" / "measure_registry.yaml",
@@ -248,40 +266,107 @@ class OpenStudioService:
 
     def _get_model_state(self, model_id: str) -> OpenStudioModelState:
         model_state = self.model_states.get(model_id)
+        if model_state is None:
+            artifact = self.artifacts.get(model_id)
+            if artifact is not None and artifact.kind == "osm":
+                model_uri = artifact.metadata.get("model_uri") or artifact.metadata.get("path")
+                if isinstance(model_uri, str):
+                    revision = artifact.model_revision_id and self.state_store.get_model_revision(
+                        artifact.model_revision_id
+                    )
+                    if revision is None:
+                        revision = self.state_store.get_model_revision_for_model(model_id)
+                    model_state = OpenStudioModelState(
+                        model_id=model_id,
+                        metadata={
+                            "model_uri": model_uri,
+                            "weather": artifact.metadata.get("weather"),
+                            "workspace_id": artifact.metadata.get("workspace_id"),
+                            "session_id": artifact.session_id or (revision or {}).get("session_id"),
+                            "model_revision_id": (revision or {}).get("revision_id"),
+                        },
+                    )
+                    self.model_states[model_id] = model_state
         if not model_state:
             raise KeyError(f"Unknown model_id: {model_id}")
         return model_state
 
     def model_load(self, args: ModelLoadArgs) -> dict[str, Any]:
+        if args.session_id:
+            self._require_session(args.session_id)
+        source_path = self._resolve_model_path(args.model_uri)
+        workspace_id = f"model-{uuid4()}"
+        model_uri = args.model_uri
+        source_sha256 = "unavailable"
+        if source_path.exists():
+            workspace = self.workspace_manager.create_workspace(workspace_id)
+            snapshot_path = workspace / "source.osm"
+            shutil.copy2(source_path, snapshot_path)
+            model_uri = snapshot_path.as_uri()
+            source_sha256 = self._sha256(snapshot_path)
+            self._register_workspace(
+                workspace_id=workspace_id,
+                kind="model_snapshot",
+                session_id=args.session_id,
+                metadata={"source_uri": args.model_uri, "source_sha256": source_sha256},
+            )
         artifact = self.artifacts.create(
             kind="osm",
-            metadata={"model_uri": args.model_uri, "loaded": True},
+            metadata={"model_uri": model_uri, "source_uri": args.model_uri, "loaded": True,
+                      "workspace_id": workspace_id if source_path.exists() else None,
+                      "session_id": args.session_id},
             parent_id=None,
+            session_id=args.session_id,
+        )
+        revision_id = self._record_model_revision(
+            session_id=args.session_id, model_id=artifact.artifact_id, parent_revision_id=None,
+            operation="load", source_sha256=source_sha256,
+            metadata={"source_uri": args.model_uri, "artifact_id": artifact.artifact_id},
+        )
+        self.artifacts.set_context(
+            artifact.artifact_id, session_id=args.session_id, model_revision_id=revision_id
         )
         self.model_states[artifact.artifact_id] = OpenStudioModelState(
             model_id=artifact.artifact_id,
             metadata={
-                "model_uri": args.model_uri,
+                "model_uri": model_uri,
                 "weather": None,
-                "workspace_id": None,
+                "workspace_id": workspace_id if source_path.exists() else None,
+                "session_id": args.session_id,
+                "model_revision_id": revision_id,
             },
         )
         return success_payload(
-            model_id=artifact.artifact_id, metadata=artifact.to_dict()
+            model_id=artifact.artifact_id, model_revision_id=revision_id, metadata=artifact.to_dict()
         )
 
     def model_clone(self, args: ModelCloneArgs) -> dict[str, Any]:
         base = self._get_model_state(args.model_id)
+        session_id = args.session_id or base.metadata.get("session_id")
+        if session_id:
+            self._require_session(session_id)
         artifact = self.artifacts.create(
             kind="osm",
             parent_id=args.model_id,
-            metadata={"cloned_from": args.model_id},
+            metadata={"cloned_from": args.model_id, "model_uri": base.metadata.get("model_uri"),
+                      "weather": base.metadata.get("weather"), "workspace_id": base.metadata.get("workspace_id"),
+                      "session_id": session_id},
+            session_id=session_id,
+        )
+        revision_id = self._record_model_revision(
+            session_id=session_id, model_id=artifact.artifact_id,
+            parent_revision_id=base.metadata.get("model_revision_id"), operation="clone",
+            source_sha256=self._sha256_or_unavailable(base.metadata.get("model_uri")),
+            metadata={"source_model_id": args.model_id, "artifact_id": artifact.artifact_id},
+        )
+        self.artifacts.set_context(
+            artifact.artifact_id, session_id=session_id, model_revision_id=revision_id
         )
         self.model_states[artifact.artifact_id] = OpenStudioModelState(
             model_id=artifact.artifact_id,
-            metadata={**base.metadata},
+            metadata={**base.metadata, "session_id": session_id, "model_revision_id": revision_id},
         )
-        return success_payload(model_id=artifact.artifact_id)
+        return success_payload(model_id=artifact.artifact_id, model_revision_id=revision_id)
 
     def model_export_geometry_viewer(
         self, args: ModelExportGeometryViewerArgs
@@ -401,6 +486,8 @@ class OpenStudioService:
         # Python measures prefer the resolved OpenStudio CLI environment. They
         # fall back to the current Python only after verifying its SDK import.
         model_state = self._get_model_state(args.model_id)
+        session_id = model_state.metadata.get("session_id")
+        parent_revision_id = model_state.metadata.get("model_revision_id")
 
         # Step 2: resolve measure policy and normalize user args from schema/defaults.
         measure_spec = self.measure_registry.get(args.measure_id)
@@ -420,7 +507,8 @@ class OpenStudioService:
             workspace_id=workspace_id,
             kind="measure",
             model_id=args.model_id,
-            metadata={"measure_id": args.measure_id},
+            session_id=session_id,
+            metadata={"measure_id": args.measure_id, "session_id": session_id},
         )
         input_osm = workspace / "in.osm"
         output_osm = workspace / "out.osm"
@@ -495,7 +583,19 @@ class OpenStudioService:
                 "measure_args": normalized_args,
                 "measure_stdout_path": str(stdout_path),
                 "measure_stderr_path": str(stderr_path),
+                "workspace_id": workspace_id,
+                "session_id": session_id,
             },
+            session_id=session_id,
+        )
+        revision_id = self._record_model_revision(
+            session_id=session_id, model_id=output_artifact.artifact_id,
+            parent_revision_id=parent_revision_id, operation=f"measure:{args.measure_id}",
+            source_sha256=self._sha256(output_osm),
+            metadata={"source_model_id": args.model_id, "measure_args": normalized_args},
+        )
+        self.artifacts.set_context(
+            output_artifact.artifact_id, session_id=session_id, model_revision_id=revision_id
         )
         self.model_states[output_artifact.artifact_id] = OpenStudioModelState(
             model_id=output_artifact.artifact_id,
@@ -503,12 +603,15 @@ class OpenStudioService:
                 "model_uri": output_osm.as_uri(),
                 "weather": model_state.metadata.get("weather"),
                 "workspace_id": workspace_id,
+                "session_id": session_id,
+                "model_revision_id": revision_id,
             },
         )
         self._register_workspace(
             workspace_id=workspace_id,
             kind="measure",
             model_id=output_artifact.artifact_id,
+            session_id=session_id,
             artifact_id=output_artifact.artifact_id,
             metadata={"measure_id": args.measure_id, "source_model_id": args.model_id},
         )
@@ -528,6 +631,7 @@ class OpenStudioService:
         changes = summary_changes or [f"Applied measure {args.measure_id}"]
         return success_payload(
             model_id=output_artifact.artifact_id,
+            model_revision_id=revision_id,
             changes=changes,
             warnings=summary_warnings,
         )
@@ -626,6 +730,7 @@ class OpenStudioService:
         return success_payload(status=status, issues=issues)
 
     def sim_run(self, args: SimRunArgs) -> dict[str, Any]:
+        self.bind_notification_loop()
         model_state = self._get_model_state(args.model_id)
         model_path = self._resolve_model_path(model_state.metadata.get("model_uri", ""))
         if not model_path.exists():
@@ -645,13 +750,17 @@ class OpenStudioService:
             model_id=args.model_id,
             run_mode=args.run_mode,
             options=args.options,
+            session_id=args.session_id or model_state.metadata.get("session_id"),
+            model_revision_id=model_state.metadata.get("model_revision_id"),
         )
         self._register_workspace(
             workspace_id=job.job_id,
             kind="simulation",
             job_id=job.job_id,
             model_id=args.model_id,
-            metadata={"run_mode": args.run_mode},
+            session_id=job.session_id,
+            metadata={"run_mode": args.run_mode, "session_id": job.session_id,
+                      "model_revision_id": job.model_revision_id},
             status="running",
         )
         return success_payload(job_id=job.job_id)
@@ -693,6 +802,14 @@ class OpenStudioService:
             )
             self._mark_workspace_status(job_id, "succeeded")
         except Exception as exc:
+            # Diagnostic artifact registration is best-effort.  A failure here
+            # must not prevent the job from reaching its terminal FAILED state.
+            try:
+                failure_artifacts = self._register_failure_artifacts(
+                    job_id=job_id, model_id=model_id
+                )
+            except Exception:
+                failure_artifacts = {}
             self.job_manager.fail(
                 job_id,
                 error=error_payload(
@@ -701,17 +818,22 @@ class OpenStudioService:
                     details={"job_id": job_id},
                     retryable=False,
                 )["error"],
+                artifacts=failure_artifacts,
             )
             self._mark_workspace_status(job_id, "failed")
         finally:
             self._sim_tasks.pop(job_id, None)
 
     def sim_status(self, args: SimStatusArgs) -> dict[str, Any]:
-        job = self.job_manager.get(args.job_id)
+        return self.job_status(args.job_id)
+
+    def job_status(self, job_id: str) -> dict[str, Any]:
+        job = self.job_manager.get(job_id)
         if not job:
-            raise KeyError(f"Unknown job_id: {args.job_id}")
-        self.state_store.touch_workspace(args.job_id)
+            raise KeyError(f"Unknown job_id: {job_id}")
+        self.state_store.touch_workspace(job_id)
         return success_payload(
+            job_id=job.job_id,
             state=job.state,
             progress=job.progress,
             warnings_count=job.warnings_count,
@@ -719,14 +841,118 @@ class OpenStudioService:
             error=job.error,
         )
 
+    @staticmethod
+    def job_status_uri(job_id: str) -> str:
+        return f"openstudio://jobs/{job_id}"
+
+    def bind_notification_loop(self) -> None:
+        """Bind subscription publishing to the running MCP event loop.
+
+        Simulation jobs can later update from an OpenStudio worker thread. Bind
+        their publishing loop before creating the job, rather than relying on a
+        callback happening to run first on the event-loop thread.
+        """
+        if self.subscription_bus is None:
+            return
+
+        loop = asyncio.get_running_loop()
+        if self._event_loop is not None and self._event_loop is not loop:
+            raise RuntimeError("Simulation job notifications are already bound to another event loop")
+        self._event_loop = loop
+
+    def _on_job_updated(self, job: JobRecord) -> None:
+        if self.subscription_bus is None:
+            return
+        uri = self.job_status_uri(job.job_id)
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = self._event_loop
+            if loop is None or loop.is_closed():
+                raise RuntimeError(
+                    "Simulation job notifications need an event loop; call "
+                    "bind_notification_loop() before creating the job"
+                )
+            loop.call_soon_threadsafe(self._schedule_job_update, uri)
+            return
+        if self._event_loop is None:
+            raise RuntimeError(
+                "Simulation job notifications need an event loop; call "
+                "bind_notification_loop() before creating the job"
+            )
+        if self._event_loop is not loop:
+            raise RuntimeError("Simulation job notification arrived on an unexpected event loop")
+        self._schedule_job_update(uri)
+
+    def _schedule_job_update(self, uri: str) -> None:
+        asyncio.create_task(self._publish_job_update(uri))
+
+    async def _publish_job_update(self, uri: str) -> None:
+        assert self.subscription_bus is not None
+        await self.subscription_bus.publish(ResourceUpdated(uri=uri))
+
     def sim_artifacts(self, args: SimArtifactsArgs) -> dict[str, Any]:
         job = self.job_manager.get(args.job_id)
         if not job:
             raise KeyError(f"Unknown job_id: {args.job_id}")
-        if job.state != "SUCCEEDED":
+        if job.state not in {"SUCCEEDED", "FAILED"}:
             raise ValueError(f"Artifacts unavailable while state={job.state}")
         self.state_store.touch_workspace(args.job_id)
         return success_payload(**job.artifacts)
+
+    def session_diagnostic_bundle(self, *, job_id: str, max_chars: int) -> dict[str, Any]:
+        job = self.job_manager.get(job_id)
+        if job is None:
+            raise KeyError(f"Unknown job_id: {job_id}")
+        limit = max(1, min(max_chars, 50_000))
+        logs_id = job.artifacts.get("logs_id")
+        excerpts: dict[str, str] = {}
+        if logs_id:
+            logs = self.artifacts.must_get(logs_id)
+            for key in ("stdout_path", "stderr_path", "err_path"):
+                value = logs.metadata.get(key)
+                if isinstance(value, str) and Path(value).exists():
+                    excerpts[key.removesuffix("_path")] = Path(value).read_text(
+                        encoding="utf-8", errors="ignore"
+                    )[-limit:]
+        err_path = self.workspace_manager.workspace_path(job_id) / "run" / "eplusout.err"
+        if "err" not in excerpts and err_path.exists():
+            excerpts["err"] = err_path.read_text(encoding="utf-8", errors="ignore")[-limit:]
+        return success_payload(
+            job_id=job_id, session_id=job.session_id, state=job.state,
+            warnings_count=job.warnings_count, severe_count=job.severe_count,
+            artifacts=job.artifacts, log_excerpts=excerpts, error=job.error,
+        )
+
+    def _register_failure_artifacts(self, *, job_id: str, model_id: str) -> dict[str, str]:
+        """Publish the inspectable run inputs/logs left by a failed simulation."""
+        workspace = self.workspace_manager.workspace_path(job_id)
+        if not workspace.exists():
+            return {}
+        model_state = self._get_model_state(model_id)
+        session_id = model_state.metadata.get("session_id")
+        revision_id = model_state.metadata.get("model_revision_id")
+        osm_path = workspace / "in.osm"
+        osm = self.artifacts.create(
+            kind="osm",
+            parent_id=model_id,
+            metadata={"job_id": job_id, "workspace_id": job_id, "path": str(osm_path), "failure_input": True},
+            session_id=session_id,
+            model_revision_id=revision_id,
+        )
+        logs = self.artifacts.create(
+            kind="logs",
+            parent_id=osm.artifact_id,
+            metadata={
+                "job_id": job_id, "workspace_id": job_id,
+                "stdout_path": str(workspace / "openstudio.stdout.log"),
+                "stderr_path": str(workspace / "openstudio.stderr.log"),
+                "err_path": str(workspace / "run" / "eplusout.err"),
+            },
+            session_id=session_id,
+            model_revision_id=revision_id,
+        )
+        return {"osm_id": osm.artifact_id, "logs_id": logs.artifact_id}
 
     def results_query(self, args: ResultsQueryArgs) -> dict[str, Any]:
         artifact = self.artifacts.must_get(args.sql_id)
@@ -757,7 +983,18 @@ class OpenStudioService:
                 }
             else:
                 raise ValueError(f"Unsupported query_type: {args.query_type}")
-        return success_payload(data=data)
+        analysis = self.artifacts.create(
+            kind="results_analysis",
+            parent_id=args.sql_id,
+            metadata={
+                "query_type": args.query_type,
+                "params": args.params,
+                "data": data,
+            },
+            session_id=artifact.session_id,
+            model_revision_id=artifact.model_revision_id,
+        )
+        return success_payload(data=data, analysis_id=analysis.artifact_id)
 
     def results_summarize(self, args: ResultsSummarizeArgs) -> dict[str, Any]:
         if isinstance(args.data, dict):
@@ -842,6 +1079,40 @@ class OpenStudioService:
                 decoded_path = decoded_path[1:]
             return Path(decoded_path).resolve()
         return Path(model_uri).resolve()
+
+    def _require_session(self, session_id: str) -> dict[str, Any]:
+        session = self.state_store.get_session(session_id)
+        if session is None:
+            raise KeyError(f"Unknown session_id: {session_id}")
+        return session
+
+    def _record_model_revision(
+        self, *, session_id: str | None, model_id: str, parent_revision_id: str | None,
+        operation: str, source_sha256: str, metadata: dict[str, Any],
+    ) -> str | None:
+        if session_id is None:
+            return None
+        revision_id = str(uuid4())
+        self.state_store.create_model_revision(
+            revision_id=revision_id, session_id=session_id, model_id=model_id,
+            parent_revision_id=parent_revision_id, operation=operation,
+            source_sha256=source_sha256, metadata=metadata,
+        )
+        return revision_id
+
+    @staticmethod
+    def _sha256(path: Path) -> str:
+        digest = hashlib.sha256()
+        with path.open("rb") as stream:
+            for block in iter(lambda: stream.read(1024 * 1024), b""):
+                digest.update(block)
+        return digest.hexdigest()
+
+    def _sha256_or_unavailable(self, uri: Any) -> str:
+        if not isinstance(uri, str):
+            return "unavailable"
+        path = self._resolve_model_path(uri)
+        return self._sha256(path) if path.exists() else "unavailable"
 
     def _resolve_weather_path(
         self, model_state: OpenStudioModelState, options: dict[str, Any]
@@ -937,6 +1208,21 @@ class OpenStudioService:
         stdout_path.write_text(completed.stdout or "", encoding="utf-8")
         stderr_path.write_text(completed.stderr or "", encoding="utf-8")
 
+        session_id = model_state.metadata.get("session_id")
+        revision_id = model_state.metadata.get("model_revision_id")
+        osm_art = self.artifacts.create(
+            kind="osm",
+            parent_id=model_id,
+            metadata={
+                "job_id": job_id,
+                "workspace_id": job_id,
+                "path": str(osm_target),
+                "session_id": session_id,
+                "model_revision_id": revision_id,
+            },
+            session_id=session_id,
+            model_revision_id=revision_id,
+        )
         self.job_manager.mark_running(job_id, progress=80)
 
         if completed.returncode != 0:
@@ -982,33 +1268,40 @@ class OpenStudioService:
             severe_count = err_content.count("** Severe **")
             warning_count = err_content.count("** Warning **")
 
-        osm_art = self.artifacts.create(
-            kind="osm",
-            parent_id=model_id,
-            metadata={"job_id": job_id, "path": str(osm_target)},
-        )
         sql_art = self.artifacts.create(
             kind="sql",
             parent_id=osm_art.artifact_id,
-            metadata={"job_id": job_id, "path": str(sql_path)},
+            metadata={"job_id": job_id, "workspace_id": job_id, "path": str(sql_path),
+                      "session_id": session_id, "model_revision_id": revision_id},
+            session_id=session_id, model_revision_id=revision_id,
         )
         logs_art = self.artifacts.create(
             kind="logs",
             parent_id=osm_art.artifact_id,
             metadata={
                 "job_id": job_id,
+                "workspace_id": job_id,
                 "stdout_path": str(stdout_path),
                 "stderr_path": str(stderr_path),
                 "err_path": str(err_path) if err_path.exists() else None,
+                "session_id": session_id,
+                "model_revision_id": revision_id,
             },
+            session_id=session_id,
+            model_revision_id=revision_id,
         )
         report_art = self.artifacts.create(
             kind="report",
             parent_id=sql_art.artifact_id,
             metadata={
                 "job_id": job_id,
+                "workspace_id": job_id,
                 "path": str(end_path) if end_path.exists() else None,
+                "session_id": session_id,
+                "model_revision_id": revision_id,
             },
+            session_id=session_id,
+            model_revision_id=revision_id,
         )
 
         self.workspace_manager.ensure_quota(job_id)
@@ -1171,6 +1464,74 @@ class OpenStudioService:
         self.state_store.upsert_blackboard_workflow(state)
         return success_payload(workflow_id=state["workflow_id"], state=state)
 
+    def session_create(self, args: SessionCreateArgs) -> dict[str, Any]:
+        session_id = args.session_id or str(uuid4())
+        return success_payload(session=self.state_store.create_session(
+            session_id=session_id, goal=args.goal, metadata=args.metadata
+        ))
+
+    def session_get(self, session_id: str) -> dict[str, Any]:
+        session = self._require_session(session_id)
+        return success_payload(
+            session=session,
+            model_revisions=self.state_store.list_session_model_revisions(session_id),
+            jobs=self.state_store.list_session_jobs(session_id),
+            findings=self.state_store.list_session_findings(session_id),
+            checkpoint=self.state_store.get_latest_checkpoint(session_id),
+        )
+
+    def session_record_finding(self, args: SessionFindingArgs) -> dict[str, Any]:
+        self._require_session(args.session_id)
+        for evidence in args.evidence:
+            artifact_id = evidence.get("artifact_id")
+            if artifact_id:
+                artifact = self.artifacts.get(artifact_id)
+                if artifact is None:
+                    raise KeyError(f"Evidence artifact not found: {artifact_id}")
+                if artifact.session_id != args.session_id:
+                    raise ValueError(
+                        f"Evidence artifact does not belong to session: {artifact_id}"
+                    )
+        finding = self.state_store.create_finding(
+            finding_id=str(uuid4()), session_id=args.session_id, category=args.category,
+            severity=args.severity, assertion=args.assertion, confidence=args.confidence,
+            evidence=args.evidence, affected_model_refs=args.affected_model_refs,
+            proposed_action=args.proposed_action,
+        )
+        return success_payload(finding=finding)
+
+    def session_checkpoint(self, args: SessionCheckpointArgs) -> dict[str, Any]:
+        session = self._require_session(args.session_id)
+        revisions = self.state_store.list_session_model_revisions(args.session_id)
+        jobs = self.state_store.list_session_jobs(args.session_id)
+        findings = self.state_store.list_session_findings(args.session_id, status="open")
+        latest_revision = revisions[-1] if revisions else None
+        artifact_ids = [revision["model_id"] for revision in revisions]
+        for finding in findings:
+            artifact_ids.extend(
+                evidence["artifact_id"] for evidence in finding["evidence"]
+                if isinstance(evidence.get("artifact_id"), str)
+            )
+        for job in jobs:
+            artifact_ids.extend(job["artifacts"].values())
+        artifact_ids = sorted(set(artifact_ids))
+        for artifact_id in artifact_ids:
+            self.state_store.pin_artifact(artifact_id, True)
+            artifact = self.artifacts.get(artifact_id)
+            if artifact is not None:
+                workspace_id = artifact.metadata.get("workspace_id")
+                if isinstance(workspace_id, str):
+                    self.state_store.pin_workspace(workspace_id, True)
+        state = {
+            "session": session, "active_model_revision": latest_revision,
+            "open_findings": findings, "next_action": "Review open findings or continue from the active model revision.",
+        }
+        checkpoint = self.state_store.create_checkpoint(
+            checkpoint_id=str(uuid4()), session_id=args.session_id, reason=args.reason,
+            state=state, artifact_ids=artifact_ids,
+        )
+        return success_payload(checkpoint=checkpoint)
+
     def blackboard_list_workflows(self) -> dict[str, Any]:
         return success_payload(workflows=self.state_store.list_blackboard_workflows())
 
@@ -1263,6 +1624,7 @@ class OpenStudioService:
         kind: str,
         job_id: str | None = None,
         model_id: str | None = None,
+        session_id: str | None = None,
         artifact_id: str | None = None,
         metadata: dict[str, Any] | None = None,
         status: str | None = None,
@@ -1274,6 +1636,7 @@ class OpenStudioService:
             path=self.workspace_manager.workspace_path(workspace_id),
             job_id=job_id,
             model_id=model_id,
+            session_id=session_id,
             artifact_id=artifact_id,
             metadata=metadata or {},
             size_bytes=size_bytes,
@@ -1456,25 +1819,25 @@ class OpenStudioService:
 
 def create_server(
     *,
-    host: str = "127.0.0.1",
-    port: int = 10210,
     workspace_root: str | Path | None = None,
     learning_db_path: str | Path | None = None,
-) -> FastMCP:
+    service: OpenStudioService | None = None,
+    subscription_bus: SubscriptionBus | None = None,
+) -> MCPServer:
     workspace = Path(workspace_root or ".openstudio_ai_mcp_workspace")
-    service = OpenStudioService(
-        workspace_root=workspace,
-        learning_db_path=learning_db_path,
-    )
-    mcp = FastMCP("openstudio-ai-mcp", host=host, port=port)
-    # FastMCP does not forward a version, so hosts would otherwise see the MCP
-    # SDK version in ``serverInfo.version``. Workflow provenance records the
-    # session identity, so advertise the OpenStudio AI package version instead.
-    low_level_server = getattr(mcp, "_mcp_server", None)
-    if low_level_server is not None and getattr(low_level_server, "version", None) is None:
-        low_level_server.version = package_version()
+    bus = subscription_bus or InMemorySubscriptionBus()
+    if service is None:
+        service = OpenStudioService(
+            workspace_root=workspace,
+            learning_db_path=learning_db_path,
+            subscription_bus=bus,
+        )
+    elif service.subscription_bus is not bus:
+        raise ValueError("service and MCPServer must share a subscription bus")
+    mcp = MCPServer("openstudio-ai-mcp", version=package_version(), subscriptions=bus)
 
     register_blackboard_tools(mcp, service)
+    register_session_tools(mcp, service)
     register_model_tools(mcp, service)
     register_sim_tools(mcp, service)
     register_results_tools(mcp, service)
@@ -1498,8 +1861,11 @@ def serve(
             f"{compatibility.message}\nNext step: {compatibility.remediation}",
             file=sys.stderr,
         )
-    mcp = create_server(host=host, port=port, workspace_root=workspace_root)
-    mcp.run(transport=transport)
+    mcp = create_server(workspace_root=workspace_root)
+    if transport == "stdio":
+        mcp.run(transport="stdio")
+    else:
+        mcp.run(transport=transport, host=host, port=port)
 
 
 def main() -> None:

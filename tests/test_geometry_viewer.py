@@ -138,7 +138,7 @@ def test_geometry_viewer_skill_requires_the_mcp_export_tool() -> None:
 
     assert "model_export_geometry_viewer" in skill
     assert "runtime_plugin_compatibility" in skill
-    assert "runtime_contract_version` is `4`" in skill
+    assert "runtime_contract_version` is `5`" in skill
     assert "restart or reconnect the host MCP server" in skill
     assert "do not parse the OSM directly" in skill
 

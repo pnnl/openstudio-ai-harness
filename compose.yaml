@@ -1,0 +1,29 @@
+services:
+  devcontainer:
+    build:
+      context: .
+      dockerfile: .devcontainer/Dockerfile
+    working_dir: /workspace/openstudio-ai-harness
+    volumes:
+      - .:/workspace/openstudio-ai-harness:cached
+    ports:
+      - "${STREAMLIT_HOST_PORT:-8504}:8504"
+    environment:
+      PYTHONUNBUFFERED: "1"
+      OPENSTUDIO_MCP_HOST: 127.0.0.1
+      OPENSTUDIO_MCP_PORT: "10210"
+      OPENSTUDIO_AI_DATA_DIR: /workspace/openstudio-ai-harness/.openstudio_ai_mcp_workspace/user_data
+    command:
+      - /bin/sh
+      - -c
+      - >-
+        mkdir -p logs &&
+        uv sync --project standalone --locked &&
+        exec uv run --project standalone streamlit run standalone/ui.py
+        --server.address 0.0.0.0 --server.port 8504 --server.headless true
+        > logs/streamlit.log 2>&1
+
+  standalone:
+    profiles: ["standalone"]
+    extends:
+      service: devcontainer

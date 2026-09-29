@@ -281,5 +281,5 @@ For 0.2.3, also call out:
 - NLR discovery accepts only `openstudio-mcp` as the host connection name.
   `nlr_openstudio` remains an internal provider/capability identifier and is
   not a supported connection-name alias.
-- The Python 3.12 Dev Container installs the locked standalone AUTOMA-AI and
+- The Python 3.10 Dev Container installs the locked standalone AUTOMA-AI and
   Streamlit environment; its uv 0.12.5 pin matches the CI workflows.

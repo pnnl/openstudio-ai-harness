@@ -109,8 +109,9 @@ established the following, which the routing skill now encodes:
   EnergyPlus took ~10 s per run while consecutive rungs were 60-90 s apart,
   because the loop submitted, waited, and recorded one candidate at a time
   and honored a one-minute first poll. The routing skill now prescribes
-  ladder batching: prepare all candidates serially from the seed, submit them
-  together, poll the set, record each, then commit.
+  ladder batching: prepare and validate all candidates serially from the seed,
+  submit them together, wait for the set with Calibration-MCP
+  `wait_for_runs`, record each, then commit.
 - A recipe's `fixed_arguments` may leave a measure default in force (the
   water-heater efficiency measure defaults `fuel_type` to `NaturalGas`);
   pinned values read through the provider are recorded as assumptions.

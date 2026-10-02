@@ -57,11 +57,13 @@ discovered from the connected service through its Skill-over-MCP interface.
    framework. When the provider reports no EnergyPlus version, read it from
    the first canonical `eplusout.sql`/`eplusout.err` and record it before any
    candidate is scored.
-4. Create the Calibration-MCP project with the provider's **host-visible**
-   `runs_dir`, not a container-only path. Use a dedicated, initially empty
-   host directory per project: the service counts every
-   `<runs_dir>/*/run_record.json` toward its physical-run budget and ledger,
-   so a shared provider workspace with earlier runs corrupts both. Bind its
+4. Create the Calibration-MCP project with `runs_dir` set to the **host**
+   folder mounted at the provider's run root, not a container-only path and
+   never a new empty folder. Read the returned `probe_file` through the
+   provider's `read_file` and pass its code to `confirm_runs_dir` before any
+   simulation. Then name every simulation `run_simulation(name="<run_tag>-...")`:
+   the service counts only tagged runs toward the project's budget and
+   ledger, so other chats' runs in the same run root stay out. Bind its
    returned `calibration_project_id` and `calibration_domain_service:
    "lbnl_bem_calibration"` to the PNNL `workflow_id` in the blackboard.
 5. Stage the incoming model through the selected provider before the baseline
@@ -120,10 +122,12 @@ discovered from the connected service through its Skill-over-MCP interface.
    and provider/container run path to the host-visible `runs_dir`; wait for
    canonical `<runs_dir>/<run_id>/run_record.json` and
    `<runs_dir>/<run_id>/run/eplusout.sql` evidence before asking
-   Calibration-MCP to record the run. Poll the provider's own status (NLR
-   `get_run_status` returns the record under `run`) and verify on the host
-   that the record's `run_id` equals its directory name, its status is the
-   provider's success value (NLR `success`; EnergyPlus-MCP `completed`), and
+   Calibration-MCP to record the run. Wait with Calibration-MCP
+   `wait_for_runs`, which reads those records on the host. NLR
+   `get_run_status` remains a single-run diagnostic (it returns the record under `run`).
+   Verify on the host that the record's `run_id` equals its directory name,
+   its status is the provider's success value
+   (NLR `success`; EnergyPlus-MCP `completed`), and
    the SQL holds twelve monthly values for both facility meters. Provider
    measure-application directories carry no `run_record.json` and are not
    physical simulations.
@@ -167,23 +171,33 @@ waiting, and the provider's `max_concurrency` of 2 was never used.
    `OSMCP_MAX_CONCURRENCY` (NLR docker env; Claude Desktop config requires a
    restart and a new chat) will shorten sweeps, and let the user change it;
    never edit host MCP configuration yourself. Batching still helps at 1,
-   because the provider queue removes the per-rung polling gap.
+   because the provider queue removes the per-rung waiting gap.
 3. Prepare phase (serial; this is the only provider constraint): for each
    rung, reload the frozen sweep seed, `apply_measure`, save the candidate to its
-   own distinct path, hash it on the host, and record its lineage. The
+   own distinct path, hash it on the host, and record its lineage. Then
+   call Calibration-MCP `validate_candidate` on the saved model; never submit
+   a candidate whose validation returns `simulate: false`. Validate the first
+   rung before preparing the rest: a `failure_kind: "no_op"` there means the
+   measure cannot reach this model, so close the parameter with
+   `mark_unresolvable` instead of simulating the ladder. The
    provider's single in-memory model is why *preparation* is serial; it is
    not a reason to serialize the simulations. One blackboard checkpoint
    before the first apply and one after the last save satisfy the
    critical-mutation checkpoint rule for the ladder.
-4. Submit phase: call `run_simulation(osm_path=<candidate>)` for every
+4. Submit phase: call `run_simulation(osm_path=<candidate>,
+   name="<run_tag>-<parameter>-<value>")` for every
    prepared candidate without waiting between calls; the provider queues runs
    beyond `max_concurrency`. Record every provider run ID in one blackboard
    patch as `active_ladder` (a list of `{parameter, value, model_path,
    sha256, provider_run_id, status}`), not as a single `active_candidate`.
-5. Poll phase: poll the *set* of runs, not one run to completion at a time.
-   When the baseline showed the run is short (well under a minute), poll
-   every 15-30 s; otherwise follow the provider's one-minute cadence. Do
-   not wait a fixed minute before the first status check of a 10-second run.
+5. Wait phase: wait for the *set* of runs, not one run to completion at a
+   time. Call Calibration-MCP `wait_for_runs(project_id, run_ids=<every
+   provider run ID in active_ladder>)` once. It returns when every run has
+   finished, or after `max_wait_s` with `pending_run_ids`; call it again with
+   those. Do not sleep a fixed interval or poll `get_run_status` per run: the
+   provider's once-per-minute guidance governs polling the provider and does
+   not apply to this host-side wait. Treat `possibly_stuck` as a prompt to
+   read the provider's run logs, not as permission to cancel or rerun.
 6. Verify and record phase: apply the step-4 evidence checks to each completed
    run, then `record_run` each one (any order) and check `kind` on every
    response. One failed run neither blocks recording the others nor is

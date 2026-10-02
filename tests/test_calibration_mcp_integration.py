@@ -35,7 +35,10 @@ def test_calibration_routing_encodes_live_session_lessons() -> None:
     assert "recorded as absent, never inferred" in skill
     assert "Call `skills/list`\n   directly" in skill
     # Evidence isolation and staged-seed lineage.
-    assert "dedicated, initially empty\n   host directory per project" in skill
+    # Stock NLR openstudio-mcp: probe the shared run root, isolate by run tag.
+    assert "never a new empty folder" in skill
+    assert "pass its code to `confirm_runs_dir` before any" in skill
+    assert 'run_simulation(name="<run_tag>-...")' in skill
     assert "Stage the incoming model through the selected provider" in skill
     assert "gates against the\n   staged seed" in skill
     assert "current_best_model_path" in skill
@@ -145,7 +148,13 @@ def test_calibration_routing_batches_ladders_instead_of_serial_rungs() -> None:
     assert "not a reason to serialize the simulations" in skill
     assert "without waiting between calls" in skill
     assert "`active_ladder`" in skill
-    assert "poll the *set* of runs" in skill
+    assert "wait for the *set* of runs" in skill
+    # One host-side wait per ladder, not fixed sleeps or per-run polling
+    # (2026-09-30 run: twelve 60 s sleeps, 53 of 720 s with a run active).
+    assert "`wait_for_runs(project_id, run_ids=" in skill
+    assert "Do not sleep a fixed interval or poll `get_run_status` per run" in skill
+    assert "never submit\n   a candidate whose validation returns `simulate: false`" in skill
+    assert "wait for the set with Calibration-MCP" in contract
     assert "Do not run two *sweeps* concurrently" in skill
     assert "`sweep_progress` for this selection's `expected_values`" in skill
     assert "do not simulate\n   excluded rungs" in skill

@@ -26,7 +26,7 @@ Existing simulation/results MCP capabilities remain outside this SDK-edit scope.
 | --- | --- | --- | --- |
 | 1 | Manifest-driven skill resource export for both hosts, including nested scripts, shared helpers, and schemas | Export parity, dry-run accuracy, exact file preservation, execution from a relocated bundle without the runtime, and invalid resource rejection | Complete; ready for review |
 | 2 | A standalone SDK doctor, one compatibility contract, and a shared version guard | Required release passes; missing, mismatched, unrecognized, and conflicting CLI/SDK versions block; scripts check again before editing | Complete; ready for review |
-| 3 | Script-bound VAV preflight and resolved input plan | Resolve objects deterministically; validate units and conditional inputs; list assumptions and conflicts; inspection never edits the input | Pending |
+| 3 | Script-bound VAV preflight and resolved input plan | Resolve objects deterministically; validate units and conditional inputs; list assumptions and conflicts; inspection never edits the input | Complete; ready for review |
 | 4 | Tested VAV creation helpers, apply entrypoint, and independent topology validation | Preserve original; check SDK setter results and loop/zone connections; no published output after failure; duplicate execution has explicit behavior; sizing smoke check | Pending |
 | 5 | Skill routing updates and end-to-end evaluation | Both hosts follow the scripts; no routine code drafting or incompatible fallback; compare total tokens, retries, elapsed time, topology, and sizing against the current workflow | Pending |
 
@@ -128,3 +128,79 @@ python3 skills/sdk_scripts/doctor.py --openstudio /absolute/path/to/openstudio
 
 Use the JSON report's verified absolute executable for future SDK scripts. The
 required release cannot be overridden by a CLI option or environment variable.
+
+### Phase 3 result
+
+- Added `vav_preflight.py`, bundled with the VAV parent skill along with doctor,
+  compatibility contract, shared helpers, and `vav_input.schema.json`. It runs
+  directly through the verified 3.11.0 CLI without OpenStudio AI runtime calls.
+- Every invocation checks the executing SDK before reading/loading the input.
+  Inspection inventories zone spaces, thermostats, plenum status, existing HVAC,
+  plant loop types, schedules/type limits, and served-zone relationships.
+- Configurations may be partial. A bounded standard-library schema validator
+  rejects unknown fields, invalid enums/types, booleans as numbers, nonfinite
+  values, empty/ambiguous selectors, and range violations. JSON parsing rejects
+  duplicate keys and nonfinite constants. Model resolution uses exact names or
+  handles and never auto-selects zones.
+- Configured plans block on missing references, duplicate names/zone selections,
+  preexisting HVAC, missing thermostats/spaces, incompatible plant loops,
+  unapproved DX fallback, unsuitable schedule limits, or occupied/invalid output
+  paths. This pilot adds systems to unserved zones; HVAC replacement is excluded.
+- Explicit `prototype_vav_v1` approval supplies generic prototype defaults with
+  one assumption entry for each supplied value. Pressure conversion uses the
+  3.11.0 SDK's verified 249.08891 Pa per inH2O. User-supplied pressure values
+  cannot inherit missing units from the profile. The profile is not an ASHRAE
+  compliance claim; only three verified economizer options are exposed initially.
+- Output includes sorted object candidates, resolved handles, SI values,
+  assumptions, missing inputs/conflicts, expected object counts, and the input
+  SHA-256. Rehashing at completion detects input changes during preflight.
+  No output model or directories are created. The state patch records readiness
+  and hash only; it does not mark any creation phases complete.
+- SDK methods were checked against installed 3.11.0 bindings. The initially
+  guessed economizer enumeration accessor was absent; the exposed enum subset
+  was verified by setter acceptance in a disposable in-memory model.
+- Focused verification: **150 tests passed** across VAV preflight, SDK doctor,
+  asset manifest, resource export, both adapters, and HVAC skill generation.
+  Both exported VAV parent skills passed skill frontmatter validation. Native
+  exported preflight ran from unrelated working directories for Claude and
+  Codex, produced ready plans, preserved input bytes, and created no output OSM.
+  Repeated 3.11.0 fixture and older 3.10.0 sample inspections were identical.
+- Tests caught and fixed sibling-rule validation after `oneOf`. Shared profile
+  merging preserves explicit schedule selectors; unit pairing and finite
+  conversion results are tested. Native Linux/Windows execution remains unverified.
+- Limits: readiness is a preflight result, not HVAC topology/simulation validation.
+  Schedule limits are checked, not all time-series values. The approved profile
+  is required for this initial operation; custom control profiles and equipment
+  replacement need a separately scoped implementation.
+- Next review phase: create the system from the resolved plan, reject stale input
+  hashes, stage output atomically, independently validate topology, and verify a
+  suitable sizing fixture. Preserve preflight's original-model invariant.
+
+Phase 3 focused checks add `tests/test_vav_preflight.py` and
+`tests/test_openstudio_hvac_skill_generation.py` to the phase 2 command. Native
+export tests use the installed macOS 3.11.0 CLI, or `OPENSTUDIO_SKILL_TEST_EXE`
+on other development machines; they skip if the CLI is unavailable.
+
+Example configuration after inspecting candidate names/handles:
+
+```json
+{
+  "system_name": "New VAV",
+  "output_model_path": "/absolute/path/to/new-vav.osm",
+  "target_zones": [{"name": "Zone 1"}],
+  "defaults_profile": "prototype_vav_v1",
+  "central_heating": {"type": "Electricity"},
+  "central_cooling": {"type": "DXTwoSpeed", "dx_approved": true},
+  "reheat": {"type": "Electricity"}
+}
+```
+
+Run from the exported skill using the doctor-selected executable:
+
+```text
+<verified-executable> execute_python_script <skill-dir>/scripts/vav_preflight.py --input <absolute-model.osm> --config <absolute-config.json>
+```
+
+The final stdout line is JSON. Inventory-only calls exit 0 on successful
+inspection with `ready: false`; configured plans exit 2 until ready. In either
+case, do not proceed to model editing merely because inspection succeeded.

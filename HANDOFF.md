@@ -114,7 +114,7 @@ uv run --project standalone python -m pytest -q standalone/tests
 
 ## Near-Term Backlog
 
-- Skill-bound SDK development phase 2 is ready for review. The persistent plan is
+- Skill-bound SDK development phase 3 is ready for review. The persistent plan is
   `docs/SKILL_SCRIPT_DEVELOPMENT_PLAN.md`. Manifest-driven verbatim resources now
   export to both Claude Code and Codex skill folders, with shared helpers, nested
   paths, dry-run planning, and collision/source validation. User selected exact
@@ -122,13 +122,21 @@ uv run --project standalone python -m pytest -q standalone/tests
   probe, compatibility contract, and shared version guard directly beside the
   skill. Explicit paths never fall back. SDK skill recovery instructions enforce
   the pin; existing MCP setup checks remain separate.
-  Focused checks: 96 tests passed across SDK doctor, manifest, resource export,
-  and both adapter suites. Both exported skills passed skill frontmatter
-  validation. Both exported doctors ran with host packages excluded and accepted
-  native 3.11.0 while blocking 3.8.0. macOS is natively verified; Windows/Linux
-  discovery is unit-tested only. No VAV/model edits or simulations ran.
-  Next: phase 3 VAV preflight/input plan, checking APIs against actual 3.11.0
-  because the existing documentation index is 3.10.0. Preserve the CalBEM work.
+  The VAV parent now bundles read-only `vav_preflight.py`, strict partial-input
+  schema validation, object inventory, and deterministic planning. Explicit
+  prototype profile defaults, unit conversions, handles, input SHA-256,
+  missing inputs, and conflicts are reported. Existing HVAC replacement is
+  excluded. No output model is saved by preflight.
+  Focused checks: 150 tests passed across preflight, doctor, manifest/resources,
+  both adapters, and HVAC skill generation. Exported VAV skills passed
+  frontmatter validation and native CLI preflight from unrelated directories.
+  Repeated 3.11.0 fixtures and the older sample produce identical reports and
+  preserve input bytes. macOS is natively verified; Windows/Linux remains
+  unit-tested only. Scratch fixtures were generated for tests; no existing
+  model was edited and no simulation ran.
+  Next: phase 4 apply/independent topology validation and sizing fixture.
+  Verify APIs against actual 3.11.0 because the docs index is 3.10.0. Preserve
+  the CalBEM work.
 
 - CalBEM five-minute talk and two-minute lighting-retrofit recording plan drafted
   in `docs/CALBEM_FLASH_TALK.md` (October 4, 2026). Includes speaker script,

@@ -4,26 +4,71 @@ version: 3
 # Verbatim skill files with explicit destinations. Shared helpers may have
 # multiple owners; nested paths are preserved.
 resources:
+  - source: skills/sdk_scripts/common/__init__.py
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-sdk-model-editor
+        path: scripts/common/__init__.py
+      - hosts: [claude, codex]
+        skill: openstudio-vav-reheat-system-creator
+        path: scripts/common/__init__.py
   - source: skills/sdk_scripts/doctor.py
     owners:
       - hosts: [claude, codex]
         skill: openstudio-sdk-model-editor
+        path: scripts/doctor.py
+      - hosts: [claude, codex]
+        skill: openstudio-vav-reheat-system-creator
         path: scripts/doctor.py
   - source: skills/sdk_scripts/sdk_probe.py
     owners:
       - hosts: [claude, codex]
         skill: openstudio-sdk-model-editor
         path: scripts/sdk_probe.py
+      - hosts: [claude, codex]
+        skill: openstudio-vav-reheat-system-creator
+        path: scripts/sdk_probe.py
   - source: skills/sdk_scripts/common/version_guard.py
     owners:
       - hosts: [claude, codex]
         skill: openstudio-sdk-model-editor
+        path: scripts/common/version_guard.py
+      - hosts: [claude, codex]
+        skill: openstudio-vav-reheat-system-creator
         path: scripts/common/version_guard.py
   - source: skills/sdk_scripts/compatibility.json
     owners:
       - hosts: [claude, codex]
         skill: openstudio-sdk-model-editor
         path: scripts/compatibility.json
+      - hosts: [claude, codex]
+        skill: openstudio-vav-reheat-system-creator
+        path: scripts/compatibility.json
+  - source: skills/sdk_scripts/vav_preflight.py
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-vav-reheat-system-creator
+        path: scripts/vav_preflight.py
+  - source: skills/sdk_scripts/common/input_validation.py
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-vav-reheat-system-creator
+        path: scripts/common/input_validation.py
+  - source: skills/sdk_scripts/common/vav_inventory.py
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-vav-reheat-system-creator
+        path: scripts/common/vav_inventory.py
+  - source: skills/sdk_scripts/common/vav_plan.py
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-vav-reheat-system-creator
+        path: scripts/common/vav_plan.py
+  - source: skills/sdk_scripts/references/vav_input.schema.json
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-vav-reheat-system-creator
+        path: scripts/references/vav_input.schema.json
 
 skills:
   - id: github-issue-submitter

@@ -1,8 +1,9 @@
 ---
 name: openstudio_vav_reheat_system_creator
 description: Parent checklist skill for phased OpenStudio Python SDK workflows that add a multi-zone VAV reheat air system.
-version: 0.4.0
-output_format: markdown_with_json_summary
+metadata:
+  version: 0.4.0
+  output_format: markdown_with_json_summary
 ---
 
 ## Scope
@@ -16,7 +17,45 @@ Use host Python execution only through the bounded script workflow in
 `openstudio_sdk_model_editor`. Use MCP `model_*`, `sim_*`, and `results_*` for
 validation, simulation, and results after the edited model is saved.
 
-## Load First
+## Bundled Preflight (OpenStudio 3.11.0)
+
+Run the scripts beside this `SKILL.md` directly through host tools. For Claude
+Code use `${CLAUDE_SKILL_DIR}`; for Codex resolve the actual skill directory.
+No OpenStudio AI runtime or measure execution is involved in preflight.
+
+1. Run `scripts/doctor.py` with host Python 3.10+. Continue only when its JSON
+   reports `ok: true`. Use its verified absolute OpenStudio executable below.
+2. Run `<verified-executable> execute_python_script <skill-dir>/scripts/vav_preflight.py
+   --input <absolute-input.osm>` to list zones, existing HVAC, plant loops,
+   schedules, and missing inputs. It never chooses zones or saves a model.
+3. Read `scripts/references/vav_input.schema.json` to prepare a JSON configuration.
+   Run the same command with `--config <absolute-config.json>` to resolve a plan.
+   Partial inputs are supported. Missing fields or conflicts block readiness.
+4. Review `plan.parameters`, `resolved_objects`, assumptions, conversions,
+   expected counts, and the input hash. `ready: true` means preflight is complete;
+   it does not mean model creation or simulation has been validated.
+
+Selectors use exactly one `name` or `handle`. Duplicate names require a handle.
+Water coils require a compatible existing plant loop. DX cooling requires
+`dx_approved: true`. Fan pressure inputs must include units; selected zones need
+spaces and a thermostat and must not already have HVAC. Replacement is outside
+this operation. The output must be a new absolute `.osm` path.
+
+`defaults_profile: prototype_vav_v1` explicitly requests generic prototype
+defaults; use it only when the user's request authorizes those assumptions.
+Every supplied default is listed. This profile does not represent a specific
+ASHRAE template or certify code compliance. No profile is selected implicitly.
+
+An inventory-only call exits 0 on successful inspection even when `ready` is
+false. A configured call exits 2 if validation, required inputs, or model
+conflicts block readiness. Read the final JSON line after any SDK log output.
+The returned state patch records preflight readiness and input hash only.
+
+Preflight needs no SDK wiki packs or freshly drafted scripts. Creation remains
+in the later development phase; do not treat preflight as permission to create
+a system or silently fall back to generated edits.
+
+## Legacy Creation Workflow (Pending Migration)
 
 Before any VAV script drafting, load:
 
@@ -86,7 +125,7 @@ complete. Each phase must return a `state_patch`.
 | Step | Phase | Child Skill |
 | --- | --- | --- |
 | 0 | Initialize state | `openstudio_workflow_state` |
-| 1 | Preflight inspection | parent short script |
+| 1 | Preflight inspection | bundled `scripts/vav_preflight.py` |
 | 2 | Clarification gate | parent state update |
 | 3 | Air loop | `openstudio_hvac_air_loop_creator` |
 | 4 | Schedules and SAT setpoint manager | `openstudio_hvac_schedule_resolver` |
@@ -101,10 +140,10 @@ complete. Each phase must return a `state_patch`.
 
 ## Preflight
 
-Before editing, draft a short inspection script that loads the input model and
-returns a state patch with:
+Use the bundled preflight above. It reads the input model and returns:
 
-- conditioned thermal zones and spaces;
+- thermal zones, spaces, plenum status, and thermostat presence (not an inferred
+  conditioned-zone selection);
 - existing air loops and served zones;
 - hot-water and chilled-water plant loops;
 - candidate HVAC operation and outdoor-air schedules;

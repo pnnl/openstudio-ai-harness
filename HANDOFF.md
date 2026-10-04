@@ -26,7 +26,8 @@ and approval model.
   refresh exported plugins to use those workflows.
 - The diagnostic MVP (`model_inspect`, `sim_diagnose`, and
   `results_plausibility`) and its curated fixtures are planned for contract `6`.
-- Current branch: `main`; release metadata is being prepared for `0.4.0`.
+- Current development branch: `enhance_skills_scripts`; release metadata remains
+  at `0.4.0`.
 - The current foundation is a Python 3.10+ package with an MCP 2.x runtime,
   Codex and Claude Code plugin exports, trusted skills/knowledge, local
   SQLite-backed workflow state, model lifecycle support, asynchronous
@@ -112,6 +113,23 @@ uv run --project standalone python -m pytest -q standalone/tests
 ```
 
 ## Near-Term Backlog
+
+- Skill-bound SDK development phase 1 is ready for review. The persistent plan is
+  `docs/SKILL_SCRIPT_DEVELOPMENT_PLAN.md`. Manifest-driven verbatim resources now
+  export to both Claude Code and Codex skill folders, with shared helpers, nested
+  paths, dry-run planning, and collision/source validation. Focused checks passed:
+  51 tests across `test_harness_asset_manifest`, `test_skill_resource_exports`,
+  `test_openstudio_codex_adapter`, and `test_openstudio_claude_code_adapter`.
+  Relocated fixture scripts execute with installed packages excluded. SDK scripts
+  and strict version checks are not implemented yet. Next phase needs an exact
+  tested OpenStudio release/platform contract; 3.12 was an example. Preserve the
+  existing CalBEM talk work when continuing this branch.
+
+- CalBEM five-minute talk and two-minute lighting-retrofit recording plan drafted
+  in `docs/CALBEM_FLASH_TALK.md` (October 4, 2026). Includes speaker script,
+  storyboard, prompts, and proposed acceptance criteria. The demonstration case
+  has not been run; measured results and runtime/version verification remain
+  prerequisites for filming.
 
 - Refresh CI/release checks into an explicit host/runtime/version/evaluation
   matrix, including real simulation readiness where the native executable is

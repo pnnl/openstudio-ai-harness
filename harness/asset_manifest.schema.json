@@ -18,9 +18,36 @@
     "references": {
       "type": "array",
       "items": { "$ref": "#/$defs/reference" }
+    },
+    "resources": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/resource" }
     }
   },
   "$defs": {
+    "resource": {
+      "type": "object",
+      "required": ["source", "owners"],
+      "additionalProperties": false,
+      "properties": {
+        "source": { "type": "string", "minLength": 1 },
+        "owners": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/resource_owner" }
+        }
+      }
+    },
+    "resource_owner": {
+      "type": "object",
+      "required": ["hosts", "skill", "path"],
+      "additionalProperties": false,
+      "properties": {
+        "hosts": { "$ref": "#/$defs/hosts" },
+        "skill": { "type": "string", "minLength": 1 },
+        "path": { "type": "string", "minLength": 1 }
+      }
+    },
     "hosts": {
       "type": "array",
       "minItems": 1,

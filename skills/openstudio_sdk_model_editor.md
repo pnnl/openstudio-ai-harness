@@ -127,13 +127,18 @@ Disallowed uses:
 
 ## Local Runtime Recovery
 
-Before concluding that the host cannot execute an SDK script, verify local
-runtimes without installing anything. If `python3 -c "import openstudio"`
-fails, try `./.venv/bin/python` from the project root, then the nearest
-project-root `.venv/bin/python` when working in a subdirectory, followed by a
-project-configured OpenStudio runtime such as `OPENSTUDIO_PATH`. Verify the
-import and OpenStudio version for every candidate and use the first compatible
-runtime. Ask the user for a runtime location only after those checks fail.
+Before executing an SDK script, resolve Python without installing anything.
+Check the current project's `./.venv/bin/python` first, or the nearest project
+root's `.venv/bin/python` when working in a subdirectory. Then check a
+project-configured Python, followed by the host's `python3` or `python`.
+For each candidate, verify its Python version is at least 3.10, that it can
+import `openstudio`, and the reported OpenStudio version. Use the first
+compatible interpreter for every SDK script in this task. When both the
+project virtual environment and a global interpreter work, choose the project
+virtual environment. Do not switch to the global interpreter merely because
+it appears first on `PATH`. `OPENSTUDIO_PATH` selects the native OpenStudio
+executable; it is not a Python interpreter. Ask the user for a runtime location
+only after these candidates fail.
 
 ## SDK Context-Pack Selection
 

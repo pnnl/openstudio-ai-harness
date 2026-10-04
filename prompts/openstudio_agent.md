@@ -91,19 +91,22 @@ recorded provider boundary described above.
 
 ### Local Runtime Recovery Order
 
-If the host's `python3` cannot import `openstudio`, do not stop or suggest an
-installation yet. Probe, without modifying the environment, in this order:
+Before an SDK script, probe Python without modifying the environment, in this
+order:
 
 1. `./.venv/bin/python` from the current project root;
 2. `.venv/bin/python` at the nearest ancestor that is the project root, when
    the current directory is a project subdirectory;
-3. a project-configured Python or OpenStudio executable, including
-   `OPENSTUDIO_PATH` when configured.
+3. a project-configured Python interpreter;
+4. the host's `python3` or `python`.
 
-For each candidate, verify `import openstudio` and its reported OpenStudio
-version. Use the first compatible local runtime. Ask the user for a runtime
-location only after these local candidates fail; do not tell the user to
-install Python or OpenStudio before completing this recovery check.
+For each candidate, verify Python is at least 3.10, `import openstudio`, and
+the reported OpenStudio version. Use the first compatible interpreter for
+every SDK script in this task. If both the project virtual environment and
+global Python work, choose the project virtual environment even when global
+Python appears first on `PATH`. `OPENSTUDIO_PATH` selects the native OpenStudio
+executable, not Python. Ask the user for a runtime location only after these
+candidates fail; do not suggest installation before completing this check.
 
 For every generated OpenStudio Python inspection or edit script, load
 `openstudio_sdk_model_editor` before drafting or executing code. Load its

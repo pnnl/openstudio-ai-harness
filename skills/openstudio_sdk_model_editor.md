@@ -1,8 +1,9 @@
 ---
 name: openstudio_sdk_model_editor
 description: Inspect and edit OpenStudio models through host Python execution and the OpenStudio Python SDK.
-version: 0.4.0
-output_format: markdown_with_json_summary
+metadata:
+  version: 0.4.0
+  output_format: markdown_with_json_summary
 ---
 
 ## Scope
@@ -12,13 +13,14 @@ it to run simulations or retrieve simulation results. Simulation execution,
 polling, artifacts, and SQL-backed result retrieval belong to the OpenStudio MCP
 tools.
 
-Use host Python execution only when the task requires a generated Python script
-against a local `.osm` file. Host Python execution means the Python mechanism
+Use host execution for bundled SDK scripts and scoped generated scripts against
+a local `.osm` file. Bundled SDK scripts run directly through the host, without
+the OpenStudio AI MCP runtime or measure registry. Host execution means the mechanism
 available in the current agent host: AUTOMA-AI may expose `run_python`, Codex
 may use its shell/Python execution environment, Claude Code may use its
 approved command or script execution path, and some hosts may require asking the
-user to run the displayed script manually. Do not execute Python scripts for
-tasks that can be completed with MCP `model_*`, `sim_*`, or `results_*` tools.
+user to run the displayed script manually. Simulation and results use MCP
+`sim_*` and `results_*` tools. Bundled model-edit operations use their skill scripts.
 
 When NLR is selected as the modeling provider, this skill is available only
 after `delegated-nlr-modeling` records a supported provider transition. It must
@@ -41,7 +43,8 @@ Disallowed uses:
 - SQL result retrieval;
 - artifact retrieval;
 - network calls;
-- shell commands or subprocesses;
+- shell commands or subprocesses inside model-edit scripts (the bundled doctor
+  may launch read-only CLI and embedded SDK probes);
 - overwriting the original model unless explicitly requested.
 
 ## Senior Modeler Workflow
@@ -125,15 +128,43 @@ Disallowed uses:
    - output model path;
    - recommended next step, usually validation or simulation via MCP.
 
-## Local Runtime Recovery
+## Exact SDK Release Gate
 
-Before concluding that the host cannot execute an SDK script, verify local
-runtimes without installing anything. If `python3 -c "import openstudio"`
-fails, try `./.venv/bin/python` from the project root, then the nearest
-project-root `.venv/bin/python` when working in a subdirectory, followed by a
-project-configured OpenStudio runtime such as `OPENSTUDIO_PATH`. Verify the
-import and OpenStudio version for every candidate and use the first compatible
-runtime. Ask the user for a runtime location only after those checks fail.
+This skill's bundled contract at `scripts/compatibility.json` requires OpenStudio
+**3.11.0**. Build metadata is allowed; prereleases and other patch releases are
+rejected. Do not change the contract to accommodate an installed version.
+
+Before SDK model execution, run `scripts/doctor.py` beside this skill with a host
+Python 3.10+ interpreter. Doctor uses only the standard library; that host Python
+does not need OpenStudio or OpenStudio AI installed. For Claude Code resolve the
+script through `${CLAUDE_SKILL_DIR}`; for Codex resolve it relative to this
+`SKILL.md`'s actual directory, not the user's current working directory.
+
+Doctor can discover the required executable or accept `--openstudio /absolute/path`
+(also accepts `OPENSTUDIO_PATH`). Explicit paths are authoritative: incompatibility
+blocks execution rather than triggering fallback. Read its final JSON and exit
+code. Continue only when `ok` is true, using the returned absolute
+`openstudio_executable` to launch SDK scripts:
+
+```text
+<verified-executable> execute_python_script <absolute-script-path> <arguments>
+```
+
+Every executable SDK script must independently call the bundled
+`common.version_guard.require_sdk()` before loading or editing a user's model.
+The embedded launcher needs the script's folder added to `sys.path` to import
+its local helpers; follow `scripts/sdk_probe.py` when developing entrypoints.
+Doctor verifies CLI identity and the embedded SDK/model binding, but a prior
+successful doctor report never replaces the entrypoint's version check.
+
+On failure, report the required and detected versions and the installation link
+from doctor. Request installation of the exact release or its executable path.
+Do not install automatically, use a different release, or fall back to a host
+virtualenv. CLI/SDK mismatch must be resolved before any model operation.
+
+Compatibility checks do not require SDK wiki packs or API documentation lookup.
+Model-edit entrypoints arrive in the following development phases; existing
+generated-script guidance below remains until those operations are migrated.
 
 ## SDK Context-Pack Selection
 
@@ -271,12 +302,14 @@ If the task fails, print:
 
 - Use `openstudio.openstudioosversion.VersionTranslator().loadModel(str(input_path))`
   for loading.
+- Recheck the executing SDK with the bundled version guard before loading the model.
 - Check `is_initialized()` before accessing the model.
 - Save edited models with `model.save(str(output_path), True)`.
 - Preserve the original model file.
 - Keep scripts deterministic and local-file only.
-- Do not import modules blocked by the current host's Python execution policy:
+- Inside model-edit scripts, do not import modules blocked by the current host's Python execution policy:
   `subprocess`, `socket`, `requests`, `urllib`, or `ctypes`.
 - Do not import network libraries.
-- Do not use shell commands or subprocesses.
+- Do not use shell commands or subprocesses inside model-edit scripts. The bundled
+  standalone doctor may launch only its read-only compatibility probes.
 - Do not perform simulation or results retrieval with host Python execution.

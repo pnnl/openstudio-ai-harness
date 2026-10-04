@@ -22,7 +22,7 @@ def resource_workspace(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     root.mkdir()
     for directory in ("skills", "prompts"):
         shutil.copytree(Path(directory), root / directory)
-    scripts = root / "skills" / "sdk_scripts"
+    scripts = root / "skills" / "fixture_scripts"
     scripts.mkdir()
     (scripts / "probe.py").write_text(
         "import json\nfrom common.helper import value\n"
@@ -41,7 +41,7 @@ def resource_workspace(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     manifest["references"] = []
     manifest["resources"] = [
         {
-            "source": f"skills/sdk_scripts/{source}",
+            "source": f"skills/fixture_scripts/{source}",
             "owners": [
                 {"hosts": ["claude", "codex"], "skill": skill, "path": destination}
                 for skill in ("openstudio-sdk-model-editor", "add-vav-reheat")
@@ -201,7 +201,7 @@ def test_reject_collision_with_reference_export(resource_workspace: Path) -> Non
     manifest = yaml.safe_load(path.read_text())
     manifest["references"] = [
         {
-            "source": "skills/sdk_scripts/input.json",
+            "source": "skills/fixture_scripts/input.json",
             "owners": [{"hosts": ["codex"], "skill": "add-vav-reheat"}],
         }
     ]

@@ -17,8 +17,9 @@ knowledge, and workflow-state tools for AI-assisted building-energy modeling.
 - HVAC workflow skills and generated child skills.
 - Reviewed OpenStudio SDK knowledge packs.
 - Skill resource export for both hosts, including verbatim scripts and nested
-  helpers. Direct SDK execution and strict version enforcement are being developed
-  in review phases; see [Skill Script Development Plan](docs/SKILL_SCRIPT_DEVELOPMENT_PLAN.md).
+  helpers. The SDK skill includes a standalone doctor and exact OpenStudio 3.11.0
+  version guard; scripted model-edit operations are being developed in review
+  phases. See [Skill Script Development Plan](docs/SKILL_SCRIPT_DEVELOPMENT_PLAN.md).
 - Packaging north-star plan for stable `pip install` and marketplace agentic
   installation paths.
 

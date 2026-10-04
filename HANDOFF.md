@@ -114,16 +114,21 @@ uv run --project standalone python -m pytest -q standalone/tests
 
 ## Near-Term Backlog
 
-- Skill-bound SDK development phase 1 is ready for review. The persistent plan is
+- Skill-bound SDK development phase 2 is ready for review. The persistent plan is
   `docs/SKILL_SCRIPT_DEVELOPMENT_PLAN.md`. Manifest-driven verbatim resources now
   export to both Claude Code and Codex skill folders, with shared helpers, nested
-  paths, dry-run planning, and collision/source validation. Focused checks passed:
-  51 tests across `test_harness_asset_manifest`, `test_skill_resource_exports`,
-  `test_openstudio_codex_adapter`, and `test_openstudio_claude_code_adapter`.
-  Relocated fixture scripts execute with installed packages excluded. SDK scripts
-  and strict version checks are not implemented yet. Next phase needs an exact
-  tested OpenStudio release/platform contract; 3.12 was an example. Preserve the
-  existing CalBEM talk work when continuing this branch.
+  paths, dry-run planning, and collision/source validation. User selected exact
+  OpenStudio 3.11.0. The SDK skill now exports standalone doctor, embedded SDK
+  probe, compatibility contract, and shared version guard directly beside the
+  skill. Explicit paths never fall back. SDK skill recovery instructions enforce
+  the pin; existing MCP setup checks remain separate.
+  Focused checks: 96 tests passed across SDK doctor, manifest, resource export,
+  and both adapter suites. Both exported skills passed skill frontmatter
+  validation. Both exported doctors ran with host packages excluded and accepted
+  native 3.11.0 while blocking 3.8.0. macOS is natively verified; Windows/Linux
+  discovery is unit-tested only. No VAV/model edits or simulations ran.
+  Next: phase 3 VAV preflight/input plan, checking APIs against actual 3.11.0
+  because the existing documentation index is 3.10.0. Preserve the CalBEM work.
 
 - CalBEM five-minute talk and two-minute lighting-retrofit recording plan drafted
   in `docs/CALBEM_FLASH_TALK.md` (October 4, 2026). Includes speaker script,

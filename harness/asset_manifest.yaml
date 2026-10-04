@@ -2,8 +2,28 @@ $schema: asset_manifest.schema.json
 version: 3
 
 # Verbatim skill files with explicit destinations. Shared helpers may have
-# multiple owners; nested paths are preserved. SDK resources arrive in phase 2.
-resources: []
+# multiple owners; nested paths are preserved.
+resources:
+  - source: skills/sdk_scripts/doctor.py
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-sdk-model-editor
+        path: scripts/doctor.py
+  - source: skills/sdk_scripts/sdk_probe.py
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-sdk-model-editor
+        path: scripts/sdk_probe.py
+  - source: skills/sdk_scripts/common/version_guard.py
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-sdk-model-editor
+        path: scripts/common/version_guard.py
+  - source: skills/sdk_scripts/compatibility.json
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-sdk-model-editor
+        path: scripts/compatibility.json
 
 skills:
   - id: github-issue-submitter

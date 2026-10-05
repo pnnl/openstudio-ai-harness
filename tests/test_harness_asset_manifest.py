@@ -155,7 +155,10 @@ def test_asset_manifest_rejects_unsafe_reference_subdirectory() -> None:
 def test_manifest_sources_are_tracked_in_git() -> None:
     """Export must not depend on resources that disappear in a clean checkout."""
     import subprocess
+    import shutil
 
+    if not Path(".git").exists() or shutil.which("git") is None:
+        pytest.skip("Git tracking check requires a checkout and Git executable")
     manifest = yaml.safe_load(Path("harness/asset_manifest.yaml").read_text())
     sources = sorted(
         {

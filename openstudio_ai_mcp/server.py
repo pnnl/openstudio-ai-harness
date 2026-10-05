@@ -36,6 +36,7 @@ from blackboard.operations import (
     record_failure,
 )
 from openstudio_ai_mcp.compatibility import evaluate_plugin_compatibility
+from openstudio_ai_mcp.model_resources import copy_model_resources
 from openstudio_ai_mcp.runtime_config import (
     openstudio_version_from_output,
     resolve_openstudio_executable_with_source,
@@ -299,8 +300,10 @@ class OpenStudioService:
             workspace = self.workspace_manager.create_workspace(workspace_id)
             snapshot_path = workspace / "source.osm"
             shutil.copy2(source_path, snapshot_path)
+            copy_model_resources(source_path, snapshot_path)
+            self.workspace_manager.ensure_quota(workspace_id)
             model_uri = snapshot_path.as_uri()
-            source_sha256 = self._sha256(snapshot_path)
+            source_sha256 = self._sha256(source_path)
             self._register_workspace(
                 workspace_id=workspace_id,
                 kind="model_snapshot",
@@ -1175,12 +1178,15 @@ class OpenStudioService:
 
         osm_target = workspace / "in.osm"
         shutil.copy2(model_path, osm_target)
+        file_paths = copy_model_resources(model_path, osm_target)
+        self.workspace_manager.ensure_quota(job_id)
         epw_target = workspace / weather_path.name
         shutil.copy2(weather_path, epw_target)
 
         osw_path = workspace / "in.osw"
         osw_payload = {
             "seed_file": osm_target.name,
+            "file_paths": file_paths,
             "weather_file": epw_target.name,
             "run_directory": "run",
             "steps": [],

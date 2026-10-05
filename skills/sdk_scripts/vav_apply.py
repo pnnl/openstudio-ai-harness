@@ -24,6 +24,7 @@ from common.companions import (
     inspect as inspect_companions,
     stage as stage_companions,
     verify as verify_companions,
+    external_file_status,
 )
 from common.input_validation import read_json
 
@@ -99,8 +100,16 @@ def apply(plan_path: Path) -> dict:
         saved = sdk.osversion.VersionTranslator().loadModel(str(staged))
         if not saved.is_initialized():
             raise RuntimeError("Could not reload staged output")
-        saved = saved.get()
+        plain_resources = external_file_status(saved.get())
+        # Use a fresh reload so the plain-load probe cannot affect SDK lookup caches.
+        saved = sdk.osversion.VersionTranslator().loadModel(str(staged)).get()
         saved.workflowJSON().setOswPath(str(companion_stage / "workflow.osw"))
+        attached_resources = external_file_status(saved)
+        if not attached_resources["ok"]:
+            raise RuntimeError(
+                f"Staged external files do not resolve: {attached_resources['files']}"
+            )
+        requires_companion_workflow = not plain_resources["ok"]
         validation = validate_model(saved, sdk, fresh, loop_handle, before)
         if not validation["ok"]:
             raise RuntimeError(
@@ -183,6 +192,11 @@ def apply(plan_path: Path) -> dict:
         "counts": validation["counts"],
         "validation": validation,
         "translation": translation,
+        "external_file_validation": {
+            "plain_load": plain_resources,
+            "with_workflow": attached_resources,
+        },
+        "requires_companion_workflow": requires_companion_workflow,
         "publication_method": publication_method,
         "companion_directory": str(companion_output),
         "workflow_path": str(companion_output / "workflow.osw"),
@@ -191,6 +205,13 @@ def apply(plan_path: Path) -> dict:
         "warnings": fresh["warnings"]
         + fresh["companions"]["warnings"]
         + translation["warnings"]
+        + (
+            [
+                "External data requires the companion workflow: use Model.load or attach <stem>/workflow.osw before translation; keep the OSM and companion folder together."
+            ]
+            if requires_companion_workflow
+            else []
+        )
         + (
             [
                 "Hard links unavailable: exclusive copy publication preserved existing files, but readers can see an incomplete file until the successful report."

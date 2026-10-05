@@ -65,8 +65,14 @@ def summarize(report, report_path, candidate_filter=None):
         "companion_directory",
         "workflow_path",
         "simulation_ready",
+        "requires_companion_workflow",
     )
     summary = {key: report[key] for key in keys if key in report}
+    if report.get("external_file_validation"):
+        summary["external_file_validation"] = {
+            mode: {"ok": result["ok"], "file_count": len(result["files"])}
+            for mode, result in report["external_file_validation"].items()
+        }
     summary["report_path"] = str(report_path)
     summary["assumption_count"] = len(report.get("assumptions", []))
     if report.get("plan"):

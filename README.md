@@ -26,7 +26,9 @@ knowledge, and workflow-state tools for AI-assisted building-energy modeling.
   with reports written directly by each entrypoint. Scripts run directly through host tools;
   supported VAV edits require no modeling MCP runtime or per-object code drafting.
   Outputs use portable references and Application-style companion folders; missing
-  weather warns without blocking VAV editing. Follow-up regressions cover every
+  weather warns without blocking VAV editing. External CSV outputs report when
+  they require the companion workflow; model snapshots and simulations retain
+  those resources. Follow-up regressions cover every
   behavior control and native simulation after moving ScheduleFile resources.
   Bespoke SDK guidance is a conditional reference. Native hydronic
   and electric/DX design-day sizing checks cover a five-zone fixture. See

@@ -182,6 +182,25 @@ Instruction context estimate: 98,062 → 24,798 characters (74.7% smaller); actu
 agent/billed tokens remain unmeasured. Native Windows/Linux/cloud-drive behavior
 remains unverified. Next: review this diff before release preparation.
 
+## Round-3 Review — October 5, 2026
+
+R1–R6 are addressed; see `docs/SDK_SCRIPT_ROUND3_FIXES.md`. Portable external CSV
+outputs explicitly declare `requires_companion_workflow` when plain VT loading
+fails resolution. Attached-file resolution must pass before publication. Runtime
+snapshots and jobs now retain referenced CSV/weather files; a native regression
+deletes the original bundle before successfully simulating its snapshot. Source
+measures are not re-executed. Unavailable workflow inputs/measures warn and leave
+VAV editing ready; outputs/empty arguments are retained. Secret patterns are
+narrower, actual circulation pump prefixes are required, explicit `..` search is
+removed, and the tracking test skips outside a Git checkout.
+
+Verification: 231 impacted tests passed, including browser integration after
+lifting the Chromium sandbox restriction, plus four isolated host export/native
+sizing cases. Artifacts: `outputs/sdk-round3-20261005/`,
+`outputs/sdk-round3-native-case/`, `outputs/sdk-round3-tests.log`. Package-wide
+3.11.0 pin and compatible NLR priority unchanged. No commit/push/release. Review
+files remain untouched. Next: review the round-3 diff before merge.
+
 ## Near-Term Backlog
 
 - Skill-bound SDK development phase 5 is complete within the user-selected

@@ -51,6 +51,7 @@ def inspect(model, source, output, sdk):
         lookup.setOswPath(str(source.with_suffix(".osw")))
     resources, skipped, warnings = {}, [], []
     total_bytes = 0
+    workflow_ready = True
 
     def find(value, measure=False):
         result = (
@@ -64,8 +65,10 @@ def inspect(model, source, output, sdk):
             skipped.append(str(target))
             return
         name = path.name.lower()
-        if name.startswith((".env", "id_", "credentials")) or name.endswith(
-            (".pem", ".key")
+        if (
+            name.startswith((".env", "id_rsa", "id_dsa", "id_ecdsa", "id_ed25519"))
+            or name in {"credentials", "credentials.json"}
+            or name.endswith((".pem", ".key"))
         ):
             raise ValueError(
                 f"Sensitive files are outside companion-copy scope: {path}"
@@ -104,21 +107,32 @@ def inspect(model, source, output, sdk):
         if measure_name:
             measure = find(measure_name, measure=True)
             if measure is None:
-                raise ValueError(
-                    f"OpenStudio could not resolve referenced measure: {measure_name}"
+                warnings.append(
+                    f"Referenced measure is unavailable: {measure_name}; VAV editing can proceed, workflow execution remains pending"
                 )
-            add(measure, Path("measures") / measure.name)
-            step["measure_dir_name"] = measure.name
+                workflow_ready = False
+                continue
+            else:
+                add(measure, Path("measures") / measure.name)
+                step["measure_dir_name"] = measure.name
         for key, value in step.get("arguments", {}).items():
+            if (
+                not value
+                or key.startswith(("output_", "report_"))
+                or key.endswith("_dir")
+            ):
+                continue
             if isinstance(value, str) and (
                 key.endswith(("_file", "_path")) or key == "file_name"
             ):
                 resource = find(value)
                 if resource is None or not resource.is_file():
-                    raise ValueError(
-                        f"OpenStudio could not resolve file argument {key}: {value}"
+                    warnings.append(
+                        f"Workflow input is unavailable: {key}={value}; VAV editing can proceed, workflow execution remains pending"
                     )
-                step["arguments"][key] = copy_file(resource)
+                    workflow_ready = False
+                else:
+                    step["arguments"][key] = copy_file(resource)
 
     weather = None
     candidates = [workflow.get("weather_file")]
@@ -153,7 +167,7 @@ def inspect(model, source, output, sdk):
     else:
         workflow.pop("weather_file", None)
     workflow["seed_file"] = str(Path("..") / output.name)
-    workflow["file_paths"] = ["files", ".."]
+    workflow["file_paths"] = ["files"]
     workflow["measure_paths"] = ["measures"]
     workflow.pop("root", None)
     for key in (
@@ -175,7 +189,7 @@ def inspect(model, source, output, sdk):
         "weather_resource": weather_target,
         "external_files": external,
         "warnings": warnings,
-        "simulation_ready": weather is not None,
+        "simulation_ready": weather is not None and workflow_ready,
         "skipped_metadata": sorted(set(skipped)),
         "total_bytes": total_bytes,
         "workflow_source": (
@@ -237,3 +251,14 @@ def stage(model, sdk, planned, staging):
         )
         if not obj.setString(index, reference["path"]):
             raise RuntimeError("SDK rejected relocated external file")
+
+
+def external_file_status(model):
+    """Translation errors do not detect empty Schedule:File filenames."""
+    files = []
+    for obj in model.getExternalFiles():
+        path = Path(str(obj.filePath()))
+        files.append(
+            {"name": obj.fileName(), "path": str(path), "resolved": path.is_file()}
+        )
+    return {"ok": all(item["resolved"] for item in files), "files": files}

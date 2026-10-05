@@ -96,7 +96,9 @@ def inventory(model) -> dict:
                 "supply_pumps": ordered(
                     identity(obj)
                     for obj in loop.supplyComponents()
-                    if "Pump" in obj.iddObjectType().valueName()
+                    if obj.iddObjectType()
+                    .valueName()
+                    .startswith(("OS_Pump_", "OS_HeaderedPumps_"))
                 ),
                 "supply_setpoint_managers": ordered(
                     identity(obj) for obj in loop.supplyOutletNode().setpointManagers()

@@ -104,7 +104,7 @@ Existing output and concurrent destination writers are preserved. Repeating appl
 refuses the existing output and companion folder. Apply carries referenced weather,
 external files, referenced measures and supported file arguments into the Application-style
 `<output-stem>/` folder, hashes dependencies, rewrites portable paths and emits
-`workflow.osw`. Missing required external files/measures and ambiguous workflows block.
+`workflow.osw`. Missing required model external files and ambiguous workflows block.
 Missing weather warns and leaves simulation pending.
 EnergyPlus translation is checked before publishing. Hard-link publication is
 atomic when supported; otherwise exclusive copy still refuses an existing output,
@@ -120,7 +120,16 @@ is not a prerequisite for this local operation. If NLR currently owns the model,
 respect its recorded provider transition and host-visible path before SDK work.
 
 Missing weather produces a warning and `simulation_ready=false`; it does not block
-VAV editing. Missing referenced external data or measures blocks editing. Copying
+VAV editing. Missing referenced model external data blocks editing. Unavailable workflow measures
+or input arguments warn and mark simulation unready; empty/output arguments are retained. Copying
 uses OpenStudio workflow lookup, omits repository metadata, blocks secret-like
 files and limits referenced resources to 256 MiB. Move the OSM and its companion
 folder together; resolve resources through the companion workflow.
+
+For outputs with external CSV schedules, inspect `requires_companion_workflow`.
+Use `OpenStudio::Model.load` / Python `openstudio.model.Model.load`, or attach
+`<stem>/workflow.osw` before translating. Plain VersionTranslator loads can lose
+external filenames without reporting translator errors; the apply report checks
+this separately from the workflow-attached gate. Keep the OSM and companion
+folder together. The harness preserves external resources in its model snapshot
+and simulation job and simulates the saved model without re-running source measures.

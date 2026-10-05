@@ -256,8 +256,12 @@ def model_file(sdk, tmp_path):
     space = os.model.Space(model)
     space.setThermalZone(zone)
     thermostat = os.model.ThermostatSetpointDualSetpoint(model)
-    thermostat.setHeatingSetpointTemperatureSchedule(model.alwaysOnDiscreteSchedule())
-    thermostat.setCoolingSetpointTemperatureSchedule(model.alwaysOnDiscreteSchedule())
+    heat = os.model.ScheduleConstant(model)
+    heat.setValue(20.0)
+    cool = os.model.ScheduleConstant(model)
+    cool.setValue(24.0)
+    assert thermostat.setHeatingSetpointTemperatureSchedule(heat)
+    assert thermostat.setCoolingSetpointTemperatureSchedule(cool)
     zone.setThermostatSetpointDualSetpoint(thermostat)
     loop = os.model.PlantLoop(model)
     loop.setName("HW")
@@ -398,3 +402,18 @@ def test_older_model_translation_is_repeatable_and_read_only(sdk):
     assert first == second
     assert first["ok"] and not first["ready"]
     assert source.read_bytes() == before
+
+
+def test_dangling_output_symlink_blocks_ready(modules, config, catalog, tmp_path):
+    _, plan = modules
+    output = Path(config["output_model_path"])
+    output.symlink_to(tmp_path / "missing.osm")
+    assert plan(config, catalog, tmp_path / "in.osm")["errors"]
+
+
+def test_sat_temperature_obeys_prototype_type_limits(
+    modules, config, catalog, tmp_path
+):
+    _, plan = modules
+    config["design_temperatures_c"] = {"central_cooling": -1.0}
+    assert plan(config, catalog, tmp_path / "in.osm")["errors"]

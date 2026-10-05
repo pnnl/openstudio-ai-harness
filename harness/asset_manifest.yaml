@@ -70,6 +70,22 @@ resources:
         skill: openstudio-vav-reheat-system-creator
         path: scripts/references/vav_input.schema.json
 
+  - source: skills/sdk_scripts/vav_apply.py
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-vav-reheat-system-creator
+        path: scripts/vav_apply.py
+  - source: skills/sdk_scripts/common/vav_create.py
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-vav-reheat-system-creator
+        path: scripts/common/vav_create.py
+  - source: skills/sdk_scripts/common/vav_validate.py
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-vav-reheat-system-creator
+        path: scripts/common/vav_validate.py
+
 skills:
   - id: github-issue-submitter
     source: skills/github_issue_submitter.md

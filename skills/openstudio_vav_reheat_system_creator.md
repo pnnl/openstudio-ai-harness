@@ -13,15 +13,16 @@ multi-zone VAV reheat air system in an OpenStudio model.
 
 This skill does not hold object-level implementation detail. It owns workflow
 state, clarification gates, phase order, child-skill routing, and final handoff.
-Use host Python execution only through the bounded script workflow in
-`openstudio_sdk_model_editor`. Use MCP `model_*`, `sim_*`, and `results_*` for
-validation, simulation, and results after the edited model is saved.
+Use the bundled scripts directly through host tools for supported VAV creation.
+They verify OpenStudio 3.11.0 and validate the saved topology independently. Use
+MCP `model_*`, `sim_*`, and `results_*` for subsequent model checks, simulation,
+and results after the edited model is saved.
 
-## Bundled Preflight (OpenStudio 3.11.0)
+## Bundled Workflow (OpenStudio 3.11.0)
 
 Run the scripts beside this `SKILL.md` directly through host tools. For Claude
 Code use `${CLAUDE_SKILL_DIR}`; for Codex resolve the actual skill directory.
-No OpenStudio AI runtime or measure execution is involved in preflight.
+No OpenStudio AI runtime or measure execution is involved in these scripts.
 
 1. Run `scripts/doctor.py` with host Python 3.10+. Continue only when its JSON
    reports `ok: true`. Use its verified absolute OpenStudio executable below.
@@ -34,6 +35,14 @@ No OpenStudio AI runtime or measure execution is involved in preflight.
 4. Review `plan.parameters`, `resolved_objects`, assumptions, conversions,
    expected counts, and the input hash. `ready: true` means preflight is complete;
    it does not mean model creation or simulation has been validated.
+5. Save the final preflight JSON line as an absolute `plan.json` file, preserving
+   the report unchanged. When the user's request authorizes those selections,
+   run `<verified-executable> execute_python_script <skill-dir>/scripts/vav_apply.py
+   --plan <absolute-plan.json>`. Read its final JSON line and require `ok: true`
+   and `validation.ok: true` before recording creation as complete.
+6. Use `output_model_path` and the returned `state_patch` for the saved-model
+   handoff. Sizing and simulation remain pending; topology validation does not
+   establish code compliance, ventilation adequacy, or annual performance.
 
 Selectors use exactly one `name` or `handle`. Duplicate names require a handle.
 Water coils require a compatible existing plant loop. DX cooling requires
@@ -51,9 +60,24 @@ false. A configured call exits 2 if validation, required inputs, or model
 conflicts block readiness. Read the final JSON line after any SDK log output.
 The returned state patch records preflight readiness and input hash only.
 
-Preflight needs no SDK wiki packs or freshly drafted scripts. Creation remains
-in the later development phase; do not treat preflight as permission to create
-a system or silently fall back to generated edits.
+Supported preflight and creation need no SDK wiki packs or freshly drafted
+scripts. Apply rechecks SDK version, input hash, configuration, and resolved
+plan, stages the OSM, reloads and validates topology/settings, then atomically
+publishes to a new path. Existing output, stale input, or any failure blocks
+publication. Repeated apply refuses the existing output; inspect it rather than
+retrying with overwrite. Plan version 2 is required; rerun preflight for older
+reports. Filesystems without hard-link support fail closed. Failed creation can
+leave newly created parent directories, but publishes no output OSM.
+
+The generic profile follows the inner standards VAV builder. The outer prototype
+dispatcher always creates hydronic VAV and can create plants; our operation uses
+explicit existing plants. Template-specific damper/control changes and standards
+postprocessing are excluded. Central heating `None` explicitly omits that coil;
+Ruby's inner builder instead defaults missing heating to gas.
+
+The legacy map below remains for reference until phase 5 routing cleanup. Do not
+invoke its object-drafting flow for supported bundled configurations, or silently
+fall back to generated edits when a bundled operation fails.
 
 ## Legacy Creation Workflow (Pending Migration)
 

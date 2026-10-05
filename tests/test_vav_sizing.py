@@ -1,0 +1,162 @@
+"""Native design-day verification; simulation is outside the skill edit scripts."""
+
+from __future__ import annotations
+import json
+import os
+from pathlib import Path
+import sqlite3
+import subprocess
+import pytest
+from test_vav_apply import sdk, apply_module, reviewed_plan
+
+
+@pytest.mark.parametrize("hydronic", [True, False])
+def test_native_vav_design_day_sizing(sdk, apply_module, tmp_path, hydronic):
+    exe = Path(
+        os.environ.get(
+            "OPENSTUDIO_SKILL_TEST_EXE",
+            "/Applications/OpenStudio-3.11.0/bin/openstudio",
+        )
+    )
+    if not exe.is_file():
+        pytest.skip("Native 3.11.0 CLI unavailable")
+    o = sdk[0]
+    fixture = Path("tests/fixtures/sample.osm").resolve()
+    original = fixture.read_bytes()
+    model = o.osversion.VersionTranslator().loadModel(str(fixture)).get()
+    # Remove HVAC only from the disposable copy to make explicit unserved targets.
+    for loop in list(model.getAirLoopHVACs()):
+        loop.remove()
+    # Exclude the seed's unrelated service-water warnings from VAV evidence.
+    for plant in list(model.getPlantLoops()):
+        plant.remove()
+    for equipment in list(model.getWaterUseEquipments()):
+        equipment.remove()
+    targets = ["Core_ZN ZN"] + [f"Perimeter_ZN_{i} ZN" for i in range(1, 5)]
+    for name in targets:
+        zone = model.getThermalZoneByName(name).get()
+        assert not zone.airLoopHVACs() and not zone.equipment()
+    config = {
+        "system_name": "Sizing VAV",
+        "output_model_path": str(tmp_path / "vav.osm"),
+        "target_zones": [{"name": x} for x in targets],
+        "defaults_profile": "prototype_vav_v1",
+        "central_heating": {"type": "Electricity"},
+        "central_cooling": {"type": "DXTwoSpeed", "dx_approved": True},
+        "reheat": {"type": "Electricity"},
+    }
+    if hydronic:
+        for name, loop_type, supply, delta in (
+            ("Fixture HW", "Heating", 82.222222, 11.111111),
+            ("Fixture CHW", "Cooling", 6.666667, 5.611111),
+        ):
+            plant = o.model.PlantLoop(model)
+            plant.setName(name)
+            plant.sizingPlant().setLoopType(loop_type)
+            plant.sizingPlant().setDesignLoopExitTemperature(supply)
+            plant.sizingPlant().setLoopDesignTemperatureDifference(delta)
+            pump = o.model.PumpVariableSpeed(model)
+            assert pump.addToNode(plant.supplyInletNode())
+            source = (
+                o.model.DistrictHeatingWater(model)
+                if loop_type == "Heating"
+                else o.model.DistrictCooling(model)
+            )
+            assert plant.addSupplyBranchForComponent(source)
+            for side in ("Supply", "Demand"):
+                assert getattr(plant, f"add{side}BranchForComponent")(
+                    o.model.PipeAdiabatic(model)
+                )
+            schedule = o.model.ScheduleConstant(model)
+            schedule.setValue(supply)
+            manager = o.model.SetpointManagerScheduled(model, schedule)
+            assert manager.addToNode(plant.supplyOutletNode())
+        config.update(
+            central_heating={"type": "Water", "plant_loop": {"name": "Fixture HW"}},
+            central_cooling={"type": "Water", "plant_loop": {"name": "Fixture CHW"}},
+            reheat={"type": "Water", "plant_loop": {"name": "Fixture HW"}},
+        )
+    control = model.getSimulationControl()
+    control.setDoZoneSizingCalculation(True)
+    control.setDoSystemSizingCalculation(True)
+    control.setDoPlantSizingCalculation(hydronic)
+    control.setRunSimulationforSizingPeriods(True)
+    control.setRunSimulationforWeatherFileRunPeriods(False)
+    source_path = tmp_path / "unserved.osm"
+    assert model.save(str(source_path), True)
+    plan_file = reviewed_plan(sdk, source_path, config, tmp_path)
+    report = apply_module.apply(plan_file)
+    assert report["validation"]["ok"]
+    weather = Path("tests/fixtures/USA_FL_Tampa.Intl.AP.722110_TMY3.epw").resolve()
+    workflow = tmp_path / "sizing.osw"
+    workflow.write_text(
+        json.dumps(
+            {
+                "seed_file": report["output_model_path"],
+                "weather_file": str(weather),
+                "steps": [],
+            }
+        )
+    )
+    completed = subprocess.run(
+        [str(exe), "run", "-w", str(workflow)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    (tmp_path / "cli.log").write_text(completed.stdout + completed.stderr)
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    error_file = tmp_path / "run/eplusout.err"
+    errors = error_file.read_text()
+    assert "** Severe **" not in errors and "**  Fatal  **" not in errors, errors
+    assert "EnergyPlus Completed Successfully" in errors, errors
+    sql = tmp_path / "run/eplusout.sql"
+    with sqlite3.connect(sql) as connection:
+        sizing = connection.execute(
+            "SELECT CompType, CompName, Description, Value, Units FROM ComponentSizes WHERE upper(CompName) LIKE '%SIZING VAV%' OR upper(CompName) LIKE '%VAV TERMINAL%' OR upper(CompName) LIKE '%REHEAT COIL%'"
+        ).fetchall()
+    (tmp_path / "sizing_evidence.json").write_text(
+        json.dumps(
+            {
+                "hydronic": hydronic,
+                "validation": report["validation"],
+                "component_sizes": sizing,
+            },
+            indent=2,
+        )
+    )
+    fan_flows = [
+        row[3]
+        for row in sizing
+        if row[0] == "Fan:VariableVolume" and "Maximum Flow Rate" in row[2]
+    ]
+    terminal_flows = [
+        row[3]
+        for row in sizing
+        if "AirTerminal:SingleDuct:VAV:Reheat" == row[0]
+        and "Maximum Air Flow Rate" in row[2]
+    ]
+    assert len(fan_flows) == 1 and fan_flows[0] > 0, sizing
+    assert len(terminal_flows) == 5 and all(x > 0 for x in terminal_flows), sizing
+    reheat_capacities = [
+        row[3]
+        for row in sizing
+        if row[1].endswith("REHEAT COIL")
+        and row[2] in ("Design Size Rated Capacity", "Design Size Nominal Capacity")
+    ]
+    cooling_capacities = [
+        row[3]
+        for row in sizing
+        if row[1] == "SIZING VAV COOLING COIL"
+        and row[2]
+        in (
+            "Design Size Design Coil Load",
+            "Design Size High Speed Gross Rated Total Cooling Capacity",
+        )
+    ]
+    assert len(reheat_capacities) == 5 and all(x > 0 for x in reheat_capacities), sizing
+    assert len(cooling_capacities) == 1 and cooling_capacities[0] > 0, sizing
+    assert 'PlantLoop="MAIN SERVICE WATER LOOP"' not in errors
+    assert "No node connection errors were found." in errors
+    assert fixture.read_bytes() == original

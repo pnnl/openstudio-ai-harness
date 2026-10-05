@@ -18,9 +18,11 @@ knowledge, and workflow-state tools for AI-assisted building-energy modeling.
 - Reviewed OpenStudio SDK knowledge packs.
 - Skill resource export for both hosts, including verbatim scripts and nested
   helpers. The SDK skill includes a standalone doctor and exact OpenStudio 3.11.0
-  version guard. The VAV skill includes read-only preflight and resolved input
-  planning; model creation remains in the next review phase. See
-  [Skill Script Development Plan](docs/SKILL_SCRIPT_DEVELOPMENT_PLAN.md).
+  version guard. The VAV skill includes read-only preflight, reviewed-plan apply,
+  staged publication, and independent saved-topology validation. Native hydronic
+  and electric/DX design-day sizing checks cover a five-zone fixture. See
+  [Skill Script Development Plan](docs/SKILL_SCRIPT_DEVELOPMENT_PLAN.md) and
+  [VAV standards trace](docs/VAV_STANDARDS_TRACE.md).
 - Packaging north-star plan for stable `pip install` and marketplace agentic
   installation paths.
 

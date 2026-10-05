@@ -57,6 +57,21 @@ CONTROLS = {
     "precool_humidity_ratio": 0.008,
     "central_cooling_humidity_ratio": 0.0085,
     "central_heating_humidity_ratio": 0.008,
+    "fan_motor_in_airstream_fraction": 1.0,
+    "fan_power_minimum_flow_fraction": 0.25,
+    "fan_power_minimum_flow_input_method": "Fraction",
+    "fan_power_coefficients": [0.040759894, 0.08804497, -0.07292612, 0.943739823, 0.0],
+    "gas_burner_efficiency": 0.8,
+    "electric_coil_efficiency": 1.0,
+    "heating_water_controller_convergence": 0.1,
+    "cooling_water_heat_exchanger": "CrossFlow",
+    "water_controller_minimum_flow": 0.0,
+    "component_availability": "AlwaysOnDiscrete",
+    "dx_curve_profile": "OpenStudio 3.11.0 OS default",
+    "plant_creation": "excluded; use explicit existing loops",
+    "sat_schedule_type_limits_c": [0.0, 100.0],
+    "capacity_and_flow_sizing": "pinned SDK autosize defaults",
+    "damper_profile": "generic constant; no template or ventilation correction",
 }
 
 
@@ -121,6 +136,8 @@ def plan(config: dict, catalog: dict, input_path: Path) -> dict:
         output = Path(config["output_model_path"])
         if not output.is_absolute():
             errors.append("output_model_path: use an absolute path")
+        if output.is_symlink():
+            errors.append("output_model_path: an existing symlink is not a new output")
         output = output.resolve()
         parameters["output_model_path"] = str(output)
         if output == input_path.resolve() or output.exists():
@@ -228,6 +245,10 @@ def plan(config: dict, catalog: dict, input_path: Path) -> dict:
                     "return_plenum: select a distinct existing plenum zone with spaces"
                 )
             resolved["return_plenum"] = {"name": zone["name"], "handle": zone["handle"]}
+    if parameters.get("design_temperatures_c", {}).get("central_cooling", 0) < 0:
+        errors.append(
+            "design_temperatures_c.central_cooling: SAT must be within the prototype Temperature schedule limits [0,100]"
+        )
     conversions = []
     fan = parameters.get("fan", {})
     if fan.get("total_efficiency", 0) > fan.get("motor_efficiency", 1):

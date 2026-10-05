@@ -114,27 +114,37 @@ uv run --project standalone python -m pytest -q standalone/tests
 
 ## Near-Term Backlog
 
-- Skill-bound SDK development phase 3 is ready for review. The persistent plan is
-  `docs/SKILL_SCRIPT_DEVELOPMENT_PLAN.md`. Manifest-driven verbatim resources now
-  export to both Claude Code and Codex skill folders, with shared helpers, nested
-  paths, dry-run planning, and collision/source validation. User selected exact
-  OpenStudio 3.11.0. The SDK skill now exports standalone doctor, embedded SDK
-  probe, compatibility contract, and shared version guard directly beside the
-  skill. Explicit paths never fall back. SDK skill recovery instructions enforce
-  the pin; existing MCP setup checks remain separate.
-  The VAV parent now bundles read-only `vav_preflight.py`, strict partial-input
-  schema validation, object inventory, and deterministic planning. Explicit
-  prototype profile defaults, unit conversions, handles, input SHA-256,
-  missing inputs, and conflicts are reported. Existing HVAC replacement is
-  excluded. No output model is saved by preflight.
-  Focused checks: 150 tests passed across preflight, doctor, manifest/resources,
-  both adapters, and HVAC skill generation. Exported VAV skills passed
-  frontmatter validation and native CLI preflight from unrelated directories.
-  Repeated 3.11.0 fixtures and the older sample produce identical reports and
-  preserve input bytes. macOS is natively verified; Windows/Linux remains
-  unit-tested only. Scratch fixtures were generated for tests; no existing
-  model was edited and no simulation ran.
-  Next: phase 4 apply/independent topology validation and sizing fixture.
+- Skill-bound SDK development phase 4 is ready for review on
+  `enhance_skills_scripts`. Phases 1–3 were reviewed. The persistent plan is
+  `docs/SKILL_SCRIPT_DEVELOPMENT_PLAN.md`; detailed Ruby dispatch/helper tracing
+  and intentional scope differences are in `docs/VAV_STANDARDS_TRACE.md`.
+  Exact required release remains OpenStudio 3.11.0. Shared manifest resources
+  export directly beside the owning skills for Claude Code and Codex.
+  The VAV parent now bundles preflight, version-2 reviewed-plan apply, creation
+  helpers, and independent saved-topology validation. No MCP runtime/measure
+  execution is used for these edits. SDK guard runs before reading user inputs.
+  Apply rejects stale/altered plans, verifies setters and saved settings, stages
+  output, and publishes by exclusive atomic hard link. Existing/concurrent output
+  is preserved; failed operations publish no OSM. Repeating apply refuses output.
+  Generic all-water construction follows the inner standards VAV builder.
+  Existing plants are explicit; automatic plants, template damper/preheat controls,
+  standards postprocessing, and replacement of existing HVAC remain excluded.
+  Explicit None central heating and independent coil/plant-role selection are
+  documented extensions. New UUIDs differ across runs; settings/topology are the
+  deterministic contract. Routine JSON excludes generated nodes/connectors.
+  Focused checks: 205 tests passed, including 32 coil combinations, failure cases,
+  multiple zones, schedules and return plenum. Both exported VAV skills passed
+  frontmatter and native CLI preflight/apply from unrelated directories.
+  Five-zone hydronic/electric-DX design-day checks passed: 193/138 saved topology
+  checks, positive fan/terminal flows and coil capacities, no severe/fatal or
+  node-connection errors. Disposable fixtures exclude unrelated service-water
+  warnings; remaining seed/default warnings are recorded with sizing metrics in
+  `docs/SKILL_SCRIPT_PHASE4_VERIFICATION.json`. Sample input bytes are preserved.
+  Native CLI 3.11.0+241b8abb4d, embedded Python 3.12.2; pip SDK also 3.11.0.
+  macOS is natively verified; Windows/Linux only have existing discovery tests.
+  Next: phase 4 review, then phase 5 routing cleanup and measured host/token
+  evaluation. The old child-skill map remains reference-only for supported bundled
+  workflows. No live host-agent token savings or annual performance is claimed.
   Verify APIs against actual 3.11.0 because the docs index is 3.10.0. Preserve
   the CalBEM work.
 

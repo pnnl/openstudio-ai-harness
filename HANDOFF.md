@@ -151,6 +151,22 @@ Verification: 45 resource/export adapter tests passed; exported SDK skill passed
 skill-creator validation. Other incoming merge changes were left intact. No merge
 commit, push, install or release performed.
 
+## Standalone CI lock correction — October 5, 2026
+
+The standalone lock's editable parent metadata still declared OpenStudio >=3.10.0
+while pyproject.toml requires ==3.11.0. Corrected only that constraint, preserving
+all resolved dependency versions. CI's uv 0.12.5 accepts `uv lock --project
+standalone --check --offline`; Python 3.10.18 locked-sync dry run passes. The local
+uv 0.8.18 resolver rewrites markers/downgrades uncached packages, so use CI's pinned
+uv when regenerating this lock.
+
+Updated the standalone SDK-guidance assertion to follow the conditional bespoke
+reference introduced by skill-bound routing. All 22 standalone tests pass in the
+existing Python 3.13.7 environment. Python 3.10 dependency installation/tests and
+Linux CI execution were not performed locally; the 3.10 check was resolution-only.
+No workflow changes, commit or push performed. Rerun standalone CI after committing
+these changes.
+
 ## Near-Term Backlog
 
 - Skill-bound SDK development is complete within the user-selected local

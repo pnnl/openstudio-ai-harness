@@ -18,6 +18,15 @@ def inventory(model) -> dict:
             {
                 **identity(zone),
                 "is_plenum": zone.isPlenum(),
+                "can_be_plenum": zone.canBePlenum(),
+                "plenum_air_loops": ordered(
+                    identity(obj.airLoopHVAC().get())
+                    for obj in list(model.getAirLoopHVACReturnPlenums())
+                    + list(model.getAirLoopHVACSupplyPlenums())
+                    if obj.thermalZone().is_initialized()
+                    and obj.thermalZone().get().handle() == zone.handle()
+                    and obj.airLoopHVAC().is_initialized()
+                ),
                 "has_thermostat": zone.thermostat().is_initialized(),
                 "spaces": ordered(identity(space) for space in zone.spaces()),
                 "air_loops": ordered(identity(loop) for loop in zone.airLoopHVACs()),
@@ -47,7 +56,33 @@ def inventory(model) -> dict:
             for loop in model.getAirLoopHVACs()
         ),
         "plant_loops": ordered(
-            {**identity(loop), "loop_type": loop.sizingPlant().loopType()}
+            {
+                **identity(loop),
+                "loop_type": loop.sizingPlant().loopType(),
+                "design_supply_temperature_c": loop.sizingPlant().designLoopExitTemperature(),
+                "design_delta_temperature_k": loop.sizingPlant().loopDesignTemperatureDifference(),
+                "supply_equipment": ordered(
+                    {**identity(obj), "type": obj.iddObjectType().valueName()}
+                    for obj in loop.supplyComponents()
+                    if any(
+                        token in obj.iddObjectType().valueName()
+                        for token in (
+                            "Boiler",
+                            "Chiller",
+                            "DistrictHeating",
+                            "DistrictCooling",
+                            "HeatPump",
+                            "HeatExchanger",
+                            "CoolingTower",
+                            "FluidCooler",
+                            "SolarCollector",
+                        )
+                    )
+                ),
+                "supply_setpoint_managers": ordered(
+                    identity(obj) for obj in loop.supplyOutletNode().setpointManagers()
+                ),
+            }
             for loop in model.getPlantLoops()
         ),
         "schedules": ordered(schedules),

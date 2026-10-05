@@ -18,22 +18,31 @@ knowledge, and workflow-state tools for AI-assisted building-energy modeling.
   VAV skills and their generation machinery have been removed.
 - Reviewed OpenStudio SDK knowledge packs.
 - Skill resource export for both hosts, including verbatim scripts and nested
-  helpers. The SDK skill includes a standalone doctor and exact OpenStudio 3.11.0
-  version guard. The VAV skill includes read-only preflight, reviewed-plan apply,
-  staged publication, independent saved-topology validation, and compact report
-  output with complete persisted evidence. Scripts run directly through host tools;
+  helpers. This package pins OpenStudio 3.11.0 consistently in its dependency,
+  lock metadata and exported compatibility contract. SDK skills include a
+  standalone doctor and shared version guard. The VAV skill includes read-only preflight, reviewed-plan apply,
+  exclusive publication, independent saved-topology and EnergyPlus translation
+  checks, companion weather/workflow/measure relocation, and bounded summaries
+  with reports written directly by each entrypoint. Scripts run directly through host tools;
   supported VAV edits require no modeling MCP runtime or per-object code drafting.
   Bespoke SDK guidance is a conditional reference. Native hydronic
   and electric/DX design-day sizing checks cover a five-zone fixture. See
   [Skill Script Development Plan](docs/SKILL_SCRIPT_DEVELOPMENT_PLAN.md) and
   [VAV standards trace](docs/VAV_STANDARDS_TRACE.md) and
   [local phase 5 evaluation](docs/SKILL_SCRIPT_PHASE5_EVALUATION.md). The specified
-  instruction route uses approximately 77% less text; actual agent-token savings
+  instruction route uses approximately 75% less text; actual agent-token savings
   remain unmeasured. Configured, compatible NLR OpenStudio MCP has provider priority.
   After provider selection, use a specific modeling skill; bespoke SDK programming
   is the fallback for requests those skills do not cover.
 - Packaging north-star plan for stable `pip install` and marketplace agentic
   installation paths.
+
+Package/plugin releases are tied to their tested OpenStudio SDK release. Updating
+that release requires a new package/plugin release, coordinated dependency and
+compatibility changes, and native verification of exported bundles; changing the
+contract alone is not a supported upgrade. A newer NLR model must remain with a
+compatible provider or use a matching package release; local scripts never
+downgrade it. See [SDK review fixes](docs/SDK_SCRIPT_REVIEW_FIXES.md).
 
 ## Development Setup
 

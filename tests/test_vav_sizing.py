@@ -27,31 +27,23 @@ def test_native_vav_design_day_sizing(sdk, apply_module, tmp_path, hydronic):
     plan_file = reviewed_plan(sdk, source_path, config, tmp_path)
     report = apply_module.apply(plan_file)
     assert report["validation"]["ok"]
-    weather = Path("tests/fixtures/USA_FL_Tampa.Intl.AP.722110_TMY3.epw").resolve()
-    workflow = tmp_path / "sizing.osw"
-    workflow.write_text(
-        json.dumps(
-            {
-                "seed_file": report["output_model_path"],
-                "weather_file": str(weather),
-                "steps": [],
-            }
-        )
-    )
+    workflow = Path(report["workflow_path"])
+    run_dir = workflow.parent / "run"
+    assert not Path(json.loads(workflow.read_text())["weather_file"]).is_absolute()
     completed = subprocess.run(
         [str(exe), "run", "-w", str(workflow)],
-        cwd=tmp_path,
+        cwd=workflow.parent,
         capture_output=True,
         text=True,
         timeout=120,
     )
     (tmp_path / "cli.log").write_text(completed.stdout + completed.stderr)
     assert completed.returncode == 0, completed.stdout + completed.stderr
-    error_file = tmp_path / "run/eplusout.err"
+    error_file = run_dir / "eplusout.err"
     errors = error_file.read_text()
     assert "** Severe **" not in errors and "**  Fatal  **" not in errors, errors
     assert "EnergyPlus Completed Successfully" in errors, errors
-    sql = tmp_path / "run/eplusout.sql"
+    sql = run_dir / "eplusout.sql"
     with sqlite3.connect(sql) as connection:
         sizing = connection.execute(
             "SELECT CompType, CompName, Description, Value, Units FROM ComponentSizes WHERE upper(CompName) LIKE '%SIZING VAV%' OR upper(CompName) LIKE '%VAV TERMINAL%' OR upper(CompName) LIKE '%REHEAT COIL%'"

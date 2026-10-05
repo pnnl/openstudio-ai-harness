@@ -38,6 +38,7 @@ def validate_model(model, sdk, planned, loop_handle, before):
     errors = []
     checked = 0
     p, r = planned["parameters"], planned["resolved_objects"]
+    controls = planned["controls"]
 
     def equal(label, actual, expected):
         nonlocal checked
@@ -55,11 +56,13 @@ def validate_model(model, sdk, planned, loop_handle, before):
         return unwrap(getattr(model, f"get{kind}")(sdk.toUUID(reference["handle"])))
 
     def scheduled(reference):
-        return (
-            model.alwaysOnDiscreteSchedule()
-            if reference.get("builtin")
-            else object_at(reference, "Schedule")
-        )
+        if reference.get("builtin"):
+            methods = {
+                "AlwaysOnDiscrete": "alwaysOnDiscreteSchedule",
+                "AlwaysOffDiscrete": "alwaysOffDiscreteSchedule",
+            }
+            return getattr(model, methods[reference["builtin"]])()
+        return object_at(reference, "Schedule")
 
     loop = unwrap(model.getAirLoopHVAC(sdk.toUUID(loop_handle)))
     equal("system name", loop.nameString(), p["system_name"])
@@ -73,31 +76,39 @@ def validate_model(model, sdk, planned, loop_handle, before):
         handle(loop.availabilitySchedule()),
         handle(scheduled(r["schedules"]["availability_schedule"])),
     )
-    equal("night cycle", loop.nightCycleControlType(), "CycleOnAny")
+    equal("night cycle", loop.nightCycleControlType(), controls["night_cycle"])
     nights = [x.to_AvailabilityManagerNightCycle() for x in loop.availabilityManagers()]
     nights = [x.get() for x in nights if x.is_initialized()]
     equal("night managers", len(nights), 1)
     if nights:
-        equal("night runtime", nights[0].cyclingRunTime(), 1800.0)
+        equal(
+            "night runtime",
+            nights[0].cyclingRunTime(),
+            float(controls["night_cycle_runtime_seconds"]),
+        )
     sizing = loop.sizingSystem()
     t = p["design_temperatures_c"]
     for getter, expected in {
-        "typeofLoadtoSizeOn": "Sensible",
-        "systemOutdoorAirMethod": "ZoneSum",
+        "typeofLoadtoSizeOn": controls["sizing_load_type"],
+        "systemOutdoorAirMethod": controls["outdoor_air_method"],
         "sizingOption": p["sizing_option"],
         "centralHeatingMaximumSystemAirFlowRatio": p["minimum_system_airflow_ratio"],
         "preheatDesignTemperature": t["preheat"],
         "precoolDesignTemperature": t["precool"],
         "centralHeatingDesignSupplyAirTemperature": t["central_heating"],
         "centralCoolingDesignSupplyAirTemperature": t["central_cooling"],
-        "preheatDesignHumidityRatio": 0.008,
-        "precoolDesignHumidityRatio": 0.008,
-        "centralCoolingDesignSupplyAirHumidityRatio": 0.0085,
-        "centralHeatingDesignSupplyAirHumidityRatio": 0.008,
-        "allOutdoorAirinCooling": False,
-        "allOutdoorAirinHeating": False,
-        "coolingDesignAirFlowMethod": "DesignDay",
-        "heatingDesignAirFlowMethod": "DesignDay",
+        "preheatDesignHumidityRatio": controls["preheat_humidity_ratio"],
+        "precoolDesignHumidityRatio": controls["precool_humidity_ratio"],
+        "centralCoolingDesignSupplyAirHumidityRatio": controls[
+            "central_cooling_humidity_ratio"
+        ],
+        "centralHeatingDesignSupplyAirHumidityRatio": controls[
+            "central_heating_humidity_ratio"
+        ],
+        "allOutdoorAirinCooling": controls["all_outdoor_air_cooling"],
+        "allOutdoorAirinHeating": controls["all_outdoor_air_heating"],
+        "coolingDesignAirFlowMethod": controls["system_cooling_airflow_method"],
+        "heatingDesignAirFlowMethod": controls["system_heating_airflow_method"],
         "isDesignOutdoorAirFlowRateAutosized": True,
     }.items():
         equal(f"sizing.{getter}", getattr(sizing, getter)(), expected)
@@ -119,11 +130,22 @@ def validate_model(model, sdk, planned, loop_handle, before):
         equal(
             f"{role}.availability",
             handle(c.availabilitySchedule()),
-            handle(model.alwaysOnDiscreteSchedule()),
+            handle(scheduled({"builtin": controls["component_availability"]})),
         )
         if kind == "Water":
             plant = object_at(r["plant_loops"][role], "PlantLoop")
             equal(f"{role}.plant", handle(c.plantLoop()), handle(plant))
+            reference = r["plant_loops"][role]
+            equal(
+                f"{role}.plant temperature",
+                plant.sizingPlant().designLoopExitTemperature(),
+                reference["design_supply_temperature_c"],
+            )
+            equal(
+                f"{role}.plant delta",
+                plant.sizingPlant().loopDesignTemperatureDifference(),
+                reference["design_delta_temperature_k"],
+            )
             equal(
                 f"{role}.plant demand branch",
                 handle(c) in {handle(x) for x in plant.demandComponents()},
@@ -131,13 +153,21 @@ def validate_model(model, sdk, planned, loop_handle, before):
             )
             ctl = unwrap(c.controllerWaterCoil())
             equal(f"{role}.controller coil", handle(ctl.waterCoil()), handle(c))
-            equal(f"{role}.minimum water flow", ctl.minimumActuatedFlow(), 0.0)
+            equal(
+                f"{role}.minimum water flow",
+                ctl.minimumActuatedFlow(),
+                controls["water_controller_minimum_flow"],
+            )
             if role == "central_cooling":
-                equal("cooling.controller action", ctl.action(), "Reverse")
+                equal(
+                    "cooling.controller action",
+                    ctl.action(),
+                    controls["cooling_controller_action"],
+                )
                 equal(
                     "cooling.heat exchanger",
                     c.heatExchangerConfiguration(),
-                    "CrossFlow",
+                    controls["cooling_water_heat_exchanger"],
                 )
                 equal(
                     "cooling.inlet water autosize",
@@ -145,11 +175,19 @@ def validate_model(model, sdk, planned, loop_handle, before):
                     True,
                 )
             else:
-                equal(f"{role}.convergence", ctl.controllerConvergenceTolerance(), 0.1)
+                equal(
+                    f"{role}.convergence",
+                    ctl.controllerConvergenceTolerance(),
+                    controls["heating_water_controller_convergence"],
+                )
                 for getter, expected in {
-                    "ratedInletWaterTemperature": plant.sizingPlant().designLoopExitTemperature(),
-                    "ratedOutletWaterTemperature": plant.sizingPlant().designLoopExitTemperature()
-                    - plant.sizingPlant().loopDesignTemperatureDifference(),
+                    "ratedInletWaterTemperature": reference[
+                        "design_supply_temperature_c"
+                    ],
+                    "ratedOutletWaterTemperature": reference[
+                        "design_supply_temperature_c"
+                    ]
+                    - reference["design_delta_temperature_k"],
                     "ratedInletAirTemperature": (
                         t["central_heating"] if role == "reheat" else t["preheat"]
                     ),
@@ -159,11 +197,27 @@ def validate_model(model, sdk, planned, loop_handle, before):
                 }.items():
                     equal(f"{role}.{getter}", getattr(c, getter)(), expected)
         elif kind == "NaturalGas":
-            equal(f"{role}.gas efficiency", c.gasBurnerEfficiency(), 0.8)
-            equal(f"{role}.electric parasitic", c.onCycleParasiticElectricLoad(), 0.0)
-            equal(f"{role}.gas parasitic", c.offCycleParasiticGasLoad(), 0.0)
+            equal(
+                f"{role}.gas efficiency",
+                c.gasBurnerEfficiency(),
+                controls["gas_burner_efficiency"],
+            )
+            equal(
+                f"{role}.electric parasitic",
+                c.onCycleParasiticElectricLoad(),
+                controls["gas_on_cycle_parasitic_electric_w"],
+            )
+            equal(
+                f"{role}.gas parasitic",
+                c.offCycleParasiticGasLoad(),
+                controls["gas_off_cycle_parasitic_gas_w"],
+            )
         elif kind == "Electricity":
-            equal(f"{role}.electric efficiency", c.efficiency(), 1.0)
+            equal(
+                f"{role}.electric efficiency",
+                c.efficiency(),
+                controls["electric_coil_efficiency"],
+            )
 
     components = [
         x for x in loop.supplyComponents() if not x.to_Node().is_initialized()
@@ -193,7 +247,7 @@ def validate_model(model, sdk, planned, loop_handle, before):
         oa = typed(
             components[0], "AirLoopHVACOutdoorAirSystem"
         ).getControllerOutdoorAir()
-        equal("OA minimum", oa.getMinimumLimitType(), "FixedMinimum")
+        equal("OA minimum", oa.getMinimumLimitType(), controls["oa_minimum_limit_type"])
         equal("OA autosize", oa.isMinimumOutdoorAirFlowRateAutosized(), True)
         equal("economizer", oa.getEconomizerControlType(), p["economizer"])
         equal(
@@ -209,7 +263,7 @@ def validate_model(model, sdk, planned, loop_handle, before):
         equal(
             "ventilation",
             oa.controllerMechanicalVentilation().systemOutdoorAirMethod(),
-            "ZoneSum",
+            controls["outdoor_air_method"],
         )
         if "outdoor_air_schedule" in r["schedules"]:
             equal(
@@ -231,21 +285,23 @@ def validate_model(model, sdk, planned, loop_handle, before):
             "fanEfficiency": p["fan"]["total_efficiency"],
             "motorEfficiency": p["fan"]["motor_efficiency"],
             "pressureRise": p["fan"]["pressure_rise_pa"],
-            "motorInAirstreamFraction": 1.0,
-            "fanPowerMinimumFlowRateInputMethod": "Fraction",
-            "fanPowerMinimumFlowFraction": 0.25,
-            "endUseSubcategory": "VAV System Fans",
-            "fanPowerCoefficient1": 0.040759894,
-            "fanPowerCoefficient2": 0.08804497,
-            "fanPowerCoefficient3": -0.07292612,
-            "fanPowerCoefficient4": 0.943739823,
-            "fanPowerCoefficient5": 0.0,
+            "motorInAirstreamFraction": controls["fan_motor_in_airstream_fraction"],
+            "fanPowerMinimumFlowRateInputMethod": controls[
+                "fan_power_minimum_flow_input_method"
+            ],
+            "fanPowerMinimumFlowFraction": controls["fan_power_minimum_flow_fraction"],
+            "endUseSubcategory": controls["fan_end_use_subcategory"],
+            "fanPowerCoefficient1": controls["fan_power_coefficients"][0],
+            "fanPowerCoefficient2": controls["fan_power_coefficients"][1],
+            "fanPowerCoefficient3": controls["fan_power_coefficients"][2],
+            "fanPowerCoefficient4": controls["fan_power_coefficients"][3],
+            "fanPowerCoefficient5": controls["fan_power_coefficients"][4],
         }.items():
             equal(f"fan.{getter}", getattr(fan, getter)(), expected)
         equal(
             "fan schedule",
             handle(fan.availabilitySchedule()),
-            handle(model.alwaysOnDiscreteSchedule()),
+            handle(scheduled({"builtin": controls["component_availability"]})),
         )
     managers = [
         x.to_SetpointManagerScheduled()
@@ -259,12 +315,20 @@ def validate_model(model, sdk, planned, loop_handle, before):
         equal("SAT value count", len(values), 1)
         if values:
             equal("SAT temperature", values[0], t["central_cooling"])
-        equal("SAT units", unwrap(sat.scheduleTypeLimits()).unitType(), "Temperature")
         equal(
-            "SAT lower limit", unwrap(sat.scheduleTypeLimits()).lowerLimitValue(), 0.0
+            "SAT units",
+            unwrap(sat.scheduleTypeLimits()).unitType(),
+            controls["sat_unit_type"],
         )
         equal(
-            "SAT upper limit", unwrap(sat.scheduleTypeLimits()).upperLimitValue(), 100.0
+            "SAT lower limit",
+            unwrap(sat.scheduleTypeLimits()).lowerLimitValue(),
+            controls["sat_schedule_type_limits_c"][0],
+        )
+        equal(
+            "SAT upper limit",
+            unwrap(sat.scheduleTypeLimits()).upperLimitValue(),
+            controls["sat_schedule_type_limits_c"][1],
         )
     for ref in r["target_zones"]:
         zone = object_at(ref, "ThermalZone")
@@ -287,7 +351,9 @@ def validate_model(model, sdk, planned, loop_handle, before):
             ),
         )
         equal(
-            "terminal minimum method", term.zoneMinimumAirFlowInputMethod(), "Constant"
+            "terminal minimum method",
+            term.zoneMinimumAirFlowInputMethod(),
+            controls["terminal_minimum_airflow_method"],
         )
         equal(
             "terminal minimum fraction",
@@ -297,11 +363,15 @@ def validate_model(model, sdk, planned, loop_handle, before):
         equal(
             "terminal schedule",
             handle(term.availabilitySchedule()),
-            handle(model.alwaysOnDiscreteSchedule()),
+            handle(scheduled({"builtin": controls["component_availability"]})),
         )
         equal("terminal air loop", handle(term.airLoopHVAC()), loop_handle)
         if reheated:
-            equal("damper action", term.damperHeatingAction(), "Normal")
+            equal(
+                "damper action",
+                term.damperHeatingAction(),
+                controls["damper_heating_action"],
+            )
             equal(
                 "reheat maximum temperature",
                 term.maximumReheatAirTemperature(),
@@ -310,16 +380,26 @@ def validate_model(model, sdk, planned, loop_handle, before):
             coil(term.reheatCoil(), "reheat")
         zs = zone.sizingZone()
         equal(
-            "zone cooling method", zs.coolingDesignAirFlowMethod(), "DesignDayWithLimit"
+            "zone cooling method",
+            zs.coolingDesignAirFlowMethod(),
+            controls["zone_cooling_airflow_method"],
         )
         equal(
             "zone cooling temperature",
             zs.zoneCoolingDesignSupplyAirTemperature(),
             t["zone_cooling"],
         )
-        equal("zone heating fraction", zs.heatingMaximumAirFlowFraction(), 1.0)
+        equal(
+            "zone heating fraction",
+            zs.heatingMaximumAirFlowFraction(),
+            controls["zone_heating_maximum_airflow_fraction"],
+        )
         if reheated:
-            equal("zone heating method", zs.heatingDesignAirFlowMethod(), "DesignDay")
+            equal(
+                "zone heating method",
+                zs.heatingDesignAirFlowMethod(),
+                controls["zone_heating_airflow_method"],
+            )
             equal(
                 "zone heating temperature",
                 zs.zoneHeatingDesignSupplyAirTemperature(),

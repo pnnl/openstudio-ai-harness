@@ -66,3 +66,26 @@ def require_sdk(contract: dict | None = None):
             "Run through the verified OpenStudio executable; do not fall back to another Python."
         )
     return sdk
+
+
+def load_model(sdk, path):
+    """Allow older-model upgrade, never a newer-model downgrade; explain failures."""
+    header = path.read_text(encoding="utf-8")[:8192]
+    match = re.search(r"OS:Version\s*,(.*?);", header, flags=re.S | re.I)
+    version = re.search(r"\b(\d+\.\d+\.\d+)\b", match.group(1)) if match else None
+    actual = str(sdk.openStudioVersion())
+    if version and tuple(map(int, version[1].split("."))) > tuple(
+        map(int, release_version(actual).split("."))
+    ):
+        raise CompatibilityError(
+            f"Input model version {version[1]} is newer than this package's SDK {actual}. "
+            "Keep it with the compatible NLR provider or use a plugin/package release tested for that SDK. "
+            "The local bundle cannot downgrade this model."
+        )
+    translator = sdk.osversion.VersionTranslator()
+    translator.setAllowNewerVersions(False)
+    loaded = translator.loadModel(str(path))
+    if not loaded.is_initialized():
+        messages = [str(item.logMessage()) for item in translator.errors()]
+        raise ValueError(f"SDK {actual} could not load input model {path}: {messages}")
+    return loaded.get(), translator

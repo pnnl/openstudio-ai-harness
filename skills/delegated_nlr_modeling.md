@@ -121,7 +121,7 @@ doctor/preflight/apply workflow. This local bundle executes through host tools,
 without the OpenStudio AI modeling runtime. Only when no specific skill covers
 the request, load `openstudio-sdk-model-editor` and its bespoke-edit reference,
 retrieve the required API documentation and draft scoped code. In either route,
-verify the exact local OpenStudio release required by the bundle (3.11.0) and
+verify the exact local OpenStudio release recorded in the package compatibility contract and
 write a new output model rather than overwriting the delegated artifact.
 
 The SDK edit is a new provider phase. After it completes, validate and record

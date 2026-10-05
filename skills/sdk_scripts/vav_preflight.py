@@ -9,10 +9,13 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from report import emit
+from common.files import check_report_path
+from common.companions import inspect as inspect_companions
 from common.input_validation import validate
 from common.vav_inventory import inventory
 from common.vav_plan import plan
-from common.version_guard import require_sdk
+from common.version_guard import require_sdk, load_model
 
 
 def unique_object(pairs):
@@ -55,13 +58,17 @@ def preflight(input_path: Path, config_path: Path | None = None) -> dict:
             "errors": errors,
             "changes": [],
         }
-    translator = sdk.osversion.VersionTranslator()
-    loaded = translator.loadModel(str(input_path))
-    if not loaded.is_initialized():
-        raise ValueError("OpenStudio 3.11.0 could not load the input model")
-    model = loaded.get()
+    model, translator = load_model(sdk, input_path)
     catalog = inventory(model)
     resolved = plan(config, catalog, input_path)
+    if resolved["ready"]:
+        try:
+            resolved["companions"] = inspect_companions(
+                model, input_path, Path(resolved["parameters"]["output_model_path"])
+            )
+        except ValueError as exc:
+            resolved["ready"] = False
+            resolved["errors"].append(str(exc))
     if hashlib.sha256(input_path.read_bytes()).hexdigest() != source_hash:
         raise ValueError("Input model changed during preflight; rerun inspection")
     warnings = resolved["warnings"] + [
@@ -103,8 +110,19 @@ def main() -> int:
     parser.add_argument(
         "--config", type=Path, help="Partial or complete VAV configuration JSON"
     )
+    parser.add_argument(
+        "--report",
+        type=Path,
+        help="Persist complete JSON directly to a new absolute report path",
+    )
+    parser.add_argument(
+        "--candidate-filter",
+        help="Filter candidate summary names; full report retains all candidates",
+    )
     args = parser.parse_args()
     try:
+        if args.report:
+            check_report_path(args.report)
         report = preflight(args.input, args.config)
     except Exception as exc:
         report = {
@@ -114,7 +132,21 @@ def main() -> int:
             "error": str(exc),
             "changes": [],
         }
-    print(json.dumps(report, sort_keys=True, allow_nan=False))
+    try:
+        summary = emit(report, args.report, args.candidate_filter)
+    except Exception as exc:
+        print(
+            json.dumps(
+                {
+                    "ok": False,
+                    "error": str(exc),
+                    "output_model_path": report.get("output_model_path"),
+                    "report_error": True,
+                }
+            )
+        )
+        return 2
+    print(json.dumps(summary, sort_keys=True, allow_nan=False))
     return 0 if report["ok"] else 2
 
 

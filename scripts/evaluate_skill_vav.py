@@ -142,10 +142,6 @@ def run(command, cwd, log, expected=0):
     return {"seconds": elapsed, "exit_code": result.returncode}, result.stdout
 
 
-def final_json(text):
-    return json.loads(text.strip().splitlines()[-1])
-
-
 def size_output(raw, compact):
     before, after = context_size(raw), context_size(compact)
     return {
@@ -175,7 +171,8 @@ def evaluate_case(executable, skill, case_dir, hydronic, sdk):
         raise RuntimeError("Doctor did not establish required SDK readiness")
     verified = doctor["openstudio_executable"]
     prefix = [verified, "execute_python_script"]
-    timing["preflight"], preflight_raw = run(
+    plan_path = case_dir / "plan.json"
+    timing["preflight"], compact_preflight = run(
         prefix
         + [
             skill / "scripts/vav_preflight.py",
@@ -183,58 +180,44 @@ def evaluate_case(executable, skill, case_dir, hydronic, sdk):
             source,
             "--config",
             config_path,
-        ],
-        case_dir,
-        case_dir / "preflight.log",
-    )
-    plan_path = case_dir / "plan.json"
-    timing["preflight_report"], compact_preflight = run(
-        [
-            sys.executable,
-            "-S",
-            skill / "scripts/report.py",
-            "--log",
-            case_dir / "preflight.log",
             "--report",
             plan_path,
         ],
         case_dir,
-        case_dir / "preflight-summary.log",
+        case_dir / "preflight.log",
     )
-    if final_json(compact_preflight).get("ready") is not True:
+    ready = json.loads(plan_path.read_text())
+    if ready.get("ready") is not True:
         raise RuntimeError("Preflight not ready")
-    timing["apply"], apply_raw = run(
-        prefix + [skill / "scripts/vav_apply.py", "--plan", plan_path],
+    preflight_raw = plan_path.read_text()
+    apply_path = case_dir / "apply-report.json"
+    timing["apply"], compact_apply = run(
+        prefix
+        + [skill / "scripts/vav_apply.py", "--plan", plan_path, "--report", apply_path],
         case_dir,
         case_dir / "apply.log",
     )
-    apply_path = case_dir / "apply-report.json"
-    timing["apply_report"], compact_apply = run(
-        [
-            sys.executable,
-            "-S",
-            skill / "scripts/report.py",
-            "--log",
-            case_dir / "apply.log",
-            "--report",
-            apply_path,
-        ],
-        case_dir,
-        case_dir / "apply-summary.log",
-    )
+    apply_raw = apply_path.read_text()
     applied = json.loads(apply_path.read_text())
     if not applied["validation"]["ok"]:
         raise RuntimeError("Saved topology did not pass")
     output = Path(applied["output_model_path"])
     original_output = output.read_bytes()
     _, repeated = run(
-        prefix + [skill / "scripts/vav_apply.py", "--plan", plan_path],
+        prefix
+        + [
+            skill / "scripts/vav_apply.py",
+            "--plan",
+            plan_path,
+            "--report",
+            case_dir / "repeat-failure.json",
+        ],
         case_dir,
         case_dir / "repeat-blocked.log",
         expected=2,
     )
     if (
-        final_json(repeated)["ok"] is not False
+        json.loads((case_dir / "repeat-failure.json").read_text())["ok"] is not False
         or output.read_bytes() != original_output
     ):
         raise RuntimeError("Repeated apply did not preserve existing output")
@@ -243,24 +226,27 @@ def evaluate_case(executable, skill, case_dir, hydronic, sdk):
     stale_path = case_dir / "stale-plan.json"
     stale_path.write_text(json.dumps(stale))
     _, rejected = run(
-        prefix + [skill / "scripts/vav_apply.py", "--plan", stale_path],
+        prefix
+        + [
+            skill / "scripts/vav_apply.py",
+            "--plan",
+            stale_path,
+            "--report",
+            case_dir / "stale-failure.json",
+        ],
         case_dir,
         case_dir / "stale-blocked.log",
         expected=2,
     )
-    if "Stale input hash" not in final_json(rejected).get("error", ""):
+    if "Stale input hash" not in json.loads(
+        (case_dir / "stale-failure.json").read_text()
+    ).get("error", ""):
         raise RuntimeError("Changed plan hash did not block")
-    weather = ROOT / "tests/fixtures/USA_FL_Tampa.Intl.AP.722110_TMY3.epw"
-    workflow = case_dir / "sizing.osw"
-    workflow.write_text(
-        json.dumps(
-            {"seed_file": str(output), "weather_file": str(weather), "steps": []}
-        )
-    )
+    workflow = Path(applied["workflow_path"])
     timing["sizing"], _ = run(
-        [verified, "run", "-w", workflow], case_dir, case_dir / "sizing-cli.log"
+        [verified, "run", "-w", workflow], workflow.parent, case_dir / "sizing-cli.log"
     )
-    error_log = (case_dir / "run/eplusout.err").read_text()
+    error_log = (workflow.parent / "run/eplusout.err").read_text()
     if (
         "** Severe **" in error_log
         or "**  Fatal  **" in error_log
@@ -272,7 +258,7 @@ def evaluate_case(executable, skill, case_dir, hydronic, sdk):
         for line in error_log.splitlines()
         if "EnergyPlus Completed Successfully" in line
     )
-    with sqlite3.connect(case_dir / "run/eplusout.sql") as connection:
+    with sqlite3.connect(workflow.parent / "run/eplusout.sql") as connection:
         rows = connection.execute(
             "SELECT CompType, CompName, Description, Value, Units FROM ComponentSizes WHERE upper(CompName) LIKE '%SIZING VAV%' OR upper(CompName) LIKE '%VAV TERMINAL%' OR upper(CompName) LIKE '%REHEAT COIL%'"
         ).fetchall()

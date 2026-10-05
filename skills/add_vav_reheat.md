@@ -1,6 +1,6 @@
 ---
 name: add-vav-reheat
-description: Add a multi-zone VAV system using the parent skill's bundled OpenStudio 3.11.0 scripts.
+description: Add a multi-zone VAV system using the parent skill's bundled scripts.
 ---
 
 Prioritize configured, compatible NLR OpenStudio MCP through

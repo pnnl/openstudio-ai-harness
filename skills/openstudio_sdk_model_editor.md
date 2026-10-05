@@ -63,9 +63,9 @@ Disallowed uses:
 
 ## Exact SDK Release Gate
 
-This skill's bundled contract at `scripts/compatibility.json` requires OpenStudio
-**3.11.0**. Build metadata is allowed; prereleases and other patch releases are
-rejected. Do not change the contract to accommodate an installed version.
+This package requires the exact OpenStudio release recorded in
+`scripts/compatibility.json`. Build metadata is allowed; prereleases and other
+patch releases are rejected. Do not change the contract to accommodate an installed version.
 
 Before SDK model execution, run `scripts/doctor.py` beside this skill with a host
 Python 3.10+ interpreter. Doctor uses only the standard library; that host Python

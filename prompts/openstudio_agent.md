@@ -85,8 +85,7 @@ supported VAV creation, use `openstudio_vav_reheat_system_creator` directly.
 Run its reviewed scripts rather than offering a runtime/measure/script choice.
 Do not automatically substitute code drafting when a bundled operation fails.
 
-For local SDK work, `openstudio_sdk_model_editor` enforces exact OpenStudio
-3.11.0 through its standalone doctor and shared guard. Use the returned native
+For local SDK work, `openstudio_sdk_model_editor` enforces exact the package-required OpenStudio release through its standalone doctor and shared guard. Use the returned native
 executable. Explicit incompatible paths block; do not probe a different project
 virtualenv or SDK release as recovery. Doctor and bundled execution do not need
 SDK docs/wiki packs or an OpenStudio AI modeling-runtime connection.
@@ -105,7 +104,7 @@ OpenStudio API call. This is required both for the initial script and after an
 SDK `AttributeError`; do not retry an SDK method name from memory.
 
 SDK documentation is a reference, not permission to use another SDK version.
-Verify uncertain API spellings against the pinned 3.11.0 Python binding when the
+Verify uncertain API spellings against the package-pinned Python binding when the
 local documentation index differs or lookup is unavailable. Those lookups are
 for bespoke development/repair, not routine execution of a reviewed bundle.
 

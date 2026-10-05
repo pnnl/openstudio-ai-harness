@@ -7,6 +7,10 @@ import math
 import os
 from pathlib import Path
 import tempfile
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from common.files import publish, write_json
 
 
 def unique_object(pairs):
@@ -57,7 +61,7 @@ def read_report(log_path):
     return report, raw
 
 
-def summarize(report, report_path):
+def summarize(report, report_path, candidate_filter=None):
     keys = (
         "ok",
         "ready",
@@ -73,6 +77,10 @@ def summarize(report, report_path):
         "missing_inputs",
         "warnings",
         "created_object_count",
+        "publication_method",
+        "translation",
+        "companion_directory",
+        "workflow_path",
     )
     summary = {key: report[key] for key in keys if key in report}
     summary["report_path"] = str(report_path)
@@ -88,6 +96,26 @@ def summarize(report, report_path):
         }
     if report["mode"] == "inspect_only" and not report.get("ready"):
         catalog = report.get("candidates", {})
+        limit = 8
+        filtered = {
+            key: [
+                item
+                for item in catalog.get(key, [])
+                if candidate_filter is None
+                or candidate_filter.casefold() in item.get("name", "").casefold()
+            ]
+            for key in ("zones", "plant_loops", "schedules")
+        }
+        summary["candidate_counts"] = {
+            key: len(catalog.get(key, [])) for key in filtered
+        }
+        summary["matching_candidate_counts"] = {
+            key: len(items) for key, items in filtered.items()
+        }
+        summary["candidate_filter"] = candidate_filter
+        summary["candidates_truncated"] = any(
+            len(items) > limit for items in filtered.values()
+        )
         summary["candidates"] = {
             "zones": [
                 {
@@ -99,10 +127,10 @@ def summarize(report, report_path):
                     "air_loop_count": len(zone["air_loops"]),
                     "equipment_count": len(zone["equipment"]),
                 }
-                for zone in catalog.get("zones", [])
+                for zone in filtered["zones"][:limit]
             ],
-            "plant_loops": catalog.get("plant_loops", []),
-            "schedules": catalog.get("schedules", []),
+            "plant_loops": filtered["plant_loops"][:limit],
+            "schedules": filtered["schedules"][:limit],
         }
     return summary
 
@@ -128,11 +156,20 @@ def persist(log_path: Path, report_path: Path):
         ) as file:
             staged = Path(file.name)
             file.write(raw + "\n")
-        os.link(staged, report_path)  # Exclusive publication; no overwrite race.
+        publish(staged, report_path)
     finally:
         if staged:
             staged.unlink(missing_ok=True)
     return summary
+
+
+def emit(report, report_path=None, candidate_filter=None):
+    if report_path is not None:
+        # Validate shape/summary before writing; errors never publish malformed data.
+        summary = summarize(report, report_path, candidate_filter)
+        write_json(report, report_path)
+        return summary
+    return report
 
 
 def main():

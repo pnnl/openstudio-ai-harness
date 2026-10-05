@@ -1,6 +1,8 @@
 """Disposable five-zone VAV sizing inputs for native tests and local evaluation."""
 
 from pathlib import Path
+import json
+import shutil
 
 
 def prepare_vav_fixture(o, tmp_path, hydronic):
@@ -66,5 +68,17 @@ def prepare_vav_fixture(o, tmp_path, hydronic):
     control.setRunSimulationforSizingPeriods(True)
     control.setRunSimulationforWeatherFileRunPeriods(False)
     source_path = tmp_path / "unserved.osm"
+    companions = source_path.with_name(source_path.stem + "_files")
+    companions.mkdir()
+    weather = companions / "weather.epw"
+    shutil.copyfile(fixture.parent / "USA_FL_Tampa.Intl.AP.722110_TMY3.epw", weather)
+    assert o.model.WeatherFile.setWeatherFile(
+        model, o.EpwFile(str(weather))
+    ).is_initialized()
+    (companions / "workflow.osw").write_text(
+        json.dumps(
+            {"seed_file": "../unserved.osm", "weather_file": "weather.epw", "steps": []}
+        )
+    )
     assert model.save(str(source_path), True)
     return source_path, config, fixture, original

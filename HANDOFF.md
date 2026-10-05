@@ -112,6 +112,42 @@ uv sync --project standalone
 uv run --project standalone python -m pytest -q standalone/tests
 ```
 
+## SDK review remediation (October 5, 2026)
+
+Addressing all 13 user findings; tracking and release limitations are in
+`docs/SDK_SCRIPT_REVIEW_FIXES.md`. User review/repro files are preserved. Package-wide
+exact SDK compatibility is intentional: pyproject and lock metadata now pin 3.11.0,
+matching the exported contract. Runtime plan/report version checks read the contract
+and executing SDK; skill text reads the bundled contract rather than duplicating
+its release. Newer input models fail with actionable provider/package guidance.
+NLR provider priority remains unchanged.
+
+Creation and independent getter checks consume the approved plan controls and
+plant design snapshots. Human DX/default selections must be explicit. Preflight
+checks unused eligible return plenums, loop ownership, temperature relationships,
+plant equipment/setpoint presence and finite positive water delta; nonexistent
+output roots terminate. Apply checks EnergyPlus translation before publication,
+carries and hashes companion resources, emits a relative-path workflow, and
+supports exclusive-copy fallback where hard links are unavailable. Copy fallback
+is not atomic for concurrent readers; source input and existing outputs remain
+preserved. Entry points persist full reports directly (`--report`) and print
+bounded/filterable candidate summaries; normal runs need preflight and apply,
+without last-line log parsing. Completed steps/assumptions append without losing
+workflow history. New behavioral regressions and native relative-weather sizing
+checks are included. Final verification: 273 focused tests passed (23 review regressions), MCP smoke
+8 passed/2 optional simulation skips, nine exported skill frontmatter checks,
+offline uv lock validation, and four native relocated-host cases passed. Wheel
+and sdist built offline through the isolated backend; exact SDK dependency and
+new helpers verified, local fixtures/candidates excluded. The development venv
+lacks hatchling, so use the isolated build path rather than --no-isolation. The
+supplied plenum repro now accepts/applies A and rejects B at preflight. See
+`docs/SDK_SCRIPT_REVIEW_VERIFICATION.json`; current native artifacts are in
+`outputs/sdk-review-20261005-final/`. Native sizing uses copied companion OSWs
+and relative EPWs; 207/138 topology checks, unchanged sizing and 28/29 warnings.
+Current specified instruction context is 75.2% smaller; actual agent tokens
+remain unmeasured. No live NLR, installed plugin, marketplace, commit or release
+change. Next: review all 13 remediations before release preparation.
+
 ## Near-Term Backlog
 
 - Skill-bound SDK development phase 5 is complete within the user-selected

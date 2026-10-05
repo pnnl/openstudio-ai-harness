@@ -20,7 +20,7 @@ classifiers = [
 ]
 dependencies = [
     "mcp>=2,<3",
-    "openstudio>=3.10.0",
+    "openstudio==3.11.0",
     "platformdirs>=4.0.0",
     "pydantic>=2.12.3",
     "python-dotenv>=1.0.0",

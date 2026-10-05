@@ -31,6 +31,8 @@ def catalog():
                 "name": "Zone 1",
                 "spaces": [{"name": "Space 1", "handle": "space-1"}],
                 "is_plenum": False,
+                "can_be_plenum": True,
+                "plenum_air_loops": [],
                 "has_thermostat": True,
                 "air_loops": [],
                 "equipment": [],
@@ -38,8 +40,24 @@ def catalog():
         ],
         "air_loops": [],
         "plant_loops": [
-            {"handle": "heat-loop", "name": "HW", "loop_type": "Heating"},
-            {"handle": "cool-loop", "name": "CHW", "loop_type": "Cooling"},
+            {
+                "handle": "heat-loop",
+                "name": "HW",
+                "loop_type": "Heating",
+                "design_supply_temperature_c": 82.2,
+                "design_delta_temperature_k": 11.1,
+                "supply_equipment": [{"name": "Boiler"}],
+                "supply_setpoint_managers": [{"name": "SPM"}],
+            },
+            {
+                "handle": "cool-loop",
+                "name": "CHW",
+                "loop_type": "Cooling",
+                "design_supply_temperature_c": 6.7,
+                "design_delta_temperature_k": 5.6,
+                "supply_equipment": [{"name": "Chiller"}],
+                "supply_setpoint_managers": [{"name": "SPM"}],
+            },
         ],
         "schedules": [
             {
@@ -266,6 +284,7 @@ def model_file(sdk, tmp_path):
     loop = os.model.PlantLoop(model)
     loop.setName("HW")
     loop.sizingPlant().setLoopType("Heating")
+    prepare_existing_plant(os, model, loop, True)
     path = tmp_path / "in.osm"
     assert model.save(str(path), True)
     return path
@@ -381,7 +400,9 @@ def test_explicit_pascal_pressure_and_distinct_plenum(
             **catalog["zones"][0],
             "handle": "plenum",
             "name": "Plenum",
-            "is_plenum": True,
+            "is_plenum": False,
+            "can_be_plenum": True,
+            "plenum_air_loops": [],
             "has_thermostat": False,
         }
     )
@@ -417,3 +438,23 @@ def test_sat_temperature_obeys_prototype_type_limits(
     _, plan = modules
     config["design_temperatures_c"] = {"central_cooling": -1.0}
     assert plan(config, catalog, tmp_path / "in.osm")["errors"]
+
+
+def prepare_existing_plant(os, model, loop, heating):
+    supply = 82.222222 if heating else 6.666667
+    loop.sizingPlant().setDesignLoopExitTemperature(supply)
+    loop.sizingPlant().setLoopDesignTemperatureDifference(
+        11.111111 if heating else 5.611111
+    )
+    source = (
+        os.model.DistrictHeatingWater(model)
+        if heating
+        else os.model.DistrictCooling(model)
+    )
+    assert loop.addSupplyBranchForComponent(source)
+    pump = os.model.PumpVariableSpeed(model)
+    assert pump.addToNode(loop.supplyInletNode())
+    schedule = os.model.ScheduleConstant(model)
+    schedule.setValue(supply)
+    manager = os.model.SetpointManagerScheduled(model, schedule)
+    assert manager.addToNode(loop.supplyOutletNode())

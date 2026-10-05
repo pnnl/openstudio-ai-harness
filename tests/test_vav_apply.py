@@ -6,7 +6,7 @@ from pathlib import Path
 import subprocess
 import os
 import pytest
-from test_vav_preflight import sdk, model_file, config, SCRIPTS
+from test_vav_preflight import sdk, model_file, config, SCRIPTS, prepare_existing_plant
 
 
 @pytest.fixture
@@ -43,6 +43,7 @@ def test_supported_branches_validate_after_save(
     chw = o.model.PlantLoop(model)
     chw.setName("CHW")
     chw.sizingPlant().setLoopType("Cooling")
+    prepare_existing_plant(o, model, chw, False)
     model.save(str(model_file), True)
     for role, kind in (
         ("central_heating", heating),
@@ -233,9 +234,7 @@ def test_multiple_zones_schedules_and_return_plenum(
     plenum_zone = o.model.ThermalZone(model)
     plenum_zone.setName("Return Plenum")
     o.model.Space(model).setThermalZone(plenum_zone)
-    existing = o.model.AirLoopHVACReturnPlenum(model)
-    existing.setThermalZone(plenum_zone)
-    assert plenum_zone.isPlenum()
+    assert not plenum_zone.isPlenum() and plenum_zone.canBePlenum()
     operation = o.model.ScheduleConstant(model)
     operation.setName("Operation")
     operation.setValue(0.75)

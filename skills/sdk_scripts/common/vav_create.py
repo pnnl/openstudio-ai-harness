@@ -19,25 +19,35 @@ def by_handle(model, sdk, reference, kind):
 
 
 def schedule(model, sdk, reference):
-    if reference.get("builtin") == "AlwaysOnDiscrete":
-        return model.alwaysOnDiscreteSchedule()
+    if reference.get("builtin"):
+        methods = {
+            "AlwaysOnDiscrete": "alwaysOnDiscreteSchedule",
+            "AlwaysOffDiscrete": "alwaysOffDiscreteSchedule",
+        }
+        return getattr(model, methods[reference["builtin"]])()
     return by_handle(model, sdk, reference, "Schedule")
 
 
-def water_controller(coil, heating):
+def water_controller(coil, heating, controls):
     controller = coil.controllerWaterCoil()
     if not controller.is_initialized():
         raise RuntimeError(f"Missing water controller: {coil.nameString()}")
     controller = controller.get()
     call(controller, "setName", f"{coil.nameString()} Controller")
-    call(controller, "setMinimumActuatedFlow", 0.0)
+    call(
+        controller, "setMinimumActuatedFlow", controls["water_controller_minimum_flow"]
+    )
     if heating:
-        call(controller, "setControllerConvergenceTolerance", 0.1)
+        call(
+            controller,
+            "setControllerConvergenceTolerance",
+            controls["heating_water_controller_convergence"],
+        )
     else:
-        call(controller, "setAction", "Reverse")
+        call(controller, "setAction", controls["cooling_controller_action"])
 
 
-def make_coil(model, sdk, resolved, parameters, role, name, node=None):
+def make_coil(model, sdk, resolved, parameters, controls, role, name, node=None):
     config = parameters[role]
     kind = config["type"]
     if kind == "None":
@@ -56,11 +66,15 @@ def make_coil(model, sdk, resolved, parameters, role, name, node=None):
         call(plant, "addDemandBranchForComponent", coil)
     if node is not None:
         call(coil, "addToNode", node)
-    call(coil, "setAvailabilitySchedule", model.alwaysOnDiscreteSchedule())
+    call(
+        coil,
+        "setAvailabilitySchedule",
+        schedule(model, sdk, {"builtin": controls["component_availability"]}),
+    )
     if kind == "Water":
         if heating:
-            supply = plant.sizingPlant().designLoopExitTemperature()
-            delta = plant.sizingPlant().loopDesignTemperatureDifference()
+            supply = resolved["plant_loops"][role]["design_supply_temperature_c"]
+            delta = resolved["plant_loops"][role]["design_delta_temperature_k"]
             t = parameters["design_temperatures_c"]
             call(coil, "setRatedInletWaterTemperature", supply)
             call(coil, "setRatedOutletWaterTemperature", supply - delta)
@@ -76,14 +90,26 @@ def make_coil(model, sdk, resolved, parameters, role, name, node=None):
             )
         else:
             call(coil, "autosizeDesignInletWaterTemperature")
-            call(coil, "setHeatExchangerConfiguration", "CrossFlow")
-        water_controller(coil, heating)
+            call(
+                coil,
+                "setHeatExchangerConfiguration",
+                controls["cooling_water_heat_exchanger"],
+            )
+        water_controller(coil, heating, controls)
     elif kind == "NaturalGas":
-        call(coil, "setGasBurnerEfficiency", 0.8)
-        call(coil, "setOnCycleParasiticElectricLoad", 0.0)
-        call(coil, "setOffCycleParasiticGasLoad", 0.0)
+        call(coil, "setGasBurnerEfficiency", controls["gas_burner_efficiency"])
+        call(
+            coil,
+            "setOnCycleParasiticElectricLoad",
+            controls["gas_on_cycle_parasitic_electric_w"],
+        )
+        call(
+            coil,
+            "setOffCycleParasiticGasLoad",
+            controls["gas_off_cycle_parasitic_gas_w"],
+        )
     elif kind == "Electricity":
-        call(coil, "setEfficiency", 1.0)
+        call(coil, "setEfficiency", controls["electric_coil_efficiency"])
     # DXTwoSpeed intentionally retains pinned SDK curves: Ruby's 'OS default'.
     return coil
 
@@ -91,26 +117,31 @@ def make_coil(model, sdk, resolved, parameters, role, name, node=None):
 def create(model, sdk, planned):
     p, r = planned["parameters"], planned["resolved_objects"]
     t = p["design_temperatures_c"]
+    c = planned["controls"]
     loop = sdk.model.AirLoopHVAC(model)
     call(loop, "setName", p["system_name"])
     sizing = loop.sizingSystem()
     settings = {
-        "TypeofLoadtoSizeOn": "Sensible",
+        "TypeofLoadtoSizeOn": c["sizing_load_type"],
         "PreheatDesignTemperature": t["preheat"],
         "PrecoolDesignTemperature": t["precool"],
         "CentralCoolingDesignSupplyAirTemperature": t["central_cooling"],
         "CentralHeatingDesignSupplyAirTemperature": t["central_heating"],
-        "PreheatDesignHumidityRatio": 0.008,
-        "PrecoolDesignHumidityRatio": 0.008,
-        "CentralCoolingDesignSupplyAirHumidityRatio": 0.0085,
-        "CentralHeatingDesignSupplyAirHumidityRatio": 0.008,
+        "PreheatDesignHumidityRatio": c["preheat_humidity_ratio"],
+        "PrecoolDesignHumidityRatio": c["precool_humidity_ratio"],
+        "CentralCoolingDesignSupplyAirHumidityRatio": c[
+            "central_cooling_humidity_ratio"
+        ],
+        "CentralHeatingDesignSupplyAirHumidityRatio": c[
+            "central_heating_humidity_ratio"
+        ],
         "CentralHeatingMaximumSystemAirFlowRatio": p["minimum_system_airflow_ratio"],
         "SizingOption": p["sizing_option"],
-        "AllOutdoorAirinCooling": False,
-        "AllOutdoorAirinHeating": False,
-        "SystemOutdoorAirMethod": "ZoneSum",
-        "CoolingDesignAirFlowMethod": "DesignDay",
-        "HeatingDesignAirFlowMethod": "DesignDay",
+        "AllOutdoorAirinCooling": c["all_outdoor_air_cooling"],
+        "AllOutdoorAirinHeating": c["all_outdoor_air_heating"],
+        "SystemOutdoorAirMethod": c["outdoor_air_method"],
+        "CoolingDesignAirFlowMethod": c["system_cooling_airflow_method"],
+        "HeatingDesignAirFlowMethod": c["system_heating_airflow_method"],
     }
     for field, value in settings.items():
         call(sizing, f"set{field}", value)
@@ -118,10 +149,10 @@ def create(model, sdk, planned):
     sat = sdk.model.ScheduleRuleset(model)
     call(sat, "setName", f"{p['system_name']} Supply Air Temperature")
     limits = sdk.model.ScheduleTypeLimits(model)
-    call(limits, "setUnitType", "Temperature")
-    call(limits, "setLowerLimitValue", 0.0)
-    call(limits, "setUpperLimitValue", 100.0)
-    call(limits, "setNumericType", "Continuous")
+    call(limits, "setUnitType", c["sat_unit_type"])
+    call(limits, "setLowerLimitValue", c["sat_schedule_type_limits_c"][0])
+    call(limits, "setUpperLimitValue", c["sat_schedule_type_limits_c"][1])
+    call(limits, "setNumericType", c["sat_numeric_type"])
     call(sat, "setScheduleTypeLimits", limits)
     call(
         sat.defaultDaySchedule(),
@@ -138,24 +169,26 @@ def create(model, sdk, planned):
         "FanEfficiency": p["fan"]["total_efficiency"],
         "MotorEfficiency": p["fan"]["motor_efficiency"],
         "PressureRise": p["fan"]["pressure_rise_pa"],
-        "MotorInAirstreamFraction": 1.0,
-        "FanPowerMinimumFlowRateInputMethod": "Fraction",
-        "FanPowerMinimumFlowFraction": 0.25,
-        "EndUseSubcategory": "VAV System Fans",
+        "MotorInAirstreamFraction": c["fan_motor_in_airstream_fraction"],
+        "FanPowerMinimumFlowRateInputMethod": c["fan_power_minimum_flow_input_method"],
+        "FanPowerMinimumFlowFraction": c["fan_power_minimum_flow_fraction"],
+        "EndUseSubcategory": c["fan_end_use_subcategory"],
     }.items():
         call(fan, f"set{field}", value)
-    for i, coefficient in enumerate(
-        (0.040759894, 0.08804497, -0.07292612, 0.943739823), 1
-    ):
+    for i, coefficient in enumerate(c["fan_power_coefficients"], 1):
         call(fan, f"setFanPowerCoefficient{i}", coefficient)
-    # JSON coefficient 5 is null; preserve the pinned SDK default (0).
-    call(fan, "setAvailabilitySchedule", model.alwaysOnDiscreteSchedule())
+    call(
+        fan,
+        "setAvailabilitySchedule",
+        schedule(model, sdk, {"builtin": c["component_availability"]}),
+    )
     call(fan, "addToNode", loop.supplyInletNode())
     make_coil(
         model,
         sdk,
         r,
         p,
+        c,
         "central_heating",
         f"{p['system_name']} Main Heating Coil",
         loop.supplyInletNode(),
@@ -165,13 +198,14 @@ def create(model, sdk, planned):
         sdk,
         r,
         p,
+        c,
         "central_cooling",
         f"{p['system_name']} Cooling Coil",
         loop.supplyInletNode(),
     )
     oa = sdk.model.ControllerOutdoorAir(model)
     call(oa, "setName", f"{p['system_name']} OA Controller")
-    call(oa, "setMinimumLimitType", "FixedMinimum")
+    call(oa, "setMinimumLimitType", c["oa_minimum_limit_type"])
     call(oa, "autosizeMinimumOutdoorAirFlowRate")
     call(oa, "resetMaximumFractionofOutdoorAirSchedule")
     call(oa, "resetEconomizerMinimumLimitDryBulbTemperature")
@@ -187,7 +221,11 @@ def create(model, sdk, planned):
         "setName",
         f"{p['system_name']} Vent Controller",
     )
-    call(oa.controllerMechanicalVentilation(), "setSystemOutdoorAirMethod", "ZoneSum")
+    call(
+        oa.controllerMechanicalVentilation(),
+        "setSystemOutdoorAirMethod",
+        c["outdoor_air_method"],
+    )
     oa_system = sdk.model.AirLoopHVACOutdoorAirSystem(model, oa)
     call(oa_system, "setName", f"{p['system_name']} OA System")
     call(oa_system, "addToNode", loop.supplyInletNode())
@@ -196,31 +234,37 @@ def create(model, sdk, planned):
         "setAvailabilitySchedule",
         schedule(model, sdk, r["schedules"]["availability_schedule"]),
     )
-    call(loop, "setNightCycleControlType", "CycleOnAny")
+    call(loop, "setNightCycleControlType", c["night_cycle"])
     managers = [
         x.to_AvailabilityManagerNightCycle() for x in loop.availabilityManagers()
     ]
     night = [x.get() for x in managers if x.is_initialized()]
     if len(night) != 1:
         raise RuntimeError("Expected one night-cycle manager")
-    call(night[0], "setCyclingRunTime", 1800)
+    call(night[0], "setCyclingRunTime", c["night_cycle_runtime_seconds"])
     for reference in r["target_zones"]:
         zone = by_handle(model, sdk, reference, "ThermalZone")
         reheat = make_coil(
-            model, sdk, r, p, "reheat", f"{zone.nameString()} Reheat Coil"
+            model, sdk, r, p, c, "reheat", f"{zone.nameString()} Reheat Coil"
         )
         if reheat:
             terminal = sdk.model.AirTerminalSingleDuctVAVReheat(
-                model, model.alwaysOnDiscreteSchedule(), reheat
+                model,
+                schedule(model, sdk, {"builtin": c["component_availability"]}),
+                reheat,
             )
-            call(terminal, "setDamperHeatingAction", "Normal")
+            call(terminal, "setDamperHeatingAction", c["damper_heating_action"])
             call(terminal, "setMaximumReheatAirTemperature", t["zone_heating"])
         else:
             terminal = sdk.model.AirTerminalSingleDuctVAVNoReheat(
-                model, model.alwaysOnDiscreteSchedule()
+                model, schedule(model, sdk, {"builtin": c["component_availability"]})
             )
         call(terminal, "setName", f"{zone.nameString()} VAV Terminal")
-        call(terminal, "setZoneMinimumAirFlowInputMethod", "Constant")
+        call(
+            terminal,
+            "setZoneMinimumAirFlowInputMethod",
+            c["terminal_minimum_airflow_method"],
+        )
         call(
             terminal,
             "setConstantMinimumAirFlowFraction",
@@ -229,13 +273,25 @@ def create(model, sdk, planned):
         call(loop, "multiAddBranchForZone", zone, terminal)
         if reheat and p["reheat"]["type"] == "Water":
             # Attachments can reset the controller; set and validate after the final connection.
-            water_controller(reheat, True)
+            water_controller(reheat, True, c)
         zone_sizing = zone.sizingZone()
-        call(zone_sizing, "setCoolingDesignAirFlowMethod", "DesignDayWithLimit")
-        call(zone_sizing, "setHeatingMaximumAirFlowFraction", 1.0)
+        call(
+            zone_sizing,
+            "setCoolingDesignAirFlowMethod",
+            c["zone_cooling_airflow_method"],
+        )
+        call(
+            zone_sizing,
+            "setHeatingMaximumAirFlowFraction",
+            c["zone_heating_maximum_airflow_fraction"],
+        )
         call(zone_sizing, "setZoneCoolingDesignSupplyAirTemperature", t["zone_cooling"])
         if reheat:
-            call(zone_sizing, "setHeatingDesignAirFlowMethod", "DesignDay")
+            call(
+                zone_sizing,
+                "setHeatingDesignAirFlowMethod",
+                c["zone_heating_airflow_method"],
+            )
             call(
                 zone_sizing,
                 "setZoneHeatingDesignSupplyAirTemperature",

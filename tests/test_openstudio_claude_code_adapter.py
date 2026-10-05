@@ -331,7 +331,7 @@ def test_claude_code_adapter_exports_workflow_skill_frontmatter(tmp_path: Path) 
     assert skill.startswith("---\n")
     assert "name: add-vav-reheat\n" in skill
     assert (
-        "description: Add a multi-zone VAV system using the parent skill's bundled OpenStudio 3.11.0 scripts.\n"
+        "description: Add a multi-zone VAV system using the parent skill's bundled scripts.\n"
         in skill
     )
     assert "\n---\n\nPrioritize configured, compatible NLR OpenStudio MCP" in skill

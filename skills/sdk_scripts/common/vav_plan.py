@@ -67,7 +67,18 @@ CONTROLS = {
     "cooling_water_heat_exchanger": "CrossFlow",
     "water_controller_minimum_flow": 0.0,
     "component_availability": "AlwaysOnDiscrete",
-    "dx_curve_profile": "OpenStudio 3.11.0 OS default",
+    "cooling_controller_action": "Reverse",
+    "gas_on_cycle_parasitic_electric_w": 0.0,
+    "gas_off_cycle_parasitic_gas_w": 0.0,
+    "all_outdoor_air_cooling": False,
+    "all_outdoor_air_heating": False,
+    "system_cooling_airflow_method": "DesignDay",
+    "system_heating_airflow_method": "DesignDay",
+    "zone_cooling_airflow_method": "DesignDayWithLimit",
+    "zone_heating_airflow_method": "DesignDay",
+    "sat_numeric_type": "Continuous",
+    "sat_unit_type": "Temperature",
+    "dx_curve_profile": "package-pinned SDK OS default",
     "plant_creation": "excluded; use explicit existing loops",
     "sat_schedule_type_limits_c": [0.0, 100.0],
     "capacity_and_flow_sizing": "pinned SDK autosize defaults",
@@ -147,9 +158,11 @@ def plan(config: dict, catalog: dict, input_path: Path) -> dict:
         if output.suffix.lower() != ".osm":
             errors.append("output_model_path: must end with .osm")
         parent = output.parent
-        while not parent.exists():
+        while not parent.exists() and parent != parent.parent:
             parent = parent.parent
-        if not parent.is_dir():
+        if not parent.exists():
+            errors.append("output_model_path: output drive/root does not exist")
+        elif not parent.is_dir():
             errors.append("output_model_path: parent path is not a directory")
     selected = set()
     for i, selector in enumerate(config.get("target_zones", [])):
@@ -191,9 +204,44 @@ def plan(config: dict, catalog: dict, input_path: Path) -> dict:
                     expected = "Cooling" if key == "central_cooling" else "Heating"
                     if loop["loop_type"] != expected:
                         errors.append(f"{key}.plant_loop: requires a {expected} loop")
+                    if not loop.get("supply_equipment"):
+                        errors.append(
+                            f"{key}.plant_loop: requires existing supply equipment"
+                        )
+                    if not loop.get("supply_setpoint_managers"):
+                        errors.append(
+                            f"{key}.plant_loop: requires a supply-outlet setpoint manager"
+                        )
+                    supply = loop.get("design_supply_temperature_c")
+                    delta = loop.get("design_delta_temperature_k")
+                    t = parameters.get("design_temperatures_c", {})
+                    if (
+                        supply is None
+                        or delta is None
+                        or not math.isfinite(supply)
+                        or not math.isfinite(delta)
+                        or delta <= 0
+                    ):
+                        errors.append(
+                            f"{key}.plant_loop: requires finite design temperature and positive delta"
+                        )
+                    elif key == "central_cooling":
+                        if supply >= t.get("central_cooling", float("inf")):
+                            errors.append(
+                                f"{key}.plant_loop: chilled water must be colder than cooling supply air"
+                            )
+                    elif supply - delta <= t.get(
+                        "zone_heating" if key == "reheat" else "central_heating",
+                        float("-inf"),
+                    ):
+                        errors.append(
+                            f"{key}.plant_loop: hot-water return must be warmer than rated outlet air"
+                        )
                     resolved["plant_loops"][key] = {
                         "name": loop["name"],
                         "handle": loop["handle"],
+                        "design_supply_temperature_c": supply,
+                        "design_delta_temperature_k": delta,
                     }
         elif "plant_loop" in coil:
             errors.append(f"{key}.plant_loop: only valid for Water")
@@ -239,16 +287,37 @@ def plan(config: dict, catalog: dict, input_path: Path) -> dict:
             if (
                 zone["handle"] in selected
                 or not zone["spaces"]
-                or not zone["is_plenum"]
+                or not zone.get("can_be_plenum", False)
+                or zone.get("plenum_air_loops")
+                or zone["air_loops"]
+                or zone["equipment"]
             ):
                 errors.append(
-                    "return_plenum: select a distinct existing plenum zone with spaces"
+                    "return_plenum: select a distinct eligible zone with spaces and no HVAC or plenum association to another loop"
                 )
             resolved["return_plenum"] = {"name": zone["name"], "handle": zone["handle"]}
     if parameters.get("design_temperatures_c", {}).get("central_cooling", 0) < 0:
         errors.append(
             "design_temperatures_c.central_cooling: SAT must be within the prototype Temperature schedule limits [0,100]"
         )
+    t = parameters.get("design_temperatures_c", {})
+    for lower, upper, enabled in (
+        ("central_cooling", "precool", True),
+        ("central_cooling", "zone_cooling", True),
+        (
+            "preheat",
+            "central_heating",
+            config.get("central_heating", {}).get("type") not in (None, "None"),
+        ),
+        (
+            "central_heating",
+            "zone_heating",
+            config.get("reheat", {}).get("type") not in (None, "None"),
+        ),
+        ("zone_cooling", "zone_heating", True),
+    ):
+        if enabled and lower in t and upper in t and t[lower] > t[upper]:
+            errors.append(f"design_temperatures_c: {lower} must not exceed {upper}")
     conversions = []
     fan = parameters.get("fan", {})
     if fan.get("total_efficiency", 0) > fan.get("motor_efficiency", 1):

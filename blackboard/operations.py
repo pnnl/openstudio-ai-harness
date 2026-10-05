@@ -31,7 +31,9 @@ def apply_state_patch(state: dict[str, Any], patch: dict[str, Any]) -> dict[str,
 def mark_phase_complete(state: dict[str, Any], phase: str) -> dict[str, Any]:
     patch = {"completed_steps": sorted(set(state.get("completed_steps", [])) | {phase})}
     next_state = apply_state_patch(state, patch)
-    next_state["pending_steps"] = [item for item in next_state.get("pending_steps", []) if item != phase]
+    next_state["pending_steps"] = [
+        item for item in next_state.get("pending_steps", []) if item != phase
+    ]
     return next_state
 
 
@@ -57,6 +59,9 @@ def _deep_merge(target: dict[str, Any], patch: dict[str, Any]) -> None:
     for key, value in patch.items():
         if isinstance(value, dict) and isinstance(target.get(key), dict):
             _deep_merge(target[key], value)
+        elif key in {"completed_steps", "assumptions"} and isinstance(value, list):
+            history = list(target.get(key, []))
+            history.extend(item for item in value if item not in history)
+            target[key] = history
         else:
             target[key] = value
-

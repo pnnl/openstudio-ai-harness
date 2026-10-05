@@ -21,11 +21,17 @@ them into context. Do not load SDK wiki packs for this supported workflow.
 Legacy object-level VAV skills have been removed.
 
 1. Run host Python 3.10+ on `scripts/doctor.py`. Require exit 0 and `ok: true`;
-   use its absolute `openstudio_executable` for every SDK command. The bundle
-   requires **OpenStudio 3.11.0**. Explicit executable paths are authoritative;
+   use its absolute `openstudio_executable` for every SDK command. The package
+   requires the exact package release in `scripts/compatibility.json`. Explicit executable paths are authoritative;
    mismatches block. Request the exact installation/path reported by doctor;
    do not install automatically or try another SDK/project virtualenv.
-2. Read [the input contract](scripts/references/vav_input.schema.json). Prepare
+2. Set `defaults_profile: prototype_vav_v1` only when the human user explicitly
+   chose the generic prototype defaults. Set `dx_approved: true` only when the
+   human explicitly chose DX cooling. A broad request to add VAV, an agent's own
+   suggestion, or missing input is not approval. Prior explicit human selections
+   persist across turns; do not ask again for the same choice. Keep these fields
+   absent until that choice is established.
+   Read [the input contract](scripts/references/vav_input.schema.json). Prepare
    configuration JSON from the user's selections. If names/handles are unknown,
    inspect with `vav_preflight.py --input <absolute-input.osm>` first; otherwise
    go directly to configured preflight. Partial configurations return missing
@@ -44,21 +50,22 @@ Legacy object-level VAV skills have been removed.
    and warnings, and report paths. Sizing/simulation remain pending. When those
    are requested, hand the saved model to the simulation/results skills.
 
-Capture stdout to a log so the full inventory and repeated assumption ledgers
-stay out of routine agent context. `report.py` uses host standard-library Python,
-validates the final JSON line, saves it unchanged, and prints a compact summary:
+Entrypoints persist full reports directly with `--report` and print compact
+summaries. Use the report file and exit code as authoritative; SDK logging before
+or after stdout cannot invalidate the saved plan. Normal runs need two commands:
 
 ```text
-<verified-executable> execute_python_script <skill-dir>/scripts/vav_preflight.py --input <input.osm> --config <config.json> > <preflight.log>
-<host-python> <skill-dir>/scripts/report.py --log <preflight.log> --report <plan.json>
-<verified-executable> execute_python_script <skill-dir>/scripts/vav_apply.py --plan <plan.json> > <apply.log>
-<host-python> <skill-dir>/scripts/report.py --log <apply.log> --report <apply-report.json>
+<verified-executable> execute_python_script <skill-dir>/scripts/vav_preflight.py --input <input.osm> --config <config.json> --report <plan.json>
+<verified-executable> execute_python_script <skill-dir>/scripts/vav_apply.py --plan <plan.json> --report <apply-report.json>
 ```
 
-Use absolute paths and new report/log paths; quote shell paths containing spaces.
-Check each exit code separately; an inspection-only success may have `ready:
-false`. Read full reports only when a selection, conflict, failure, or review
-needs their details. The report helper never edits models or runs SDK code.
+Use absolute paths and new report paths; quote shell paths containing spaces.
+Check each exit code separately. Require the persisted plan's `ready: true` and
+apply's `validation.ok: true` plus `translation.ok: true`. Full inventories and
+assumption ledgers stay on disk. Unready summaries show at most eight candidates
+per category, total counts, and a truncation marker. Use `--candidate-filter`
+with a name fragment or read the full report only for the relevant selection.
+`report.py` remains a troubleshooting utility for old logs, not the normal flow.
 
 ## Supported inputs and assumptions
 
@@ -67,15 +74,17 @@ Selected zones need spaces and a thermostat, must not be plenums, and must have
 no existing HVAC. Specify a new absolute `.osm` output; replacement and partially
 constructed systems are outside this operation.
 
-Water coils require explicitly selected compatible existing plants. Plants are
-not created. Central heating supports Water, NaturalGas, Electricity, or None;
+Water coils require explicitly selected compatible existing plants with supply
+equipment, an outlet setpoint manager, and suitable design supply/return
+temperatures. These checks do not establish equipment capacity or control
+performance. Plants are not created. Central heating supports Water, NaturalGas, Electricity, or None;
 reheat supports the same choices; cooling supports Water or explicitly approved
 DXTwoSpeed (`dx_approved: true`). Fan pressure needs a value and Pa/inH2O units.
 The contract covers existing operation/OA schedules, optional return plenum,
 economizer, airflow fractions, sizing option, and design temperatures.
 
 `defaults_profile: prototype_vav_v1` selects generic prototype assumptions only
-when the user's request authorizes them. The plan lists every supplied default.
+when the human explicitly selected those generic defaults. The plan lists every supplied default.
 This follows the inner standards VAV builder; the outer prototype dispatcher
 always selects hydronic VAV and can create plants. Independent coil/plant-role
 selection and central heating None are explicit extensions. Template controls,
@@ -87,12 +96,20 @@ profile. New SDK UUIDs differ across runs; settings and topology are determinist
 On failure, read the persisted error, resolve that cause, and rerun preflight if
 inputs or configuration changed. Do not edit bundled code, generate an alternative
 VAV script, or switch SDK/runtime to work around the failure. Unsupported scope
-needs a separately scoped development/repair task. A report-processing failure
-can be repaired from the saved log; do not repeat model creation to obtain a report.
+needs a separately scoped development/repair task. If report publication fails after a model was created, retain the returned output
+path and diagnose the report destination; never repeat creation merely to obtain
+a report. A new plan/report must use new paths.
 
 Existing output and concurrent destination writers are preserved. Repeating apply
-refuses the existing output. Filesystems without hard-link support fail closed;
-failed creation can leave parent directories but publishes no output OSM.
+refuses the existing output and companion folder. Apply carries referenced weather,
+external files, source companion directories, measure folders and one associated
+workflow into `<output-stem>_files`, hashes dependencies, rewrites paths and emits
+`workflow.osw`. Missing/ambiguous resources block rather than silently disappearing.
+EnergyPlus translation is checked before publishing. Hard-link publication is
+atomic when supported; otherwise exclusive copy still refuses an existing output,
+but concurrent readers can see a partial file until the success report. Cloud
+sync completion is not guaranteed by local publication. Failed writes clean up
+owned partial files; failed creation can leave parent directories.
 
 The saved configuration, plan, logs and apply report provide local continuity.
 If an active long-running task already uses `openstudio-workflow-state`, normalize

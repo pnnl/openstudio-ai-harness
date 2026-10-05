@@ -1,11 +1,13 @@
 ---
 name: add-vav-reheat
-description: Plan and execute a phased OpenStudio VAV reheat workflow.
+description: Add a multi-zone VAV system using the parent skill's bundled OpenStudio 3.11.0 scripts.
 ---
 
-# Add VAV Reheat
-
-Use `openstudio-vav-reheat-system-creator` as the parent workflow. Maintain
-state through `openstudio-workflow-state`, load only the child skill needed for
-the current phase, and use MCP tools for deterministic model lifecycle
-operations when appropriate.
+Prioritize configured, compatible NLR OpenStudio MCP through
+`delegated-nlr-modeling`. After selecting the local fallback, use
+`openstudio-vav-reheat-system-creator`. Its doctor, preflight,
+reviewed-plan apply and saved-topology validation run through host tools.
+Read the skill and input contract; execute the scripts without loading their
+implementation or drafting per-object code. Follow its missing-input and failure
+handling. Use workflow-state tools only when the active task needs them;
+simulation/results are a separate handoff after the saved model is ready.

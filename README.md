@@ -14,15 +14,24 @@ knowledge, and workflow-state tools for AI-assisted building-energy modeling.
   by Claude Code and Codex through MCP; the CLI curates candidates and detects
   repeated scripts as candidate measures. “Opt-in” means explicit learning-tool
   invocation, not a runtime enable/disable setting.
-- HVAC workflow skills and generated child skills.
+- HVAC workflow skills with a bundled VAV creation workflow; legacy object-level
+  VAV skills and their generation machinery have been removed.
 - Reviewed OpenStudio SDK knowledge packs.
 - Skill resource export for both hosts, including verbatim scripts and nested
   helpers. The SDK skill includes a standalone doctor and exact OpenStudio 3.11.0
   version guard. The VAV skill includes read-only preflight, reviewed-plan apply,
-  staged publication, and independent saved-topology validation. Native hydronic
+  staged publication, independent saved-topology validation, and compact report
+  output with complete persisted evidence. Scripts run directly through host tools;
+  supported VAV edits require no modeling MCP runtime or per-object code drafting.
+  Bespoke SDK guidance is a conditional reference. Native hydronic
   and electric/DX design-day sizing checks cover a five-zone fixture. See
   [Skill Script Development Plan](docs/SKILL_SCRIPT_DEVELOPMENT_PLAN.md) and
-  [VAV standards trace](docs/VAV_STANDARDS_TRACE.md).
+  [VAV standards trace](docs/VAV_STANDARDS_TRACE.md) and
+  [local phase 5 evaluation](docs/SKILL_SCRIPT_PHASE5_EVALUATION.md). The specified
+  instruction route uses approximately 77% less text; actual agent-token savings
+  remain unmeasured. Configured, compatible NLR OpenStudio MCP has provider priority.
+  After provider selection, use a specific modeling skill; bespoke SDK programming
+  is the fallback for requests those skills do not cover.
 - Packaging north-star plan for stable `pip install` and marketplace agentic
   installation paths.
 

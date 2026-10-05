@@ -24,10 +24,14 @@ def test_asset_manifest_registers_every_product_skill() -> None:
     source_skills = {
         path.relative_to(workspace_root)
         for path in (workspace_root / "skills").glob("*.md")
-        if path.name != "HVAC_CHILD_SKILL_MANAGEMENT.md"
     }
 
     assert registered_sources == source_skills
+    for host in ("claude", "codex"):
+        assert not any(
+            skill_id.startswith("openstudio-hvac-")
+            for skill_id in skill_ids_for_host(workspace_root, host)
+        ), "Retired VAV child routes must not be exported"
     assert "openstudio-modeling-orchestrator" not in skill_ids_for_host(
         workspace_root, "claude"
     )

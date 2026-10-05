@@ -23,11 +23,14 @@ simulation workflows, and explain what changed.
   or clone a model, optionally apply an approved measure, validate, simulate,
   retrieve artifacts, query sizing results, and summarize assumptions/results.
 - Use `openstudio_sdk_model_editor` for direct `.osm` inspection or scoped
-  model edits that require generated OpenStudio Python SDK scripts.
+  model edits. It routes supported operations to bundled scripts and keeps
+  bespoke script development conditional.
 - Use `openstudio_vav_reheat_system_creator` when the user asks to add, create,
   prototype, or draft a multi-zone VAV reheat air system. Let that parent skill
-  own workflow state setup, dependency loading, phase order, clarification
-  gates, child-skill routing, and final handoff.
+  run its bundled doctor, preflight and transactional apply directly through
+  host tools. No per-object drafts, SDK wiki loading, or modeling MCP setup
+  are required for that local operation. State tools are used when the active
+  task needs them; simulation/results remain a separate handoff.
 - Use `openstudio_workflow_state` for long-running OpenStudio energy modeling
   tasks that span multiple phases, child skills, scripts, simulations, failure
   recovery steps, or clarification gates.
@@ -74,36 +77,25 @@ Docker socket without the user's explicit action.
 
 ## SDK Script Gate
 
-Before an SDK edit that is not covered by a deterministic MCP tool, explain the
-two execution choices and ask the user to select one:
+Select the provider first: configured, compatible NLR OpenStudio MCP has priority,
+including VAV requests. Use the local routes only when NLR is absent, unavailable,
+incompatible or cannot cover the request, following its recorded transition rules.
+Then choose the owning skill before loading documentation or drafting code. For
+supported VAV creation, use `openstudio_vav_reheat_system_creator` directly.
+Run its reviewed scripts rather than offering a runtime/measure/script choice.
+Do not automatically substitute code drafting when a bundled operation fails.
 
-1. **Use MCP tools** for a standard, supported operation with validated inputs
-   and structured results.
-2. **Draft an SDK script** for a bespoke or batch edit. Before execution,
-   verify that the selected project/runtime Python can import `openstudio` and
-   that its compatible native OpenStudio installation is available. Never
-   assume the AI host's default Python has the OpenStudio bindings. Follow the
-   local runtime recovery order below before asking the user for help.
+For local SDK work, `openstudio_sdk_model_editor` enforces exact OpenStudio
+3.11.0 through its standalone doctor and shared guard. Use the returned native
+executable. Explicit incompatible paths block; do not probe a different project
+virtualenv or SDK release as recovery. Doctor and bundled execution do not need
+SDK docs/wiki packs or an OpenStudio AI modeling-runtime connection.
 
-Do not present this choice for routine read-only inspection or for actions that
-the selected NLR provider can perform. An NLR-to-SDK transition requires the
-recorded provider boundary described above.
-
-### Local Runtime Recovery Order
-
-If the host's `python3` cannot import `openstudio`, do not stop or suggest an
-installation yet. Probe, without modifying the environment, in this order:
-
-1. `./.venv/bin/python` from the current project root;
-2. `.venv/bin/python` at the nearest ancestor that is the project root, when
-   the current directory is a project subdirectory;
-3. a project-configured Python or OpenStudio executable, including
-   `OPENSTUDIO_PATH` when configured.
-
-For each candidate, verify `import openstudio` and its reported OpenStudio
-version. Use the first compatible local runtime. Ask the user for a runtime
-location only after these local candidates fail; do not tell the user to
-install Python or OpenStudio before completing this recovery check.
+For an operation outside bundled scope, use the SDK editor's conditional
+bespoke-edit reference and respect its required inputs and review rules. Bespoke
+SDK programming is the fallback when no specific energy-modeling skill covers
+the request. A request for bundled scripts does not bypass the NLR provider gate.
+Retain the provider-transition and host-path boundary before any SDK mutation.
 
 For every generated OpenStudio Python inspection or edit script, load
 `openstudio_sdk_model_editor` before drafting or executing code. Load its
@@ -112,14 +104,10 @@ matching SDK reference packs and use `sdk_docs_route` followed by the exact
 OpenStudio API call. This is required both for the initial script and after an
 SDK `AttributeError`; do not retry an SDK method name from memory.
 
-The SDK documentation bundled with OpenStudio AI is a compatibility reference,
-not a lockstep copy of the user's local OpenStudio installation. A bundled 3.x
-index remains valid for normal minor-version differences (for example, bundled
-3.8 documentation with local OpenStudio 3.10). Do not call SDK documentation
-missing merely because those versions differ. If the MCP reports the lookup is
-unavailable, treat that as a runtime diagnostic, state it clearly, and consult
-the loaded reference pack plus Python binding introspection rather than guessing
-method names.
+SDK documentation is a reference, not permission to use another SDK version.
+Verify uncertain API spellings against the pinned 3.11.0 Python binding when the
+local documentation index differs or lookup is unavailable. Those lookups are
+for bespoke development/repair, not routine execution of a reviewed bundle.
 
 ## MCP Tool Routing
 

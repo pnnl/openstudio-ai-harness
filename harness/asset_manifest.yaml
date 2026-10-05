@@ -70,6 +70,11 @@ resources:
         skill: openstudio-vav-reheat-system-creator
         path: scripts/references/vav_input.schema.json
 
+  - source: skills/sdk_scripts/report.py
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-vav-reheat-system-creator
+        path: scripts/report.py
   - source: skills/sdk_scripts/vav_apply.py
     owners:
       - hosts: [claude, codex]
@@ -105,33 +110,6 @@ skills:
   - id: hvac-sizing-assistant
     source: skills/hvac_sizing_assistant.md
     hosts: [claude, codex]
-  - id: openstudio-hvac-air-loop-creator
-    source: skills/openstudio_hvac_air_loop_creator.md
-    hosts: [claude, codex]
-  - id: openstudio-hvac-central-cooling-coil-creator
-    source: skills/openstudio_hvac_central_cooling_coil_creator.md
-    hosts: [claude, codex]
-  - id: openstudio-hvac-central-heating-coil-creator
-    source: skills/openstudio_hvac_central_heating_coil_creator.md
-    hosts: [claude, codex]
-  - id: openstudio-hvac-outdoor-air-system-creator
-    source: skills/openstudio_hvac_outdoor_air_system_creator.md
-    hosts: [claude, codex]
-  - id: openstudio-hvac-schedule-resolver
-    source: skills/openstudio_hvac_schedule_resolver.md
-    hosts: [claude, codex]
-  - id: openstudio-hvac-sizing-system-configurator
-    source: skills/openstudio_hvac_sizing_system_configurator.md
-    hosts: [claude, codex]
-  - id: openstudio-hvac-supply-fan-creator
-    source: skills/openstudio_hvac_supply_fan_creator.md
-    hosts: [claude, codex]
-  - id: openstudio-hvac-system-validator
-    source: skills/openstudio_hvac_system_validator.md
-    hosts: [claude, codex]
-  - id: openstudio-hvac-vav-terminal-creator
-    source: skills/openstudio_hvac_vav_terminal_creator.md
-    hosts: [claude, codex]
   - id: openstudio-modeling-orchestrator
     source: skills/openstudio_modeling_orchestrator.md
     hosts: [codex]
@@ -163,6 +141,10 @@ agents:
     hosts: [claude]
 
 references:
+  - source: knowledge/openstudio_sdk_generated_edits.md
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-sdk-model-editor
   - source: prompts/blackboard_contract.md
     owners:
       - hosts: [claude, codex]

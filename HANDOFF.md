@@ -114,39 +114,50 @@ uv run --project standalone python -m pytest -q standalone/tests
 
 ## Near-Term Backlog
 
-- Skill-bound SDK development phase 4 is ready for review on
-  `enhance_skills_scripts`. Phases 1–3 were reviewed. The persistent plan is
-  `docs/SKILL_SCRIPT_DEVELOPMENT_PLAN.md`; detailed Ruby dispatch/helper tracing
-  and intentional scope differences are in `docs/VAV_STANDARDS_TRACE.md`.
-  Exact required release remains OpenStudio 3.11.0. Shared manifest resources
-  export directly beside the owning skills for Claude Code and Codex.
-  The VAV parent now bundles preflight, version-2 reviewed-plan apply, creation
-  helpers, and independent saved-topology validation. No MCP runtime/measure
-  execution is used for these edits. SDK guard runs before reading user inputs.
-  Apply rejects stale/altered plans, verifies setters and saved settings, stages
-  output, and publishes by exclusive atomic hard link. Existing/concurrent output
-  is preserved; failed operations publish no OSM. Repeating apply refuses output.
-  Generic all-water construction follows the inner standards VAV builder.
-  Existing plants are explicit; automatic plants, template damper/preheat controls,
-  standards postprocessing, and replacement of existing HVAC remain excluded.
-  Explicit None central heating and independent coil/plant-role selection are
-  documented extensions. New UUIDs differ across runs; settings/topology are the
-  deterministic contract. Routine JSON excludes generated nodes/connectors.
-  Focused checks: 205 tests passed, including 32 coil combinations, failure cases,
-  multiple zones, schedules and return plenum. Both exported VAV skills passed
-  frontmatter and native CLI preflight/apply from unrelated directories.
-  Five-zone hydronic/electric-DX design-day checks passed: 193/138 saved topology
-  checks, positive fan/terminal flows and coil capacities, no severe/fatal or
-  node-connection errors. Disposable fixtures exclude unrelated service-water
-  warnings; remaining seed/default warnings are recorded with sizing metrics in
-  `docs/SKILL_SCRIPT_PHASE4_VERIFICATION.json`. Sample input bytes are preserved.
-  Native CLI 3.11.0+241b8abb4d, embedded Python 3.12.2; pip SDK also 3.11.0.
-  macOS is natively verified; Windows/Linux only have existing discovery tests.
-  Next: phase 4 review, then phase 5 routing cleanup and measured host/token
-  evaluation. The old child-skill map remains reference-only for supported bundled
-  workflows. No live host-agent token savings or annual performance is claimed.
-  Verify APIs against actual 3.11.0 because the docs index is 3.10.0. Preserve
-  the CalBEM work.
+- Skill-bound SDK development phase 5 is complete within the user-selected
+  local evaluation scope, ready for review on `enhance_skills_scripts`.
+  Phases 1–4 were reviewed. Plan: `docs/SKILL_SCRIPT_DEVELOPMENT_PLAN.md`;
+  Ruby assumptions: `docs/VAV_STANDARDS_TRACE.md`; final local findings:
+  `docs/SKILL_SCRIPT_PHASE5_EVALUATION.md`, with machine-readable evidence in
+  `docs/SKILL_SCRIPT_PHASE5_VERIFICATION.json`.
+  Exact release: OpenStudio 3.11.0, native CLI 3.11.0+241b8abb4d and embedded
+  Python 3.12.2; developer Python 3.13.7 and SDK 3.11.0. Model scripts are exported
+  directly with owning skills; doctor/report use standard-library host Python.
+  Supported VAV routing chooses the reviewed transaction before docs/wiki or
+  object-by-object drafting. Legacy child skills and their generator, specs and
+  template are removed. Configured, compatible NLR OpenStudio MCP has priority
+  before any local route, including requests mentioning bundled scripts. After
+  provider fallback, use a specific modeling skill; bespoke SDK programming
+  covers only requests those skills cannot handle. Bespoke SDK guidance
+  is loaded only for other operations. Local config/plans/logs/reports provide
+  continuity without a modeling MCP/state-tool prerequisite. Active NLR provider
+  transitions and separate simulation/results workflows remain respected.
+  Guards reject other SDK releases before reading input. Apply revalidates source
+  hash/plan, creates in memory, stages/reloads/validates settings and topology,
+  and publishes by exclusive hard link. Existing or concurrent output is preserved;
+  failed operations publish no OSM. Repeated apply refuses existing output.
+  Generic inner VAV builder scope persists: explicit existing plants, no automatic
+  plants/template/compliance postprocessing or HVAC replacement. Central heating
+  None and independent coil roles are extensions. UUIDs differ; semantic settings
+  and topology are deterministic.
+  Focused verification: 250 tests passed, 9 changed exported skills passed frontmatter
+  validation. Four relocated host/fixture local runs passed native design-day sizing:
+  hydronic 193/electric-DX 138 topology checks, positive fan/terminal flows and coil
+  capacities, no severe/fatal or node connection errors. All numerical sizing
+  matches between host exports and phase 4. Seed/default warnings remain 28/29.
+  Explicit OpenStudio 3.8.0 doctor checks blocked without fallback; repeated output
+  and stale-plan negative checks preserved input/output bytes. Native macOS only;
+  Windows/Linux discovery remains unit-tested. Original fixtures are preserved.
+  Estimated route context fell 98,062 → 22,922 characters (76.6%); chars/4 estimate
+  24,516 → 5,731 tokens. Compact reports reduce full stdout by 85–90% while saving
+  complete evidence. Actual agents, billed tokens, retrieval and retries were
+  not evaluated, at the user's request. Script sequences took 3.38–4.88 seconds
+  plus 0.85–1.14 seconds sizing, one run each; no legacy timing comparison.
+  Reproduce with `scripts/evaluate_skill_vav.py` and a new output directory;
+  saved logs/models/SQL: `outputs/skill-vav-phase5-nlr-priority/`.
+  Five conversation scenarios are future acceptance cases, not live results.
+  Next: user review and release-scope decision; no export into the marketplace
+  source repo, install, commit, push or release yet. Preserve the CalBEM work.
 
 - CalBEM five-minute talk and two-minute lighting-retrofit recording plan drafted
   in `docs/CALBEM_FLASH_TALK.md` (October 4, 2026). Includes speaker script,

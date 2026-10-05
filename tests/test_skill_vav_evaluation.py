@@ -17,7 +17,7 @@ spec.loader.exec_module(evaluation)
 @pytest.fixture
 def results():
     baseline = json.loads(
-        (ROOT / "docs/SKILL_SCRIPT_PHASE4_VERIFICATION.json").read_text()
+        (ROOT / "tests/fixtures/vav_sizing_baseline.json").read_text()
     )["cases"]
     cases = []
     for old in baseline:

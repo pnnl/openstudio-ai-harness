@@ -35,10 +35,7 @@ knowledge, and workflow-state tools for AI-assisted building-energy modeling.
   behavior control and native simulation after moving ScheduleFile resources.
   Bespoke SDK guidance is a conditional reference. Native hydronic
   and electric/DX design-day sizing checks cover a five-zone fixture. See
-  [Skill Script Development Plan](docs/SKILL_SCRIPT_DEVELOPMENT_PLAN.md) and
-  [VAV standards trace](docs/VAV_STANDARDS_TRACE.md) and
-  [local phase 5 evaluation](docs/SKILL_SCRIPT_PHASE5_EVALUATION.md), with
-  [review follow-up fixes](docs/SDK_SCRIPT_FOLLOWUP_FIXES.md). The specified
+  [Skill-bound SDK development summary](docs/SKILL_BOUND_SDK_SUMMARY.md). The specified
   instruction route uses approximately 75% less text; actual agent-token savings
   remain unmeasured. Configured, compatible NLR OpenStudio MCP has provider priority.
   After provider selection, use a specific modeling skill; bespoke SDK programming
@@ -51,7 +48,7 @@ that release requires a new package/plugin release, coordinated dependency and
 compatibility changes, and native verification of exported bundles; changing the
 contract alone is not a supported upgrade. A newer NLR model must remain with a
 compatible provider or use a matching package release; local scripts never
-downgrade it. See [SDK review fixes](docs/SDK_SCRIPT_REVIEW_FIXES.md).
+downgrade it. See [SDK release requirements](docs/SKILL_BOUND_SDK_SUMMARY.md#decisions-and-architecture).
 
 ## Development Setup
 

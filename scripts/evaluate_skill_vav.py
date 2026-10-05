@@ -427,7 +427,7 @@ def evaluate(output_dir, executable, baseline_ref, incompatible_executable=None)
             case["host_export"] = host
             result["cases"].append(case)
     result["baseline_sizing"] = json.loads(
-        (ROOT / "docs/SKILL_SCRIPT_PHASE4_VERIFICATION.json").read_text()
+        (ROOT / "tests/fixtures/vav_sizing_baseline.json").read_text()
     )["cases"]
     verify_parity(result)
     (output_dir / "evaluation.json").write_text(json.dumps(result, indent=2) + "\n")

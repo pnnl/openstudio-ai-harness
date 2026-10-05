@@ -112,141 +112,38 @@ uv sync --project standalone
 uv run --project standalone python -m pytest -q standalone/tests
 ```
 
-## SDK review remediation (October 5, 2026)
+## Skill-bound SDK development — October 5, 2026
 
-Addressing all 13 user findings; tracking and release limitations are in
-`docs/SDK_SCRIPT_REVIEW_FIXES.md`. User review/repro files are preserved. Package-wide
-exact SDK compatibility is intentional: pyproject and lock metadata now pin 3.11.0,
-matching the exported contract. Runtime plan/report version checks read the contract
-and executing SDK; skill text reads the bundled contract rather than duplicating
-its release. Newer input models fail with actionable provider/package guidance.
-NLR provider priority remains unchanged.
+Phases 1–5 and the review remediations are consolidated in
+[the SDK development summary](docs/SKILL_BOUND_SDK_SUMMARY.md). It replaces the
+phase/review documents and print-only probes. Production code and assertion-based
+regressions remain. The exact phase-4 sizing baseline moved to
+`tests/fixtures/vav_sizing_baseline.json`; evaluator/parity tests now read it there.
 
-Creation and independent getter checks consume the approved plan controls and
-plant design snapshots. Human DX/default selections must be explicit. Preflight
-checks unused eligible return plenums, loop ownership, temperature relationships,
-plant equipment/setpoint presence and finite positive water delta; nonexistent
-output roots terminate. Apply checks EnergyPlus translation before publication,
-carries and hashes companion resources, emits a relative-path workflow, and
-supports exclusive-copy fallback where hard links are unavailable. Copy fallback
-is not atomic for concurrent readers; source input and existing outputs remain
-preserved. Entry points persist full reports directly (`--report`) and print
-bounded/filterable candidate summaries; normal runs need preflight and apply,
-without last-line log parsing. Completed steps/assumptions append without losing
-workflow history. New behavioral regressions and native relative-weather sizing
-checks are included. Final verification: 273 focused tests passed (23 review regressions), MCP smoke
-8 passed/2 optional simulation skips, nine exported skill frontmatter checks,
-offline uv lock validation, and four native relocated-host cases passed. Wheel
-and sdist built offline through the isolated backend; exact SDK dependency and
-new helpers verified, local fixtures/candidates excluded. The development venv
-lacks hatchling, so use the isolated build path rather than --no-isolation. The
-supplied plenum repro now accepts/applies A and rejects B at preflight. See
-`docs/SDK_SCRIPT_REVIEW_VERIFICATION.json`; current native artifacts are in
-`outputs/sdk-review-20261005-final/`. Native sizing uses copied companion OSWs
-and relative EPWs; 207/138 topology checks, unchanged sizing and 28/29 warnings.
-Current specified instruction context is 75.2% smaller; actual agent tokens
-remain unmeasured. No live NLR, installed plugin, marketplace, commit or release
-change. Next: review all 13 remediations before release preparation.
+Current decisions: package-wide OpenStudio 3.11.0; compatible NLR first; local
+specific skills before bespoke SDK programming. Covered VAV edits execute directly
+from their skill bundles. Portable outputs retain their companion workflow;
+internal runtime snapshots use absolute copied CSV paths across measure copies.
+CSV snapshot failures block simulation; weather warnings permit replacement
+weather through epw_path/model_set_weather. Complete reports are written directly.
 
-## SDK Review Follow-up — October 5, 2026
+Last modeling verification: 14 focused regressions passed, including four native
+weather replacement simulations; 20 round-3/job/session tests passed. Historical
+phase/review/export results and context estimates are in the summary. Actual
+agent/billed tokens remain unmeasured. The remaining low-priority issue is runtime
+OS App `file:files/x.epw` and companion weather fallback; explicit epw_path works.
+Existing package artifacts predate the latest fix and this consolidation.
 
-Follow-up N1–N10 and the remaining C3/H2/H4/M5 gaps are remediated on
-`enhance_skills_scripts`. Package-wide OpenStudio 3.11.0 pin and compatible NLR
-provider priority remain the accepted decisions. Resource lookup now uses native
-WorkflowJSON findFile/findMeasure; copying includes only referenced resources,
-skips VCS metadata, rejects secret-like files and caps copying at 256 MiB. Output
-uses `<stem>/workflow.osw`, relative weather URLs and bare ExternalFile names.
-Missing weather warns without blocking editing and marks simulation unready.
-Version sniffing reads bytes without requiring the entire OSM to be UTF-8.
-
-All behavior controls are consumed by creator and independent getter validator
-across hydronic and gas/DX/electric cases; descriptive assumptions are separate.
-Preflight checks dual thermostat schedules, minimum airflow relationships and
-supply pumps; water heaters and temperature/user-defined plant sources are
-recognized. Top-level patches append history; nested lists replace and explicit
-assumption events retain duplicates. Publication fsyncs staged OSMs/reports before
-linking. OSW JSON parsing is strict, shared helpers live in common modules, doctor
-supports a configurable probe timeout, and the dev evaluator is excluded from the
-wheel. Manifest CI verifies every source is tracked. Required new docs/tests are
-staged; user review files remain untouched. No commit, push or release performed.
-
-Four relocated host-export cases retained earlier native sizing results. A third
-native sizing case moves the output and its companion folder and deletes original
-ScheduleFile data before running successfully. Follow-up evidence and checks:
-`docs/SDK_SCRIPT_FOLLOWUP_FIXES.md` and `docs/SDK_SCRIPT_FOLLOWUP_VERIFICATION.json`;
-artifacts: `outputs/sdk-followup-20261005-final/`, `outputs/sdk-followup-package/`.
-Verification: 299 impacted tests passed, plus 41 nearest review/follow-up tests
-after the final history fix; MCP smoke 8 passed/2 optional skips. Both isolated
-skills passed frontmatter validation; offline archives and whitespace verified.
-Instruction context estimate: 98,062 → 24,798 characters (74.7% smaller); actual
-agent/billed tokens remain unmeasured. Native Windows/Linux/cloud-drive behavior
-remains unverified. Next: review this diff before release preparation.
-
-## Round-3 Review — October 5, 2026
-
-R1–R6 are addressed; see `docs/SDK_SCRIPT_ROUND3_FIXES.md`. Portable external CSV
-outputs explicitly declare `requires_companion_workflow` when plain VT loading
-fails resolution. Attached-file resolution must pass before publication. Runtime
-snapshots and jobs now retain referenced CSV/weather files; a native regression
-deletes the original bundle before successfully simulating its snapshot. Source
-measures are not re-executed. Unavailable workflow inputs/measures warn and leave
-VAV editing ready; outputs/empty arguments are retained. Secret patterns are
-narrower, actual circulation pump prefixes are required, explicit `..` search is
-removed, and the tracking test skips outside a Git checkout.
-
-Verification: 231 impacted tests passed, including browser integration after
-lifting the Chromium sandbox restriction, plus four isolated host export/native
-sizing cases. Artifacts: `outputs/sdk-round3-20261005/`,
-`outputs/sdk-round3-native-case/`, `outputs/sdk-round3-tests.log`. Package-wide
-3.11.0 pin and compatible NLR priority unchanged. No commit/push/release. Review
-files remain untouched. Next: review the round-3 diff before merge.
+Documentation cleanup: unrelated docs retained, obsolete links updated, baseline
+parity checks passed (6 tests). No commit/push/install/release performed. Next:
+review the consolidated record and prepare coordinated package/plugin release checks.
 
 ## Near-Term Backlog
 
-- Skill-bound SDK development phase 5 is complete within the user-selected
-  local evaluation scope, ready for review on `enhance_skills_scripts`.
-  Phases 1–4 were reviewed. Plan: `docs/SKILL_SCRIPT_DEVELOPMENT_PLAN.md`;
-  Ruby assumptions: `docs/VAV_STANDARDS_TRACE.md`; final local findings:
-  `docs/SKILL_SCRIPT_PHASE5_EVALUATION.md`, with machine-readable evidence in
-  `docs/SKILL_SCRIPT_PHASE5_VERIFICATION.json`.
-  Exact release: OpenStudio 3.11.0, native CLI 3.11.0+241b8abb4d and embedded
-  Python 3.12.2; developer Python 3.13.7 and SDK 3.11.0. Model scripts are exported
-  directly with owning skills; doctor/report use standard-library host Python.
-  Supported VAV routing chooses the reviewed transaction before docs/wiki or
-  object-by-object drafting. Legacy child skills and their generator, specs and
-  template are removed. Configured, compatible NLR OpenStudio MCP has priority
-  before any local route, including requests mentioning bundled scripts. After
-  provider fallback, use a specific modeling skill; bespoke SDK programming
-  covers only requests those skills cannot handle. Bespoke SDK guidance
-  is loaded only for other operations. Local config/plans/logs/reports provide
-  continuity without a modeling MCP/state-tool prerequisite. Active NLR provider
-  transitions and separate simulation/results workflows remain respected.
-  Guards reject other SDK releases before reading input. Apply revalidates source
-  hash/plan, creates in memory, stages/reloads/validates settings and topology,
-  and publishes by exclusive hard link. Existing or concurrent output is preserved;
-  failed operations publish no OSM. Repeated apply refuses existing output.
-  Generic inner VAV builder scope persists: explicit existing plants, no automatic
-  plants/template/compliance postprocessing or HVAC replacement. Central heating
-  None and independent coil roles are extensions. UUIDs differ; semantic settings
-  and topology are deterministic.
-  Focused verification: 250 tests passed, 9 changed exported skills passed frontmatter
-  validation. Four relocated host/fixture local runs passed native design-day sizing:
-  hydronic 193/electric-DX 138 topology checks, positive fan/terminal flows and coil
-  capacities, no severe/fatal or node connection errors. All numerical sizing
-  matches between host exports and phase 4. Seed/default warnings remain 28/29.
-  Explicit OpenStudio 3.8.0 doctor checks blocked without fallback; repeated output
-  and stale-plan negative checks preserved input/output bytes. Native macOS only;
-  Windows/Linux discovery remains unit-tested. Original fixtures are preserved.
-  Estimated route context fell 98,062 → 22,922 characters (76.6%); chars/4 estimate
-  24,516 → 5,731 tokens. Compact reports reduce full stdout by 85–90% while saving
-  complete evidence. Actual agents, billed tokens, retrieval and retries were
-  not evaluated, at the user's request. Script sequences took 3.38–4.88 seconds
-  plus 0.85–1.14 seconds sizing, one run each; no legacy timing comparison.
-  Reproduce with `scripts/evaluate_skill_vav.py` and a new output directory;
-  saved logs/models/SQL: `outputs/skill-vav-phase5-nlr-priority/`.
-  Five conversation scenarios are future acceptance cases, not live results.
-  Next: user review and release-scope decision; no export into the marketplace
-  source repo, install, commit, push or release yet. Preserve the CalBEM work.
+- Skill-bound SDK development is complete within the user-selected local
+  evaluation scope. See `docs/SKILL_BOUND_SDK_SUMMARY.md` for decisions, review
+  disposition, source trace, historical verification and remaining limitations.
+  Prepare a coordinated SDK/package/plugin release after review; preserve CalBEM work.
 
 - CalBEM five-minute talk and two-minute lighting-retrofit recording plan drafted
   in `docs/CALBEM_FLASH_TALK.md` (October 4, 2026). Includes speaker script,

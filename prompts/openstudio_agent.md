@@ -85,9 +85,11 @@ supported VAV creation, use `openstudio_vav_reheat_system_creator` directly.
 Run its reviewed scripts rather than offering a runtime/measure/script choice.
 Do not automatically substitute code drafting when a bundled operation fails.
 
-For local SDK work, `openstudio_sdk_model_editor` enforces the exact package-required OpenStudio release through its standalone doctor and shared guard. Use the returned native
-executable. Explicit incompatible paths block; do not probe a different project
-virtualenv or SDK release as recovery. Doctor and bundled execution do not need
+For local SDK work, `openstudio_sdk_model_editor` enforces the exact
+package-required OpenStudio release through its standalone doctor and shared
+guard. Follow that skill's project-first host Python selection to launch doctor,
+then use the returned native executable. Explicit incompatible paths block; do
+not probe a different project virtualenv or SDK release as recovery. Doctor and bundled execution do not need
 SDK docs/wiki packs or an OpenStudio AI modeling-runtime connection.
 
 For an operation outside bundled scope, use the SDK editor's conditional

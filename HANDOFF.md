@@ -138,6 +138,19 @@ Documentation cleanup: unrelated docs retained, obsolete links updated, baseline
 parity checks passed (6 tests). No commit/push/install/release performed. Next:
 review the consolidated record and prepare coordinated package/plugin release checks.
 
+## Main merge conflict resolution — October 5, 2026
+
+Resolved `prompts/openstudio_agent.md` and `skills/openstudio_sdk_model_editor.md`.
+Retained compatible NLR priority, specific skill routing before bespoke SDK code,
+and the exact package SDK doctor/guard gate. Main's project-first Python order
+now selects only the standard-library doctor launcher; SDK model scripts use the
+native executable verified by doctor, with no project-virtualenv recovery after
+an incompatible SDK result. Provider transitions/host-path rules are preserved.
+
+Verification: 45 resource/export adapter tests passed; exported SDK skill passed
+skill-creator validation. Other incoming merge changes were left intact. No merge
+commit, push, install or release performed.
+
 ## Near-Term Backlog
 
 - Skill-bound SDK development is complete within the user-selected local

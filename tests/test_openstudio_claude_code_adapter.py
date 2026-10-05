@@ -287,7 +287,7 @@ def test_claude_code_adapter_marketplace_mode_exports_runtime_setup(
     )
     assert "python --version" in setup
     assert "python3 --version" in setup
-    assert "openstudio-ai-mcp --help" in setup
+    assert "that command's `--help`" in setup
     assert "energy-modeler language" in setup
     assert "diagnose command discovery before editing plugin files" in setup
     assert "do not replace it with an absolute `.venv/bin` path" in setup

@@ -68,8 +68,15 @@ This package requires the exact OpenStudio release recorded in
 patch releases are rejected. Do not change the contract to accommodate an installed version.
 
 Before SDK model execution, run `scripts/doctor.py` beside this skill with a host
-Python 3.10+ interpreter. Doctor uses only the standard library; that host Python
-does not need OpenStudio or OpenStudio AI installed. For Claude Code resolve the
+Python 3.10+ interpreter. Prefer the current project's `./.venv/bin/python`, or
+its nearest project root's `.venv/bin/python` when working in a subdirectory;
+then try a project-configured interpreter, followed by host `python3` or `python`.
+Check the Python version without modifying the environment and use the first
+usable interpreter to launch doctor. `OPENSTUDIO_PATH` selects the native
+OpenStudio executable, not this host Python interpreter.
+
+Doctor uses only the standard library; the host Python does not need OpenStudio
+or OpenStudio AI installed. For Claude Code resolve the
 script through `${CLAUDE_SKILL_DIR}`; for Codex resolve it relative to this
 `SKILL.md`'s actual directory, not the user's current working directory.
 

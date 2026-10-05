@@ -25,7 +25,16 @@ Legacy object-level VAV skills have been removed.
    requires the exact package release in `scripts/compatibility.json`. Explicit executable paths are authoritative;
    mismatches block. Request the exact installation/path reported by doctor;
    do not install automatically or try another SDK/project virtualenv.
-2. Set `defaults_profile: prototype_vav_v1` only when the human user explicitly
+2. If selected zones already have HVAC, use `openstudio-hvac-remover` to inventory
+   and remove the human-selected systems in a copy. Show all zones affected by
+   shared air loops/VRF systems; preserve stairs/other equipment unless explicitly
+   selected. Do not draft a separate removal script. If water coils are selected
+   and compatible plants are absent, use `openstudio-plant-loop-creator` after the
+   human chooses plant sources and generic assumptions. Offer hydronic plant
+   creation rather than forcing DX/gas/electric air coils because plants are absent.
+   Run each preparation as a separate reviewed transaction, then preflight VAV
+   against the latest output using the returned plant names/handles.
+3. Set `defaults_profile: prototype_vav_v1` only when the human user explicitly
    chose the generic prototype defaults. Set `dx_approved: true` only when the
    human explicitly chose DX cooling. A broad request to add VAV, an agent's own
    suggestion, or missing input is not approval. Prior explicit human selections
@@ -36,17 +45,19 @@ Legacy object-level VAV skills have been removed.
    inspect with `vav_preflight.py --input <absolute-input.osm>` first; otherwise
    go directly to configured preflight. Partial configurations return missing
    inputs and conflicts without saving a model.
-3. Run configured preflight and persist its full report using the commands
+   If defaults are undecided or declined, follow the assumption review below;
+   declining proposed defaults means review/adjust, not cancellation.
+4. Run configured preflight and persist its full report using the commands
    below. Review the summary's parameters, resolved references, units, and
    warnings. The full plan contains the assumption ledger. Clarify only missing
    or conflicting choices; approval already provided by the user persists.
    Require `ok: true` and `ready: true` before creation.
-4. When the user's request authorizes those selections/defaults, run apply on
+5. When the user's request authorizes those selections/defaults, run apply on
    the saved version-2 plan. Require `ok: true` and `validation.ok: true` in the
    summary. Apply rechecks the SDK, source hash and resolved plan, creates the
    system, reloads a staged OSM, independently checks topology/settings, and
    exclusively publishes to the selected new output path.
-5. Return the output path, completed creation/topology checks, key assumptions
+6. Return the output path, completed creation/topology checks, key assumptions
    and warnings, and report paths. Sizing/simulation remain pending. When those
    are requested, hand the saved model to the simulation/results skills.
 
@@ -69,15 +80,49 @@ with a name fragment or read the full report only for the relevant selection.
 
 ## Supported inputs and assumptions
 
+### Review assumptions with the user
+
+Use a compact review table or the host's question/form interface rather than
+"enable prototype_vav_v1 or stop". Label the profile "generic prototype settings";
+keep its machine identifier in the saved configuration. Offer "Use the proposed
+settings" and "Review and adjust". Cancellation is a separate explicit choice.
+
+1. Run partial configured preflight without `defaults_profile` when undecided.
+   Its saved `assumption_review` proposes values from the same canonical defaults
+   used by the builder, preserves supplied values, and labels editable inputs
+   versus fixed controls. `needs_review` is not approval or an executable plan;
+   expected missing-input errors keep apply blocked while discussion continues.
+2. Group the review into schedules/fan; ventilation/economizer/airflow;
+   temperatures/sizing; and equipment/controls. Show columns **Setting, Value,
+   Source, Can change**. Include units; emphasize proposed values and unresolved
+   choices. Show only controls relevant to selected equipment (e.g. no gas burner
+   efficiency for an all-electric system), keeping the full record on disk.
+3. Ask which group to adjust, then ask only its unresolved choices. Put supported
+   changes in configuration fields from the input schema. Preserve earlier user
+   choices; do not require confirmation of the same values again. Fixed controls
+   are not currently editable: explain a requested unsupported change and retain
+   it as pending for separately scoped bundle development/provider coverage.
+   Never claim it was applied or silently revert it to the profile value.
+4. Present the resulting selection and the relevant fixed controls together.
+   Once the human accepts those remaining generic controls, set `defaults_profile`
+   and rerun preflight. Keep custom input values explicit. Review newly introduced
+   changes only; apply only a ready saved plan with established authorization.
+
+For example, a review row can show `fan.pressure_rise: 750 Pa | user input |
+editable`, while `night_cycle: CycleOnAny | generic control | fixed in this bundle`.
+Do not describe profile selection as changing only hidden controls if it also
+fills missing editable inputs. The form is an agent-guided review using host UI
+or Markdown, not a separately installed web application.
+
 Selectors use exactly one name or handle; duplicate names require handles.
 Selected zones need spaces and a thermostat, must not be plenums, and must have
-no existing HVAC. Specify a new absolute `.osm` output; replacement and partially
-constructed systems are outside this operation.
+no existing HVAC. Specify a new absolute `.osm` output; the VAV transaction itself requires unserved zones; the HVAC-removal skill
+prepares selected existing systems for replacement.
 
 Water coils require explicitly selected compatible existing plants with supply
 equipment, an outlet setpoint manager, and suitable design supply/return
 temperatures. These checks do not establish equipment capacity or control
-performance. Plants are not created. Central heating supports Water, NaturalGas, Electricity, or None;
+performance. Use the plant-loop skill to create missing plants first. Central heating supports Water, NaturalGas, Electricity, or None;
 reheat supports the same choices; cooling supports Water or explicitly approved
 DXTwoSpeed (`dx_approved: true`). Fan pressure needs a value and Pa/inH2O units.
 The contract covers existing operation/OA schedules, optional return plenum,

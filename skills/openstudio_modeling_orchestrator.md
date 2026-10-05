@@ -26,6 +26,19 @@ task-specific skill before acting; do not recreate its procedure from memory.
 - Use `openstudio-vav-reheat-system-creator` for multi-zone VAV work through
   its exact-release doctor, bundled preflight/apply, and saved-model validator.
   Do not draft objects individually; the legacy child skills have been removed.
+- Use `openstudio-plant-loop-creator` as an independent plant-building module for
+  hot-water, chilled-water and associated condenser systems. Route direct plant
+  requests and plant stages of broader HVAC workflows here; it is not restricted
+  to missing plants or VAV preparation. It creates plant supply equipment,
+  pumping and controls, including chiller-to-condenser connections. Pass its
+  output model and plant names/handles to the appropriate air-side skill, which
+  connects its water coils to plant demand branches. The current VAV skill supports
+  that connection; check coverage for other air-side systems before choosing a route.
+- Use `openstudio-hvac-remover` independently for explicitly selected existing
+  HVAC removal. Include removal in a replacement workflow only when requested;
+  plant creation alone does not require removal or subsequent VAV creation.
+  Each operation produces a reviewed model copy for the next selected operation.
+  Do not generate ad hoc scripts for covered plant/removal work.
 - Use bespoke SDK programming only when no specific energy-modeling skill covers
   the request. A failed covered workflow requires diagnosis, not a generated-code
   bypass.

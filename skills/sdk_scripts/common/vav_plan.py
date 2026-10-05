@@ -90,6 +90,45 @@ PROFILE_NOTES = {
 }
 
 
+def assumption_review(config: dict) -> dict:
+    """Propose settings without selecting a profile or making a plan executable."""
+    inputs = []
+    for key, default in PROFILE.items():
+        fields = (
+            default.items()
+            if key in ("fan", "design_temperatures_c")
+            else [(None, default)]
+        )
+        supplied = (
+            config.get(key, {}) if key in ("fan", "design_temperatures_c") else config
+        )
+        for field, value in fields:
+            lookup = field if field is not None else key
+            explicit = lookup in supplied
+            inputs.append(
+                dict(
+                    field=f"{key}.{field}" if field is not None else key,
+                    value=deepcopy(supplied[lookup] if explicit else value),
+                    source="user_input" if explicit else "proposed_default",
+                    editable=True,
+                )
+            )
+    return dict(
+        profile="prototype_vav_v1",
+        status=(
+            "selected"
+            if config.get("defaults_profile") == "prototype_vav_v1"
+            else "needs_review"
+        ),
+        inputs=inputs,
+        fixed_controls=[
+            dict(field=key, value=deepcopy(value), editable=False)
+            for key, value in CONTROLS.items()
+        ],
+        notes=deepcopy(PROFILE_NOTES),
+    )
+
+
 def plan(config: dict, catalog: dict, input_path: Path) -> dict:
     parameters = deepcopy(config)
     errors, missing, assumptions, warnings = [], [], [], []

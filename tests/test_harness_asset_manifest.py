@@ -28,10 +28,27 @@ def test_asset_manifest_registers_every_product_skill() -> None:
 
     assert registered_sources == source_skills
     for host in ("claude", "codex"):
-        assert not any(
-            skill_id.startswith("openstudio-hvac-")
-            for skill_id in skill_ids_for_host(workspace_root, host)
+        retired = {
+            "openstudio-hvac-" + name
+            for name in (
+                "air-loop-creator",
+                "central-cooling-coil-creator",
+                "central-heating-coil-creator",
+                "outdoor-air-system-creator",
+                "schedule-resolver",
+                "sizing-system-configurator",
+                "supply-fan-creator",
+                "system-validator",
+                "vav-terminal-creator",
+            )
+        }
+        assert not retired.intersection(
+            skill_ids_for_host(workspace_root, host)
         ), "Retired VAV child routes must not be exported"
+        assert "openstudio-hvac-remover" in skill_ids_for_host(workspace_root, host)
+        assert "openstudio-plant-loop-creator" in skill_ids_for_host(
+            workspace_root, host
+        )
     assert "openstudio-modeling-orchestrator" not in skill_ids_for_host(
         workspace_root, "claude"
     )

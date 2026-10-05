@@ -308,6 +308,41 @@ def test_native_preflight_preserves_model_and_is_repeatable(
     assert not Path(config["output_model_path"]).exists()
 
 
+def test_assumption_review_does_not_approve_or_create(
+    sdk, model_file, config, tmp_path
+):
+    _, module = sdk
+    from common.vav_plan import PROFILE, CONTROLS
+    from report import emit
+
+    config.pop("defaults_profile")
+    config["fan"] = {"pressure_rise": 750, "pressure_units": "Pa"}
+    original = deepcopy(config)
+    configuration = tmp_path / "review-config.json"
+    configuration.write_text(json.dumps(config))
+    before = model_file.read_bytes()
+    result = module.preflight(model_file, configuration)
+    assert not result["ready"] and "defaults_profile" in result["missing_inputs"]
+    review = result["assumption_review"]
+    assert review["status"] == "needs_review"
+    rows = {row["field"]: row for row in review["inputs"]}
+    assert rows["fan.pressure_rise"]["value"] == 750
+    assert rows["fan.pressure_rise"]["source"] == "user_input"
+    assert rows["fan.total_efficiency"]["value"] == PROFILE["fan"]["total_efficiency"]
+    assert rows["fan.total_efficiency"]["source"] == "proposed_default"
+    assert {row["field"]: row["value"] for row in review["fixed_controls"]} == CONTROLS
+    assert all(not row["editable"] for row in review["fixed_controls"])
+    review["fixed_controls"][0]["value"] = "changed proposal"
+    assert result["plan"]["controls"] == {}  # Review cannot authorize construction.
+    assert config == original and model_file.read_bytes() == before
+    assert not Path(config["output_model_path"]).exists()
+    report_path = tmp_path / "review.json"
+    summary = emit(result, report_path)
+    assert summary["assumption_review"]["status"] == "needs_review"
+    assert "fixed_controls" not in summary["assumption_review"]
+    assert json.loads(report_path.read_text())["assumption_review"] == review
+
+
 @pytest.mark.parametrize(
     "contents",
     ['{"system_name":"a","system_name":"b"}', '{"fan":{"pressure_rise":NaN}}'],

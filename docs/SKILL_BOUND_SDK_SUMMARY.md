@@ -2,7 +2,8 @@
 
 Consolidated October 5, 2026. Branch: `enhance_skills_scripts`.
 Scope: phases 1–5, the original 13 findings, follow-up reviews N1–N10/R1–R6/S1–S3,
-and the final weather-warning correction. This document replaces the development
+the final weather-warning correction, and the plant/removal extension below.
+This document replaces the development
 plan, standards trace, evaluation reports, verification JSONs and review/probe
 files from this development round. Historical measurements are identified below;
 they are not a fresh full-suite or release certification.
@@ -65,6 +66,13 @@ were performed.
    Select DX and `prototype_vav_v1` only after an explicit human choice; prior
    explicit selections persist. The JSON approval fields are declarations, not
    technical proof of human authorization.
+   If defaults are undecided or declined, use partial preflight's `assumption_review`
+   to present schedules/fan, ventilation/airflow, temperatures/sizing and equipment/
+   controls as a compact form/table. Its values come from canonical profile constants,
+   preserve user inputs and distinguish editable settings from fixed controls.
+   Declining defaults leads to review/adjust, not cancellation. Proposed values do
+   not select the profile or authorize apply. Unsupported fixed-control changes
+   stay pending; they need additional bundle development/provider coverage.
 3. Preflight resolves references, validates relationships, inventories resources,
    records approved assumptions and source/resource hashes, and saves the complete
    report directly with `--report`. Inventory success alone is not `ready: true`.
@@ -79,6 +87,12 @@ were performed.
 6. Recheck the source before exclusive publication. Original input and existing
    or concurrent output files are preserved. Repeating apply refuses the existing
    destination. Return compact results and persist full evidence.
+
+Assumption-review update: 144 impacted preflight/apply/report/Claude/Codex adapter
+tests passed, including a regression that unaccepted proposals preserve model and
+configuration bytes, do not enable controls or publish an output, and retain full
+review details on disk with compact stdout. This adds an agent-guided review
+workflow, not a browser form or full fixed-control customization interface.
 
 Preflight requires unserved target zones with spaces and dual thermostat heating/
 cooling schedules. It checks air-temperature ordering, terminal versus system
@@ -323,6 +337,119 @@ live-agent token savings remain unverified. Next release work should regenerate
 and verify coordinated package/plugin exports and document SDK requirements.
 Documentation consolidation performs no SDK install, plugin install, commit,
 push or release; unrelated CalBEM and general architecture/release docs are retained.
+
+## Plant creation and HVAC removal extension
+
+Implemented October 5, 2026 in response to agent runs that could neither create
+missing hydronic plants nor remove existing HVAC through a bundled script. These
+are independent modeling modules for standalone requests and stages of broader
+HVAC workflows, not restricted to missing plants or VAV preparation. The plant
+module builds supply equipment, pumping, controls and condenser connections;
+the selected air-side skill connects its coils to plant demand branches. VAV is
+one supported consumer. The original VAV builder's existing-plant contract remains
+unchanged. A replacement workflow selects removal scope, applies
+removal to a new copy, creates any explicitly chosen missing plants on another
+copy, then runs fresh VAV preflight against the latest output. Compatible
+configured NLR remains the preferred provider. Neither missing plants nor fuel
+matching alone establishes an appropriate performance-comparison strategy.
+
+Implementation units completed:
+
+1. Trace generic prototype plant helpers and add a shared guarded, reviewed-plan
+   transaction with companion relocation and saved-model/translation checks.
+2. Add `openstudio-plant-loop-creator`, bound to `scripts/plant_loops.py`.
+3. Add `openstudio-hvac-remover`, bound to `scripts/remove_hvac.py`, and route
+   covered replacement work through these skills before VAV creation.
+
+### Source trace and supported plant profile
+
+The authoritative local reference remains `openstudio-standards` at commit
+`8bad404ef113019661fc0c14274a3554234219f7`. Under
+`lib/openstudio-standards/`, the implementation follows
+`prototypes/common/objects/Prototype.hvac_systems.rb` HW lines 42–190, CHW
+228–460 and condenser 480–664; `Prototype.BoilerHotWater.rb:22` supplies boiler
+details. `standards/Standards.PlantLoop.rb:21–67` supplies generic CHW control
+and common-pipe behavior. `Prototype.utilities.rb:414` defines the kW/ton-to-COP
+conversion, and `standards/ashrae_90_1/data/ashrae_90_1.curves.json:16529–16553`
+provides the tower fan cubic coefficients. These are bounded ports of generic
+branches, rather than a complete standards/template implementation.
+
+| Plant | Explicit sources/options | Approved generic defaults |
+| --- | --- | --- |
+| HW | NaturalGas/Electricity boiler or DistrictHeatingWater; Variable/Constant pumping | 180 F supply, 20 R delta; 60 ft head, motor efficiency 0.9; boiler efficiency 0.78 unless overridden; scheduled outlet setpoint |
+| CHW | AirCooled/WaterCooled electric EIR chiller or DistrictCooling; const_pri/const_pri_var_sec pumping | 44 F supply, 10.1 R delta; 60 ft primary or 15/45 ft primary/secondary head; COP 3.517/1.188 air-cooled or 3.517/0.66 water-cooled |
+| Condenser | New loop automatically included with WaterCooled; variable-speed two-cell tower | Fixed 85 F supply, 10 R delta; 49.7 ft pump; wet-bulb-following setpoint, minimum 70 F and 7 R offset/approach; prototype tower fan cubic |
+
+The human must explicitly choose sources and the `prototype_plants_v1` profile.
+Either HW or CHW can be created alone. Chillers may number 1–3; district cooling
+uses one source. SI supply-temperature/delta and HW boiler-efficiency overrides
+are accepted with consistency checks. Existing plants are preserved; duplicate
+names block. Water-cooled creation makes its own condenser loop, without reuse of
+an existing one. Capacity and flow autosizing and unspecified performance curves
+use the pinned SDK behavior. Condenser design is fixed, not derived from weather.
+Heat-pump plants, waterside economizers, PRM heat-exchanger/EMS arrangements and
+subsequent standards postprocessing are outside this initial profile.
+
+### Removal scope and transaction contract
+
+Removal selectors explicitly name or identify air loops, VRF systems and/or zone
+equipment. Shared roots affect all served zones, including zones not named in a
+replacement request; the plan shows that scope. There is no implicit remove-all
+or plant deletion. The SDK's owned-component cascade is previewed on an in-memory
+clone and compared with actual removal. Saved-model checks protect unselected
+systems, plant supply equipment/sizing, geometry, loads, schedules, thermostats
+and zone multipliers. Unsupported cascades that alter protected state block.
+Unserved zones remain pending replacement; ideal loads are not silently enabled.
+
+Both new entrypoints support inventory, preflight and apply, using the doctor-
+verified exact-release native CLI:
+
+```text
+<verified-cli> execute_python_script <skill>/scripts/plant_loops.py --input <input.osm> --report <inventory.json>
+<verified-cli> execute_python_script <skill>/scripts/plant_loops.py --input <input.osm> --config <config.json> --report <plan.json>
+<verified-cli> execute_python_script <skill>/scripts/plant_loops.py --plan <plan.json> --report <apply.json>
+```
+
+Use `remove_hvac.py` in the remover bundle for the same three modes. Paths must
+be absolute and output/report destinations new. Full inventories, settings and
+cascade details stay in reports; stdout is compact, with inventory categories
+capped at eight entries. Apply checks the exact plan and input hash, reloads the
+saved model, validates the operation, checks external resources and EnergyPlus
+translation, and publishes exclusively to a new location. Referenced companions
+travel with the OSM under `<stem>/`; honor `requires_companion_workflow` for CSV
+models. Source changes, stale/tampered plans and translation failures do not
+publish a successful output. These skills use shared helpers exported into each
+owning bundle; they do not need a modeling MCP runtime or agent-drafted code.
+
+### Extension verification
+
+`tests/test_plant_and_removal_bundles.py`: **22 passed**. Coverage includes nine
+HW/CHW source combinations, saved getters/topology/translation, hydronic VAV
+readiness, selective VRF/OA and zone-equipment removal, protected-state checks,
+stale/tampered plans, input/output preservation, SDK guards and translation
+failure publication checks. Both new skills also passed native execution after
+independent relocation from Claude and Codex exports and deletion of the original
+export tree.
+
+Three macOS OpenStudio 3.11.0 design-day cases attached hydronic VAV to newly
+created plants: air-cooled constant-primary, water-cooled primary/secondary and
+district-cooling constant-primary. Each completed without Severe/Fatal errors;
+SQL asserts positive boiler and cooling-source capacities, fan flow and, for the
+water-cooled case, tower capacity. These are sizing fixtures, not annual runs.
+
+Another **217 surrounding tests passed** across manifest/export adapters, VAV
+preflight/apply and SDK doctor/report. Five affected exported skills passed
+skill-creator frontmatter validation. Run the extension checks with:
+
+```bash
+.venv/bin/python -m pytest -q tests/test_plant_and_removal_bundles.py --disable-warnings --maxfail=1
+```
+
+Native cases require the 3.11.0 CLI. Linux/Windows native execution, annual energy,
+template compliance and live-agent token savings remain unverified. Regenerate
+Claude/Codex exports before agent trials; an already installed plugin does not
+automatically include this development change. No commit/push/install/release is
+part of this extension.
 
 ## Consolidated source inventory
 

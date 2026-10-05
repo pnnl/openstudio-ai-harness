@@ -75,6 +75,15 @@ def summarize(report, report_path, candidate_filter=None):
         }
     summary["report_path"] = str(report_path)
     summary["assumption_count"] = len(report.get("assumptions", []))
+    if report.get("assumption_review"):
+        review = report["assumption_review"]
+        summary["assumption_review"] = {
+            "profile": review["profile"],
+            "status": review["status"],
+            "input_count": len(review["inputs"]),
+            "fixed_control_count": len(review["fixed_controls"]),
+            "details": "assumption_review in the saved report",
+        }
     if report.get("plan"):
         summary["parameters"] = report["plan"]["parameters"]
         summary["resolved_objects"] = report["plan"]["resolved_objects"]

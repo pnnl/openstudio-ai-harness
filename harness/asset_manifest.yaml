@@ -12,6 +12,13 @@ resources:
       - hosts: [claude, codex]
         skill: openstudio-vav-reheat-system-creator
         path: scripts/common/__init__.py
+      - hosts: [claude, codex]
+        skill: openstudio-plant-loop-creator
+        path: scripts/common/__init__.py
+      - hosts: [claude, codex]
+        skill: openstudio-hvac-remover
+        path: scripts/common/__init__.py
+
   - source: skills/sdk_scripts/doctor.py
     owners:
       - hosts: [claude, codex]
@@ -20,6 +27,13 @@ resources:
       - hosts: [claude, codex]
         skill: openstudio-vav-reheat-system-creator
         path: scripts/doctor.py
+      - hosts: [claude, codex]
+        skill: openstudio-plant-loop-creator
+        path: scripts/doctor.py
+      - hosts: [claude, codex]
+        skill: openstudio-hvac-remover
+        path: scripts/doctor.py
+
   - source: skills/sdk_scripts/sdk_probe.py
     owners:
       - hosts: [claude, codex]
@@ -28,6 +42,13 @@ resources:
       - hosts: [claude, codex]
         skill: openstudio-vav-reheat-system-creator
         path: scripts/sdk_probe.py
+      - hosts: [claude, codex]
+        skill: openstudio-plant-loop-creator
+        path: scripts/sdk_probe.py
+      - hosts: [claude, codex]
+        skill: openstudio-hvac-remover
+        path: scripts/sdk_probe.py
+
   - source: skills/sdk_scripts/common/version_guard.py
     owners:
       - hosts: [claude, codex]
@@ -36,6 +57,13 @@ resources:
       - hosts: [claude, codex]
         skill: openstudio-vav-reheat-system-creator
         path: scripts/common/version_guard.py
+      - hosts: [claude, codex]
+        skill: openstudio-plant-loop-creator
+        path: scripts/common/version_guard.py
+      - hosts: [claude, codex]
+        skill: openstudio-hvac-remover
+        path: scripts/common/version_guard.py
+
   - source: skills/sdk_scripts/compatibility.json
     owners:
       - hosts: [claude, codex]
@@ -44,6 +72,13 @@ resources:
       - hosts: [claude, codex]
         skill: openstudio-vav-reheat-system-creator
         path: scripts/compatibility.json
+      - hosts: [claude, codex]
+        skill: openstudio-plant-loop-creator
+        path: scripts/compatibility.json
+      - hosts: [claude, codex]
+        skill: openstudio-hvac-remover
+        path: scripts/compatibility.json
+
   - source: skills/sdk_scripts/vav_preflight.py
     owners:
       - hosts: [claude, codex]
@@ -54,6 +89,13 @@ resources:
       - hosts: [claude, codex]
         skill: openstudio-vav-reheat-system-creator
         path: scripts/common/input_validation.py
+      - hosts: [claude, codex]
+        skill: openstudio-plant-loop-creator
+        path: scripts/common/input_validation.py
+      - hosts: [claude, codex]
+        skill: openstudio-hvac-remover
+        path: scripts/common/input_validation.py
+
   - source: skills/sdk_scripts/common/vav_inventory.py
     owners:
       - hosts: [claude, codex]
@@ -97,13 +139,62 @@ resources:
         skill: openstudio-vav-reheat-system-creator
         path: scripts/common/files.py
 
+      - hosts: [claude, codex]
+        skill: openstudio-plant-loop-creator
+        path: scripts/common/files.py
+      - hosts: [claude, codex]
+        skill: openstudio-hvac-remover
+        path: scripts/common/files.py
+
   - source: skills/sdk_scripts/common/companions.py
     owners:
       - hosts: [claude, codex]
         skill: openstudio-vav-reheat-system-creator
         path: scripts/common/companions.py
 
+      - hosts: [claude, codex]
+        skill: openstudio-plant-loop-creator
+        path: scripts/common/companions.py
+      - hosts: [claude, codex]
+        skill: openstudio-hvac-remover
+        path: scripts/common/companions.py
+
+  - source: skills/sdk_scripts/common/model_transaction.py
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-plant-loop-creator
+        path: scripts/common/model_transaction.py
+      - hosts: [claude, codex]
+        skill: openstudio-hvac-remover
+        path: scripts/common/model_transaction.py
+  - source: skills/sdk_scripts/common/plant_create.py
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-plant-loop-creator
+        path: scripts/common/plant_create.py
+  - source: skills/sdk_scripts/common/hvac_remove.py
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-hvac-remover
+        path: scripts/common/hvac_remove.py
+  - source: skills/sdk_scripts/plant_loops.py
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-plant-loop-creator
+        path: scripts/plant_loops.py
+  - source: skills/sdk_scripts/remove_hvac.py
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-hvac-remover
+        path: scripts/remove_hvac.py
+
 skills:
+  - id: openstudio-plant-loop-creator
+    source: skills/openstudio_plant_loop_creator.md
+    hosts: [claude, codex]
+  - id: openstudio-hvac-remover
+    source: skills/openstudio_hvac_remover.md
+    hosts: [claude, codex]
   - id: github-issue-submitter
     source: skills/github_issue_submitter.md
     hosts: [claude, codex]

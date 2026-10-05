@@ -54,6 +54,12 @@ Disallowed uses:
 - For multi-zone VAV creation, load `openstudio_vav_reheat_system_creator` and
   run its bundle after provider selection. Do this before loading SDK docs or
   wiki packs. No routine object-level code drafting is needed.
+- For standalone plant construction or a plant stage of broader HVAC work, use
+  `openstudio-plant-loop-creator`; pass its output/plant selectors to the selected
+  air-side skill for water-coil connections when requested.
+- For scoped HVAC removal, independently or before requested replacement, use
+  `openstudio-hvac-remover`.
+  These are bundled operations, not bespoke-code fallbacks.
 - For other local inspection/edits, read
   [bespoke SDK guidance](references/openstudio_sdk_generated_edits.md) only
   after confirming that no specific energy-modeling skill provides the requested

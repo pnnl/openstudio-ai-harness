@@ -167,6 +167,59 @@ Linux CI execution were not performed locally; the 3.10 check was resolution-onl
 No workflow changes, commit or push performed. Rerun standalone CI after committing
 these changes.
 
+## Plant creation and HVAC removal — October 5, 2026
+
+Implemented two additional skills with directly bound scripts:
+`openstudio-plant-loop-creator` and `openstudio-hvac-remover`. Both are independent
+modeling modules, not restricted to VAV preparation. Plant requests build supply
+equipment, pumping and controls; the selected air-side skill connects its water
+coils to the returned plants. VAV is one supported consumer. Removal is composed
+only when the requested workflow needs it. Compatible configured NLR retains
+priority. No automatic fuel
+choice or broader removal scope is authorized by a VAV request alone.
+
+Plant creation follows the traced generic prototype HW/CHW/CW functions, with
+explicit sources and `prototype_plants_v1` assumptions. Water-cooled chillers
+receive a new condenser loop and variable-speed tower; primary/secondary CHW uses
+generic common-pipe pumping. Weather-derived condenser sizing, heat-pump plants,
+PRM heat exchangers/EMS and standards postprocessing remain outside this profile.
+Removal inventories air loops, VRF roots and zone equipment, previews their SDK
+cascade, and independently validates preserved plants/geometry/loads/schedules/
+thermostats after saving. Both transactions preserve inputs and existing outputs,
+carry referenced companions and require EnergyPlus translation before publication.
+
+Verification: 22 new bundle tests passed, including nine plant-source combinations,
+three native plant-to-hydronic-VAV design-day runs with positive sized capacities,
+failure cases and independently relocated Claude/Codex bundles. Another 217
+surrounding VAV/doctor/report/manifest/export tests passed. Five affected exported
+skills passed frontmatter validation. Native execution was macOS OpenStudio 3.11.0;
+annual performance and Linux/Windows execution remain unverified. Details and
+commands are in the consolidated SDK summary. Regenerate exports before local
+agent trials; installed plugins do not acquire these scripts automatically.
+No commit, push, plugin installation or release performed.
+
+Routing clarification: orchestrator, agent prompt and SDK/plant skill now explicitly
+describe plant building and removal as independent modules. Plant-only requests
+do not imply VAV creation or HVAC removal; air-side skills own coil-to-plant demand
+connections. Claude/Codex adapter checks passed (23 tests); diff whitespace check
+passed. Script behavior did not change in this clarification.
+
+## VAV assumption review — October 5, 2026
+
+Replaced skill guidance's implicit accept-or-stop behavior with use-proposed or
+review/adjust. Partial configured preflight now emits `assumption_review` from
+the canonical defaults, distinguishing user inputs, proposed defaults and fixed
+controls. It does not select a profile, enable control assumptions or authorize
+apply. The host presents grouped questions or a compact table; supported changes
+update input fields. Unsupported fixed-control changes remain pending for scoped
+development/provider coverage rather than being silently accepted. Creation still
+requires a ready approved plan. No browser UI or custom-control schema was added.
+
+Verification: 144 impacted preflight/apply/report/host adapter tests passed, with
+a new no-approval/no-publication review regression. Full review records remain
+on disk; stdout exposes status/counts only. The consolidated summary records the
+workflow. No plugin installation, commit or push performed.
+
 ## Near-Term Backlog
 
 - Skill-bound SDK development is complete within the user-selected local

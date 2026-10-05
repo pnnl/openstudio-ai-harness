@@ -14,7 +14,7 @@ from common.files import check_report_path
 from common.companions import inspect as inspect_companions
 from common.input_validation import validate, read_json
 from common.vav_inventory import inventory
-from common.vav_plan import plan
+from common.vav_plan import plan, assumption_review
 from common.version_guard import require_sdk, load_model
 
 
@@ -81,6 +81,7 @@ def preflight(input_path: Path, config_path: Path | None = None) -> dict:
         "errors": resolved["errors"],
         "missing_inputs": resolved["missing_inputs"],
         "assumptions": resolved["assumptions"],
+        "assumption_review": assumption_review(config) if config_path else None,
         "counts": {key: len(value) for key, value in catalog.items()},
         "candidates": catalog,
         "plan": resolved,

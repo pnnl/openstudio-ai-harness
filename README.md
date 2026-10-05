@@ -16,10 +16,21 @@ knowledge, and workflow-state tools for AI-assisted building-energy modeling.
   invocation, not a runtime enable/disable setting.
 - HVAC workflow skills with a bundled VAV creation workflow; legacy object-level
   VAV skills and their generation machinery have been removed.
+- Independent bundled plant creation and selective HVAC removal support standalone
+  requests and broader HVAC workflows, including VAV replacement. Air-side skills
+  connect their water coils to the created plants. Plant choices include gas/electric boilers, district heating/cooling,
+  and air- or water-cooled chillers with condenser towers. Removal previews the SDK
+  cascade for selected air loops, VRF systems and zone equipment while protecting
+  existing plants and model loads. Both use reviewed plans and new output copies;
+  native design-day checks cover three plant-to-VAV configurations. See the
+  [supported assumptions and verification](docs/SKILL_BOUND_SDK_SUMMARY.md#plant-creation-and-hvac-removal-extension).
 - Reviewed OpenStudio SDK knowledge packs.
 - Skill resource export for both hosts, including verbatim scripts and nested
   helpers. This package pins OpenStudio 3.11.0 consistently in its dependency,
   lock metadata and exported compatibility contract. SDK skills include a
+  grouped assumption review with editable inputs and visible fixed controls;
+  declining proposed VAV defaults leads to review/adjust rather than cancellation.
+  SDK skills also include a
   standalone doctor and shared version guard. The VAV skill includes read-only preflight, reviewed-plan apply,
   exclusive publication, independent saved-topology and EnergyPlus translation
   checks, referenced resource relocation through OpenStudio workflow lookup, and bounded summaries

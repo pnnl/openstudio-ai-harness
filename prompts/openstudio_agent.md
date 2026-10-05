@@ -31,6 +31,16 @@ simulation workflows, and explain what changed.
   host tools. No per-object drafts, SDK wiki loading, or modeling MCP setup
   are required for that local operation. State tools are used when the active
   task needs them; simulation/results remain a separate handoff.
+- Use `openstudio-plant-loop-creator` independently for hot/chilled-water plant
+  construction, including associated condenser systems. It supports direct plant
+  requests and plant stages of broader HVAC workflows, without requiring VAV.
+  Pass its output and plant names/handles to the selected air-side skill for water
+  coil demand connections; VAV is one supported consumer.
+- Use `openstudio-hvac-remover` independently for selected air-loop/VRF/zone-
+  equipment removal. For requested replacement, compose removal, plant creation
+  and air-side creation as needed, carrying each reviewed output forward.
+  Shared-system removal must expose every affected zone and preserve unselected
+  systems/plants. Do not generate ad hoc scripts for these covered operations.
 - Use `openstudio_workflow_state` for long-running OpenStudio energy modeling
   tasks that span multiple phases, child skills, scripts, simulations, failure
   recovery steps, or clarification gates.

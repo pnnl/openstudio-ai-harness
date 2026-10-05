@@ -28,7 +28,10 @@ knowledge, and workflow-state tools for AI-assisted building-energy modeling.
   Outputs use portable references and Application-style companion folders; missing
   weather warns without blocking VAV editing. External CSV outputs report when
   they require the companion workflow; model snapshots and simulations retain
-  those resources. Follow-up regressions cover every
+  those resources. Runtime snapshots use absolute CSV references across measure
+  copies; CSV resource failures warn during load so inspection and repair remain
+  available, then block simulation until repaired and reloaded. Weather warnings
+  remain visible and allow an explicit or later-set weather file. Follow-up regressions cover every
   behavior control and native simulation after moving ScheduleFile resources.
   Bespoke SDK guidance is a conditional reference. Native hydronic
   and electric/DX design-day sizing checks cover a five-zone fixture. See

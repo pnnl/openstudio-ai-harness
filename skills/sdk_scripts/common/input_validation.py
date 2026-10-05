@@ -81,3 +81,36 @@ def validate(
             if "items" in schema:
                 errors.extend(validate(item, schema["items"], root, f"{path}[{i}]"))
     return errors
+
+
+def unique_object(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"Duplicate JSON field: {key}")
+        result[key] = value
+    return result
+
+
+def reject_constant(value):
+    raise ValueError(f"Nonfinite JSON value: {value}")
+
+
+def finite_float(value):
+    import math
+
+    parsed = float(value)
+    if not math.isfinite(parsed):
+        raise ValueError("Nonfinite JSON number")
+    return parsed
+
+
+def read_json(path):
+    import json
+
+    return json.loads(
+        path.read_text(encoding="utf-8"),
+        object_pairs_hook=unique_object,
+        parse_constant=reject_constant,
+        parse_float=finite_float,
+    )

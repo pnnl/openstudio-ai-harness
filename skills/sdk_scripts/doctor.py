@@ -13,7 +13,7 @@ from pathlib import Path
 from common.version_guard import CompatibilityError, load_contract, release_version
 
 PROBE_PREFIX = "OPENSTUDIO_SKILL_SDK_PROBE="
-PROBE_TIMEOUT_SECONDS = 15
+PROBE_TIMEOUT_SECONDS = 30
 
 
 def discover_candidates(required: str) -> list[Path]:
@@ -143,11 +143,21 @@ def diagnose(explicit_path: str | None = None) -> dict:
 
 
 def main() -> int:
+    global PROBE_TIMEOUT_SECONDS
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--openstudio", help="Explicit executable path; no fallback if incompatible"
     )
+    parser.add_argument(
+        "--probe-timeout",
+        type=int,
+        default=PROBE_TIMEOUT_SECONDS,
+        help="Positive timeout in seconds per native CLI/SDK probe (default: 30)",
+    )
     args = parser.parse_args()
+    if args.probe_timeout < 1:
+        parser.error("--probe-timeout must be positive")
+    PROBE_TIMEOUT_SECONDS = args.probe_timeout
     try:
         report = diagnose(args.openstudio)
     except CompatibilityError as exc:

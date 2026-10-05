@@ -148,6 +148,40 @@ Current specified instruction context is 75.2% smaller; actual agent tokens
 remain unmeasured. No live NLR, installed plugin, marketplace, commit or release
 change. Next: review all 13 remediations before release preparation.
 
+## SDK Review Follow-up — October 5, 2026
+
+Follow-up N1–N10 and the remaining C3/H2/H4/M5 gaps are remediated on
+`enhance_skills_scripts`. Package-wide OpenStudio 3.11.0 pin and compatible NLR
+provider priority remain the accepted decisions. Resource lookup now uses native
+WorkflowJSON findFile/findMeasure; copying includes only referenced resources,
+skips VCS metadata, rejects secret-like files and caps copying at 256 MiB. Output
+uses `<stem>/workflow.osw`, relative weather URLs and bare ExternalFile names.
+Missing weather warns without blocking editing and marks simulation unready.
+Version sniffing reads bytes without requiring the entire OSM to be UTF-8.
+
+All behavior controls are consumed by creator and independent getter validator
+across hydronic and gas/DX/electric cases; descriptive assumptions are separate.
+Preflight checks dual thermostat schedules, minimum airflow relationships and
+supply pumps; water heaters and temperature/user-defined plant sources are
+recognized. Top-level patches append history; nested lists replace and explicit
+assumption events retain duplicates. Publication fsyncs staged OSMs/reports before
+linking. OSW JSON parsing is strict, shared helpers live in common modules, doctor
+supports a configurable probe timeout, and the dev evaluator is excluded from the
+wheel. Manifest CI verifies every source is tracked. Required new docs/tests are
+staged; user review files remain untouched. No commit, push or release performed.
+
+Four relocated host-export cases retained earlier native sizing results. A third
+native sizing case moves the output and its companion folder and deletes original
+ScheduleFile data before running successfully. Follow-up evidence and checks:
+`docs/SDK_SCRIPT_FOLLOWUP_FIXES.md` and `docs/SDK_SCRIPT_FOLLOWUP_VERIFICATION.json`;
+artifacts: `outputs/sdk-followup-20261005-final/`, `outputs/sdk-followup-package/`.
+Verification: 299 impacted tests passed, plus 41 nearest review/follow-up tests
+after the final history fix; MCP smoke 8 passed/2 optional skips. Both isolated
+skills passed frontmatter validation; offline archives and whitespace verified.
+Instruction context estimate: 98,062 → 24,798 characters (74.7% smaller); actual
+agent/billed tokens remain unmeasured. Native Windows/Linux/cloud-drive behavior
+remains unverified. Next: review this diff before release preparation.
+
 ## Near-Term Backlog
 
 - Skill-bound SDK development phase 5 is complete within the user-selected

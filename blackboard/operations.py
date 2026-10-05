@@ -40,7 +40,9 @@ def mark_phase_complete(state: dict[str, Any], phase: str) -> dict[str, Any]:
 def record_assumption(state: dict[str, Any], assumption: str) -> dict[str, Any]:
     assumptions = list(state.get("assumptions", []))
     assumptions.append(assumption)
-    return apply_state_patch(state, {"assumptions": assumptions})
+    next_state = apply_state_patch(state, {})
+    next_state["assumptions"] = assumptions
+    return next_state
 
 
 def record_artifact(state: dict[str, Any], artifact: dict[str, Any]) -> dict[str, Any]:
@@ -55,13 +57,19 @@ def record_failure(state: dict[str, Any], failure: dict[str, Any]) -> dict[str, 
     return apply_state_patch(state, {"failures": failures, "status": "needs_attention"})
 
 
-def _deep_merge(target: dict[str, Any], patch: dict[str, Any]) -> None:
+def _deep_merge(
+    target: dict[str, Any], patch: dict[str, Any], *, history: bool = True
+) -> None:
     for key, value in patch.items():
         if isinstance(value, dict) and isinstance(target.get(key), dict):
-            _deep_merge(target[key], value)
-        elif key in {"completed_steps", "assumptions"} and isinstance(value, list):
-            history = list(target.get(key, []))
-            history.extend(item for item in value if item not in history)
-            target[key] = history
+            _deep_merge(target[key], value, history=False)
+        elif (
+            history
+            and key in {"completed_steps", "assumptions"}
+            and isinstance(value, list)
+        ):
+            entries = list(target.get(key, []))
+            entries.extend(item for item in value if item not in entries)
+            target[key] = entries
         else:
             target[key] = value

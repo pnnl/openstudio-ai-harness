@@ -150,3 +150,23 @@ def test_asset_manifest_rejects_unsafe_reference_subdirectory() -> None:
                 ],
             }
         )
+
+
+def test_manifest_sources_are_tracked_in_git() -> None:
+    """Export must not depend on resources that disappear in a clean checkout."""
+    import subprocess
+
+    manifest = yaml.safe_load(Path("harness/asset_manifest.yaml").read_text())
+    sources = sorted(
+        {
+            entry["source"]
+            for section in ("skills", "agents", "references", "resources")
+            for entry in manifest.get(section, [])
+        }
+    )
+    result = subprocess.run(
+        ["git", "ls-files", "--error-unmatch", "--", *sources],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr

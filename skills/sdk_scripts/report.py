@@ -13,24 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from common.files import publish, write_json
 
 
-def unique_object(pairs):
-    result = {}
-    for key, value in pairs:
-        if key in result:
-            raise ValueError(f"Duplicate JSON field: {key}")
-        result[key] = value
-    return result
-
-
-def finite_float(value):
-    parsed = float(value)
-    if not math.isfinite(parsed):
-        raise ValueError("Nonfinite JSON number")
-    return parsed
-
-
-def reject_constant(value):
-    raise ValueError(f"Nonfinite JSON value: {value}")
+from common.input_validation import unique_object, finite_float, reject_constant
 
 
 def read_report(log_path):
@@ -81,6 +64,7 @@ def summarize(report, report_path, candidate_filter=None):
         "translation",
         "companion_directory",
         "workflow_path",
+        "simulation_ready",
     )
     summary = {key: report[key] for key in keys if key in report}
     summary["report_path"] = str(report_path)

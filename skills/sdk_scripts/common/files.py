@@ -10,6 +10,8 @@ import tempfile
 
 def publish(staged: Path, output: Path):
     """Never overwrite. Copy fallback is exclusive but visible before completion."""
+    with staged.open("rb") as source:
+        os.fsync(source.fileno())
     try:
         os.link(staged, output)
         return "atomic_hard_link"
@@ -53,10 +55,7 @@ def check_report_path(output):
 def write_json(report, output):
     import json
 
-    if not output.is_absolute() or output.suffix.lower() != ".json":
-        raise ValueError("Report must use an absolute new .json path")
-    if output.exists() or output.is_symlink():
-        raise ValueError("Report already exists; choose a new path")
+    check_report_path(output)
     output.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(
         prefix=".sdk-report-", dir=output.parent

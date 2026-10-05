@@ -98,6 +98,7 @@ exclude = [
     ".openstudio_ai_mcp_workspace",
     "resource",
     "tests",
+    "scripts/evaluate_skill_vav.py",
     "evals",
     "measures/candidates",
 ]

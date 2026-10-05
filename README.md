@@ -22,14 +22,18 @@ knowledge, and workflow-state tools for AI-assisted building-energy modeling.
   lock metadata and exported compatibility contract. SDK skills include a
   standalone doctor and shared version guard. The VAV skill includes read-only preflight, reviewed-plan apply,
   exclusive publication, independent saved-topology and EnergyPlus translation
-  checks, companion weather/workflow/measure relocation, and bounded summaries
+  checks, referenced resource relocation through OpenStudio workflow lookup, and bounded summaries
   with reports written directly by each entrypoint. Scripts run directly through host tools;
   supported VAV edits require no modeling MCP runtime or per-object code drafting.
+  Outputs use portable references and Application-style companion folders; missing
+  weather warns without blocking VAV editing. Follow-up regressions cover every
+  behavior control and native simulation after moving ScheduleFile resources.
   Bespoke SDK guidance is a conditional reference. Native hydronic
   and electric/DX design-day sizing checks cover a five-zone fixture. See
   [Skill Script Development Plan](docs/SKILL_SCRIPT_DEVELOPMENT_PLAN.md) and
   [VAV standards trace](docs/VAV_STANDARDS_TRACE.md) and
-  [local phase 5 evaluation](docs/SKILL_SCRIPT_PHASE5_EVALUATION.md). The specified
+  [local phase 5 evaluation](docs/SKILL_SCRIPT_PHASE5_EVALUATION.md), with
+  [review follow-up fixes](docs/SDK_SCRIPT_FOLLOWUP_FIXES.md). The specified
   instruction route uses approximately 75% less text; actual agent-token savings
   remain unmeasured. Configured, compatible NLR OpenStudio MCP has provider priority.
   After provider selection, use a specific modeling skill; bespoke SDK programming

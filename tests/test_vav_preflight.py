@@ -34,6 +34,7 @@ def catalog():
                 "can_be_plenum": True,
                 "plenum_air_loops": [],
                 "has_thermostat": True,
+                "has_dual_setpoint_schedules": True,
                 "air_loops": [],
                 "equipment": [],
             }
@@ -48,6 +49,7 @@ def catalog():
                 "design_delta_temperature_k": 11.1,
                 "supply_equipment": [{"name": "Boiler"}],
                 "supply_setpoint_managers": [{"name": "SPM"}],
+                "supply_pumps": [{"name": "Pump"}],
             },
             {
                 "handle": "cool-loop",
@@ -57,6 +59,7 @@ def catalog():
                 "design_delta_temperature_k": 5.6,
                 "supply_equipment": [{"name": "Chiller"}],
                 "supply_setpoint_managers": [{"name": "SPM"}],
+                "supply_pumps": [{"name": "Pump"}],
             },
         ],
         "schedules": [

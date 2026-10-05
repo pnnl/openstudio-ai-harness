@@ -102,9 +102,10 @@ a report. A new plan/report must use new paths.
 
 Existing output and concurrent destination writers are preserved. Repeating apply
 refuses the existing output and companion folder. Apply carries referenced weather,
-external files, source companion directories, measure folders and one associated
-workflow into `<output-stem>_files`, hashes dependencies, rewrites paths and emits
-`workflow.osw`. Missing/ambiguous resources block rather than silently disappearing.
+external files, referenced measures and supported file arguments into the Application-style
+`<output-stem>/` folder, hashes dependencies, rewrites portable paths and emits
+`workflow.osw`. Missing required external files/measures and ambiguous workflows block.
+Missing weather warns and leaves simulation pending.
 EnergyPlus translation is checked before publishing. Hard-link publication is
 atomic when supported; otherwise exclusive copy still refuses an existing output,
 but concurrent readers can see a partial file until the success report. Cloud
@@ -117,3 +118,9 @@ and record the reports' `state_patch`, output path, assumptions and validation.
 Workflow-state MCP calls are separate from script execution; their availability
 is not a prerequisite for this local operation. If NLR currently owns the model,
 respect its recorded provider transition and host-visible path before SDK work.
+
+Missing weather produces a warning and `simulation_ready=false`; it does not block
+VAV editing. Missing referenced external data or measures blocks editing. Copying
+uses OpenStudio workflow lookup, omits repository metadata, blocks secret-like
+files and limits referenced resources to 256 MiB. Move the OSM and its companion
+folder together; resolve resources through the companion workflow.

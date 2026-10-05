@@ -316,6 +316,11 @@ def validate_model(model, sdk, planned, loop_handle, before):
         if values:
             equal("SAT temperature", values[0], t["central_cooling"])
         equal(
+            "SAT numeric type",
+            unwrap(sat.scheduleTypeLimits()).numericType(),
+            controls["sat_numeric_type"],
+        )
+        equal(
             "SAT units",
             unwrap(sat.scheduleTypeLimits()).unitType(),
             controls["sat_unit_type"],

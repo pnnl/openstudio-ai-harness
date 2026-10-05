@@ -12,23 +12,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from report import emit
 from common.files import check_report_path
 from common.companions import inspect as inspect_companions
-from common.input_validation import validate
+from common.input_validation import validate, read_json
 from common.vav_inventory import inventory
 from common.vav_plan import plan
 from common.version_guard import require_sdk, load_model
-
-
-def unique_object(pairs):
-    result = {}
-    for key, value in pairs:
-        if key in result:
-            raise ValueError(f"Duplicate JSON field: {key}")
-        result[key] = value
-    return result
-
-
-def reject_constant(value):
-    raise ValueError(f"Nonfinite JSON value: {value}")
 
 
 def preflight(input_path: Path, config_path: Path | None = None) -> dict:
@@ -39,11 +26,7 @@ def preflight(input_path: Path, config_path: Path | None = None) -> dict:
     source_hash = hashlib.sha256(input_path.read_bytes()).hexdigest()
     config = {}
     if config_path:
-        config = json.loads(
-            config_path.read_text(encoding="utf-8"),
-            object_pairs_hook=unique_object,
-            parse_constant=reject_constant,
-        )
+        config = read_json(config_path)
     schema = json.loads(
         (
             Path(__file__).resolve().parent / "references/vav_input.schema.json"
@@ -64,20 +47,28 @@ def preflight(input_path: Path, config_path: Path | None = None) -> dict:
     if resolved["ready"]:
         try:
             resolved["companions"] = inspect_companions(
-                model, input_path, Path(resolved["parameters"]["output_model_path"])
+                model,
+                input_path,
+                Path(resolved["parameters"]["output_model_path"]),
+                sdk,
             )
-        except ValueError as exc:
+        except (ValueError, OSError) as exc:
             resolved["ready"] = False
             resolved["errors"].append(str(exc))
     if hashlib.sha256(input_path.read_bytes()).hexdigest() != source_hash:
         raise ValueError("Input model changed during preflight; rerun inspection")
-    warnings = resolved["warnings"] + [
-        str(item.logMessage()) for item in translator.warnings()
-    ]
+    warnings = (
+        resolved["warnings"]
+        + resolved.get("companions", {}).get("warnings", [])
+        + [str(item.logMessage()) for item in translator.warnings()]
+    )
     ok = config_path is None or resolved["ready"]
     return {
         "ok": ok,
         "ready": resolved["ready"],
+        "simulation_ready": resolved.get("companions", {}).get(
+            "simulation_ready", False
+        ),
         "mode": "inspect_only",
         "plan_version": 2,
         "configuration": config,

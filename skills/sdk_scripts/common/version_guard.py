@@ -70,7 +70,8 @@ def require_sdk(contract: dict | None = None):
 
 def load_model(sdk, path):
     """Allow older-model upgrade, never a newer-model downgrade; explain failures."""
-    header = path.read_text(encoding="utf-8")[:8192]
+    with path.open("rb") as stream:
+        header = stream.read(8192).decode("utf-8", errors="replace")
     match = re.search(r"OS:Version\s*,(.*?);", header, flags=re.S | re.I)
     version = re.search(r"\b(\d+\.\d+\.\d+)\b", match.group(1)) if match else None
     actual = str(sdk.openStudioVersion())

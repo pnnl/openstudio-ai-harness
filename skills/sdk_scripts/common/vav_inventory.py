@@ -28,6 +28,17 @@ def inventory(model) -> dict:
                     and obj.airLoopHVAC().is_initialized()
                 ),
                 "has_thermostat": zone.thermostat().is_initialized(),
+                "has_dual_setpoint_schedules": (
+                    zone.thermostatSetpointDualSetpoint().is_initialized()
+                    and zone.thermostatSetpointDualSetpoint()
+                    .get()
+                    .heatingSetpointTemperatureSchedule()
+                    .is_initialized()
+                    and zone.thermostatSetpointDualSetpoint()
+                    .get()
+                    .coolingSetpointTemperatureSchedule()
+                    .is_initialized()
+                ),
                 "spaces": ordered(identity(space) for space in zone.spaces()),
                 "air_loops": ordered(identity(loop) for loop in zone.airLoopHVACs()),
                 "equipment": ordered(identity(obj) for obj in zone.equipment()),
@@ -76,8 +87,16 @@ def inventory(model) -> dict:
                             "CoolingTower",
                             "FluidCooler",
                             "SolarCollector",
+                            "WaterHeater",
+                            "PlantComponent_TemperatureSource",
+                            "PlantComponent_UserDefined",
                         )
                     )
+                ),
+                "supply_pumps": ordered(
+                    identity(obj)
+                    for obj in loop.supplyComponents()
+                    if "Pump" in obj.iddObjectType().valueName()
                 ),
                 "supply_setpoint_managers": ordered(
                     identity(obj) for obj in loop.supplyOutletNode().setpointManagers()

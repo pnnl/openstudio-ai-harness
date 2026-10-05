@@ -78,11 +78,15 @@ CONTROLS = {
     "zone_heating_airflow_method": "DesignDay",
     "sat_numeric_type": "Continuous",
     "sat_unit_type": "Temperature",
+    "sat_schedule_type_limits_c": [0.0, 100.0],
+}
+
+PROFILE_NOTES = {
     "dx_curve_profile": "package-pinned SDK OS default",
     "plant_creation": "excluded; use explicit existing loops",
-    "sat_schedule_type_limits_c": [0.0, 100.0],
     "capacity_and_flow_sizing": "pinned SDK autosize defaults",
     "damper_profile": "generic constant; no template or ventilation correction",
+    "economizer_limits": "unset; no template-specific limits",
 }
 
 
@@ -112,7 +116,7 @@ def plan(config: dict, catalog: dict, input_path: Path) -> dict:
             elif key not in parameters:
                 parameters[key] = deepcopy(default)
                 assume(key, default)
-        for key, value in CONTROLS.items():
+        for key, value in {**CONTROLS, **PROFILE_NOTES}.items():
             assume(f"controls.{key}", value)
         warnings.append(
             "prototype_vav_v1 uses generic prototype defaults; it does not establish code compliance or template-specific damper logic."
@@ -176,6 +180,10 @@ def plan(config: dict, catalog: dict, input_path: Path) -> dict:
             errors.append(
                 f"target_zones: {zone['name']} needs occupied spaces and an existing thermostat and must not be a plenum"
             )
+        if not zone.get("has_dual_setpoint_schedules"):
+            errors.append(
+                f"target_zones: {zone['name']} requires a dual-setpoint thermostat with heating and cooling schedules"
+            )
         if zone["air_loops"] or zone["equipment"]:
             errors.append(
                 f"target_zones: {zone['name']} already has HVAC; replacement is outside this operation"
@@ -207,6 +215,10 @@ def plan(config: dict, catalog: dict, input_path: Path) -> dict:
                     if not loop.get("supply_equipment"):
                         errors.append(
                             f"{key}.plant_loop: requires existing supply equipment"
+                        )
+                    if not loop.get("supply_pumps"):
+                        errors.append(
+                            f"{key}.plant_loop: requires an existing supply pump"
                         )
                     if not loop.get("supply_setpoint_managers"):
                         errors.append(
@@ -318,6 +330,12 @@ def plan(config: dict, catalog: dict, input_path: Path) -> dict:
     ):
         if enabled and lower in t and upper in t and t[lower] > t[upper]:
             errors.append(f"design_temperatures_c: {lower} must not exceed {upper}")
+    if parameters.get("minimum_terminal_airflow_fraction", 0) > parameters.get(
+        "minimum_system_airflow_ratio", 1
+    ):
+        errors.append(
+            "minimum_terminal_airflow_fraction: cannot exceed minimum_system_airflow_ratio in this generic constant-flow profile"
+        )
     conversions = []
     fan = parameters.get("fan", {})
     if fan.get("total_efficiency", 0) > fan.get("motor_efficiency", 1):

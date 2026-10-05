@@ -25,7 +25,7 @@ from common.companions import (
     stage as stage_companions,
     verify as verify_companions,
 )
-from vav_preflight import unique_object, reject_constant
+from common.input_validation import read_json
 
 
 def digest(path):
@@ -34,11 +34,7 @@ def digest(path):
 
 def apply(plan_path: Path) -> dict:
     sdk = require_sdk()  # Check before reading the plan or the model.
-    reviewed = json.loads(
-        plan_path.read_text(encoding="utf-8"),
-        object_pairs_hook=unique_object,
-        parse_constant=reject_constant,
-    )
+    reviewed = read_json(plan_path)
     if (
         reviewed.get("plan_version") != 2
         or release_version(str(reviewed.get("openstudio_version", "")))
@@ -77,7 +73,7 @@ def apply(plan_path: Path) -> dict:
             f"Preflight no longer ready: {fresh['errors']} {fresh['missing_inputs']}"
         )
     fresh["companions"] = inspect_companions(
-        model, source, Path(fresh["parameters"]["output_model_path"])
+        model, source, Path(fresh["parameters"]["output_model_path"]), sdk
     )
     if fresh != reviewed["plan"]:
         raise ValueError(
@@ -96,7 +92,7 @@ def apply(plan_path: Path) -> dict:
         prefix=".vav-stage-", dir=output.parent, ignore_cleanup_errors=True
     ) as directory:
         staged = Path(directory) / "validated.osm"
-        companion_stage = Path(directory) / "companions"
+        companion_stage = Path(directory) / output.stem
         stage_companions(model, sdk, fresh["companions"], companion_stage)
         if not model.save(str(staged), True):
             raise RuntimeError("SDK could not save staged model")
@@ -104,6 +100,7 @@ def apply(plan_path: Path) -> dict:
         if not saved.is_initialized():
             raise RuntimeError("Could not reload staged output")
         saved = saved.get()
+        saved.workflowJSON().setOswPath(str(companion_stage / "workflow.osw"))
         validation = validate_model(saved, sdk, fresh, loop_handle, before)
         if not validation["ok"]:
             raise RuntimeError(
@@ -190,7 +187,9 @@ def apply(plan_path: Path) -> dict:
         "companion_directory": str(companion_output),
         "workflow_path": str(companion_output / "workflow.osw"),
         "assumptions": fresh["assumptions"],
+        "simulation_ready": fresh["companions"]["simulation_ready"],
         "warnings": fresh["warnings"]
+        + fresh["companions"]["warnings"]
         + translation["warnings"]
         + (
             [

@@ -318,11 +318,23 @@ def test_companion_measures_follow_output_and_source_change_blocks(
 ):
     companion = model_file.with_name(model_file.stem + "_files")
     measure = companion / "measures/example/measure.rb"
-    measure.parent.mkdir(parents=True)
+    sdk[0].BCLMeasure(
+        "Example",
+        "Example",
+        sdk[0].path(str(measure.parent)),
+        "HVAC",
+        sdk[0].MeasureType("ModelMeasure"),
+        "Description",
+        "Model description",
+    )
     measure.write_text("# reviewed measure resource\n")
     (companion / "workflow.osw").write_text(
         json.dumps(
-            {"seed_file": "../in.osm", "measure_paths": ["measures"], "steps": []}
+            {
+                "seed_file": "../in.osm",
+                "measure_paths": ["measures"],
+                "steps": [{"measure_dir_name": "example"}],
+            }
         )
     )
     path = reviewed_plan(sdk, model_file, config, tmp_path)
@@ -334,15 +346,15 @@ def test_companion_measures_follow_output_and_source_change_blocks(
     report = apply_module.apply(reviewed_plan(sdk, model_file, config, tmp_path))
     directory = Path(report["companion_directory"])
     assert (
-        directory / "measures/0/example/measure.rb"
+        directory / "measures/example/measure.rb"
     ).read_text() == measure.read_text()
     workflow = json.loads((directory / "workflow.osw").read_text())
     assert workflow["seed_file"] == "../out.osm" and workflow["measure_paths"] == [
-        "measures/0"
+        "measures"
     ]
 
 
-def test_missing_companion_weather_blocks_before_output(
+def test_missing_companion_weather_warns_before_output(
     sdk, model_file, config, tmp_path
 ):
     companion = model_file.with_name(model_file.stem + "_files")
@@ -353,9 +365,10 @@ def test_missing_companion_weather_blocks_before_output(
     cfg = tmp_path / "config.json"
     cfg.write_text(json.dumps(config))
     report = sdk[1].preflight(model_file, cfg)
-    assert not report["ready"] and any(
-        "Missing companion" in x for x in report["errors"]
+    assert report["ready"] and any(
+        "Weather resource is unavailable" in x for x in report["warnings"]
     )
+    assert not report["plan"]["companions"]["simulation_ready"]
     assert not Path(config["output_model_path"]).exists()
 
 
@@ -394,6 +407,7 @@ def test_external_schedule_file_is_relocated(
     assert model.save(str(model_file), True)
     report = apply_module.apply(reviewed_plan(sdk, model_file, config, tmp_path))
     saved = o.osversion.VersionTranslator().loadModel(report["output_model_path"]).get()
+    saved.workflowJSON().setOswPath(report["workflow_path"])
     relocated = Path(str(saved.getExternalFiles()[0].filePath()))
     assert relocated.is_file() and relocated.read_bytes() == csv.read_bytes()
-    assert relocated.is_relative_to(Path(report["companion_directory"]))
+    assert relocated.resolve().is_relative_to(Path(report["companion_directory"]))

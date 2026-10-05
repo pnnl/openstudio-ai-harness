@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from adapters.base import OpenStudioAiHostAdapter
+from adapters.codex_adapter import _plugin_display_name
 from adapters.contracts import RUNTIME_MODES, HostAdapterConfig, HostLaunchPlan
 from adapters.runtime_helpers import write_runtime_helpers
 from harness.asset_manifest import (
@@ -126,6 +127,7 @@ class ClaudeCodeAdapter(OpenStudioAiHostAdapter):
         output_dir: Path,
         *,
         plugin_name: str = DEFAULT_PLUGIN_NAME,
+        marketplace_name: str = MARKETPLACE_NAME,
         dry_run: bool = True,
         force: bool = False,
     ) -> PluginExportResult:
@@ -161,11 +163,13 @@ class ClaudeCodeAdapter(OpenStudioAiHostAdapter):
 
         (marketplace_dir / ".claude-plugin").mkdir(parents=True, exist_ok=True)
         (marketplace_dir / ".claude-plugin" / "marketplace.json").write_text(
-            _render_marketplace_json(plugin_name),
+            _render_marketplace_json(plugin_name, marketplace_name),
             encoding="utf-8",
         )
         (marketplace_dir / "INSTALL.md").write_text(
-            _render_install_doc(marketplace_dir, plugin_name, runtime_mode),
+            _render_install_doc(
+                marketplace_dir, plugin_name, marketplace_name, runtime_mode
+            ),
             encoding="utf-8",
         )
         _write_plugin_package(plugin_dir, plan, workspace_root, runtime_mode)
@@ -358,13 +362,15 @@ def _planned_export_files(
     return sorted(files)
 
 
-def _render_marketplace_json(plugin_name: str) -> str:
+def _render_marketplace_json(plugin_name: str, marketplace_name: str) -> str:
     """Render a local marketplace manifest that points at the exported plugin."""
+    if not marketplace_name.strip():
+        raise ValueError("Claude marketplace name must not be empty.")
     return (
         json.dumps(
             {
                 "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
-                "name": MARKETPLACE_NAME,
+                "name": marketplace_name,
                 "version": package_version(),
                 "description": "Local marketplace for the OpenStudio AI Claude plugin.",
                 "owner": {
@@ -391,7 +397,7 @@ def _render_marketplace_json(plugin_name: str) -> str:
 
 
 def _render_install_doc(
-    marketplace_dir: Path, plugin_name: str, runtime_mode: str
+    marketplace_dir: Path, plugin_name: str, marketplace_name: str, runtime_mode: str
 ) -> str:
     """Render install instructions for using the exported package in Claude Code."""
     marketplace_ref = "this exported marketplace folder"
@@ -417,7 +423,7 @@ def _render_install_doc(
         "## 3. Install The Plugin\n\n"
         "Still inside Claude Code, run:\n\n"
         "```text\n"
-        f"/plugin install {plugin_name}@{MARKETPLACE_NAME}\n"
+        f"/plugin install {plugin_name}@{marketplace_name}\n"
         "```\n\n"
         "If Claude Code asks for scope, choose local or project scope for testing.\n\n"
         "## 4. Reload Plugins\n\n"
@@ -458,8 +464,8 @@ def _write_plugin_package(
     (plugin_dir / ".claude-plugin" / "plugin.json").write_text(
         json.dumps(
             {
-                "name": "openstudio-ai",
-                "displayName": "OpenStudio AI",
+                "name": plugin_dir.name,
+                "displayName": _plugin_display_name(plugin_dir.name),
                 "version": package_version(),
                 "description": (
                     "OpenStudio AI harness for model editing, simulation, results, "
@@ -488,7 +494,8 @@ def _write_plugin_package(
         encoding="utf-8",
     )
     (plugin_dir / "README.md").write_text(
-        _render_plugin_readme(plan, workspace_root, runtime_mode), encoding="utf-8"
+        _render_plugin_readme(plan, workspace_root, runtime_mode, plugin_dir.name),
+        encoding="utf-8",
     )
     (plugin_dir / "CONNECTORS.md").write_text(
         _render_connectors_doc(workspace_root, runtime_mode),
@@ -816,7 +823,10 @@ if __name__ == "__main__":
 
 
 def _render_plugin_readme(
-    plan: HostLaunchPlan, workspace_root: Path, runtime_mode: str
+    plan: HostLaunchPlan,
+    workspace_root: Path,
+    runtime_mode: str,
+    plugin_name: str = DEFAULT_PLUGIN_NAME,
 ) -> str:
     """Render the README shipped with the exported plugin."""
     skill_names = "\n".join(
@@ -837,9 +847,9 @@ def _render_plugin_readme(
         "- `monitors/`: passive learning-event notifications for candidate learning workflows.\n"
         "- `bin/`: monitor helper executables.\n\n"
         "## User-Facing Skills\n\n"
-        "- `/openstudio-ai:add-vav-reheat`: plan and execute a VAV reheat workflow.\n"
-        "- `/openstudio-ai:simulate`: run or prepare an OpenStudio simulation workflow.\n"
-        "- `/openstudio-ai:query-results`: retrieve SQL-backed simulation results.\n\n"
+        f"- `/{plugin_name}:add-vav-reheat`: plan and execute a VAV reheat workflow.\n"
+        f"- `/{plugin_name}:simulate`: run or prepare an OpenStudio simulation workflow.\n"
+        f"- `/{plugin_name}:query-results`: retrieve SQL-backed simulation results.\n\n"
         "## Runtime Skills\n\n"
         f"{skill_names}\n\n"
         "## Runtime Note\n\n"
@@ -955,6 +965,11 @@ def _parse_args() -> argparse.Namespace:
         help="Plugin folder name and install name.",
     )
     export.add_argument(
+        "--marketplace-name",
+        default=MARKETPLACE_NAME,
+        help="Local marketplace name; use a distinct name for a parallel export.",
+    )
+    export.add_argument(
         "--workspace-root",
         type=Path,
         default=_default_workspace_root(),
@@ -1008,6 +1023,7 @@ def main() -> int:
         result = adapter.export_plugin(
             args.output_dir,
             plugin_name=args.plugin_name,
+            marketplace_name=args.marketplace_name,
             dry_run=args.dry_run,
             force=args.force,
         )

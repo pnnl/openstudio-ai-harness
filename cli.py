@@ -1119,6 +1119,7 @@ def _cmd_export(args: argparse.Namespace) -> int:
         result = ClaudeCodeAdapter(config).export_plugin(
             args.output_dir,
             plugin_name=args.plugin_name,
+            marketplace_name=args.marketplace_name,
             dry_run=args.dry_run,
             force=args.force,
         )
@@ -1593,7 +1594,10 @@ def _build_parser() -> argparse.ArgumentParser:
     export.add_argument(
         "--marketplace-name",
         default="openstudio-ai-local",
-        help="Codex marketplace name; use a distinct name for a parallel local export.",
+        help=(
+            "Claude or Codex marketplace name; use a distinct name for a parallel "
+            "local export."
+        ),
     )
     export.add_argument(
         "--workspace-root",

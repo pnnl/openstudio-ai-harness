@@ -261,6 +261,34 @@ def test_claude_code_adapter_exports_plugin_package(tmp_path: Path) -> None:
     assert marketplace_json["plugins"][0]["source"] == "./openstudio-ai"
 
 
+def test_claude_code_adapter_exports_distinct_development_marketplace(
+    tmp_path: Path,
+) -> None:
+    _adapter().export_plugin(
+        tmp_path,
+        plugin_name="openstudio-ai-lbnl-dev",
+        marketplace_name="openstudio-ai-lbnl-dev",
+        dry_run=False,
+    )
+
+    marketplace_json = json.loads(
+        (tmp_path / ".claude-plugin" / "marketplace.json").read_text(encoding="utf-8")
+    )
+    assert marketplace_json["name"] == "openstudio-ai-lbnl-dev"
+    assert marketplace_json["plugins"][0]["name"] == "openstudio-ai-lbnl-dev"
+    assert marketplace_json["plugins"][0]["source"] == "./openstudio-ai-lbnl-dev"
+    plugin_dir = tmp_path / "openstudio-ai-lbnl-dev"
+    plugin_json = json.loads(
+        (plugin_dir / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8")
+    )
+    assert plugin_json["name"] == "openstudio-ai-lbnl-dev"
+    assert plugin_json["displayName"] == "OpenStudio AI LBNL Dev"
+    readme = (plugin_dir / "README.md").read_text(encoding="utf-8")
+    assert "/openstudio-ai-lbnl-dev:simulate" in readme
+    install_doc = (tmp_path / "INSTALL.md").read_text(encoding="utf-8")
+    assert "/plugin install openstudio-ai-lbnl-dev@openstudio-ai-lbnl-dev" in install_doc
+
+
 def test_claude_code_adapter_installed_mode_uses_runtime_command(
     tmp_path: Path,
 ) -> None:

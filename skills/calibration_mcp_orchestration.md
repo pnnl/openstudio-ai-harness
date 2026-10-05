@@ -91,7 +91,10 @@ discovered from the connected service through its Skill-over-MCP interface.
    (`stage_measures`) into the host directory the provider mounts as
    `/inputs/measures`, resolve the directory through the provider (NLR
    `find_measure` → `selected_measure.measure_dir`), and confirm with
-   `list_measure_arguments` that every recipe argument exists. If a measure
+   `list_measure_arguments` that every recipe argument exists. Request the
+   recipe with `project_id`: for `HE`, `COP`, `FAN`, `HEAT-STP`, and
+   `COOL-STP` it carries the project's pass-1 soft limits as `min_val` and
+   `max_val`; pass them verbatim and never choose limits. If a measure
    default would change something the recipe does not name (for example a
    fuel type), read the model's current value through the provider, pin it,
    and record that as a blackboard assumption. Apply every rung to the same
@@ -176,10 +179,14 @@ waiting, and the provider's `max_concurrency` of 2 was never used.
    rung, reload the frozen sweep seed, `apply_measure`, save the candidate to its
    own distinct path, hash it on the host, and record its lineage. Then
    call Calibration-MCP `validate_candidate` on the saved model; never submit
-   a candidate whose validation returns `simulate: false`. Validate the first
+   a candidate whose validation returns `simulate: false`. Wait for each
+   validation result before that rung's submission: never send
+   `validate_candidate` and `run_simulation` in the same parallel batch. Validate the first
    rung before preparing the rest: a `failure_kind: "no_op"` there means the
    measure cannot reach this model, so close the parameter with
-   `mark_unresolvable` instead of simulating the ladder. The
+   `mark_unresolvable` instead of simulating the ladder. An `at_soft_limit`
+   or `beyond_soft_limit_stop` result ends the ladder at that rung: do not
+   prepare or simulate later rungs; record the earlier ones and commit. The
    provider's single in-memory model is why *preparation* is serial; it is
    not a reason to serialize the simulations. One blackboard checkpoint
    before the first apply and one after the last save satisfy the

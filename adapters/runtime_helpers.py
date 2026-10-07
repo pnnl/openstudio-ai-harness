@@ -2,9 +2,57 @@
 
 from __future__ import annotations
 
+import shlex
 from pathlib import Path
 
 from openstudio_ai_mcp.compatibility import PLUGIN_CONTRACT_VERSION, package_version
+
+# Marketplace plugins launch the runtime through `uvx` with an exact spec, so the
+# plugin, MCP server, and SDK-script interpreter all come from one pinned
+# environment. `openstudio` publishes wheels for this Python on every platform.
+RUNTIME_PYTHON_VERSION = "3.12"
+# Keep in step with the `openstudio` version in uv.lock (enforced by tests).
+OPENSTUDIO_PYTHON_SDK_VERSION = "3.11.0"
+
+
+def runtime_uvx_args(command: str) -> list[str]:
+    """Return `uvx` arguments that run a runtime console script from the pinned spec."""
+    return [
+        "--python",
+        RUNTIME_PYTHON_VERSION,
+        "--from",
+        f"openstudio-ai=={package_version()}",
+        "--with",
+        f"openstudio=={OPENSTUDIO_PYTHON_SDK_VERSION}",
+        command,
+    ]
+
+
+def runtime_uvx_command(command: str, *args: str, reinstall: bool = False) -> str:
+    """Return a copyable shell command for a runtime console script via `uvx`."""
+    options = ["--reinstall"] if reinstall else []
+    return shlex.join(["uvx", *options, *runtime_uvx_args(command), *args])
+
+
+def runtime_doctor_command() -> str:
+    """Return the doctor command that checks this plugin against its runtime."""
+    return runtime_uvx_command(
+        "openstudio-ai",
+        "doctor",
+        "--plugin-version",
+        package_version(),
+        "--plugin-contract-version",
+        PLUGIN_CONTRACT_VERSION,
+    )
+
+
+def marketplace_mcp_server_config(env: dict[str, str]) -> dict[str, object]:
+    """Return the marketplace MCP server launch config shared by all hosts."""
+    return {
+        "command": "uvx",
+        "args": [*runtime_uvx_args("openstudio-ai-mcp"), "--transport", "stdio"],
+        "env": env,
+    }
 
 
 def write_runtime_helpers(

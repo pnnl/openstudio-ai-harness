@@ -152,3 +152,16 @@ def test_nlr_discovery_names(
         assert status["name"] == expected
         assert status["source"] == str(config_path)
     assert "ready" not in status
+
+
+def test_marketplace_uvx_pin_matches_lockfile() -> None:
+    from adapters.runtime_helpers import OPENSTUDIO_PYTHON_SDK_VERSION, runtime_uvx_args
+
+    lock = (Path(__file__).resolve().parents[1] / "uv.lock").read_text(encoding="utf-8")
+    assert f'name = "openstudio"\nversion = "{OPENSTUDIO_PYTHON_SDK_VERSION}"' in lock
+    assert runtime_uvx_args("openstudio-ai-mcp")[-3:] == [
+        "--with",
+        f"openstudio=={OPENSTUDIO_PYTHON_SDK_VERSION}",
+        "openstudio-ai-mcp",
+    ]
+    assert f"openstudio-ai=={package_version()}" in runtime_uvx_args("openstudio-ai")

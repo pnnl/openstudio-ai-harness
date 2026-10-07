@@ -528,11 +528,9 @@ def test_cli_export_claude_marketplace(tmp_path: Path) -> None:
 
     plugin_dir = tmp_path / "openstudio-ai"
     mcp_json = json.loads((plugin_dir / ".mcp.json").read_text(encoding="utf-8"))
-    assert mcp_json["mcpServers"]["openstudio_ai"]["command"] == "openstudio-ai-mcp"
+    assert mcp_json["mcpServers"]["openstudio_ai"]["command"] == "uvx"
     assert (plugin_dir / "skills" / "setup-openstudio-ai" / "SKILL.md").exists()
-    assert (
-        plugin_dir / "skills" / "setup-openstudio-ai" / "scripts" / "doctor_runtime.py"
-    ).exists()
+    assert not (plugin_dir / "skills" / "setup-openstudio-ai" / "scripts").exists()
     assert (
         main(["validate-export", str(plugin_dir), "--runtime-mode", "marketplace"]) == 0
     )
@@ -566,7 +564,7 @@ def test_cli_export_paired_marketplace_includes_provenance(tmp_path: Path) -> No
     for plugin in (claude_plugin, codex_plugin):
         config = json.loads((plugin / ".mcp.json").read_text(encoding="utf-8"))
         assert set(config["mcpServers"]) == {"openstudio_ai"}
-        assert config["mcpServers"]["openstudio_ai"]["command"] == "openstudio-ai-mcp"
+        assert config["mcpServers"]["openstudio_ai"]["command"] == "uvx"
 
     readme = (tmp_path / "README.md").read_text(encoding="utf-8")
     assert "INSTALL.claude.md" in readme
@@ -612,7 +610,23 @@ def test_cli_validate_export(tmp_path: Path) -> None:
     )
 
     plugin_dir = tmp_path / "plugins" / "openstudio-ai"
-    assert main(["validate-export", str(plugin_dir)]) == 0
+    assert (
+        main(["validate-export", str(plugin_dir), "--runtime-mode", "marketplace"]) == 0
+    )
+    assert (
+        main(
+            [
+                "validate-export",
+                str(plugin_dir),
+                "--runtime-mode",
+                "marketplace",
+                "--strict-runtime-version",
+            ]
+        )
+        == 0
+    )
+    # A marketplace export no longer satisfies the installed-command contract.
+    assert main(["validate-export", str(plugin_dir)]) == 1
 
 
 def test_cli_validate_export_rejects_missing_marketplace_setup(tmp_path: Path) -> None:
@@ -633,9 +647,7 @@ def test_cli_validate_export_rejects_missing_marketplace_setup(tmp_path: Path) -
     )
 
     plugin_dir = tmp_path / "plugins" / "openstudio-ai"
-    (
-        plugin_dir / "skills" / "setup-openstudio-ai" / "scripts" / "doctor_runtime.py"
-    ).unlink()
+    (plugin_dir / "skills" / "doctor-openstudio-ai" / "SKILL.md").unlink()
     assert (
         main(["validate-export", str(plugin_dir), "--runtime-mode", "marketplace"]) == 1
     )

@@ -3,8 +3,10 @@ from __future__ import annotations
 import argparse
 import asyncio
 import hashlib
+import importlib.metadata
 import json
 import os
+import platform
 import re
 import shutil
 import sqlite3
@@ -646,16 +648,37 @@ class OpenStudioService:
     def _openstudio_executable_or_none(self) -> str | None:
         return self.openstudio_path
 
+    @staticmethod
+    def _sdk_python_status() -> dict[str, Any]:
+        """Report the interpreter this MCP server runs in, for host SDK scripts.
+
+        The runtime package depends on the OpenStudio Python SDK, so the
+        server's own interpreter is the one installation guaranteed to import
+        the matching `openstudio` package, however the runtime was installed.
+        """
+        try:
+            sdk_version: str | None = importlib.metadata.version("openstudio")
+        except importlib.metadata.PackageNotFoundError:
+            sdk_version = None
+        return {
+            "executable": sys.executable,
+            "python_version": platform.python_version(),
+            "openstudio_sdk_version": sdk_version,
+            "available": sdk_version is not None,
+        }
+
     def runtime_openstudio_status(self) -> dict[str, Any]:
         """Report the MCP process's OpenStudio CLI discovery result.
 
         This is intentionally based on the process-startup resolution used by
         simulations, rather than a host-shell probe that may have a different
-        environment.
+        environment. `sdk_python` names the interpreter host SDK scripts use.
         """
+        sdk_python = self._sdk_python_status()
         if self.openstudio_path is None:
             return {
                 "ok": True,
+                "sdk_python": sdk_python,
                 "available": False,
                 "path": None,
                 "source": None,
@@ -684,6 +707,7 @@ class OpenStudioService:
         available = version_probe.returncode == 0 and version is not None
         return {
             "ok": True,
+            "sdk_python": sdk_python,
             "available": available,
             "path": self.openstudio_path,
             "source": self.openstudio_path_source,

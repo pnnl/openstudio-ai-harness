@@ -14,6 +14,7 @@ from typing import Any
 from adapters.claude_code_adapter import ClaudeCodeAdapter
 from adapters.codex_adapter import CodexAdapter
 from adapters.contracts import RUNTIME_MODES, HostAdapterConfig
+from adapters.runtime_helpers import marketplace_mcp_server_config
 from openstudio_ai_mcp.runtime_config import (
     openstudio_version_from_output,
     resolve_openstudio_executable_with_source,
@@ -1178,13 +1179,29 @@ def _cmd_validate_export(args: argparse.Namespace) -> int:
         )
         return 1
 
-    if args.runtime_mode in {"installed", "marketplace"}:
+    if args.runtime_mode == "installed":
         if server.get("command") != "openstudio-ai-mcp" or server.get("args") != [
             "--transport",
             "stdio",
         ]:
             print(
-                "Installed/marketplace exports must point to openstudio-ai-mcp.",
+                "Installed exports must point to openstudio-ai-mcp.",
+                file=sys.stderr,
+            )
+            print(f"Actual: {server}", file=sys.stderr)
+            return 1
+
+    if args.runtime_mode == "marketplace":
+        expected_args = marketplace_mcp_server_config({})["args"]
+        launch_args = server.get("args")
+        if (
+            server.get("command") != "uvx"
+            or not isinstance(launch_args, list)
+            or launch_args[-3:] != expected_args[-3:]
+            or (args.strict_runtime_version and launch_args != expected_args)
+        ):
+            print(
+                "Marketplace exports must launch openstudio-ai-mcp through a pinned uvx spec.",
                 file=sys.stderr,
             )
             print(f"Actual: {server}", file=sys.stderr)
@@ -1215,16 +1232,12 @@ def _cmd_validate_export(args: argparse.Namespace) -> int:
         marketplace_required = (
             [
                 "skills/setup-openstudio-ai/SKILL.md",
-                "skills/setup-openstudio-ai/scripts/install_runtime.py",
-                "skills/setup-openstudio-ai/scripts/doctor_runtime.py",
                 "skills/doctor-openstudio-ai/SKILL.md",
                 "skills/repair-openstudio-ai/SKILL.md",
             ]
             if is_claude
             else [
                 "skills/setup-openstudio-ai/SKILL.md",
-                "skills/setup-openstudio-ai/scripts/install_runtime.py",
-                "skills/setup-openstudio-ai/scripts/doctor_runtime.py",
                 "skills/doctor-openstudio-ai/SKILL.md",
                 "skills/repair-openstudio-ai/SKILL.md",
             ]

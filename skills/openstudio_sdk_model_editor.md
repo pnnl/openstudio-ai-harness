@@ -125,20 +125,17 @@ Disallowed uses:
    - output model path;
    - recommended next step, usually validation or simulation via MCP.
 
-## Local Runtime Recovery
+## SDK Script Interpreter
 
-Before executing an SDK script, resolve Python without installing anything.
-Check the current project's `./.venv/bin/python` first, or the nearest project
-root's `.venv/bin/python` when working in a subdirectory. Then check a
-project-configured Python, followed by the host's `python3` or `python`.
-For each candidate, verify its Python version is at least 3.10, that it can
-import `openstudio`, and the reported OpenStudio version. Use the first
-compatible interpreter for every SDK script in this task. When both the
-project virtual environment and a global interpreter work, choose the project
-virtual environment. Do not switch to the global interpreter merely because
-it appears first on `PATH`. `OPENSTUDIO_PATH` selects the native OpenStudio
-executable; it is not a Python interpreter. Ask the user for a runtime location
-only after these candidates fail.
+The runtime installation, not this skill, determines the SDK interpreter.
+Before the first script in a task, call `runtime_openstudio_status` and run
+every script with its `sdk_python.executable`, for example
+`<sdk_python.executable> path/to/script.py`. Do not probe other interpreters or
+fall back to the host's `python3` or a project `.venv`. When the host provides
+its own Python execution tool for this harness (such as AUTOMA-AI
+`run_python`), use that tool instead. If the MCP server is not connected,
+`sdk_python` is missing, or `sdk_python.available` is false, stop and run the
+doctor workflow.
 
 ## SDK Context-Pack Selection
 

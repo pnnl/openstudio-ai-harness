@@ -9,7 +9,11 @@ from pathlib import Path
 
 from adapters.base import OpenStudioAiHostAdapter
 from adapters.contracts import RUNTIME_MODES, HostAdapterConfig, HostLaunchPlan
-from adapters.runtime_helpers import write_runtime_helpers
+from adapters.runtime_helpers import (
+    marketplace_mcp_server_config,
+    runtime_doctor_command,
+    runtime_uvx_command,
+)
 from harness.asset_manifest import (
     agent_source_for_host,
     reference_exports_for_host,
@@ -232,7 +236,9 @@ def _mcp_server_config(workspace_root: Path, runtime_mode: str) -> dict[str, obj
                 **plugin_mcp_environment(),
             },
         }
-    if runtime_mode in {"installed", "marketplace"}:
+    if runtime_mode == "marketplace":
+        return marketplace_mcp_server_config(plugin_mcp_environment())
+    if runtime_mode == "installed":
         return {
             "command": "openstudio-ai-mcp",
             "args": ["--transport", "stdio"],
@@ -333,16 +339,6 @@ def _planned_export_files(
         files.extend(
             [
                 plugin_dir / "skills" / "setup-openstudio-ai" / "SKILL.md",
-                plugin_dir
-                / "skills"
-                / "setup-openstudio-ai"
-                / "scripts"
-                / "install_runtime.py",
-                plugin_dir
-                / "skills"
-                / "setup-openstudio-ai"
-                / "scripts"
-                / "doctor_runtime.py",
                 plugin_dir / "skills" / "doctor-openstudio-ai" / "SKILL.md",
                 plugin_dir / "skills" / "repair-openstudio-ai" / "SKILL.md",
             ]
@@ -437,7 +433,7 @@ def _render_install_doc(
         "```text\n"
         f"/{plugin_name}:setup-openstudio-ai\n"
         "```\n\n"
-        "The setup skill checks Python, checks `openstudio-ai-mcp`, and explains any "
+        "The setup skill checks uv, prepares the pinned runtime, and explains any "
         "missing installation steps in energy-modeler language.\n"
     )
 
@@ -517,10 +513,6 @@ def _write_plugin_package(
     _write_marketplace_setup_skills(plugin_dir / "skills", runtime_mode)
     _write_skill_references(plugin_dir / "skills", workspace_root)
 
-    if runtime_mode == "marketplace":
-        setup_scripts_dir = plugin_dir / "skills" / "setup-openstudio-ai" / "scripts"
-        _write_installer_assets(setup_scripts_dir)
-
 
 def _render_exported_skill(skill_path: Path, skill_name: str) -> str:
     """Render a source skill with Claude-plugin reference navigation appended."""
@@ -598,6 +590,12 @@ def _write_marketplace_setup_skills(skills_dir: Path, runtime_mode: str) -> None
 
 
 def _marketplace_setup_skill_docs() -> dict[str, str]:
+    install = runtime_uvx_command("openstudio-ai", "install-runtime")
+    rebuild = runtime_uvx_command("openstudio-ai", "install-runtime", reinstall=True)
+    configure = runtime_uvx_command(
+        "openstudio-ai", "configure-openstudio", "--path", "<confirmed-executable>"
+    )
+    doctor = runtime_doctor_command()
     return {
         "setup-openstudio-ai": _skill_markdown(
             name="setup-openstudio-ai",
@@ -606,29 +604,25 @@ def _marketplace_setup_skill_docs() -> dict[str, str]:
                 "# Setup OpenStudio AI\n\n"
                 "Help the user get OpenStudio AI ready without assuming programming "
                 "experience.\n\n"
-                "1. Explain that OpenStudio AI needs a local runtime command named "
-                "`openstudio-ai-mcp` so the AI assistant can safely run OpenStudio "
-                "tools.\n"
-                "2. Resolve Python before checking runtime commands. Check the current "
-                "project's `.venv/bin/python` (or `.venv\\Scripts\\python.exe` on Windows) "
-                "first, then a configured project Python, then `python --version` and "
-                "`python3 --version`. Require Python 3.10 or newer and record whether "
-                "each candidate can import `openstudio`. If both the project virtual "
-                "environment and global Python are usable, select the project virtual "
-                "environment for this setup, even if its OpenStudio package needs "
-                "installation. Report the selected executable. If no "
-                "supported Python exists, explain how to install Python 3.10 or newer "
-                "and stop until it is available. Do not create or install an environment "
-                "during this discovery step.\n"
-                "3. Check whether `openstudio-ai-mcp` is available beside the selected "
-                "interpreter, and run that command's `--help`. A command on `PATH` from "
-                "another Python environment does not count.\n"
-                "4. Run `${CLAUDE_SKILL_DIR}/scripts/doctor_runtime.py` with the "
-                "selected Python interpreter.\n"
+                "1. Explain that OpenStudio AI runs its runtime through `uv`, which "
+                "downloads the exact runtime release this plugin was built for, "
+                "including its own Python. The user does not need to choose a Python.\n"
+                "2. Check whether uv is available by running `uvx --version`. If it is "
+                "missing, ask before installing it. If `pipx --version` works, prefer "
+                "`pipx install uv`; otherwise offer an installer from "
+                "https://docs.astral.sh/uv/getting-started/installation/. Use pipx only "
+                "to install uv, never to install the OpenStudio AI runtime.\n"
+                "3. Prepare the runtime with "
+                f"`{install}`. No approval is needed: it only fills uv's own cache, "
+                "which the MCP launch would download anyway. Tell the user it "
+                "downloads about 100 MB and can take a few minutes, and use a long "
+                "command timeout. This fills uv's cache so the MCP server can start "
+                "within Claude Code's startup timeout.\n"
+                f"4. Run the doctor: `{doctor}`.\n"
                 "5. Treat `core_ready: true` from the doctor as the only successful core "
                 "setup result. If OpenStudio is missing, perform read-only platform discovery, "
                 "show the candidate executable to the user, and after approval run "
-                "`openstudio-ai configure-openstudio --path <confirmed-executable>`. Then "
+                f"`{configure}`. Then "
                 "reload Claude Code and rerun doctor. Do not edit a versioned plugin cache file.\n"
                 "6. Review the doctor's optional `nlr_openstudio` capability. NLR OpenStudio-MCP "
                 "is optional: a missing Docker installation or unconfigured NLR must not block "
@@ -637,29 +631,23 @@ def _marketplace_setup_skill_docs() -> dict[str, str]:
                 "https://pnnl.github.io/openstudio-ai-plugins/#quick-start. Explain that "
                 "Docker Desktop must be installed and running, then the user follows that "
                 "page to configure the MCP server as `openstudio-mcp` and reloads Claude Code.\n"
-                "7. If the runtime is missing or the doctor reports `plugin_ready: false`, "
-                "explain in normal energy-modeler language that the installed plugin needs "
-                "a newer runtime interface and ask before running "
-                "`scripts/install_runtime.py` with the selected Python interpreter.\n"
-                "8. If installation succeeds but `openstudio-ai-mcp` is still missing, "
-                "diagnose command discovery before editing plugin files. Run "
-                '`-c "import sys, sysconfig; print(sys.executable); '
-                "print(sysconfig.get_path('scripts'))\"` with the selected Python, then check "
-                "whether that scripts directory is on the PATH used to launch Claude Code. "
-                "For a marketplace plugin, keep `.mcp.json` set to the portable command "
-                "`openstudio-ai-mcp`; do not replace it with an absolute `.venv/bin` path. "
-                "After the user approves a PATH update, restart Claude Code from that "
-                "environment.\n"
+                "7. If the doctor reports `plugin_ready: false`, explain in normal "
+                "energy-modeler language that uv's cached runtime is stale or damaged and "
+                f"ask before rebuilding it with `{rebuild}`.\n"
+                "8. If `uvx` works in a terminal but the MCP server still cannot start, "
+                "diagnose command discovery before editing plugin files: check whether the "
+                "directory containing `uvx` is on the PATH used to launch Claude Code. "
+                "Keep `.mcp.json` set to the portable `uvx` launch; do not replace it with "
+                "an absolute path. After the user approves a PATH update, restart Claude "
+                "Code from that environment.\n"
                 "9. If this is intentionally a repository checkout with a project virtual "
                 "environment, explain that it is local development: re-export with "
                 "`--runtime-mode local` instead of modifying a marketplace export.\n"
-                "10. When `openstudio-ai` is available beside the selected Python, run "
-                "that command's `doctor`.\n"
-                "11. If installation changed runtime command availability or repaired a "
-                "contract mismatch, tell the user to run `/reload-plugins` or reconnect the "
+                "10. If setup prepared or rebuilt the runtime, or the MCP server had "
+                "failed to connect, tell the user to run `/reload-plugins` or reconnect the "
                 "failed MCP server. Claude Code discovers MCP tools only when it starts the "
                 "server, so a new tool cannot appear in the current session.\n"
-                "12. Summarize core readiness separately from optional capabilities, then report "
+                "11. Summarize core readiness separately from optional capabilities, then report "
                 "model loading, HVAC workflow support, "
                 "simulation, results, SDK lookup, and workflow state tracking.\n"
             ),
@@ -669,9 +657,8 @@ def _marketplace_setup_skill_docs() -> dict[str, str]:
             description="Diagnose OpenStudio AI runtime readiness.",
             body=(
                 "# Doctor OpenStudio AI\n\n"
-                "Run `python ${CLAUDE_SKILL_DIR}/../setup-openstudio-ai/scripts/"
-                "doctor_runtime.py`, then run `openstudio-ai doctor` if the command "
-                "exists. Explain missing Python, missing runtime, missing OpenStudio, "
+                f"Run `{doctor}`. If `uvx` is missing, follow the setup skill. "
+                "Explain missing uv, missing runtime, missing OpenStudio, "
                 "or path problems as setup items, not programming failures.\n"
             ),
         ),
@@ -681,13 +668,13 @@ def _marketplace_setup_skill_docs() -> dict[str, str]:
             body=(
                 "# Repair OpenStudio AI\n\n"
                 "First run the doctor skill. If the runtime is missing or it reports "
-                "`plugin_ready: false`, ask for approval before running `python "
-                "${CLAUDE_SKILL_DIR}/../setup-openstudio-ai/scripts/install_runtime.py`, "
+                "`plugin_ready: false`, ask for approval before running "
+                f"`{rebuild}`, "
                 "then run `/reload-plugins` or reconnect the MCP server before retrying. "
                 "Do not delete user "
-                "models, simulation outputs, or project files. If the installer found "
-                "the command beside its Python but Claude cannot find it, follow the "
-                "setup skill's PATH diagnosis. Do not hard-code a project virtualenv "
+                "models, simulation outputs, or project files. If `uvx` works in a "
+                "terminal but Claude cannot find it, follow the "
+                "setup skill's PATH diagnosis. Do not hard-code an absolute "
                 "path into a marketplace `.mcp.json`. Describe each repair step in plain "
                 "language for an energy modeler.\n"
             ),
@@ -849,8 +836,9 @@ def _render_plugin_readme(
         "## Runtime Note\n\n"
         f"Runtime mode: `{runtime_mode}`.\n\n"
         "In `local` mode, this plugin references a source checkout. In `installed` "
-        "and `marketplace` mode, it expects the `openstudio-ai-mcp` command to be "
-        "available on the user's machine.\n\n"
+        "mode, it expects the `openstudio-ai-mcp` command to be available on the "
+        "user's machine. In `marketplace` mode, it launches the matching runtime "
+        "release through `uvx`.\n\n"
         "## Claude Code Activation\n\n"
         "Claude Code does not automatically read arbitrary plugin instruction "
         "files. This package uses the supported `settings.json` `agent` key to "
@@ -868,6 +856,11 @@ def _render_connectors_doc(workspace_root: Path, runtime_mode: str) -> str:
             "The current `.mcp.json` points to the local checkout:\n\n"
             f"- `{workspace_root}`\n\n"
         )
+    elif runtime_mode == "marketplace":
+        runtime_text = (
+            "The current `.mcp.json` launches the pinned runtime through uv:\n\n"
+            f"- `{runtime_uvx_command('openstudio-ai-mcp', '--transport', 'stdio')}`\n\n"
+        )
     else:
         runtime_text = (
             "The current `.mcp.json` points to the installed runtime command:\n\n"
@@ -882,17 +875,6 @@ def _render_connectors_doc(workspace_root: Path, runtime_mode: str) -> str:
         "results, approved measures, and SDK documentation lookup |\n\n"
         f"{runtime_text}"
         "OpenStudio and EnergyPlus availability depends on the local environment.\n"
-    )
-
-
-def _write_installer_assets(installers_dir: Path) -> None:
-    """Write shared marketplace runtime helpers with Claude reload guidance."""
-    write_runtime_helpers(
-        installers_dir,
-        post_install_guidance=(
-            "After the update, run /reload-plugins or reconnect the MCP server so Claude Code starts "
-            "openstudio-ai-mcp again and discovers any newly added tools."
-        ),
     )
 
 

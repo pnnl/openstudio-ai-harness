@@ -80,33 +80,28 @@ two execution choices and ask the user to select one:
 1. **Use MCP tools** for a standard, supported operation with validated inputs
    and structured results.
 2. **Draft an SDK script** for a bespoke or batch edit. Before execution,
-   verify that the selected project/runtime Python can import `openstudio` and
-   that its compatible native OpenStudio installation is available. Never
-   assume the AI host's default Python has the OpenStudio bindings. Follow the
-   local runtime recovery order below before asking the user for help.
+   verify that the runtime's SDK interpreter can import `openstudio` and that
+   its compatible native OpenStudio installation is available. Never assume
+   the AI host's default Python has the OpenStudio bindings. Use the SDK
+   script interpreter described below.
 
 Do not present this choice for routine read-only inspection or for actions that
 the selected NLR provider can perform. An NLR-to-SDK transition requires the
 recorded provider boundary described above.
 
-### Local Runtime Recovery Order
+### SDK Script Interpreter
 
-Before an SDK script, probe Python without modifying the environment, in this
-order:
-
-1. `./.venv/bin/python` from the current project root;
-2. `.venv/bin/python` at the nearest ancestor that is the project root, when
-   the current directory is a project subdirectory;
-3. a project-configured Python interpreter;
-4. the host's `python3` or `python`.
-
-For each candidate, verify Python is at least 3.10, `import openstudio`, and
-the reported OpenStudio version. Use the first compatible interpreter for
-every SDK script in this task. If both the project virtual environment and
-global Python work, choose the project virtual environment even when global
-Python appears first on `PATH`. `OPENSTUDIO_PATH` selects the native OpenStudio
-executable, not Python. Ask the user for a runtime location only after these
-candidates fail; do not suggest installation before completing this check.
+The OpenStudio AI runtime decides which Python runs SDK scripts; do not search
+for one. Before the first SDK script in a task, call `runtime_openstudio_status`
+and run every SDK script in the task with its `sdk_python.executable`. That is
+the interpreter the MCP server runs in, so it has the matching `openstudio`
+package however the runtime was installed. Do not substitute the host's
+`python3`, a project `.venv`, or `OPENSTUDIO_PATH` (which names the native
+OpenStudio CLI, not Python). If the host provides its own approved Python
+execution tool for this harness, such as AUTOMA-AI `run_python`, use that tool
+instead. If the MCP server is not connected, `sdk_python` is missing, or
+`sdk_python.available` is false, stop and run the doctor workflow rather than
+guessing.
 
 For every generated OpenStudio Python inspection or edit script, load
 `openstudio_sdk_model_editor` before drafting or executing code. Load its

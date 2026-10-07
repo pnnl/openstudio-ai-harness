@@ -67,6 +67,10 @@ def test_openstudio_status_explains_missing_cli(monkeypatch, tmp_path: Path) -> 
     ]
     assert "read-only platform-specific discovery" in status["recommendation"]
     assert "--path <confirmed-executable>" in status["recommendation"]
+    # The SDK interpreter is reported even when the native CLI is missing.
+    assert status["sdk_python"]["executable"] == mcp_server.sys.executable
+    assert status["sdk_python"]["available"] is True
+    assert status["sdk_python"]["openstudio_sdk_version"]
 
 
 def test_invalid_openstudio_path_does_not_select_a_different_installation(

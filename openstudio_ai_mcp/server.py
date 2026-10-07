@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import hashlib
-import importlib.metadata
+import functools
 import json
 import os
 import platform
@@ -157,6 +157,40 @@ DD_END_USES = [
 class OpenStudioModelState:
     model_id: str
     metadata: dict[str, Any]
+
+
+SDK_PYTHON_PROBE_TIMEOUT_SECONDS = 60
+_SDK_PYTHON_PROBE_SCRIPT = "import openstudio; print(openstudio.openStudioVersion())"
+
+
+@functools.lru_cache(maxsize=1)
+def _probe_sdk_python() -> tuple[tuple[str, Any], ...]:
+    """Import `openstudio` with this interpreter once per server process."""
+    status: dict[str, Any] = {
+        "executable": sys.executable,
+        "python_version": platform.python_version(),
+        "openstudio_sdk_version": None,
+        "available": False,
+    }
+    try:
+        completed = subprocess.run(
+            [sys.executable, "-c", _SDK_PYTHON_PROBE_SCRIPT],
+            capture_output=True,
+            text=True,
+            timeout=SDK_PYTHON_PROBE_TIMEOUT_SECONDS,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        status["error"] = f"OpenStudio SDK import probe failed: {exc}"
+        return tuple(status.items())
+    version = completed.stdout.strip().splitlines()[-1] if completed.stdout.strip() else ""
+    if completed.returncode == 0 and version:
+        status["openstudio_sdk_version"] = version
+        status["available"] = True
+    else:
+        detail = (completed.stderr or completed.stdout).strip().splitlines()
+        status["error"] = detail[-1] if detail else "`import openstudio` failed"
+    return tuple(status.items())
 
 
 class OpenStudioService:
@@ -653,19 +687,12 @@ class OpenStudioService:
         """Report the interpreter this MCP server runs in, for host SDK scripts.
 
         The runtime package depends on the OpenStudio Python SDK, so the
-        server's own interpreter is the one installation guaranteed to import
-        the matching `openstudio` package, however the runtime was installed.
+        server's own interpreter is the installation meant to run host SDK
+        scripts. Availability comes from importing `openstudio` in a fresh
+        process with that interpreter -- exactly what a host script does -- so a
+        package whose native extension cannot load is reported as unavailable.
         """
-        try:
-            sdk_version: str | None = importlib.metadata.version("openstudio")
-        except importlib.metadata.PackageNotFoundError:
-            sdk_version = None
-        return {
-            "executable": sys.executable,
-            "python_version": platform.python_version(),
-            "openstudio_sdk_version": sdk_version,
-            "available": sdk_version is not None,
-        }
+        return dict(_probe_sdk_python())
 
     def runtime_openstudio_status(self) -> dict[str, Any]:
         """Report the MCP process's OpenStudio CLI discovery result.

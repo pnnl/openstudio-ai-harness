@@ -134,8 +134,8 @@ every script with its `sdk_python.executable`, for example
 fall back to the host's `python3` or a project `.venv`. When the host provides
 its own Python execution tool for this harness (such as AUTOMA-AI
 `run_python`), use that tool instead. If the MCP server is not connected,
-`sdk_python` is missing, or `sdk_python.available` is false, stop and run the
-doctor workflow.
+`sdk_python` is missing, or `sdk_python.available` is false, stop, report
+`sdk_python.error` when present, and run the doctor workflow.
 
 ## SDK Context-Pack Selection
 

@@ -1,9 +1,8 @@
-"""Shared marketplace runtime helper renderers for host adapters."""
+"""Shared marketplace runtime launch commands and setup guidance for host adapters."""
 
 from __future__ import annotations
 
 import shlex
-from pathlib import Path
 
 from openstudio_ai_mcp.compatibility import PLUGIN_CONTRACT_VERSION, package_version
 
@@ -15,13 +14,17 @@ RUNTIME_PYTHON_VERSION = "3.12"
 OPENSTUDIO_PYTHON_SDK_VERSION = "3.11.0"
 
 
-def runtime_uvx_args(command: str) -> list[str]:
-    """Return `uvx` arguments that run a runtime console script from the pinned spec."""
+def runtime_uvx_args(command: str, *, version: str | None = None) -> list[str]:
+    """Return `uvx` arguments that run a runtime console script from the pinned spec.
+
+    `version` defaults to this package's version; export validation passes the
+    version a plugin declares so historical exports can be checked exactly.
+    """
     return [
         "--python",
         RUNTIME_PYTHON_VERSION,
         "--from",
-        f"openstudio-ai=={package_version()}",
+        f"openstudio-ai=={version or package_version()}",
         "--with",
         f"openstudio=={OPENSTUDIO_PYTHON_SDK_VERSION}",
         command,
@@ -39,6 +42,7 @@ def runtime_doctor_command() -> str:
     return runtime_uvx_command(
         "openstudio-ai",
         "doctor",
+        "--json",
         "--plugin-version",
         package_version(),
         "--plugin-contract-version",
@@ -46,302 +50,52 @@ def runtime_doctor_command() -> str:
     )
 
 
+def marketplace_mcp_args(*, version: str | None = None) -> list[str]:
+    """Return the complete marketplace `uvx` argument list for the MCP server."""
+    return [*runtime_uvx_args("openstudio-ai-mcp", version=version), "--transport", "stdio"]
+
+
 def marketplace_mcp_server_config(env: dict[str, str]) -> dict[str, object]:
     """Return the marketplace MCP server launch config shared by all hosts."""
-    return {
-        "command": "uvx",
-        "args": [*runtime_uvx_args("openstudio-ai-mcp"), "--transport", "stdio"],
-        "env": env,
-    }
+    return {"command": "uvx", "args": marketplace_mcp_args(), "env": env}
 
 
-def write_runtime_helpers(
-    installers_dir: Path, *, post_install_guidance: str | None = None
-) -> None:
-    """Write common setup helpers with optional host-specific reload guidance."""
-    installers_dir.mkdir(parents=True, exist_ok=True)
-    (installers_dir / "doctor_runtime.py").write_text(
-        render_doctor_runtime_script(), encoding="utf-8"
-    )
-    (installers_dir / "install_runtime.py").write_text(
-        render_install_runtime_script(post_install_guidance=post_install_guidance),
-        encoding="utf-8",
+def prepare_runtime_guidance(host: str) -> str:
+    """Setup-skill text for the runtime preparation step, including its side effects."""
+    install = runtime_uvx_command("openstudio-ai", "install-runtime")
+    return (
+        f"Prepare the runtime with `{install}`. Before running it, tell the user what "
+        "it changes and ask for approval: it downloads about 100 MB (the pinned runtime "
+        "and its own Python) into uv's cache, and it creates OpenStudio AI's user-local "
+        "data folder, which holds model workspaces and simulation runs; the command "
+        "prints that folder's location. It does not change project files or any other "
+        "Python environment. Use a long command timeout. Filling uv's cache lets the MCP "
+        f"server start within {host}'s startup timeout.\n"
     )
 
 
-def render_doctor_runtime_script() -> str:
-    """Render the common marketplace runtime doctor helper."""
-    return '''"""Check whether the OpenStudio AI runtime can be used by this plugin."""
-
-from __future__ import annotations
-
-import json
-import os
-import shutil
-import subprocess
-import sys
-from pathlib import Path
-
-try:
-    import tomllib
-except ModuleNotFoundError:  # Python 3.10 compatibility for exported helpers
-    tomllib = None
-
-PLUGIN_VERSION = "__OPENSTUDIO_AI_PLUGIN_VERSION__"
-PLUGIN_CONTRACT_VERSION = "__OPENSTUDIO_AI_PLUGIN_CONTRACT_VERSION__"
-
-
-def command_status(command: str) -> dict[str, object]:
-    if sys.prefix != sys.base_prefix:
-        scripts_dir = Path(sys.prefix) / ("Scripts" if os.name == "nt" else "bin")
-        names = [command, f"{command}.exe"] if os.name == "nt" else [command]
-        path = next(
-            (str(scripts_dir / name) for name in names if (scripts_dir / name).is_file()),
-            None,
-        )
-    else:
-        path = shutil.which(command)
-    return {"command": command, "available": path is not None, "path": path}
-
-
-def nlr_mcp_status() -> dict[str, object]:
-    """Report whether the optional NLR MCP server is configured locally."""
-    checked_paths = []
-    codex_config = Path.home() / ".codex" / "config.toml"
-    checked_paths.append(str(codex_config))
-    if tomllib is not None and codex_config.is_file():
-        try:
-            config = tomllib.loads(codex_config.read_text(encoding="utf-8"))
-        except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
-            config = {}
-        servers = config.get("mcp_servers") if isinstance(config, dict) else None
-        if isinstance(servers, dict) and "openstudio-mcp" in servers:
-            return {"configured": True, "name": "openstudio-mcp", "source": str(codex_config)}
-
-    for directory in (Path.cwd(), *Path.cwd().parents):
-        mcp_config = directory / ".mcp.json"
-        checked_paths.append(str(mcp_config))
-        if not mcp_config.is_file():
-            continue
-        try:
-            config = json.loads(mcp_config.read_text(encoding="utf-8"))
-        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
-            continue
-        servers = config.get("mcpServers") if isinstance(config, dict) else None
-        if isinstance(servers, dict) and "openstudio-mcp" in servers:
-            return {"configured": True, "name": "openstudio-mcp", "source": str(mcp_config)}
-
-    return {"configured": False, "name": "nlr_openstudio", "checked_paths": checked_paths}
-
-
-def main() -> int:
-    report = {
-        "python": {
-            "executable": sys.executable,
-            "version": sys.version.split()[0],
-        },
-        "openstudio_ai_mcp": command_status("openstudio-ai-mcp"),
-        "openstudio_ai": command_status("openstudio-ai"),
-        "nlr_openstudio": nlr_mcp_status(),
-    }
-    print(json.dumps(report, indent=2))
-
-    if not report["openstudio_ai_mcp"]["available"] or not report["openstudio_ai"]["available"]:
-        print(
-            "\\nOpenStudio AI runtime commands are not fully available. "
-            "Ask the user before running install_runtime.py."
-        )
-        return 2
-
-    doctor = subprocess.run(
-        [
-            report["openstudio_ai"]["path"],
-            "doctor",
-            "--json",
-            "--plugin-version",
-            PLUGIN_VERSION,
-            "--plugin-contract-version",
-            PLUGIN_CONTRACT_VERSION,
-        ],
-        check=False,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    if doctor.stdout:
-        print(doctor.stdout.strip())
-
-    try:
-        payload = json.loads(doctor.stdout)
-    except json.JSONDecodeError:
-        print("\\nThe runtime doctor returned an unreadable report. Run `openstudio-ai doctor` directly.")
-        if doctor.stderr.strip():
-            print(doctor.stderr.strip())
-        return 2
-
-    if payload.get("plugin_ready") is False:
-        print(
-            "\\nThe plugin requires a newer OpenStudio AI MCP interface than the "
-            "running runtime provides. Ask the user before running "
-            "install_runtime.py, then restart or reconnect the host before retrying."
-        )
-        if doctor.stderr.strip():
-            print(doctor.stderr.strip())
-        return doctor.returncode or 1
-
-    if doctor.returncode != 0 or payload.get("core_ready") is not True:
-        print("\\nOpenStudio AI is not ready for energy modeling. Resolve the blocking diagnostics, reconnect the host, and rerun setup.")
-        if doctor.stderr.strip():
-            print(doctor.stderr.strip())
-        return doctor.returncode or 1
-
-    print("\\nOpenStudio AI is ready for energy modeling.")
-    nlr = payload.get("optional_capabilities", {}).get("nlr_openstudio", {})
-    if nlr:
-        print(f"NLR OpenStudio-MCP: {nlr.get('status', 'unknown')} — {nlr.get('message', '')}")
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
-'''.replace("__OPENSTUDIO_AI_PLUGIN_VERSION__", package_version()).replace(
-        "__OPENSTUDIO_AI_PLUGIN_CONTRACT_VERSION__", PLUGIN_CONTRACT_VERSION
+def doctor_triage_guidance() -> str:
+    """How to act on `plugin_ready: false` without misreading a fresh machine."""
+    install = runtime_uvx_command("openstudio-ai", "install-runtime")
+    rebuild = runtime_uvx_command("openstudio-ai", "install-runtime", reinstall=True)
+    return (
+        "If the doctor reports `plugin_ready: false`, read its `diagnostics` codes "
+        "before acting. `runtime_storage_not_ready` means the runtime has not been "
+        f"prepared yet: with approval, run `{install}`. "
+        "`plugin_runtime_incompatible` (or `plugin_compatibility.ok: false`) means uv's "
+        "cached runtime is stale or damaged: explain that in normal energy-modeler "
+        f"language and ask before rebuilding it with `{rebuild}`. For any other code, "
+        "follow that diagnostic's `remediation`.\n"
     )
 
 
-def render_install_runtime_script(*, post_install_guidance: str | None = None) -> str:
-    """Render the common approved package install or upgrade helper."""
-    guidance = ""
-    if post_install_guidance:
-        guidance = f'    print("\\n{post_install_guidance}")\n'
-    return '''"""Install or repair the OpenStudio AI runtime package for this plugin."""
-
-from __future__ import annotations
-
-import os
-import shutil
-import subprocess
-import sys
-from pathlib import Path
-
-
-DEFAULT_PACKAGE_SPEC = "openstudio-ai==__OPENSTUDIO_AI_PLUGIN_VERSION__"
-
-
-def run(command: list[str]) -> int:
-    print(f"\\n$ {' '.join(command)}")
-    completed = subprocess.run(command, check=False)
-    return completed.returncode
-
-
-def runtime_command_path(command: str) -> str | None:
-    """Find a console script for this interpreter after pip install."""
-    scripts_dir = Path(sys.prefix) / ("Scripts" if os.name == "nt" else "bin")
-    candidates = [scripts_dir / command]
-    if os.name == "nt":
-        candidates.append(scripts_dir / f"{command}.exe")
-    for candidate in candidates:
-        if candidate.is_file():
-            return str(candidate)
-    return None if sys.prefix != sys.base_prefix else shutil.which(command)
-
-
-def runtime_cli_path() -> str | None:
-    """Find the openstudio-ai console script for this interpreter."""
-    return runtime_command_path("openstudio-ai")
-
-
-def is_pipx_managed_runtime() -> bool:
-    """Return whether the active OpenStudio AI command belongs to a pipx venv."""
-    if sys.prefix != sys.base_prefix:
-        return False
-    command = shutil.which("openstudio-ai")
-    if command is None or shutil.which("pipx") is None:
-        return False
-    resolved = Path(command).resolve()
-    return "pipx" in resolved.parts and "venvs" in resolved.parts
-
-
-def main() -> int:
-    print("OpenStudio AI runtime installer")
-    print("===============================")
-    print(f"Python executable: {sys.executable}")
-    print(f"Python version: {sys.version.split()[0]}")
-
-    if sys.version_info < (3, 10):
-        print(
-            "\\nOpenStudio AI requires Python 3.10 or newer. Install a supported "
-            "Python version, then rerun setup."
-        )
-        return 2
-
-    package_spec = os.getenv("OPENSTUDIO_AI_PACKAGE_SPEC", DEFAULT_PACKAGE_SPEC)
-    if shutil.which("openstudio-ai") and shutil.which("openstudio-ai-mcp"):
-        print("\\nOpenStudio AI commands are available. Checking for a compatible runtime update.")
-    else:
-        print("\\nOpenStudio AI runtime is not installed yet.")
-    print(f"Installing or upgrading runtime package: {package_spec}")
-    print(
-        "Set OPENSTUDIO_AI_PACKAGE_SPEC to a wheel path, internal index spec, "
-        "or pinned version if your organization does not install from PyPI."
-    )
-    if is_pipx_managed_runtime() and package_spec == DEFAULT_PACKAGE_SPEC:
-        print(
-            "The active runtime is managed by pipx; upgrading that environment "
-            "so the MCP command used by the host is updated."
-        )
-        code = run(["pipx", "upgrade", "--install", "openstudio-ai"])
-    elif is_pipx_managed_runtime():
-        print(
-            "\\nThe active runtime is managed by pipx and a custom package specification "
-            "was requested. Update that pipx environment with your approved package, then "
-            "rerun doctor."
-        )
-        return 2
-    else:
-        code = run([sys.executable, "-m", "pip", "install", "--upgrade", package_spec])
-    if code != 0:
-        print(
-            "\\nRuntime package installation failed. Check Python permissions, "
-            "network access, package index access, or ask your support contact "
-            "for an approved OpenStudio AI package."
-        )
-        return code
-
-    runtime_cli = runtime_cli_path()
-    if runtime_cli is None:
-        print("\\nInstalled package, but the openstudio-ai command was not found for this Python environment.")
-        return 3
-    code = run([runtime_cli, "install-runtime"])
-    if code != 0:
-        print("\\nInstalled package, but runtime initialization failed.")
-        return code
-
-    runtime_mcp = runtime_command_path("openstudio-ai-mcp")
-    if not shutil.which("openstudio-ai-mcp"):
-        print(
-            "\\nThe package installed, but openstudio-ai-mcp is not on PATH in this shell."
-        )
-        if runtime_mcp:
-            print(f"Installed MCP command: {runtime_mcp}")
-            print(
-                "Add its parent directory to the PATH used to launch the AI tool, then restart "
-                "or reconnect the plugin. Keep marketplace .mcp.json configured with the "
-                "portable command `openstudio-ai-mcp`; do not replace it with this absolute path."
-            )
-        else:
-            print(
-                "The MCP command was not found beside this Python interpreter. Reinstall the "
-                "runtime with this same Python, then rerun doctor."
-            )
-        return 3
-
-    print("\\nOpenStudio AI runtime installation completed.")
-__POST_INSTALL_GUIDANCE__    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
-'''.replace("__POST_INSTALL_GUIDANCE__", guidance).replace(
-        "__OPENSTUDIO_AI_PLUGIN_VERSION__", package_version()
+def offline_guidance(host: str) -> str:
+    """Explain the network dependency of the pinned `uvx` launch."""
+    return (
+        "Explain that uv rechecks the package index about every 10 minutes, even for "
+        "this exact pinned runtime, so the MCP server needs network access to start. If "
+        "the user works offline or on a restricted network, after setup succeeds suggest "
+        f"setting `UV_OFFLINE=1` in the environment that launches {host} (this also "
+        "affects their other uv commands); organizations with an internal package mirror "
+        "can set `UV_DEFAULT_INDEX` instead. Do not edit `.mcp.json` for this.\n"
     )

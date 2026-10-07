@@ -100,8 +100,8 @@ package however the runtime was installed. Do not substitute the host's
 OpenStudio CLI, not Python). If the host provides its own approved Python
 execution tool for this harness, such as AUTOMA-AI `run_python`, use that tool
 instead. If the MCP server is not connected, `sdk_python` is missing, or
-`sdk_python.available` is false, stop and run the doctor workflow rather than
-guessing.
+`sdk_python.available` is false, stop, report `sdk_python.error` when present,
+and run the doctor workflow rather than guessing.
 
 For every generated OpenStudio Python inspection or edit script, load
 `openstudio_sdk_model_editor` before drafting or executing code. Load its

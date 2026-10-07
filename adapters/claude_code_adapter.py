@@ -10,7 +10,10 @@ from pathlib import Path
 from adapters.base import OpenStudioAiHostAdapter
 from adapters.contracts import RUNTIME_MODES, HostAdapterConfig, HostLaunchPlan
 from adapters.runtime_helpers import (
+    doctor_triage_guidance,
     marketplace_mcp_server_config,
+    offline_guidance,
+    prepare_runtime_guidance,
     runtime_doctor_command,
     runtime_uvx_command,
 )
@@ -590,8 +593,6 @@ def _write_marketplace_setup_skills(skills_dir: Path, runtime_mode: str) -> None
 
 
 def _marketplace_setup_skill_docs() -> dict[str, str]:
-    install = runtime_uvx_command("openstudio-ai", "install-runtime")
-    rebuild = runtime_uvx_command("openstudio-ai", "install-runtime", reinstall=True)
     configure = runtime_uvx_command(
         "openstudio-ai", "configure-openstudio", "--path", "<confirmed-executable>"
     )
@@ -612,12 +613,7 @@ def _marketplace_setup_skill_docs() -> dict[str, str]:
                 "`pipx install uv`; otherwise offer an installer from "
                 "https://docs.astral.sh/uv/getting-started/installation/. Use pipx only "
                 "to install uv, never to install the OpenStudio AI runtime.\n"
-                "3. Prepare the runtime with "
-                f"`{install}`. No approval is needed: it only fills uv's own cache, "
-                "which the MCP launch would download anyway. Tell the user it "
-                "downloads about 100 MB and can take a few minutes, and use a long "
-                "command timeout. This fills uv's cache so the MCP server can start "
-                "within Claude Code's startup timeout.\n"
+                f"3. {prepare_runtime_guidance('Claude Code')}"
                 f"4. Run the doctor: `{doctor}`.\n"
                 "5. Treat `core_ready: true` from the doctor as the only successful core "
                 "setup result. If OpenStudio is missing, perform read-only platform discovery, "
@@ -631,9 +627,7 @@ def _marketplace_setup_skill_docs() -> dict[str, str]:
                 "https://pnnl.github.io/openstudio-ai-plugins/#quick-start. Explain that "
                 "Docker Desktop must be installed and running, then the user follows that "
                 "page to configure the MCP server as `openstudio-mcp` and reloads Claude Code.\n"
-                "7. If the doctor reports `plugin_ready: false`, explain in normal "
-                "energy-modeler language that uv's cached runtime is stale or damaged and "
-                f"ask before rebuilding it with `{rebuild}`.\n"
+                f"7. {doctor_triage_guidance()}"
                 "8. If `uvx` works in a terminal but the MCP server still cannot start, "
                 "diagnose command discovery before editing plugin files: check whether the "
                 "directory containing `uvx` is on the PATH used to launch Claude Code. "
@@ -643,11 +637,12 @@ def _marketplace_setup_skill_docs() -> dict[str, str]:
                 "9. If this is intentionally a repository checkout with a project virtual "
                 "environment, explain that it is local development: re-export with "
                 "`--runtime-mode local` instead of modifying a marketplace export.\n"
-                "10. If setup prepared or rebuilt the runtime, or the MCP server had "
+                f"10. {offline_guidance('Claude Code')}"
+                "11. If setup prepared or rebuilt the runtime, or the MCP server had "
                 "failed to connect, tell the user to run `/reload-plugins` or reconnect the "
                 "failed MCP server. Claude Code discovers MCP tools only when it starts the "
                 "server, so a new tool cannot appear in the current session.\n"
-                "11. Summarize core readiness separately from optional capabilities, then report "
+                "12. Summarize core readiness separately from optional capabilities, then report "
                 "model loading, HVAC workflow support, "
                 "simulation, results, SDK lookup, and workflow state tracking.\n"
             ),
@@ -658,6 +653,7 @@ def _marketplace_setup_skill_docs() -> dict[str, str]:
             body=(
                 "# Doctor OpenStudio AI\n\n"
                 f"Run `{doctor}`. If `uvx` is missing, follow the setup skill. "
+                f"{doctor_triage_guidance()}"
                 "Explain missing uv, missing runtime, missing OpenStudio, "
                 "or path problems as setup items, not programming failures.\n"
             ),
@@ -667,10 +663,10 @@ def _marketplace_setup_skill_docs() -> dict[str, str]:
             description="Guide non-destructive repair of the OpenStudio AI runtime.",
             body=(
                 "# Repair OpenStudio AI\n\n"
-                "First run the doctor skill. If the runtime is missing or it reports "
-                "`plugin_ready: false`, ask for approval before running "
-                f"`{rebuild}`, "
-                "then run `/reload-plugins` or reconnect the MCP server before retrying. "
+                "First run the doctor skill. "
+                f"{doctor_triage_guidance()}"
+                "After preparing or rebuilding the runtime, "
+                "run `/reload-plugins` or reconnect the MCP server before retrying. "
                 "Do not delete user "
                 "models, simulation outputs, or project files. If `uvx` works in a "
                 "terminal but Claude cannot find it, follow the "

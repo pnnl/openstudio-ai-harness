@@ -1,6 +1,8 @@
 # Scoped to docker/runtime-envs/Dockerfile (BuildKit reads <Dockerfile>.dockerignore),
 # so it does not change the devcontainer build context.
 .git
+.env
+**/.env
 .venv
 **/.venv
 **/__pycache__

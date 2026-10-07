@@ -100,6 +100,50 @@ python -m pytest -q \
   tests/test_openstudio_claude_code_adapter.py
 ```
 
+### openstudio-mcp integration (optional)
+
+Some integration and evaluation tests exercise the full simulation pipeline via
+[NLR openstudio-mcp](https://github.com/NatLabRockies/openstudio-mcp). This
+dependency is **optional** — the core harness and its unit tests do not require it.
+
+To run those tests, clone `openstudio-mcp` as a sibling of this repository and
+set up its own environment (it pins `mcp<2`, so it cannot share the harness venv):
+
+```bash
+# from the parent directory of this repo
+git clone https://github.com/NatLabRockies/openstudio-mcp
+cd openstudio-mcp
+uv sync
+```
+
+The expected layout is:
+
+```
+parent-dir/
+  openstudio-ai-harness/   ← this repo
+  openstudio-mcp/          ← sibling clone
+```
+
+`scripts/start_openstudio_mcp.sh` launches the sibling server natively (no
+Docker) against a gitignored sandbox, `.openstudio_mcp_sandbox/`. It needs
+OpenStudio 3.11.0 on `PATH`. Stage the sandbox once:
+
+```bash
+scripts/start_openstudio_mcp.sh --setup
+```
+
+This creates the sandbox dirs and an empty Gemfile, so the OpenStudio CLI uses
+its embedded openstudio-standards. It also downloads openstudio-common-measures.
+ComStock measures are not staged, so NLR tools that depend on them will fail
+natively.
+
+- Claude Code: the project `.mcp.json` runs the script in stdio mode.
+- Evals: run `scripts/start_openstudio_mcp.sh --http 10220` to serve it over
+  streamable HTTP. See `standalone/evals/README.md`.
+
+Override locations with `OPENSTUDIO_MCP_ROOT` (default `../openstudio-mcp`) and
+`OPENSTUDIO_MCP_SANDBOX`.
+
 Start the MCP server in stdio mode:
 
 ```bash

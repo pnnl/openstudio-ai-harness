@@ -6,6 +6,10 @@ services:
     working_dir: /workspace/openstudio-ai-harness
     volumes:
       - .:/workspace/openstudio-ai-harness:cached
+      # Container-only venvs. A venv links to the Python that built it, so
+      # sharing these folders with the host breaks whichever side synced last.
+      - venv:/workspace/openstudio-ai-harness/.venv
+      - standalone-venv:/workspace/openstudio-ai-harness/standalone/.venv
     ports:
       - "${STREAMLIT_HOST_PORT:-8504}:8504"
     environment:
@@ -27,3 +31,7 @@ services:
     profiles: ["standalone"]
     extends:
       service: devcontainer
+
+volumes:
+  venv:
+  standalone-venv:

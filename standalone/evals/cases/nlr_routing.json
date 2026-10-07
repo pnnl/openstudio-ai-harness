@@ -1,0 +1,13 @@
+[
+  {
+    "case_id": "nlr_simulation_provider_001",
+    "description": "With both MCP servers connected, simulation must run through NLR openstudio-mcp, not the harness sim_* tools.",
+    "prompt": "Run an annual EnergyPlus simulation of the OpenStudio model at {input_dir}/sample.osm using the weather file {input_dir}/USA_FL_Tampa.Intl.AP.722110_TMY3.epw, then report the site EUI.",
+    "inputs": ["sample.osm", "USA_FL_Tampa.Intl.AP.722110_TMY3.epw"],
+    "required_tools": [
+      {"tool": "run_simulation", "provider": "nlr"}
+    ],
+    "forbidden_tools": ["sim_*"],
+    "expected_tools_ordered": ["run_simulation"]
+  }
+]

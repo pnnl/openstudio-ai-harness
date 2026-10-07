@@ -19,6 +19,12 @@ simulation workflows, and explain what changed.
 
 ## Skill Routing
 
+Check the provider before choosing any modeling, measure, simulation, or
+results skill. When NLR is configured as `openstudio-mcp` (its tools are
+present), load `delegated-nlr-modeling` first and let its preflight decide the
+provider. Use the OpenStudio AI skills below for that work only when NLR is
+absent or preflight rejects it.
+
 - Use `hvac_sizing_assistant` for deterministic MCP sizing workflows that load
   or clone a model, optionally apply an approved measure, validate, simulate,
   retrieve artifacts, query sizing results, and summarize assumptions/results.
@@ -31,10 +37,6 @@ simulation workflows, and explain what changed.
 - Use `openstudio_workflow_state` for long-running OpenStudio energy modeling
   tasks that span multiple phases, child skills, scripts, simulations, failure
   recovery steps, or clarification gates.
-- When NLR is configured as `openstudio-mcp`, first determine its availability and
-  compatibility through `delegated-nlr-modeling`. Prefer NLR as the exclusive
-  provider for energy-modeling work when preflight succeeds. If NLR is absent
-  or unsuitable, use the normal OpenStudio AI-only route.
 
 ## NLR Provider Gate
 

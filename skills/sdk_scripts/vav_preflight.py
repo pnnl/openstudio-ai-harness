@@ -13,7 +13,7 @@ from report import emit
 from common.files import check_report_path
 from common.companions import inspect as inspect_companions
 from common.input_validation import validate, read_json
-from common.vav_inventory import inventory
+from common.hvac_inventory import inventory
 from common.vav_plan import plan, assumption_review
 from common.version_guard import require_sdk, load_model
 

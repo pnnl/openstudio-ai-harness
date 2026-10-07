@@ -16,6 +16,13 @@ knowledge, and workflow-state tools for AI-assisted building-energy modeling.
   invocation, not a runtime enable/disable setting.
 - HVAC workflow skills with a bundled VAV creation workflow; legacy object-level
   VAV skills and their generation machinery have been removed.
+- VAV and prototype CAV now compose shared equipment scripts in one system
+  transaction. The CAV skill supports a constant-volume supply fan, water heat/
+  reheat and water or approved DX cooling with VAV-reheat terminals. See the
+  [modularization review guide](docs/HVAC_MODULARIZATION_WORK.md) for phases,
+  source trace, supported arrangements and verification. CAV requires
+  an explicit outdoor-air choice and aligns 100% OA operation with coil sizing;
+  approved CAV plans must be regenerated after this correction.
 - Independent bundled plant creation and selective HVAC removal support standalone
   requests and broader HVAC workflows, including VAV replacement. Air-side skills
   connect their water coils to the created plants. Plant choices include gas/electric boilers, district heating/cooling,

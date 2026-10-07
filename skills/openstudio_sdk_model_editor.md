@@ -54,6 +54,9 @@ Disallowed uses:
 - For multi-zone VAV creation, load `openstudio_vav_reheat_system_creator` and
   run its bundle after provider selection. Do this before loading SDK docs or
   wiki packs. No routine object-level code drafting is needed.
+- For prototype CAV construction, use `openstudio-cav-system-creator`; its parent
+  composes shared equipment modules with a reviewed system-specific recipe.
+  Confirm the requested CAV topology matches its supported arrangement.
 - For standalone plant construction or a plant stage of broader HVAC work, use
   `openstudio-plant-loop-creator`; pass its output/plant selectors to the selected
   air-side skill for water-coil connections when requested.

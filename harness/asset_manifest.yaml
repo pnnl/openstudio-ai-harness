@@ -19,6 +19,10 @@ resources:
         skill: openstudio-hvac-remover
         path: scripts/common/__init__.py
 
+      - hosts: [claude, codex]
+        skill: openstudio-cav-system-creator
+        path: scripts/common/__init__.py
+
   - source: skills/sdk_scripts/doctor.py
     owners:
       - hosts: [claude, codex]
@@ -32,6 +36,10 @@ resources:
         path: scripts/doctor.py
       - hosts: [claude, codex]
         skill: openstudio-hvac-remover
+        path: scripts/doctor.py
+
+      - hosts: [claude, codex]
+        skill: openstudio-cav-system-creator
         path: scripts/doctor.py
 
   - source: skills/sdk_scripts/sdk_probe.py
@@ -49,6 +57,10 @@ resources:
         skill: openstudio-hvac-remover
         path: scripts/sdk_probe.py
 
+      - hosts: [claude, codex]
+        skill: openstudio-cav-system-creator
+        path: scripts/sdk_probe.py
+
   - source: skills/sdk_scripts/common/version_guard.py
     owners:
       - hosts: [claude, codex]
@@ -64,6 +76,10 @@ resources:
         skill: openstudio-hvac-remover
         path: scripts/common/version_guard.py
 
+      - hosts: [claude, codex]
+        skill: openstudio-cav-system-creator
+        path: scripts/common/version_guard.py
+
   - source: skills/sdk_scripts/compatibility.json
     owners:
       - hosts: [claude, codex]
@@ -77,6 +93,10 @@ resources:
         path: scripts/compatibility.json
       - hosts: [claude, codex]
         skill: openstudio-hvac-remover
+        path: scripts/compatibility.json
+
+      - hosts: [claude, codex]
+        skill: openstudio-cav-system-creator
         path: scripts/compatibility.json
 
   - source: skills/sdk_scripts/vav_preflight.py
@@ -96,11 +116,25 @@ resources:
         skill: openstudio-hvac-remover
         path: scripts/common/input_validation.py
 
+      - hosts: [claude, codex]
+        skill: openstudio-cav-system-creator
+        path: scripts/common/input_validation.py
+
+  - source: skills/sdk_scripts/common/hvac_inventory.py
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-vav-reheat-system-creator
+        path: scripts/common/hvac_inventory.py
+      - hosts: [claude, codex]
+        skill: openstudio-cav-system-creator
+        path: scripts/common/hvac_inventory.py
+
   - source: skills/sdk_scripts/common/vav_inventory.py
     owners:
       - hosts: [claude, codex]
         skill: openstudio-vav-reheat-system-creator
         path: scripts/common/vav_inventory.py
+
   - source: skills/sdk_scripts/common/vav_plan.py
     owners:
       - hosts: [claude, codex]
@@ -110,6 +144,10 @@ resources:
     owners:
       - hosts: [claude, codex]
         skill: openstudio-vav-reheat-system-creator
+        path: scripts/references/vav_input.schema.json
+
+      - hosts: [claude, codex]
+        skill: openstudio-cav-system-creator
         path: scripts/references/vav_input.schema.json
 
   - source: skills/sdk_scripts/report.py
@@ -146,6 +184,10 @@ resources:
         skill: openstudio-hvac-remover
         path: scripts/common/files.py
 
+      - hosts: [claude, codex]
+        skill: openstudio-cav-system-creator
+        path: scripts/common/files.py
+
   - source: skills/sdk_scripts/common/companions.py
     owners:
       - hosts: [claude, codex]
@@ -159,6 +201,10 @@ resources:
         skill: openstudio-hvac-remover
         path: scripts/common/companions.py
 
+      - hosts: [claude, codex]
+        skill: openstudio-cav-system-creator
+        path: scripts/common/companions.py
+
   - source: skills/sdk_scripts/common/model_transaction.py
     owners:
       - hosts: [claude, codex]
@@ -167,6 +213,10 @@ resources:
       - hosts: [claude, codex]
         skill: openstudio-hvac-remover
         path: scripts/common/model_transaction.py
+      - hosts: [claude, codex]
+        skill: openstudio-cav-system-creator
+        path: scripts/common/model_transaction.py
+
   - source: skills/sdk_scripts/common/plant_create.py
     owners:
       - hosts: [claude, codex]
@@ -188,7 +238,87 @@ resources:
         skill: openstudio-hvac-remover
         path: scripts/remove_hvac.py
 
+  - source: skills/sdk_scripts/common/hvac_equipment.py
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-vav-reheat-system-creator
+        path: scripts/common/hvac_equipment.py
+
+      - hosts: [claude, codex]
+        skill: openstudio-cav-system-creator
+        path: scripts/common/hvac_equipment.py
+
+  - source: skills/sdk_scripts/common/air_system_recipe.py
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-vav-reheat-system-creator
+        path: scripts/common/air_system_recipe.py
+      - hosts: [claude, codex]
+        skill: openstudio-cav-system-creator
+        path: scripts/common/air_system_recipe.py
+
+  - source: skills/sdk_scripts/common/air_loop_components.py
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-vav-reheat-system-creator
+        path: scripts/common/air_loop_components.py
+
+      - hosts: [claude, codex]
+        skill: openstudio-cav-system-creator
+        path: scripts/common/air_loop_components.py
+
+  - source: skills/sdk_scripts/common/multizone_plan.py
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-vav-reheat-system-creator
+        path: scripts/common/multizone_plan.py
+
+      - hosts: [claude, codex]
+        skill: openstudio-cav-system-creator
+        path: scripts/common/multizone_plan.py
+
+  - source: skills/sdk_scripts/common/multizone_assembly.py
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-vav-reheat-system-creator
+        path: scripts/common/multizone_assembly.py
+
+      - hosts: [claude, codex]
+        skill: openstudio-cav-system-creator
+        path: scripts/common/multizone_assembly.py
+
+  - source: skills/sdk_scripts/common/air_loop_validate.py
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-vav-reheat-system-creator
+        path: scripts/common/air_loop_validate.py
+
+      - hosts: [claude, codex]
+        skill: openstudio-cav-system-creator
+        path: scripts/common/air_loop_validate.py
+
+  - source: skills/sdk_scripts/common/cav_system.py
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-cav-system-creator
+        path: scripts/common/cav_system.py
+
+  - source: skills/sdk_scripts/cav_system.py
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-cav-system-creator
+        path: scripts/cav_system.py
+
+  - source: skills/sdk_scripts/references/cav_input.md
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-cav-system-creator
+        path: scripts/references/cav_input.md
+
 skills:
+  - id: openstudio-cav-system-creator
+    source: skills/openstudio_cav_system_creator.md
+    hosts: [claude, codex]
   - id: openstudio-plant-loop-creator
     source: skills/openstudio_plant_loop_creator.md
     hosts: [claude, codex]

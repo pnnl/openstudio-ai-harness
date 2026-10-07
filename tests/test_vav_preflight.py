@@ -94,6 +94,7 @@ def test_complete_plan_is_deterministic_and_preserves_arguments(
     assert result["ready"]
     assert result == plan(config, catalog, tmp_path / "in.osm")
     assert config == original
+
     assert result["resolved_objects"]["target_zones"] == [
         {"handle": "zone-1", "name": "Zone 1"}
     ]
@@ -102,6 +103,18 @@ def test_complete_plan_is_deterministic_and_preserves_arguments(
     assert result["assumptions"]
     assert all(s.startswith("Object:New VAV.") for s in result["assumptions"])
     assert not (tmp_path / "out.osm").exists()
+
+
+def test_recipe_specific_fan_fields_still_convert_pressure(
+    modules, config, catalog, tmp_path
+):
+    from common.multizone_plan import PROFILE, plan
+
+    profile = deepcopy(PROFILE)
+    profile["fan"] = {"pressure_rise": 4.0, "pressure_units": "inH2O"}
+    result = plan(config, catalog, tmp_path / "in.osm", profile=profile)
+    assert result["ready"], result
+    assert result["parameters"]["fan"]["pressure_rise_pa"] == pytest.approx(996.35564)
 
 
 def test_no_profile_means_no_assumed_defaults(modules, catalog, tmp_path):

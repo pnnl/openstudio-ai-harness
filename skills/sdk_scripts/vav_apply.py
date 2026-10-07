@@ -15,7 +15,7 @@ from common.version_guard import require_sdk, release_version, load_contract, lo
 from report import emit
 from common.files import check_report_path
 from common.input_validation import validate
-from common.vav_inventory import inventory
+from common.hvac_inventory import inventory
 from common.vav_plan import plan
 from common.vav_create import create
 from common.vav_validate import counts, validate_model

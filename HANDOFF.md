@@ -220,6 +220,47 @@ a new no-approval/no-publication review regression. Full review records remain
 on disk; stdout exposes status/counts only. The consolidated summary records the
 workflow. No plugin installation, commit or push performed.
 
+## Shared HVAC modules and CAV — October 6, 2026
+
+Phases 1–3 of [the modularization work guide](docs/HVAC_MODULARIZATION_WORK.md)
+are implemented and verified. VAV retains its contract through thin interfaces;
+shared modules own equipment, multizone planning/assembly and independent saved
+getters. New `openstudio-cav-system-creator` runs guarded inventory/preflight/apply
+without a modeling runtime and is exported/routed for both hosts. It models the
+generic prototype CAV arrangement, not arbitrary constant-airflow topology.
+Compatible NLR stays first. Partial CAV plans support review without approval.
+
+Verification: 218 combined tests passed; three strengthened native VAV sizing tests
+match the historical numeric baseline (normal hydronic/electric-DX cases). Both
+native CAV cooling cases and independently relocated Claude/Codex bundles passed.
+Static bundle import closure and three exported skill validations passed. The initial CAV
+zero central-heating result is superseded by F1 remediation below; real
+capacity/control review remains necessary. Native Windows/Linux, annual runs
+and live-agent token measurements remain unverified. Next review: independent
+fan-replacement and coil-attachment contracts; those skills are not yet exposed.
+No commit/push/install/release performed; regenerate exports before agent trials.
+
+## HVAC review follow-up F1–F5 — October 6, 2026
+
+CAV now requires an explicit OA schedule/null choice independently of profile
+approval. Constant-1 fraction schedules mean 100% outdoor air; both all-OA sizing
+flags follow that choice, and review/summary state the economizer consequence.
+Other positive/variable fractions conservatively size at 100% OA and disclose
+possible oversizing. Null keeps minimum ventilation sizing. Re-preflight old CAV
+plans. Native hydronic comparison confirmed central HW capacity rises from 0 to
+20.88 kW, cooling design load from 32.43 to 74.31 kW, with unchanged 1.431 m³/s fan
+flow and no Severe/Fatal errors. Native tests require positive central heat.
+
+All fan-class deltas are checked, recipe metadata is frozen/shared across assembly
+and validation, custom-profile pressure conversion uses its own fields, and shared
+inventory is HVAC-neutral with a VAV compatibility import. Details/evidence and
+review commands are in the modularization guide. Verification: 237 combined tests
+passed, including native CAV water/DX, historical VAV numeric parity and relocated
+Claude/Codex bundles. Three exported skills passed validation; changed-Python
+formatting and diff whitespace checks passed.
+User review/probe files under docs/reviews remain preserved. No commit/push/install
+or release performed.
+
 ## Near-Term Backlog
 
 - Skill-bound SDK development is complete within the user-selected local

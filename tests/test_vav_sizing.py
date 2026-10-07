@@ -119,6 +119,22 @@ def test_native_vav_design_day_sizing(
     ]
     assert len(reheat_capacities) == 5 and all(x > 0 for x in reheat_capacities), sizing
     assert len(cooling_capacities) == 1 and cooling_capacities[0] > 0, sizing
+    if not use_schedule_file:
+        baseline = json.loads(
+            (Path(__file__).parent / "fixtures/vav_sizing_baseline.json").read_text()
+        )["cases"]
+        old = next(
+            x
+            for x in baseline
+            if x["case"] == ("hydronic" if hydronic else "electric_dx")
+        )
+        for actual, expected in (
+            (fan_flows, old["fan_flow_m3_s"]),
+            (terminal_flows, old["terminal_flows_m3_s"]),
+            (reheat_capacities, list(old["reheat_capacities_w"].values())),
+            (cooling_capacities, old["cooling_capacity_or_design_load_w"]),
+        ):
+            assert sorted(actual) == pytest.approx(sorted(expected), rel=1e-6, abs=1e-6)
     assert 'PlantLoop="MAIN SERVICE WATER LOOP"' not in errors
     assert "No node connection errors were found." in errors
     assert fixture.read_bytes() == original

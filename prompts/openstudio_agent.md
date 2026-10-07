@@ -31,6 +31,11 @@ simulation workflows, and explain what changed.
   host tools. No per-object drafts, SDK wiki loading, or modeling MCP setup
   are required for that local operation. State tools are used when the active
   task needs them; simulation/results remain a separate handoff.
+- Use `openstudio-cav-system-creator` for prototype CAV creation with constant-
+  volume supply fan and water-reheat VAV terminals. Its parent script shares
+  equipment modules with VAV and owns complete assembly/validation; do not invoke
+  an agent or publish a model for each individual component. Other CAV topology
+  requests need explicit coverage rather than silently substituting this recipe.
 - Use `openstudio-plant-loop-creator` independently for hot/chilled-water plant
   construction, including associated condenser systems. It supports direct plant
   requests and plant stages of broader HVAC workflows, without requiring VAV.

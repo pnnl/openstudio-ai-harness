@@ -42,12 +42,14 @@ def preflight(source, config, operation, planner):
     model, translator = load_model(sdk, source)
     warnings = [x.logMessage() for x in translator.warnings()]
     planned = planner(model, sdk, config)
-    planned["companions"] = inspect(model, source, output, sdk)
+    ready = planned.get("ready", True)
+    if ready:
+        planned["companions"] = inspect(model, source, output, sdk)
     if digest(source) != original:
         raise ValueError("Input changed during preflight")
     return dict(
-        ok=True,
-        ready=True,
+        ok=ready,
+        ready=ready,
         mode="inspect_only",
         plan_version=1,
         operation=operation,
@@ -57,7 +59,9 @@ def preflight(source, config, operation, planner):
         input_sha256=original,
         configuration=config,
         plan=planned,
-        warnings=warnings + planned["companions"]["warnings"],
+        warnings=warnings
+        + planned.get("companions", {}).get("warnings", [])
+        + planned.get("warnings", []),
     )
 
 
@@ -192,6 +196,16 @@ def cli(operation, planner, creator, validator, inventory):
         if "plan" in report:
             compact["parameters"] = report["plan"]["parameters"]
             compact["impact"] = report["plan"].get("impact")
+            if "outdoor_air_policy" in report["plan"]:
+                compact["outdoor_air_policy"] = report["plan"]["outdoor_air_policy"]
+            for key in ("missing_inputs", "errors"):
+                if key in report["plan"]:
+                    compact[key] = report["plan"][key]
+            if report["plan"].get("assumption_review"):
+                compact["assumption_review"] = {
+                    "status": report["plan"]["assumption_review"]["status"],
+                    "details": "plan.assumption_review in the saved report",
+                }
         if "candidates" in report:
             compact["candidate_counts"] = {
                 k: len(v) for k, v in report["candidates"].items()
@@ -199,7 +213,7 @@ def cli(operation, planner, creator, validator, inventory):
             compact["candidates"] = {k: v[:8] for k, v in report["candidates"].items()}
         compact["report_path"] = str(args.report)
         print(json.dumps(compact, allow_nan=False))
-        return 0
+        return 0 if report["ok"] else 2
     except Exception as exc:
         failure = dict(ok=False, ready=False, error=str(exc), operation=operation)
         if (

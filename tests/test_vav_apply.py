@@ -319,3 +319,20 @@ def test_release_build_metadata_is_accepted(
     report["openstudio_version"] = "3.11.0+241b8abb4d"
     plan_file.write_text(json.dumps(report))
     assert apply_module.apply(plan_file)["ok"]
+
+
+def test_vav_rejects_extra_constant_volume_fan(
+    sdk, apply_module, model_file, config, tmp_path, monkeypatch
+):
+    plan_file = reviewed_plan(sdk, model_file, config, tmp_path)
+    create = apply_module.create
+
+    def wrong_create(model, native, planned):
+        result = create(model, native, planned)
+        native.model.FanConstantVolume(model)
+        return result
+
+    monkeypatch.setattr(apply_module, "create", wrong_create)
+    with pytest.raises(RuntimeError, match="count delta.fan_ConstantVolume"):
+        apply_module.apply(plan_file)
+    assert not Path(config["output_model_path"]).exists()

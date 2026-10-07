@@ -26,6 +26,11 @@ task-specific skill before acting; do not recreate its procedure from memory.
 - Use `openstudio-vav-reheat-system-creator` for multi-zone VAV work through
   its exact-release doctor, bundled preflight/apply, and saved-model validator.
   Do not draft objects individually; the legacy child skills have been removed.
+- Use `openstudio-cav-system-creator` for the prototype CAV arrangement with a
+  constant-volume fan, water heating/reheat and VAV-reheat terminals. Clarify a
+  different CAV arrangement before routing; generic prototype controls do not
+  imply fixed airflow in every zone or template compliance. VAV/CAV parent scripts
+  compose shared equipment functions inside one reviewed model transaction.
 - Use `openstudio-plant-loop-creator` as an independent plant-building module for
   hot-water, chilled-water and associated condenser systems. Route direct plant
   requests and plant stages of broader HVAC workflows here; it is not restricted

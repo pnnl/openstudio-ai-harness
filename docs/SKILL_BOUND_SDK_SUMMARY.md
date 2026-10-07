@@ -10,6 +10,16 @@ they are not a fresh full-suite or release certification.
 
 ## Decisions and architecture
 
+October 6 extension: VAV now composes shared equipment/planning/validation modules,
+and prototype CAV is a second consumer. The active phases, source trace, review map
+and verification are in [the HVAC modularization work guide](HVAC_MODULARIZATION_WORK.md). The F1–F5 follow-up
+requires explicit CAV outdoor-air selection, aligns all-OA sizing with fraction
+schedules, checks every fan class and shares immutable system metadata/HVAC-neutral
+inventory. The native five-zone comparison corrected zero central heat to 20.88 kW;
+re-preflight older CAV plans. Conservative sizing for variable/partial OA fractions
+may oversize coils; its meaning is shown in the plan review.
+Independent equipment attach/replace skills remain a subsequent checkpoint.
+
 The goal is to reduce agent context and repeated script drafting while making
 model edits reproducible and reviewable. Reviewed Python SDK scripts ship with
 the skill that owns the operation. Claude Code and Codex execute them directly

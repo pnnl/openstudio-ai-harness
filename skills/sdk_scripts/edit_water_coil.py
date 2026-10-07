@@ -9,5 +9,5 @@ from common.water_coil import inventory, plan_edit, change, validate_model
 
 if __name__ == "__main__":
     raise SystemExit(
-        cli("edit_water_coil_ratings", plan_edit, change, validate_model, inventory)
+        cli("edit_water_coil", plan_edit, change, validate_model, inventory)
     )

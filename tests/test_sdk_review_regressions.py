@@ -46,14 +46,19 @@ def test_cold_hot_water_loop_blocks_reheat(modules, catalog, config, tmp_path):
 def test_nonexistent_drive_root_terminates(
     modules, catalog, config, tmp_path, monkeypatch
 ):
-    import common.vav_plan as planning
+    from common import multizone_plan
 
     class Root:
+        parent_reads = 0
+
         def exists(self):
             return False
 
         @property
         def parent(self):
+            self.parent_reads += 1
+            if self.parent_reads > 4:
+                raise AssertionError("Missing-drive traversal must stop at its root")
             return self
 
     class Output:
@@ -75,8 +80,9 @@ def test_nonexistent_drive_root_terminates(
         def __str__(self):
             return "Z:\\missing\\new.osm"
 
-    monkeypatch.setattr(planning, "Path", lambda value: Output())
-    result = planning.plan(config, catalog, tmp_path / "in.osm")
+    # VAV delegates path validation to the shared resolver; patch its lookup.
+    monkeypatch.setattr(multizone_plan, "Path", lambda value: Output())
+    result = modules[1](config, catalog, tmp_path / "in.osm")
     assert not result["ready"] and any("drive/root" in e for e in result["errors"])
 
 

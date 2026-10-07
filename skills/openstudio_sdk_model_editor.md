@@ -65,15 +65,16 @@ Disallowed uses:
   requires a separate contract; do not route it to this performance editor.
   Embedded fans need separate coverage. Whole-system VAV/CAV construction uses
   the shared fan functions inside its parent transaction.
-- Use `openstudio-water-coil-ratings-editor` for rating-only changes to existing
-  main-supply heating/cooling water coils; it preserves coil, connection,
-  controller and reference handles. Use `openstudio-water-coil-connector` for
-  explicit main-supply attachment or a new coil identity on the same plant/class.
-  Select plant, placement, design conditions, schedule, autosizing and controller
-  settings explicitly. Finalize controllers after both connections. Replacement
-  references needing migration, OA/unitary/terminal locations, class conversion
-  and plant migration require separate coverage. Complete VAV/CAV creation shares
-  these setters within its parent transaction; do not launch a skill per coil.
+- Use `openstudio-water-coil-editor` for existing main-supply water-coil ratings,
+  name, availability, Autosize resets and controller settings. These are in-place
+  setters preserving coil, controller, connection, metadata and reference handles,
+  including EMS/LifeCycleCost. Use `openstudio-water-coil-connector` only to attach
+  a new water coil at the selected air loop's supply outlet and compatible existing
+  plant demand branch. Interior/inlet nodes are unsupported. Select design,
+  schedule, sizing and controller choices explicitly; finalize a new controller
+  after both connections. Same-class replacement is not exported. Class conversion,
+  location changes, plant migration and OA/unitary/terminal coils need separate
+  coverage. Whole VAV/CAV creation shares these setters within its parent transaction.
 - For standalone plant construction or a plant stage of broader HVAC work, use
   `openstudio-plant-loop-creator`; pass its output/plant selectors to the selected
   air-side skill for water-coil connections when requested.

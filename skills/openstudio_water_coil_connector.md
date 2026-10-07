@@ -1,6 +1,6 @@
 ---
 name: openstudio-water-coil-connector
-description: Attach a water heating or cooling coil to an existing main air-supply path and plant, or explicitly replace a water coil on that same plant while managing its controller.
+description: Attach a water heating or cooling coil at an existing air loop supply outlet and compatible plant demand branch, finalizing its controller after both connections.
 metadata:
   version: 0.4.0
 ---
@@ -10,26 +10,30 @@ or transitioning to local SDK work, run `scripts/doctor.py` with host Python 3.1
 and use its verified pinned-release OpenStudio executable. Resolve files beside
 this SKILL.md (Claude: `${CLAUDE_SKILL_DIR}`); the entrypoint guards the SDK too.
 
-Use [the connection contract](scripts/references/water_coil_connection.md) to choose
-between attachment and explicit replacement. Rating-only changes use
-`openstudio-water-coil-ratings-editor` and preserve identity without rewiring.
+Use [the attachment contract](scripts/references/water_coil_connection.md).
+Settings changes to an existing coil, including name, availability, Autosize resets
+and controller settings, use `openstudio-water-coil-editor` in place.
 
 Attachment requires an explicitly selected air loop, main-supply outlet node,
-compatible existing plant, coil name, availability schedule, design conditions,
-autosizing decision and controller settings. The selected node must already have
+compatible existing plant, coil name, availability schedule, cooling design conditions,
+autosizing decision and controller settings. Only the air loop's supply outlet is
+supported; interior and inlet nodes remain
+unready even with a Temperature setpoint manager. The outlet must already have
 a Temperature setpoint manager. The coil is inserted immediately upstream of it.
 Use `openstudio-plant-loop-creator` for a requested new plant, then pass its copied
 output and plant handle here. This module connects plant demand and air supply;
 it does not create plants or change the system's sizing/terminal strategy.
 
-Replacement requires an explicit request for a new coil identity and `operation:
-replace`. Initial coverage retains the water-coil class and existing plant, four
-boundary nodes, metadata and unspecified ratings. It creates new coil/controller/
-connection handles, resets capacity/flow sizing to the chosen Autosize contract,
-and rejects references needing migration. Show old/new identity implications in
-the plan review. Efficiency or design-temperature changes alone do not justify
-replacement. Class conversion, plant migration, OA-stream, unitary and terminal
-locations require separate coverage.
+Heating attachment uses the UA method. Its four rated temperatures are optional
+nominal-rating metadata, not operating design conditions; omitted fields retain
+pinned SDK defaults shown in the plan. Review `impact.rating_usage` and the full
+`assumption_review` so the user sees that plant/air-system sizing governs the coil.
+Do not solicit these temperatures as required design choices. Input relationship
+checks still apply. Cooling design inputs remain required.
+
+Class conversion, plant migration, location changes, OA-stream, unitary and
+terminal coils need separate coverage. Same-class replacement is not exported;
+the clone/reconnect primitive remains internal pending a real replacement contract.
 
 ```text
 <verified-cli> execute_python_script <skill>/scripts/connect_water_coil.py --input <input.osm> --report <inventory.json>

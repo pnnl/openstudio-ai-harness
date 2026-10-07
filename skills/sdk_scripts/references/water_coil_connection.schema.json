@@ -1,5 +1,253 @@
 {
-  "title": "Direct main-supply water-coil attachment or explicit replacement",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "output_model_path"
+  ],
+  "properties": {
+    "output_model_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "air_loop": {
+      "$ref": "#/$defs/selector"
+    },
+    "plant_loop": {
+      "$ref": "#/$defs/selector"
+    },
+    "coil_name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "availability_schedule": {
+      "oneOf": [
+        {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "name"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "handle"
+              ],
+              "properties": {
+                "handle": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "builtin"
+          ],
+          "properties": {
+            "builtin": {
+              "type": "string",
+              "enum": [
+                "AlwaysOnDiscrete",
+                "AlwaysOffDiscrete"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "sizing": {
+      "type": "string",
+      "enum": [
+        "Autosize"
+      ]
+    },
+    "controller": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "control_variable",
+        "minimum_flow_m3_s",
+        "convergence_tolerance_k"
+      ],
+      "properties": {
+        "control_variable": {
+          "type": "string",
+          "enum": [
+            "Temperature"
+          ]
+        },
+        "minimum_flow_m3_s": {
+          "type": "number",
+          "minimum": 0
+        },
+        "convergence_tolerance_k": {
+          "oneOf": [
+            {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            {
+              "type": "string",
+              "enum": [
+                "Autosize"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "design": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "rated_inlet_water_temperature_c": {
+          "type": "number",
+          "minimum": -100,
+          "maximum": 200,
+          "description": "Optional nominal-rating metadata. Informational under the UA method; EnergyPlus input relationships still apply."
+        },
+        "rated_outlet_water_temperature_c": {
+          "type": "number",
+          "minimum": -100,
+          "maximum": 200,
+          "description": "Optional nominal-rating metadata. Informational under the UA method; EnergyPlus input relationships still apply."
+        },
+        "rated_inlet_air_temperature_c": {
+          "type": "number",
+          "minimum": -100,
+          "maximum": 200,
+          "description": "Optional nominal-rating metadata. Informational under the UA method; EnergyPlus input relationships still apply."
+        },
+        "rated_outlet_air_temperature_c": {
+          "type": "number",
+          "minimum": -100,
+          "maximum": 200,
+          "description": "Optional nominal-rating metadata. Informational under the UA method; EnergyPlus input relationships still apply."
+        },
+        "design_inlet_water_temperature_c": {
+          "oneOf": [
+            {
+              "type": "number",
+              "minimum": -100,
+              "maximum": 200
+            },
+            {
+              "type": "string",
+              "enum": [
+                "Autosize"
+              ]
+            }
+          ]
+        },
+        "design_inlet_air_temperature_c": {
+          "oneOf": [
+            {
+              "type": "number",
+              "minimum": -100,
+              "maximum": 200
+            },
+            {
+              "type": "string",
+              "enum": [
+                "Autosize"
+              ]
+            }
+          ]
+        },
+        "design_outlet_air_temperature_c": {
+          "oneOf": [
+            {
+              "type": "number",
+              "minimum": -100,
+              "maximum": 200
+            },
+            {
+              "type": "string",
+              "enum": [
+                "Autosize"
+              ]
+            }
+          ]
+        },
+        "design_inlet_air_humidity_ratio": {
+          "oneOf": [
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 0.1
+            },
+            {
+              "type": "string",
+              "enum": [
+                "Autosize"
+              ]
+            }
+          ]
+        },
+        "design_outlet_air_humidity_ratio": {
+          "oneOf": [
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 0.1
+            },
+            {
+              "type": "string",
+              "enum": [
+                "Autosize"
+              ]
+            }
+          ]
+        },
+        "heat_exchanger_configuration": {
+          "type": "string",
+          "enum": [
+            "CrossFlow",
+            "CounterFlow"
+          ]
+        },
+        "type_of_analysis": {
+          "type": "string",
+          "enum": [
+            "SimpleAnalysis",
+            "DetailedAnalysis"
+          ]
+        }
+      },
+      "description": "Heating UA attachment: optional nominal-rating temperature metadata; does not set the design point. Cooling: required design conditions and analysis choices."
+    },
+    "operation": {
+      "type": "string",
+      "enum": [
+        "attach"
+      ]
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "Heating",
+        "Cooling"
+      ]
+    },
+    "air_node": {
+      "$ref": "#/$defs/selector"
+    }
+  },
+  "title": "Main-supply outlet water-coil attachment",
   "$defs": {
     "selector": {
       "oneOf": [
@@ -31,505 +279,5 @@
         }
       ]
     }
-  },
-  "oneOf": [
-    {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "output_model_path"
-      ],
-      "properties": {
-        "output_model_path": {
-          "type": "string",
-          "minLength": 1
-        },
-        "air_loop": {
-          "$ref": "#/$defs/selector"
-        },
-        "plant_loop": {
-          "$ref": "#/$defs/selector"
-        },
-        "coil_name": {
-          "type": "string",
-          "minLength": 1
-        },
-        "availability_schedule": {
-          "oneOf": [
-            {
-              "oneOf": [
-                {
-                  "type": "object",
-                  "additionalProperties": false,
-                  "required": [
-                    "name"
-                  ],
-                  "properties": {
-                    "name": {
-                      "type": "string",
-                      "minLength": 1
-                    }
-                  }
-                },
-                {
-                  "type": "object",
-                  "additionalProperties": false,
-                  "required": [
-                    "handle"
-                  ],
-                  "properties": {
-                    "handle": {
-                      "type": "string",
-                      "minLength": 1
-                    }
-                  }
-                }
-              ]
-            },
-            {
-              "type": "object",
-              "additionalProperties": false,
-              "required": [
-                "builtin"
-              ],
-              "properties": {
-                "builtin": {
-                  "type": "string",
-                  "enum": [
-                    "AlwaysOnDiscrete",
-                    "AlwaysOffDiscrete"
-                  ]
-                }
-              }
-            }
-          ]
-        },
-        "sizing": {
-          "type": "string",
-          "enum": [
-            "Autosize"
-          ]
-        },
-        "controller": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "control_variable",
-            "minimum_flow_m3_s",
-            "convergence_tolerance_k"
-          ],
-          "properties": {
-            "control_variable": {
-              "type": "string",
-              "enum": [
-                "Temperature"
-              ]
-            },
-            "minimum_flow_m3_s": {
-              "type": "number",
-              "minimum": 0
-            },
-            "convergence_tolerance_k": {
-              "oneOf": [
-                {
-                  "type": "number",
-                  "exclusiveMinimum": 0
-                },
-                {
-                  "type": "string",
-                  "enum": [
-                    "Autosize"
-                  ]
-                }
-              ]
-            }
-          }
-        },
-        "design": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "rated_inlet_water_temperature_c": {
-              "type": "number",
-              "minimum": -100,
-              "maximum": 200
-            },
-            "rated_outlet_water_temperature_c": {
-              "type": "number",
-              "minimum": -100,
-              "maximum": 200
-            },
-            "rated_inlet_air_temperature_c": {
-              "type": "number",
-              "minimum": -100,
-              "maximum": 200
-            },
-            "rated_outlet_air_temperature_c": {
-              "type": "number",
-              "minimum": -100,
-              "maximum": 200
-            },
-            "performance_input_method": {
-              "type": "string",
-              "enum": [
-                "NominalCapacity",
-                "UFactorTimesAreaAndDesignWaterFlowRate"
-              ]
-            },
-            "design_inlet_water_temperature_c": {
-              "oneOf": [
-                {
-                  "type": "number",
-                  "minimum": -100,
-                  "maximum": 200
-                },
-                {
-                  "type": "string",
-                  "enum": [
-                    "Autosize"
-                  ]
-                }
-              ]
-            },
-            "design_inlet_air_temperature_c": {
-              "oneOf": [
-                {
-                  "type": "number",
-                  "minimum": -100,
-                  "maximum": 200
-                },
-                {
-                  "type": "string",
-                  "enum": [
-                    "Autosize"
-                  ]
-                }
-              ]
-            },
-            "design_outlet_air_temperature_c": {
-              "oneOf": [
-                {
-                  "type": "number",
-                  "minimum": -100,
-                  "maximum": 200
-                },
-                {
-                  "type": "string",
-                  "enum": [
-                    "Autosize"
-                  ]
-                }
-              ]
-            },
-            "design_inlet_air_humidity_ratio": {
-              "oneOf": [
-                {
-                  "type": "number",
-                  "minimum": 0,
-                  "maximum": 0.1
-                },
-                {
-                  "type": "string",
-                  "enum": [
-                    "Autosize"
-                  ]
-                }
-              ]
-            },
-            "design_outlet_air_humidity_ratio": {
-              "oneOf": [
-                {
-                  "type": "number",
-                  "minimum": 0,
-                  "maximum": 0.1
-                },
-                {
-                  "type": "string",
-                  "enum": [
-                    "Autosize"
-                  ]
-                }
-              ]
-            },
-            "heat_exchanger_configuration": {
-              "type": "string",
-              "enum": [
-                "CrossFlow",
-                "CounterFlow"
-              ]
-            },
-            "type_of_analysis": {
-              "type": "string",
-              "enum": [
-                "SimpleAnalysis",
-                "DetailedAnalysis"
-              ]
-            }
-          }
-        },
-        "operation": {
-          "type": "string",
-          "enum": [
-            "attach"
-          ]
-        },
-        "kind": {
-          "type": "string",
-          "enum": [
-            "Heating",
-            "Cooling"
-          ]
-        },
-        "air_node": {
-          "$ref": "#/$defs/selector"
-        }
-      }
-    },
-    {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "output_model_path",
-        "operation"
-      ],
-      "properties": {
-        "output_model_path": {
-          "type": "string",
-          "minLength": 1
-        },
-        "air_loop": {
-          "$ref": "#/$defs/selector"
-        },
-        "plant_loop": {
-          "$ref": "#/$defs/selector"
-        },
-        "coil_name": {
-          "type": "string",
-          "minLength": 1
-        },
-        "availability_schedule": {
-          "oneOf": [
-            {
-              "oneOf": [
-                {
-                  "type": "object",
-                  "additionalProperties": false,
-                  "required": [
-                    "name"
-                  ],
-                  "properties": {
-                    "name": {
-                      "type": "string",
-                      "minLength": 1
-                    }
-                  }
-                },
-                {
-                  "type": "object",
-                  "additionalProperties": false,
-                  "required": [
-                    "handle"
-                  ],
-                  "properties": {
-                    "handle": {
-                      "type": "string",
-                      "minLength": 1
-                    }
-                  }
-                }
-              ]
-            },
-            {
-              "type": "object",
-              "additionalProperties": false,
-              "required": [
-                "builtin"
-              ],
-              "properties": {
-                "builtin": {
-                  "type": "string",
-                  "enum": [
-                    "AlwaysOnDiscrete",
-                    "AlwaysOffDiscrete"
-                  ]
-                }
-              }
-            }
-          ]
-        },
-        "sizing": {
-          "type": "string",
-          "enum": [
-            "Autosize"
-          ]
-        },
-        "controller": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "control_variable",
-            "minimum_flow_m3_s",
-            "convergence_tolerance_k"
-          ],
-          "properties": {
-            "control_variable": {
-              "type": "string",
-              "enum": [
-                "Temperature"
-              ]
-            },
-            "minimum_flow_m3_s": {
-              "type": "number",
-              "minimum": 0
-            },
-            "convergence_tolerance_k": {
-              "oneOf": [
-                {
-                  "type": "number",
-                  "exclusiveMinimum": 0
-                },
-                {
-                  "type": "string",
-                  "enum": [
-                    "Autosize"
-                  ]
-                }
-              ]
-            }
-          }
-        },
-        "design": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "rated_inlet_water_temperature_c": {
-              "type": "number",
-              "minimum": -100,
-              "maximum": 200
-            },
-            "rated_outlet_water_temperature_c": {
-              "type": "number",
-              "minimum": -100,
-              "maximum": 200
-            },
-            "rated_inlet_air_temperature_c": {
-              "type": "number",
-              "minimum": -100,
-              "maximum": 200
-            },
-            "rated_outlet_air_temperature_c": {
-              "type": "number",
-              "minimum": -100,
-              "maximum": 200
-            },
-            "performance_input_method": {
-              "type": "string",
-              "enum": [
-                "NominalCapacity",
-                "UFactorTimesAreaAndDesignWaterFlowRate"
-              ]
-            },
-            "design_inlet_water_temperature_c": {
-              "oneOf": [
-                {
-                  "type": "number",
-                  "minimum": -100,
-                  "maximum": 200
-                },
-                {
-                  "type": "string",
-                  "enum": [
-                    "Autosize"
-                  ]
-                }
-              ]
-            },
-            "design_inlet_air_temperature_c": {
-              "oneOf": [
-                {
-                  "type": "number",
-                  "minimum": -100,
-                  "maximum": 200
-                },
-                {
-                  "type": "string",
-                  "enum": [
-                    "Autosize"
-                  ]
-                }
-              ]
-            },
-            "design_outlet_air_temperature_c": {
-              "oneOf": [
-                {
-                  "type": "number",
-                  "minimum": -100,
-                  "maximum": 200
-                },
-                {
-                  "type": "string",
-                  "enum": [
-                    "Autosize"
-                  ]
-                }
-              ]
-            },
-            "design_inlet_air_humidity_ratio": {
-              "oneOf": [
-                {
-                  "type": "number",
-                  "minimum": 0,
-                  "maximum": 0.1
-                },
-                {
-                  "type": "string",
-                  "enum": [
-                    "Autosize"
-                  ]
-                }
-              ]
-            },
-            "design_outlet_air_humidity_ratio": {
-              "oneOf": [
-                {
-                  "type": "number",
-                  "minimum": 0,
-                  "maximum": 0.1
-                },
-                {
-                  "type": "string",
-                  "enum": [
-                    "Autosize"
-                  ]
-                }
-              ]
-            },
-            "heat_exchanger_configuration": {
-              "type": "string",
-              "enum": [
-                "CrossFlow",
-                "CounterFlow"
-              ]
-            },
-            "type_of_analysis": {
-              "type": "string",
-              "enum": [
-                "SimpleAnalysis",
-                "DetailedAnalysis"
-              ]
-            }
-          }
-        },
-        "operation": {
-          "type": "string",
-          "enum": [
-            "replace"
-          ]
-        },
-        "coil": {
-          "$ref": "#/$defs/selector"
-        }
-      }
-    }
-  ]
+  }
 }

@@ -30,13 +30,16 @@ knowledge, and workflow-state tools for AI-assisted building-energy modeling.
   translation precede publication of a new copy. VAV/CAV creation requires complete
   performance inputs and shares setters/pressure conversion with this editor.
   Embedded fans and class-changing replacement require separate coverage.
-- Independent water-coil skills separate rating-only edits from attachment and
-  explicit replacement. `openstudio-water-coil-ratings-editor` preserves coil,
-  controller and reference handles; `openstudio-water-coil-connector` attaches
-  main-supply heating/cooling water coils or replaces one on the same plant/class,
-  finalizing controllers after both connections. Design, schedule, autosizing and
-  controller choices are explicit. VAV/CAV share their rating/controller setters.
-  Saved state/topology checks and EnergyPlus translation precede publication.
+- Independent water-coil skills separate in-place settings edits from new attachment.
+  `openstudio-water-coil-editor` changes explicit ratings, names, availability,
+  autosizing and controller values, preserving coil/controller/connection/reference
+  handles. `openstudio-water-coil-connector` attaches only at the supply outlet and
+  finalizes its new controller after plant and air connections. Same-class replacement
+  is internal pending a topology-changing contract. VAV/CAV share the setters;
+  saved validation and EnergyPlus translation precede publication. Heating UA
+  rated temperatures are optional, informational metadata. Missing plant equipment
+  or controls produces a warning for an in-place edit and marks simulation readiness false;
+  attachment requires a ready plant.
 - Independent bundled plant creation and selective HVAC removal support standalone
   requests and broader HVAC workflows, including VAV replacement. Air-side skills
   connect their water coils to the created plants. Plant choices include gas/electric boilers, district heating/cooling,

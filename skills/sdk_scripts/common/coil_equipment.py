@@ -132,19 +132,43 @@ def node_ports(coil):
     return ports
 
 
+CONTROLLER_FIELDS = {
+    "control_variable": ("ControlVariable", "Control Variable", False),
+    "action": ("Action", "Action", False),
+    "actuator_variable": ("ActuatorVariable", "Actuator Variable", False),
+    "minimum_flow_m3_s": ("MinimumActuatedFlow", "Minimum Actuated Flow", False),
+    "convergence_tolerance_k": (
+        "ControllerConvergenceTolerance",
+        "Controller Convergence Tolerance",
+        True,
+    ),
+    "maximum_flow_m3_s": ("MaximumActuatedFlow", "Maximum Actuated Flow", True),
+}
+
+
+def controller_values(controller):
+    result = {}
+    for key, (suffix, _, autosizable) in CONTROLLER_FIELDS.items():
+        if autosizable and getattr(controller, "is" + suffix + "Autosized")():
+            result[key] = "Autosize"
+        else:
+            result[key] = optional_value(
+                getattr(controller, suffix[0].lower() + suffix[1:])()
+            )
+    return result
+
+
 def set_controller_settings(controller, settings):
-    for key, suffix in {
-        "control_variable": "ControlVariable",
-        "action": "Action",
-        "actuator_variable": "ActuatorVariable",
-        "minimum_flow_m3_s": "MinimumActuatedFlow",
-        "convergence_tolerance_k": "ControllerConvergenceTolerance",
-        "maximum_flow_m3_s": "MaximumActuatedFlow",
-    }.items():
+    unknown = settings.keys() - CONTROLLER_FIELDS.keys()
+    if unknown:
+        raise ValueError(f"Unsupported controller settings: {sorted(unknown)}")
+    for key, (suffix, _, autosizable) in CONTROLLER_FIELDS.items():
         if key not in settings:
             continue
         value = settings[key]
         if value == "Autosize":
+            if not autosizable:
+                raise ValueError(f"{key} cannot be autosized")
             call(controller, "autosize" + suffix)
         else:
             call(controller, "set" + suffix, value)

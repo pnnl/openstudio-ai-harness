@@ -27,7 +27,7 @@ resources:
         path: scripts/common/__init__.py
 
       - hosts: [claude, codex]
-        skill: openstudio-water-coil-ratings-editor
+        skill: openstudio-water-coil-editor
         path: scripts/common/__init__.py
       - hosts: [claude, codex]
         skill: openstudio-water-coil-connector
@@ -56,7 +56,7 @@ resources:
         path: scripts/doctor.py
 
       - hosts: [claude, codex]
-        skill: openstudio-water-coil-ratings-editor
+        skill: openstudio-water-coil-editor
         path: scripts/doctor.py
       - hosts: [claude, codex]
         skill: openstudio-water-coil-connector
@@ -85,7 +85,7 @@ resources:
         path: scripts/sdk_probe.py
 
       - hosts: [claude, codex]
-        skill: openstudio-water-coil-ratings-editor
+        skill: openstudio-water-coil-editor
         path: scripts/sdk_probe.py
       - hosts: [claude, codex]
         skill: openstudio-water-coil-connector
@@ -114,7 +114,7 @@ resources:
         path: scripts/common/version_guard.py
 
       - hosts: [claude, codex]
-        skill: openstudio-water-coil-ratings-editor
+        skill: openstudio-water-coil-editor
         path: scripts/common/version_guard.py
       - hosts: [claude, codex]
         skill: openstudio-water-coil-connector
@@ -143,7 +143,7 @@ resources:
         path: scripts/compatibility.json
 
       - hosts: [claude, codex]
-        skill: openstudio-water-coil-ratings-editor
+        skill: openstudio-water-coil-editor
         path: scripts/compatibility.json
       - hosts: [claude, codex]
         skill: openstudio-water-coil-connector
@@ -174,7 +174,7 @@ resources:
         path: scripts/common/input_validation.py
 
       - hosts: [claude, codex]
-        skill: openstudio-water-coil-ratings-editor
+        skill: openstudio-water-coil-editor
         path: scripts/common/input_validation.py
       - hosts: [claude, codex]
         skill: openstudio-water-coil-connector
@@ -193,7 +193,7 @@ resources:
         path: scripts/common/hvac_inventory.py
 
       - hosts: [claude, codex]
-        skill: openstudio-water-coil-ratings-editor
+        skill: openstudio-water-coil-editor
         path: scripts/common/hvac_inventory.py
       - hosts: [claude, codex]
         skill: openstudio-water-coil-connector
@@ -262,7 +262,7 @@ resources:
         path: scripts/common/files.py
 
       - hosts: [claude, codex]
-        skill: openstudio-water-coil-ratings-editor
+        skill: openstudio-water-coil-editor
         path: scripts/common/files.py
       - hosts: [claude, codex]
         skill: openstudio-water-coil-connector
@@ -289,7 +289,7 @@ resources:
         path: scripts/common/companions.py
 
       - hosts: [claude, codex]
-        skill: openstudio-water-coil-ratings-editor
+        skill: openstudio-water-coil-editor
         path: scripts/common/companions.py
       - hosts: [claude, codex]
         skill: openstudio-water-coil-connector
@@ -311,7 +311,7 @@ resources:
         path: scripts/common/model_transaction.py
 
       - hosts: [claude, codex]
-        skill: openstudio-water-coil-ratings-editor
+        skill: openstudio-water-coil-editor
         path: scripts/common/model_transaction.py
       - hosts: [claude, codex]
         skill: openstudio-water-coil-connector
@@ -352,7 +352,7 @@ resources:
         path: scripts/common/hvac_equipment.py
 
       - hosts: [claude, codex]
-        skill: openstudio-water-coil-ratings-editor
+        skill: openstudio-water-coil-editor
         path: scripts/common/hvac_equipment.py
       - hosts: [claude, codex]
         skill: openstudio-water-coil-connector
@@ -467,7 +467,7 @@ resources:
         skill: openstudio-supply-fan-performance-editor
         path: scripts/common/model_preservation.py
       - hosts: [claude, codex]
-        skill: openstudio-water-coil-ratings-editor
+        skill: openstudio-water-coil-editor
         path: scripts/common/model_preservation.py
       - hosts: [claude, codex]
         skill: openstudio-water-coil-connector
@@ -476,7 +476,7 @@ resources:
   - source: skills/sdk_scripts/common/coil_equipment.py
     owners:
       - hosts: [claude, codex]
-        skill: openstudio-water-coil-ratings-editor
+        skill: openstudio-water-coil-editor
         path: scripts/common/coil_equipment.py
       - hosts: [claude, codex]
         skill: openstudio-water-coil-connector
@@ -494,17 +494,17 @@ resources:
   - source: skills/sdk_scripts/common/water_coil.py
     owners:
       - hosts: [claude, codex]
-        skill: openstudio-water-coil-ratings-editor
+        skill: openstudio-water-coil-editor
         path: scripts/common/water_coil.py
       - hosts: [claude, codex]
         skill: openstudio-water-coil-connector
         path: scripts/common/water_coil.py
 
-  - source: skills/sdk_scripts/edit_water_coil_ratings.py
+  - source: skills/sdk_scripts/edit_water_coil.py
     owners:
       - hosts: [claude, codex]
-        skill: openstudio-water-coil-ratings-editor
-        path: scripts/edit_water_coil_ratings.py
+        skill: openstudio-water-coil-editor
+        path: scripts/edit_water_coil.py
 
   - source: skills/sdk_scripts/connect_water_coil.py
     owners:
@@ -512,29 +512,29 @@ resources:
         skill: openstudio-water-coil-connector
         path: scripts/connect_water_coil.py
 
-  - source: skills/sdk_scripts/references/water_coil_ratings.schema.json
+  - source: skills/sdk_scripts/references/water_coil_edit.schema.json
     owners:
       - hosts: [claude, codex]
-        skill: openstudio-water-coil-ratings-editor
-        path: scripts/references/water_coil_ratings.schema.json
+        skill: openstudio-water-coil-editor
+        path: scripts/references/water_coil_edit.schema.json
       - hosts: [claude, codex]
         skill: openstudio-water-coil-connector
-        path: scripts/references/water_coil_ratings.schema.json
+        path: scripts/references/water_coil_edit.schema.json
 
   - source: skills/sdk_scripts/references/water_coil_connection.schema.json
     owners:
       - hosts: [claude, codex]
-        skill: openstudio-water-coil-ratings-editor
+        skill: openstudio-water-coil-editor
         path: scripts/references/water_coil_connection.schema.json
       - hosts: [claude, codex]
         skill: openstudio-water-coil-connector
         path: scripts/references/water_coil_connection.schema.json
 
-  - source: skills/sdk_scripts/references/water_coil_ratings.md
+  - source: skills/sdk_scripts/references/water_coil_edit.md
     owners:
       - hosts: [claude, codex]
-        skill: openstudio-water-coil-ratings-editor
-        path: scripts/references/water_coil_ratings.md
+        skill: openstudio-water-coil-editor
+        path: scripts/references/water_coil_edit.md
 
   - source: skills/sdk_scripts/references/water_coil_connection.md
     owners:
@@ -543,8 +543,8 @@ resources:
         path: scripts/references/water_coil_connection.md
 
 skills:
-  - id: openstudio-water-coil-ratings-editor
-    source: skills/openstudio_water_coil_ratings_editor.md
+  - id: openstudio-water-coil-editor
+    source: skills/openstudio_water_coil_editor.md
     hosts: [claude, codex]
   - id: openstudio-water-coil-connector
     source: skills/openstudio_water_coil_connector.md

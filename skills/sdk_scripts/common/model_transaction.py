@@ -45,6 +45,8 @@ def preflight(source, config, operation, planner):
     ready = planned.get("ready", True)
     if ready:
         planned["companions"] = inspect(model, source, output, sdk)
+        if planned.get("simulation_ready") is False:
+            planned["companions"]["simulation_ready"] = False
     if digest(source) != original:
         raise ValueError("Input changed during preflight")
     return dict(

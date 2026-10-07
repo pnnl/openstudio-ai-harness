@@ -108,7 +108,7 @@ def inspect(model, source, output, sdk):
             measure = find(measure_name, measure=True)
             if measure is None:
                 warnings.append(
-                    f"Referenced measure is unavailable: {measure_name}; VAV editing can proceed, workflow execution remains pending"
+                    f"Referenced measure is unavailable: {measure_name}; Model editing can proceed, workflow execution remains pending"
                 )
                 workflow_ready = False
                 continue
@@ -128,7 +128,7 @@ def inspect(model, source, output, sdk):
                 resource = find(value)
                 if resource is None or not resource.is_file():
                     warnings.append(
-                        f"Workflow input is unavailable: {key}={value}; VAV editing can proceed, workflow execution remains pending"
+                        f"Workflow input is unavailable: {key}={value}; Model editing can proceed, workflow execution remains pending"
                     )
                     workflow_ready = False
                 else:
@@ -144,7 +144,7 @@ def inspect(model, source, output, sdk):
         resolved = find(value)
         if resolved is None:
             warnings.append(
-                f"Weather resource is unavailable: {value}; VAV editing can proceed, but simulation requires resolved weather"
+                f"Weather resource is unavailable: {value}; Model editing can proceed, but simulation requires resolved weather"
             )
         elif weather and resolved != weather:
             raise ValueError(

@@ -23,6 +23,20 @@ knowledge, and workflow-state tools for AI-assisted building-energy modeling.
   source trace, supported arrangements and verification. CAV requires
   an explicit outdoor-air choice and aligns 100% OA operation with coil sizing;
   approved CAV plans must be regenerated after this correction.
+- The independent `openstudio-supply-fan-performance-editor` skill edits explicit
+  efficiency/pressure values on a selected air loop's direct constant- or
+  variable-volume fan in place. Fan, connection, metadata and reference handles
+  remain stable, including LifeCycleCost and EMS actuators. Saved validation and
+  translation precede publication of a new copy. VAV/CAV creation requires complete
+  performance inputs and shares setters/pressure conversion with this editor.
+  Embedded fans and class-changing replacement require separate coverage.
+- Independent water-coil skills separate rating-only edits from attachment and
+  explicit replacement. `openstudio-water-coil-ratings-editor` preserves coil,
+  controller and reference handles; `openstudio-water-coil-connector` attaches
+  main-supply heating/cooling water coils or replaces one on the same plant/class,
+  finalizing controllers after both connections. Design, schedule, autosizing and
+  controller choices are explicit. VAV/CAV share their rating/controller setters.
+  Saved state/topology checks and EnergyPlus translation precede publication.
 - Independent bundled plant creation and selective HVAC removal support standalone
   requests and broader HVAC workflows, including VAV replacement. Air-side skills
   connect their water coils to the created plants. Plant choices include gas/electric boilers, district heating/cooling,

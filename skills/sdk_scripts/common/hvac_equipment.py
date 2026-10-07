@@ -29,22 +29,21 @@ def schedule(model, sdk, reference):
 
 
 def water_controller(coil, heating, controls):
+    from common.coil_equipment import set_controller_settings
+
     controller = coil.controllerWaterCoil()
     if not controller.is_initialized():
         raise RuntimeError(f"Missing water controller: {coil.nameString()}")
     controller = controller.get()
     call(controller, "setName", f"{coil.nameString()} Controller")
-    call(
-        controller, "setMinimumActuatedFlow", controls["water_controller_minimum_flow"]
-    )
+    settings = {"minimum_flow_m3_s": controls["water_controller_minimum_flow"]}
     if heating:
-        call(
-            controller,
-            "setControllerConvergenceTolerance",
-            controls["heating_water_controller_convergence"],
-        )
+        settings["convergence_tolerance_k"] = controls[
+            "heating_water_controller_convergence"
+        ]
     else:
-        call(controller, "setAction", controls["cooling_controller_action"])
+        settings["action"] = controls["cooling_controller_action"]
+    set_controller_settings(controller, settings)
 
 
 def make_coil(model, sdk, resolved, parameters, controls, role, name, node=None):
@@ -72,28 +71,36 @@ def make_coil(model, sdk, resolved, parameters, controls, role, name, node=None)
         schedule(model, sdk, {"builtin": controls["component_availability"]}),
     )
     if kind == "Water":
+        from common.coil_equipment import set_ratings
+
         if heating:
             supply = resolved["plant_loops"][role]["design_supply_temperature_c"]
             delta = resolved["plant_loops"][role]["design_delta_temperature_k"]
             t = parameters["design_temperatures_c"]
-            call(coil, "setRatedInletWaterTemperature", supply)
-            call(coil, "setRatedOutletWaterTemperature", supply - delta)
-            call(
+            set_ratings(
                 coil,
-                "setRatedInletAirTemperature",
-                t["central_heating"] if role == "reheat" else t["preheat"],
-            )
-            call(
-                coil,
-                "setRatedOutletAirTemperature",
-                t["zone_heating"] if role == "reheat" else t["central_heating"],
+                "Heating",
+                {
+                    "rated_inlet_water_temperature_c": supply,
+                    "rated_outlet_water_temperature_c": supply - delta,
+                    "rated_inlet_air_temperature_c": (
+                        t["central_heating"] if role == "reheat" else t["preheat"]
+                    ),
+                    "rated_outlet_air_temperature_c": (
+                        t["zone_heating"] if role == "reheat" else t["central_heating"]
+                    ),
+                },
             )
         else:
-            call(coil, "autosizeDesignInletWaterTemperature")
-            call(
+            set_ratings(
                 coil,
-                "setHeatExchangerConfiguration",
-                controls["cooling_water_heat_exchanger"],
+                "Cooling",
+                {
+                    "design_inlet_water_temperature_c": "Autosize",
+                    "heat_exchanger_configuration": controls[
+                        "cooling_water_heat_exchanger"
+                    ],
+                },
             )
         water_controller(coil, heating, controls)
     elif kind == "NaturalGas":

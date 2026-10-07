@@ -3,6 +3,7 @@
 from __future__ import annotations
 from common.hvac_equipment import call, schedule
 from common.air_system_recipe import VAV
+from common.fan_equipment import require_performance, set_performance
 
 
 def configure_sizing(model, sdk, loop, p, r, c):
@@ -57,12 +58,11 @@ def attach_supply_setpoint(model, sdk, loop, p, r, c):
 
 
 def attach_fan(model, sdk, loop, p, r, c, *, recipe=VAV):
+    require_performance(p["fan"])
     fan = getattr(sdk.model, recipe.fan_class)(model)
     call(fan, "setName", f"{p['system_name']} Fan")
+    set_performance(fan, p["fan"])
     fields = {
-        "FanEfficiency": p["fan"]["total_efficiency"],
-        "MotorEfficiency": p["fan"]["motor_efficiency"],
-        "PressureRise": p["fan"]["pressure_rise_pa"],
         "MotorInAirstreamFraction": c["fan_motor_in_airstream_fraction"],
         "EndUseSubcategory": c["fan_end_use_subcategory"],
     }

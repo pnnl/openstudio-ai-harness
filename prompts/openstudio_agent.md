@@ -36,6 +36,23 @@ simulation workflows, and explain what changed.
   equipment modules with VAV and owns complete assembly/validation; do not invoke
   an agent or publish a model for each individual component. Other CAV topology
   requests need explicit coverage rather than silently substituting this recipe.
+- Use `openstudio-supply-fan-performance-editor` for explicit efficiency/pressure changes
+  to an existing air loop's sole direct constant- or variable-volume supply fan.
+  It edits the existing fan in place and preserves its handle, connections,
+  metadata, incoming references, flow controls and unselected model state.
+  Class-changing replacement (including a request to swap CAV for variable-speed)
+  requires a separate contract; do not route it to this performance editor.
+  Embedded fans need separate coverage. Whole-system VAV/CAV construction uses
+  the shared fan functions inside its parent transaction.
+- Use `openstudio-water-coil-ratings-editor` for rating-only changes to existing
+  main-supply heating/cooling water coils; it preserves coil, connection,
+  controller and reference handles. Use `openstudio-water-coil-connector` for
+  explicit main-supply attachment or a new coil identity on the same plant/class.
+  Select plant, placement, design conditions, schedule, autosizing and controller
+  settings explicitly. Finalize controllers after both connections. Replacement
+  references needing migration, OA/unitary/terminal locations, class conversion
+  and plant migration require separate coverage. Complete VAV/CAV creation shares
+  these setters within its parent transaction; do not launch a skill per coil.
 - Use `openstudio-plant-loop-creator` independently for hot/chilled-water plant
   construction, including associated condenser systems. It supports direct plant
   requests and plant stages of broader HVAC workflows, without requiring VAV.

@@ -1,0 +1,241 @@
+{
+  "title": "In-place main-supply water-coil ratings edit",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "output_model_path"
+  ],
+  "$defs": {
+    "selector": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "handle"
+          ],
+          "properties": {
+            "handle": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      ]
+    }
+  },
+  "properties": {
+    "output_model_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "coil": {
+      "$ref": "#/$defs/selector"
+    },
+    "ratings": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "rated_inlet_water_temperature_c": {
+          "type": "number",
+          "minimum": -100,
+          "maximum": 200
+        },
+        "rated_outlet_water_temperature_c": {
+          "type": "number",
+          "minimum": -100,
+          "maximum": 200
+        },
+        "rated_inlet_air_temperature_c": {
+          "type": "number",
+          "minimum": -100,
+          "maximum": 200
+        },
+        "rated_outlet_air_temperature_c": {
+          "type": "number",
+          "minimum": -100,
+          "maximum": 200
+        },
+        "rated_capacity_w": {
+          "oneOf": [
+            {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            {
+              "type": "string",
+              "enum": [
+                "Autosize"
+              ]
+            }
+          ]
+        },
+        "ua_w_per_k": {
+          "oneOf": [
+            {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            {
+              "type": "string",
+              "enum": [
+                "Autosize"
+              ]
+            }
+          ]
+        },
+        "maximum_water_flow_m3_s": {
+          "oneOf": [
+            {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            {
+              "type": "string",
+              "enum": [
+                "Autosize"
+              ]
+            }
+          ]
+        },
+        "performance_input_method": {
+          "type": "string",
+          "enum": [
+            "NominalCapacity",
+            "UFactorTimesAreaAndDesignWaterFlowRate"
+          ]
+        },
+        "design_water_flow_m3_s": {
+          "oneOf": [
+            {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            {
+              "type": "string",
+              "enum": [
+                "Autosize"
+              ]
+            }
+          ]
+        },
+        "design_air_flow_m3_s": {
+          "oneOf": [
+            {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            {
+              "type": "string",
+              "enum": [
+                "Autosize"
+              ]
+            }
+          ]
+        },
+        "design_inlet_water_temperature_c": {
+          "oneOf": [
+            {
+              "type": "number",
+              "minimum": -100,
+              "maximum": 200
+            },
+            {
+              "type": "string",
+              "enum": [
+                "Autosize"
+              ]
+            }
+          ]
+        },
+        "design_inlet_air_temperature_c": {
+          "oneOf": [
+            {
+              "type": "number",
+              "minimum": -100,
+              "maximum": 200
+            },
+            {
+              "type": "string",
+              "enum": [
+                "Autosize"
+              ]
+            }
+          ]
+        },
+        "design_outlet_air_temperature_c": {
+          "oneOf": [
+            {
+              "type": "number",
+              "minimum": -100,
+              "maximum": 200
+            },
+            {
+              "type": "string",
+              "enum": [
+                "Autosize"
+              ]
+            }
+          ]
+        },
+        "design_inlet_air_humidity_ratio": {
+          "oneOf": [
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 0.1
+            },
+            {
+              "type": "string",
+              "enum": [
+                "Autosize"
+              ]
+            }
+          ]
+        },
+        "design_outlet_air_humidity_ratio": {
+          "oneOf": [
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 0.1
+            },
+            {
+              "type": "string",
+              "enum": [
+                "Autosize"
+              ]
+            }
+          ]
+        },
+        "heat_exchanger_configuration": {
+          "type": "string",
+          "enum": [
+            "CrossFlow",
+            "CounterFlow"
+          ]
+        },
+        "type_of_analysis": {
+          "type": "string",
+          "enum": [
+            "SimpleAnalysis",
+            "DetailedAnalysis"
+          ]
+        }
+      }
+    }
+  }
+}

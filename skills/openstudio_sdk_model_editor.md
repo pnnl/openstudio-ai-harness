@@ -57,6 +57,23 @@ Disallowed uses:
 - For prototype CAV construction, use `openstudio-cav-system-creator`; its parent
   composes shared equipment modules with a reviewed system-specific recipe.
   Confirm the requested CAV topology matches its supported arrangement.
+- Use `openstudio-supply-fan-performance-editor` for explicit efficiency/pressure changes
+  to an existing air loop's sole direct constant- or variable-volume supply fan.
+  It edits the existing fan in place and preserves its handle, connections,
+  metadata, incoming references, flow controls and unselected model state.
+  Class-changing replacement (including a request to swap CAV for variable-speed)
+  requires a separate contract; do not route it to this performance editor.
+  Embedded fans need separate coverage. Whole-system VAV/CAV construction uses
+  the shared fan functions inside its parent transaction.
+- Use `openstudio-water-coil-ratings-editor` for rating-only changes to existing
+  main-supply heating/cooling water coils; it preserves coil, connection,
+  controller and reference handles. Use `openstudio-water-coil-connector` for
+  explicit main-supply attachment or a new coil identity on the same plant/class.
+  Select plant, placement, design conditions, schedule, autosizing and controller
+  settings explicitly. Finalize controllers after both connections. Replacement
+  references needing migration, OA/unitary/terminal locations, class conversion
+  and plant migration require separate coverage. Complete VAV/CAV creation shares
+  these setters within its parent transaction; do not launch a skill per coil.
 - For standalone plant construction or a plant stage of broader HVAC work, use
   `openstudio-plant-loop-creator`; pass its output/plant selectors to the selected
   air-side skill for water-coil connections when requested.

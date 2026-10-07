@@ -1,0 +1,76 @@
+{
+  "title": "In-place direct supply-fan performance edit",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "output_model_path"
+  ],
+  "$defs": {
+    "selector": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "handle"
+          ],
+          "properties": {
+            "handle": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      ]
+    }
+  },
+  "properties": {
+    "output_model_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "air_loop": {
+      "$ref": "#/$defs/selector"
+    },
+    "fan": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "total_efficiency": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "motor_efficiency": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "pressure_rise": {
+          "type": "number",
+          "minimum": 0
+        },
+        "pressure_units": {
+          "enum": [
+            "Pa",
+            "inH2O"
+          ],
+          "type": "string"
+        }
+      }
+    }
+  }
+}

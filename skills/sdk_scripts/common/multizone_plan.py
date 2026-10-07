@@ -7,6 +7,7 @@ import math
 from pathlib import Path
 
 from common.hvac_inventory import resolve
+from common.fan_equipment import pressure_pa
 
 PROFILE = {
     "availability_schedule": {"builtin": "AlwaysOnDiscrete"},
@@ -398,22 +399,21 @@ def plan(
     if fan.get("total_efficiency", 0) > fan.get("motor_efficiency", 1):
         errors.append("fan.total_efficiency: cannot exceed motor_efficiency")
     if all(key in fan for key in profile["fan"]):
-        pressure = fan["pressure_rise"]
-        if fan["pressure_units"] == "inH2O":
-            pressure *= 249.08891  # Verified with OpenStudio 3.11.0 convert().
-            if not math.isfinite(pressure):
-                errors.append("fan.pressure_rise: SI conversion is not finite")
-                pressure = None
-            else:
-                conversions.append(
-                    {
-                        "field": "fan.pressure_rise",
-                        "from": fan["pressure_rise"],
-                        "from_units": "inH2O",
-                        "to": pressure,
-                        "to_units": "Pa",
-                    }
-                )
+        try:
+            pressure = pressure_pa(fan["pressure_rise"], fan["pressure_units"])
+        except ValueError as exc:
+            errors.append(f"fan.pressure_rise: {exc}")
+            pressure = None
+        if pressure is not None and fan["pressure_units"] == "inH2O":
+            conversions.append(
+                {
+                    "field": "fan.pressure_rise",
+                    "from": fan["pressure_rise"],
+                    "from_units": "inH2O",
+                    "to": pressure,
+                    "to_units": "Pa",
+                }
+            )
         fan["pressure_rise_pa"] = pressure
     return {
         "ready": not errors and not missing,

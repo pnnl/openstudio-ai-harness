@@ -237,7 +237,8 @@ Static bundle import closure and three exported skill validations passed. The in
 zero central-heating result is superseded by F1 remediation below; real
 capacity/control review remains necessary. Native Windows/Linux, annual runs
 and live-agent token measurements remain unverified. Next review: independent
-fan-replacement and coil-attachment contracts; those skills are not yet exposed.
+fan performance and coil-attachment contracts; the former is now implemented
+below, and coil attachment remains the next checkpoint.
 No commit/push/install/release performed; regenerate exports before agent trials.
 
 ## HVAC review follow-up F1–F5 — October 6, 2026
@@ -261,18 +262,71 @@ formatting and diff whitespace checks passed.
 User review/probe files under docs/reviews remain preserved. No commit/push/install
 or release performed.
 
+## Supply-fan performance editing, G1–G3 — October 6, 2026
+
+Phase 4 now exposes `openstudio-supply-fan-performance-editor` and
+`edit_supply_fan_performance.py`, replacing the unreleased same-class swap skill.
+Explicit efficiency/pressure edits call setters on the existing CV/VV supply fan.
+Fan, connections, metadata and incoming reference handles remain unchanged;
+LifeCycleCost and EMS actuators are accepted and protected after reload.
+Class-changing requests must not route here. The tested node-preserving swap
+primitive remains unexported in `common/fan_replacement.py` pending curve,
+terminal/sizing and reference-migration decisions.
+
+The planner and editor share `fan_equipment.pressure_pa`. Whole VAV/CAV fan
+construction requires complete performance values before creating a fan, and
+full setters check before mutation. Only explicit edits permit partial inputs.
+Compatible NLR stays first; the package-wide exact SDK pin remains unchanged.
+Re-export both hosts and regenerate old replacement plans because the operation
+name and approved preservation contract changed. Review files under docs/reviews
+remain preserved. See docs/HVAC_MODULARIZATION_WORK.md for contract and checks.
+
+Verification: 289 combined tests passed, including 52 fan cases, two native
+design-day runs and both relocated host bundles. Saved tests preserve incoming
+references/identities; six tests retain deferred node-surgery coverage. All three
+edited skills passed exported validation, and nine changed Python files/diffs
+passed formatting/whitespace checks. Current native evidence/logs are in ignored
+outputs/supply-fan-performance-review/evidence.json; earlier phase-4 swap evidence
+and user review/probe files remain historical.
+Next review: phase 5 water-coil attachment/controller lifecycle, with rating-only
+changes distinguished from attachment/replacement. No commit/push/install/release.
+
+## Main-supply water-coil operations — October 6, 2026
+
+Phase 5 implements `openstudio-water-coil-ratings-editor` and
+`openstudio-water-coil-connector`. Rating-only edits use setters in place,
+preserving coil/controller/metadata/connection and incoming-reference identities.
+Attachment selects a main-supply outlet node and compatible ready plant demand;
+replacement is explicit, same class/air loop/plant, with four boundary nodes
+preserved and new coil/controller handles. References needing migration block
+replacement. Finalization sets action, flow, convergence and sensor/actuator nodes
+after both connections. OA/unitary/terminal locations, manual construction sizing,
+class conversion and plant migration require separate coverage.
+
+VAV/CAV share `coil_equipment` rating/controller setters. `model_preservation` is
+now a neutral dependency also exported with the fan editor. Existing resources
+remain hash-bound; empty OSM weather metadata populated from a workflow is checked
+against its EPW. Missing weather warns without blocking edits. Inventory is flat
+and bounded in stdout. Compatible NLR remains first and the package-wide exact
+OpenStudio pin is unchanged. Re-export both hosts before local use.
+
+Verification: 386 combined tests passed, including 97 water-coil cases and twelve
+VAV/CAV design-day runs with positive selected-coil capacity and no Severe/Fatal
+errors. Both relocated hosts passed doctor/preflight/apply; existing VAV/CAV/fan/
+plant/removal, manifest/import closure, reports and exports remain verified.
+Four phase-5 skills passed exported validation; 17 changed Python files and diffs
+passed formatting/whitespace checks. Native evidence/logs are in ignored
+outputs/water-coil-phase5-review/evidence.json. See docs/HVAC_MODULARIZATION_WORK.md
+for full contracts, source/API trace, limitations and local commands.
+Next review: the three phase-5 contracts, then additional placements/migrations.
+No commit/push/install/release initiated by this task.
+
 ## Near-Term Backlog
 
 - Skill-bound SDK development is complete within the user-selected local
   evaluation scope. See `docs/SKILL_BOUND_SDK_SUMMARY.md` for decisions, review
   disposition, source trace, historical verification and remaining limitations.
-  Prepare a coordinated SDK/package/plugin release after review; preserve CalBEM work.
-
-- CalBEM five-minute talk and two-minute lighting-retrofit recording plan drafted
-  in `docs/CALBEM_FLASH_TALK.md` (October 4, 2026). Includes speaker script,
-  storyboard, prompts, and proposed acceptance criteria. The demonstration case
-  has not been run; measured results and runtime/version verification remain
-  prerequisites for filming.
+  Prepare a coordinated SDK/package/plugin release after review.
 
 - Refresh CI/release checks into an explicit host/runtime/version/evaluation
   matrix, including real simulation readiness where the native executable is

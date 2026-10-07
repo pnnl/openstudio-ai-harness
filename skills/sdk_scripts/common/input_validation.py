@@ -1,4 +1,4 @@
-"""Validate the bundled VAV schema using its bounded JSON Schema vocabulary."""
+"""Validate skill-bound schemas using their bounded JSON Schema vocabulary."""
 
 from __future__ import annotations
 

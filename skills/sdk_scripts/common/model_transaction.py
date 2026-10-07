@@ -1,4 +1,4 @@
-"""Reviewed, hash-bound transactions shared by plant and HVAC removal bundles."""
+"""Reviewed, hash-bound transactions shared by skill-bound model edits."""
 
 from __future__ import annotations
 import argparse

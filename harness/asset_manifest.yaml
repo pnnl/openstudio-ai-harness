@@ -22,6 +22,16 @@ resources:
       - hosts: [claude, codex]
         skill: openstudio-cav-system-creator
         path: scripts/common/__init__.py
+      - hosts: [claude, codex]
+        skill: openstudio-supply-fan-performance-editor
+        path: scripts/common/__init__.py
+
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-ratings-editor
+        path: scripts/common/__init__.py
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-connector
+        path: scripts/common/__init__.py
 
   - source: skills/sdk_scripts/doctor.py
     owners:
@@ -40,6 +50,16 @@ resources:
 
       - hosts: [claude, codex]
         skill: openstudio-cav-system-creator
+        path: scripts/doctor.py
+      - hosts: [claude, codex]
+        skill: openstudio-supply-fan-performance-editor
+        path: scripts/doctor.py
+
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-ratings-editor
+        path: scripts/doctor.py
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-connector
         path: scripts/doctor.py
 
   - source: skills/sdk_scripts/sdk_probe.py
@@ -60,6 +80,16 @@ resources:
       - hosts: [claude, codex]
         skill: openstudio-cav-system-creator
         path: scripts/sdk_probe.py
+      - hosts: [claude, codex]
+        skill: openstudio-supply-fan-performance-editor
+        path: scripts/sdk_probe.py
+
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-ratings-editor
+        path: scripts/sdk_probe.py
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-connector
+        path: scripts/sdk_probe.py
 
   - source: skills/sdk_scripts/common/version_guard.py
     owners:
@@ -79,6 +109,16 @@ resources:
       - hosts: [claude, codex]
         skill: openstudio-cav-system-creator
         path: scripts/common/version_guard.py
+      - hosts: [claude, codex]
+        skill: openstudio-supply-fan-performance-editor
+        path: scripts/common/version_guard.py
+
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-ratings-editor
+        path: scripts/common/version_guard.py
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-connector
+        path: scripts/common/version_guard.py
 
   - source: skills/sdk_scripts/compatibility.json
     owners:
@@ -97,6 +137,16 @@ resources:
 
       - hosts: [claude, codex]
         skill: openstudio-cav-system-creator
+        path: scripts/compatibility.json
+      - hosts: [claude, codex]
+        skill: openstudio-supply-fan-performance-editor
+        path: scripts/compatibility.json
+
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-ratings-editor
+        path: scripts/compatibility.json
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-connector
         path: scripts/compatibility.json
 
   - source: skills/sdk_scripts/vav_preflight.py
@@ -119,6 +169,16 @@ resources:
       - hosts: [claude, codex]
         skill: openstudio-cav-system-creator
         path: scripts/common/input_validation.py
+      - hosts: [claude, codex]
+        skill: openstudio-supply-fan-performance-editor
+        path: scripts/common/input_validation.py
+
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-ratings-editor
+        path: scripts/common/input_validation.py
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-connector
+        path: scripts/common/input_validation.py
 
   - source: skills/sdk_scripts/common/hvac_inventory.py
     owners:
@@ -127,6 +187,16 @@ resources:
         path: scripts/common/hvac_inventory.py
       - hosts: [claude, codex]
         skill: openstudio-cav-system-creator
+        path: scripts/common/hvac_inventory.py
+      - hosts: [claude, codex]
+        skill: openstudio-supply-fan-performance-editor
+        path: scripts/common/hvac_inventory.py
+
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-ratings-editor
+        path: scripts/common/hvac_inventory.py
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-connector
         path: scripts/common/hvac_inventory.py
 
   - source: skills/sdk_scripts/common/vav_inventory.py
@@ -187,6 +257,16 @@ resources:
       - hosts: [claude, codex]
         skill: openstudio-cav-system-creator
         path: scripts/common/files.py
+      - hosts: [claude, codex]
+        skill: openstudio-supply-fan-performance-editor
+        path: scripts/common/files.py
+
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-ratings-editor
+        path: scripts/common/files.py
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-connector
+        path: scripts/common/files.py
 
   - source: skills/sdk_scripts/common/companions.py
     owners:
@@ -204,6 +284,16 @@ resources:
       - hosts: [claude, codex]
         skill: openstudio-cav-system-creator
         path: scripts/common/companions.py
+      - hosts: [claude, codex]
+        skill: openstudio-supply-fan-performance-editor
+        path: scripts/common/companions.py
+
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-ratings-editor
+        path: scripts/common/companions.py
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-connector
+        path: scripts/common/companions.py
 
   - source: skills/sdk_scripts/common/model_transaction.py
     owners:
@@ -215,6 +305,16 @@ resources:
         path: scripts/common/model_transaction.py
       - hosts: [claude, codex]
         skill: openstudio-cav-system-creator
+        path: scripts/common/model_transaction.py
+      - hosts: [claude, codex]
+        skill: openstudio-supply-fan-performance-editor
+        path: scripts/common/model_transaction.py
+
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-ratings-editor
+        path: scripts/common/model_transaction.py
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-connector
         path: scripts/common/model_transaction.py
 
   - source: skills/sdk_scripts/common/plant_create.py
@@ -246,6 +346,16 @@ resources:
 
       - hosts: [claude, codex]
         skill: openstudio-cav-system-creator
+        path: scripts/common/hvac_equipment.py
+      - hosts: [claude, codex]
+        skill: openstudio-supply-fan-performance-editor
+        path: scripts/common/hvac_equipment.py
+
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-ratings-editor
+        path: scripts/common/hvac_equipment.py
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-connector
         path: scripts/common/hvac_equipment.py
 
   - source: skills/sdk_scripts/common/air_system_recipe.py
@@ -315,7 +425,133 @@ resources:
         skill: openstudio-cav-system-creator
         path: scripts/references/cav_input.md
 
+  - source: skills/sdk_scripts/common/fan_equipment.py
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-supply-fan-performance-editor
+        path: scripts/common/fan_equipment.py
+      - hosts: [claude, codex]
+        skill: openstudio-vav-reheat-system-creator
+        path: scripts/common/fan_equipment.py
+      - hosts: [claude, codex]
+        skill: openstudio-cav-system-creator
+        path: scripts/common/fan_equipment.py
+
+  - source: skills/sdk_scripts/common/fan_edit.py
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-supply-fan-performance-editor
+        path: scripts/common/fan_edit.py
+
+  - source: skills/sdk_scripts/edit_supply_fan_performance.py
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-supply-fan-performance-editor
+        path: scripts/edit_supply_fan_performance.py
+
+  - source: skills/sdk_scripts/references/fan_performance.md
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-supply-fan-performance-editor
+        path: scripts/references/fan_performance.md
+
+  - source: skills/sdk_scripts/references/fan_performance.schema.json
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-supply-fan-performance-editor
+        path: scripts/references/fan_performance.schema.json
+
+  - source: skills/sdk_scripts/common/model_preservation.py
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-supply-fan-performance-editor
+        path: scripts/common/model_preservation.py
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-ratings-editor
+        path: scripts/common/model_preservation.py
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-connector
+        path: scripts/common/model_preservation.py
+
+  - source: skills/sdk_scripts/common/coil_equipment.py
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-ratings-editor
+        path: scripts/common/coil_equipment.py
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-connector
+        path: scripts/common/coil_equipment.py
+      - hosts: [claude, codex]
+        skill: openstudio-vav-reheat-system-creator
+        path: scripts/common/coil_equipment.py
+      - hosts: [claude, codex]
+        skill: openstudio-cav-system-creator
+        path: scripts/common/coil_equipment.py
+      - hosts: [claude, codex]
+        skill: openstudio-supply-fan-performance-editor
+        path: scripts/common/coil_equipment.py
+
+  - source: skills/sdk_scripts/common/water_coil.py
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-ratings-editor
+        path: scripts/common/water_coil.py
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-connector
+        path: scripts/common/water_coil.py
+
+  - source: skills/sdk_scripts/edit_water_coil_ratings.py
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-ratings-editor
+        path: scripts/edit_water_coil_ratings.py
+
+  - source: skills/sdk_scripts/connect_water_coil.py
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-connector
+        path: scripts/connect_water_coil.py
+
+  - source: skills/sdk_scripts/references/water_coil_ratings.schema.json
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-ratings-editor
+        path: scripts/references/water_coil_ratings.schema.json
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-connector
+        path: scripts/references/water_coil_ratings.schema.json
+
+  - source: skills/sdk_scripts/references/water_coil_connection.schema.json
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-ratings-editor
+        path: scripts/references/water_coil_connection.schema.json
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-connector
+        path: scripts/references/water_coil_connection.schema.json
+
+  - source: skills/sdk_scripts/references/water_coil_ratings.md
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-ratings-editor
+        path: scripts/references/water_coil_ratings.md
+
+  - source: skills/sdk_scripts/references/water_coil_connection.md
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-connector
+        path: scripts/references/water_coil_connection.md
+
 skills:
+  - id: openstudio-water-coil-ratings-editor
+    source: skills/openstudio_water_coil_ratings_editor.md
+    hosts: [claude, codex]
+  - id: openstudio-water-coil-connector
+    source: skills/openstudio_water_coil_connector.md
+    hosts: [claude, codex]
+  - id: openstudio-supply-fan-performance-editor
+    source: skills/openstudio_supply_fan_performance_editor.md
+    hosts: [claude, codex]
   - id: openstudio-cav-system-creator
     source: skills/openstudio_cav_system_creator.md
     hosts: [claude, codex]
@@ -374,6 +610,7 @@ agents:
     hosts: [claude]
 
 references:
+
   - source: knowledge/openstudio_sdk_generated_edits.md
     owners:
       - hosts: [claude, codex]

@@ -18,7 +18,23 @@ schedules, checks every fan class and shares immutable system metadata/HVAC-neut
 inventory. The native five-zone comparison corrected zero central heat to 20.88 kW;
 re-preflight older CAV plans. Conservative sizing for variable/partial OA fractions
 may oversize coils; its meaning is shown in the plan review.
-Independent equipment attach/replace skills remain a subsequent checkpoint.
+Phase 4 adds independent supply-fan performance editing with explicit changes
+and stable fan/connection/metadata/reference handles. G1–G3 remediation replaces
+same-class cloning with in-place setters, permits unchanged EMS/LifeCycleCost
+references, shares pressure conversion, and requires complete fan performance for
+system construction. Re-export bundles and regenerate old replacement plans;
+the operation is now `edit_supply_fan_performance`. The node-preserving replacement
+primitive remains unexported pending a class-changing contract. The work guide
+records verification; phase 5 below implements the water-coil checkpoint.
+
+Phase 5 exposes independent main-supply water-coil rating edits and connection
+operations. Rating edits keep every coil/controller/reference identity; attachment
+and explicit same-plant/class replacement manage graph links and finalize the owned
+controller after both connections. VAV/CAV reuse rating/controller setters. The work
+guide defines initial placement, explicit design/Autosize/controller choices,
+reference migration limits, saved validation and native/export verification.
+The combined check passed 386 tests, including 97 water-coil cases, twelve native
+VAV/CAV design-day runs and both relocated hosts with pinned doctor checks.
 
 The goal is to reduce agent context and repeated script drafting while making
 model edits reproducible and reviewable. Reviewed Python SDK scripts ship with

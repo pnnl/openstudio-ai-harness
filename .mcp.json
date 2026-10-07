@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "openstudio-mcp": {
+      "command": "bash",
+      "args": ["scripts/start_openstudio_mcp.sh"]
+    }
+  }
+}

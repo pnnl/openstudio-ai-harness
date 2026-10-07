@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 from automa_ai.config.agent_spec import YamlAgentSpec
@@ -35,7 +36,9 @@ def test_openstudio_agent_yaml_loads_as_a_local_agent(monkeypatch) -> None:
     assert spec.agent.name == "OpenStudio AI Model Workspace Agent"
     assert spec.agent_card is None
     assert spec.a2a is None
-    assert spec.instructions.path == "../prompts/openstudio_agent.md"
+    assert spec.resolve_instructions().startswith(
+        (repo_root / "prompts" / "openstudio_agent.md").read_text(encoding="utf-8").rstrip()
+    )
     assert spec.mcp is not None
     assert spec.mcp.servers["openstudio_ai_mcp"].host == mcp_config.host
     assert spec.mcp.servers["openstudio_ai_mcp"].port == mcp_config.port
@@ -61,6 +64,37 @@ def test_openstudio_agent_uses_mcp_blackboard(monkeypatch) -> None:
     workflow_state_skill = skill_manager.load("openstudio_workflow_state")
     assert "blackboard_initialize_workflow" in workflow_state_skill
     assert "AUTOMA-AI native blackboard" in workflow_state_skill
+
+
+def test_prompt_skill_references_load_in_standalone(monkeypatch) -> None:
+    """Every skill the shared prompt tells the model to load must resolve.
+
+    The prompt uses frontmatter names (e.g. ``delegated-nlr-modeling``) while
+    automa-ai resolves directory skills by file stem.
+    """
+    monkeypatch.setenv("OSSTD_LLM_API", "test-api-key")
+    spec = load_openstudio_agent_spec()
+    skill_manager = SkillManager.from_config(spec.to_factory_kwargs()["skills_config"])
+    prompt = (repo_root / "prompts" / "openstudio_agent.md").read_text(encoding="utf-8")
+    referenced = set(
+        re.findall(r"(?:[Ll]oad|directed by) `([A-Za-z0-9_.-]+)`", prompt)
+        + re.findall(r"Use `([A-Za-z0-9_.-]+)`\s+(?:for|when)", prompt)
+    )
+
+    assert {"delegated-nlr-modeling", "hvac_sizing_assistant", "openstudio_workflow_state"} <= referenced
+    for name in referenced:
+        assert not skill_manager.load(name).startswith("SKILL_ERROR"), name
+        assert f"SKILL: {name}" in skill_manager.load(name), name
+
+
+def test_standalone_prompt_lists_skill_catalog(monkeypatch) -> None:
+    monkeypatch.setenv("OSSTD_LLM_API", "test-api-key")
+    instructions = load_openstudio_agent_spec().resolve_instructions()
+    catalog = instructions.split("## Available Skills", 1)[1]
+
+    assert "- `delegated-nlr-modeling`: Use NLR OpenStudio-MCP" in catalog
+    assert "- `hvac_sizing_assistant`:" in catalog
+    assert "- `openstudio_workflow_state`:" in catalog
 
 
 def test_developer_learning_agent_yaml_matches_automa_ai_spec() -> None:

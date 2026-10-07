@@ -13,6 +13,12 @@ dependencies = [
     "streamlit>=1.54.0",
 ]
 
+[project.optional-dependencies]
+# Optional LLM-judge metrics for standalone/evals (dual-MCP routing evals).
+eval = [
+    "deepeval>=4.0.0",
+]
+
 [tool.uv.sources]
 openstudio-ai = { path = "..", editable = true }
 

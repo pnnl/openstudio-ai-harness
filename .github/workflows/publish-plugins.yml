@@ -27,6 +27,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'success'
+      && github.event.workflow_run.event == 'release'
       && github.event.workflow_run.head_repository.full_name == github.repository)
 
     steps:
@@ -59,6 +60,22 @@ jobs:
           uv run --frozen ${EXPORT_COMMAND} \
             --output-dir "${RUNNER_TEMP}/marketplace" \
             --force
+
+      - name: Verify exported package version is on PyPI
+        run: |
+          set -euo pipefail
+          version=$(jq -er '.package.version' "${RUNNER_TEMP}/marketplace/.generated.json")
+          url="https://pypi.org/pypi/openstudio-ai/${version}/json"
+          for attempt in 1 2 3 4 5 6; do
+            if curl -fsS -o /dev/null "${url}"; then
+              echo "openstudio-ai ${version} is available on PyPI."
+              exit 0
+            fi
+            echo "openstudio-ai ${version} not on PyPI yet (attempt ${attempt}); retrying in 30s."
+            sleep 30
+          done
+          echo "::error::openstudio-ai ${version} is not published on PyPI; refusing to export a marketplace that pins it."
+          exit 1
 
       - name: Sync generated files into plugins checkout
         run: |

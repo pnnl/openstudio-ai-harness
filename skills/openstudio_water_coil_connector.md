@@ -1,6 +1,6 @@
 ---
 name: openstudio-water-coil-connector
-description: Attach a water coil at an air loop supply outlet, or migrate an existing main-supply water coil to another compatible plant while retaining coil and controller identity.
+description: Attach a water coil at an air loop supply outlet, migrate its plant connection, or relocate an existing main-supply water coil to a selected supply outlet while retaining coil and controller identity.
 metadata:
   version: 0.4.0
 ---
@@ -54,9 +54,27 @@ and air-system settings remain protected; the source plant is retained even if u
 Create a requested destination with the plant-loop skill first. This operation
 does not resize the plant or certify performance; request sizing separately.
 
-Class conversion, air-location changes, OA-stream, unitary and
-terminal coils need separate coverage. Same-class replacement is not exported;
-the clone/reconnect primitive remains internal pending a real replacement contract.
+For `operation: relocate_air`, select the existing coil, destination air loop and
+its supply outlet, with explicit `sizing: Autosize`. Both loops must have unsplit
+main supply paths; the destination must have existing supply equipment and a
+Temperature setpoint manager at the outlet. The coil moves immediately upstream
+of that outlet. Coil/controller identities, plant branch, water nodes, metadata,
+availability and rating inputs remain; sizing/controller maximum flow reset to
+Autosize and the sensor follows the new outlet. One old interior air node is
+removed when the vacated location is merged; external dependencies on source
+interior nodes block preflight. Review affected zones on both loops, changed
+equipment order, node/connection identity changes and retained air-system sizing.
+Review `impact.before_control` and `impact.after_control`: they report the fan
+position and translated control reference. Moving from before the fan to the
+supply outlet changes draw-through to blow-through and replaces MixedAir fan-heat
+compensation with direct supply-outlet control. This can change sizing/operation.
+Zone assignments and terminals are unchanged. Request sizing separately and
+review conditioning on both loops; relocation can remove source conditioning.
+
+Heating-water to electric class conversion uses `openstudio-coil-replacer` with
+explicit efficiency and preserved temperature control. Other conversions and OA-stream,
+unitary or terminal coils need separate coverage. Same-class replacement is not
+exported; the earlier clone/reconnect primitive remains internal.
 
 ```text
 <verified-cli> execute_python_script <skill>/scripts/connect_water_coil.py --input <input.osm> --report <inventory.json>

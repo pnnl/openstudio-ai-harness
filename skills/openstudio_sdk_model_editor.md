@@ -76,8 +76,18 @@ Disallowed uses:
   water nodes/connections. Present both plants and sizing/identity effects. New
   attachment requires explicit design, schedule, sizing and controller choices;
   interior/inlet attachment is unsupported. Same-class replacement is not exported.
-  Class conversion, air-location changes and OA/unitary/terminal coils need separate
-  coverage. Whole VAV/CAV creation shares these setters within its parent transaction.
+  Use the connector's `relocate_air` operation for a main-supply water coil moved
+  immediately upstream of a selected supply outlet on the same or another unsplit
+  air loop, with explicit Autosize. It preserves equipment/controller and plant
+  branch identities, updates the sensor, and reports the removed interior air node
+  and all affected zones. No zone reassignment or system resizing is implicit.
+  Use `openstudio-coil-replacer` for genuine main-supply heating-water to electric
+  conversion, with explicit efficiency, preserved temperature control, Autosize and reference
+  policy. It preserves schedule/air boundaries/coil metadata, creates a new coil
+  and removes the owned water controller/branch; external references block its
+  initial Reject policy. Show fuel, remaining-plant-load and identity effects.
+  Other class conversions and OA/unitary/terminal coils need separate coverage.
+  Whole VAV/CAV creation shares these setters within its parent transaction.
 - For standalone plant construction or a plant stage of broader HVAC work, use
   `openstudio-plant-loop-creator`; pass its output/plant selectors to the selected
   air-side skill for water-coil connections when requested.

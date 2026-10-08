@@ -32,6 +32,9 @@ resources:
       - hosts: [claude, codex]
         skill: openstudio-water-coil-connector
         path: scripts/common/__init__.py
+      - hosts: [claude, codex]
+        skill: openstudio-coil-replacer
+        path: scripts/common/__init__.py
 
   - source: skills/sdk_scripts/doctor.py
     owners:
@@ -60,6 +63,9 @@ resources:
         path: scripts/doctor.py
       - hosts: [claude, codex]
         skill: openstudio-water-coil-connector
+        path: scripts/doctor.py
+      - hosts: [claude, codex]
+        skill: openstudio-coil-replacer
         path: scripts/doctor.py
 
   - source: skills/sdk_scripts/sdk_probe.py
@@ -90,6 +96,9 @@ resources:
       - hosts: [claude, codex]
         skill: openstudio-water-coil-connector
         path: scripts/sdk_probe.py
+      - hosts: [claude, codex]
+        skill: openstudio-coil-replacer
+        path: scripts/sdk_probe.py
 
   - source: skills/sdk_scripts/common/version_guard.py
     owners:
@@ -119,6 +128,9 @@ resources:
       - hosts: [claude, codex]
         skill: openstudio-water-coil-connector
         path: scripts/common/version_guard.py
+      - hosts: [claude, codex]
+        skill: openstudio-coil-replacer
+        path: scripts/common/version_guard.py
 
   - source: skills/sdk_scripts/compatibility.json
     owners:
@@ -147,6 +159,9 @@ resources:
         path: scripts/compatibility.json
       - hosts: [claude, codex]
         skill: openstudio-water-coil-connector
+        path: scripts/compatibility.json
+      - hosts: [claude, codex]
+        skill: openstudio-coil-replacer
         path: scripts/compatibility.json
 
   - source: skills/sdk_scripts/vav_preflight.py
@@ -179,6 +194,9 @@ resources:
       - hosts: [claude, codex]
         skill: openstudio-water-coil-connector
         path: scripts/common/input_validation.py
+      - hosts: [claude, codex]
+        skill: openstudio-coil-replacer
+        path: scripts/common/input_validation.py
 
   - source: skills/sdk_scripts/common/hvac_inventory.py
     owners:
@@ -197,6 +215,9 @@ resources:
         path: scripts/common/hvac_inventory.py
       - hosts: [claude, codex]
         skill: openstudio-water-coil-connector
+        path: scripts/common/hvac_inventory.py
+      - hosts: [claude, codex]
+        skill: openstudio-coil-replacer
         path: scripts/common/hvac_inventory.py
 
   - source: skills/sdk_scripts/common/vav_inventory.py
@@ -267,6 +288,9 @@ resources:
       - hosts: [claude, codex]
         skill: openstudio-water-coil-connector
         path: scripts/common/files.py
+      - hosts: [claude, codex]
+        skill: openstudio-coil-replacer
+        path: scripts/common/files.py
 
   - source: skills/sdk_scripts/common/companions.py
     owners:
@@ -294,6 +318,9 @@ resources:
       - hosts: [claude, codex]
         skill: openstudio-water-coil-connector
         path: scripts/common/companions.py
+      - hosts: [claude, codex]
+        skill: openstudio-coil-replacer
+        path: scripts/common/companions.py
 
   - source: skills/sdk_scripts/common/model_transaction.py
     owners:
@@ -315,6 +342,9 @@ resources:
         path: scripts/common/model_transaction.py
       - hosts: [claude, codex]
         skill: openstudio-water-coil-connector
+        path: scripts/common/model_transaction.py
+      - hosts: [claude, codex]
+        skill: openstudio-coil-replacer
         path: scripts/common/model_transaction.py
 
   - source: skills/sdk_scripts/common/plant_create.py
@@ -356,6 +386,9 @@ resources:
         path: scripts/common/hvac_equipment.py
       - hosts: [claude, codex]
         skill: openstudio-water-coil-connector
+        path: scripts/common/hvac_equipment.py
+      - hosts: [claude, codex]
+        skill: openstudio-coil-replacer
         path: scripts/common/hvac_equipment.py
 
   - source: skills/sdk_scripts/common/air_system_recipe.py
@@ -472,6 +505,9 @@ resources:
       - hosts: [claude, codex]
         skill: openstudio-water-coil-connector
         path: scripts/common/model_preservation.py
+      - hosts: [claude, codex]
+        skill: openstudio-coil-replacer
+        path: scripts/common/model_preservation.py
 
   - source: skills/sdk_scripts/common/coil_equipment.py
     owners:
@@ -490,6 +526,9 @@ resources:
       - hosts: [claude, codex]
         skill: openstudio-supply-fan-performance-editor
         path: scripts/common/coil_equipment.py
+      - hosts: [claude, codex]
+        skill: openstudio-coil-replacer
+        path: scripts/common/coil_equipment.py
 
   - source: skills/sdk_scripts/common/water_coil.py
     owners:
@@ -499,6 +538,9 @@ resources:
       - hosts: [claude, codex]
         skill: openstudio-water-coil-connector
         path: scripts/common/water_coil.py
+      - hosts: [claude, codex]
+        skill: openstudio-coil-replacer
+        path: scripts/common/water_coil.py
 
   - source: skills/sdk_scripts/common/coil_migration.py
     owners:
@@ -507,6 +549,9 @@ resources:
         path: scripts/common/coil_migration.py
       - hosts: [claude, codex]
         skill: openstudio-water-coil-connector
+        path: scripts/common/coil_migration.py
+      - hosts: [claude, codex]
+        skill: openstudio-coil-replacer
         path: scripts/common/coil_migration.py
 
   - source: skills/sdk_scripts/edit_water_coil.py
@@ -529,6 +574,9 @@ resources:
       - hosts: [claude, codex]
         skill: openstudio-water-coil-connector
         path: scripts/references/water_coil_edit.schema.json
+      - hosts: [claude, codex]
+        skill: openstudio-coil-replacer
+        path: scripts/references/water_coil_edit.schema.json
 
   - source: skills/sdk_scripts/references/water_coil_connection.schema.json
     owners:
@@ -537,6 +585,9 @@ resources:
         path: scripts/references/water_coil_connection.schema.json
       - hosts: [claude, codex]
         skill: openstudio-water-coil-connector
+        path: scripts/references/water_coil_connection.schema.json
+      - hosts: [claude, codex]
+        skill: openstudio-coil-replacer
         path: scripts/references/water_coil_connection.schema.json
 
   - source: skills/sdk_scripts/references/water_coil_edit.md
@@ -550,8 +601,60 @@ resources:
       - hosts: [claude, codex]
         skill: openstudio-water-coil-connector
         path: scripts/references/water_coil_connection.md
+  - source: skills/sdk_scripts/common/coil_topology.py
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-coil-replacer
+        path: scripts/common/coil_topology.py
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-editor
+        path: scripts/common/coil_topology.py
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-connector
+        path: scripts/common/coil_topology.py
+
+
+  - source: skills/sdk_scripts/common/coil_conversion.py
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-coil-replacer
+        path: scripts/common/coil_conversion.py
+
+  - source: skills/sdk_scripts/replace_coil.py
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-coil-replacer
+        path: scripts/replace_coil.py
+
+  - source: skills/sdk_scripts/references/coil_conversion.schema.json
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-coil-replacer
+        path: scripts/references/coil_conversion.schema.json
+
+  - source: skills/sdk_scripts/references/coil_conversion.md
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-coil-replacer
+        path: scripts/references/coil_conversion.md
+
+  - source: skills/sdk_scripts/common/coil_relocation.py
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-editor
+        path: scripts/common/coil_relocation.py
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-connector
+        path: scripts/common/coil_relocation.py
+      - hosts: [claude, codex]
+        skill: openstudio-coil-replacer
+        path: scripts/common/coil_relocation.py
+
 
 skills:
+  - id: openstudio-coil-replacer
+    source: skills/openstudio_coil_replacer.md
+    hosts: [claude, codex]
   - id: openstudio-water-coil-editor
     source: skills/openstudio_water_coil_editor.md
     hosts: [claude, codex]

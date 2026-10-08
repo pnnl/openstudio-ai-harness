@@ -1,4 +1,4 @@
-# Main-supply water-coil attachment and plant migration contract
+# Main-supply water-coil attachment, plant migration and air relocation
 
 `connect_water_coil.py` inventories, preflights and applies copied outputs.
 Use absolute input/config/report paths and new output/report names. Schema:
@@ -83,7 +83,9 @@ is dry-bulb temperature control, without humidity-control/setpoint creation.
 
 Existing coil ratings, name, availability, Autosize resets and controller settings
 use the in-place editor. `operation: replace` is rejected by both public schemas.
-The clone/reconnect primitive remains unexported for future class/location changes.
+The same-class clone/reconnect primitive remains unexported. Genuine heating-water
+to electric conversion uses `openstudio-coil-replacer` with explicit performance,
+outlet-control and reference choices.
 Plant migration uses the existing objects rather than cloning their identities.
 
 Attachment previews native topology in an isolated handle-preserving model copy.
@@ -166,3 +168,51 @@ of apply. Fresh-plan/hash checks, saved validation and translation run before
 publication through the shared transaction. This does not size plants, change
 air-system sizing or verify annual performance. Keep the copied output and its
 companion directory together; request sizing separately.
+
+## Relocate an existing coil on air supply
+
+```json
+{
+  "output_model_path": "/absolute/path/relocated.osm",
+  "operation": "relocate_air",
+  "coil": {"name": "Office Main Cooling Coil"},
+  "air_loop": {"name": "Destination Air Loop"},
+  "air_node": {"name": "Destination Supply Outlet"},
+  "sizing": "Autosize"
+}
+```
+
+Select a direct main-supply heating/cooling water coil and an unsplit destination
+loop's supply outlet. It can be the same loop if the coil is not already at that
+outlet. The destination needs existing upstream equipment, an incoming connection
+and a Temperature setpoint manager. Empty supply paths, interior/inlet destinations,
+custom sensor/actuator locations and non-Temperature/Flow controller strategies
+remain unready. Existing source-plant deficiencies are warnings with simulation
+readiness false; its connections are not changed by this operation.
+
+The old location merges into a single shared node: one interior air node is removed
+to avoid adjacent nodes producing different EnergyPlus branch names. The destination
+gets one new inlet node. External references to the source interior air nodes block
+preflight; coil/controller references, including EMS and LifeCycleCost, are retained.
+Review `impact.removed_air_node`, original/new air nodes, source/destination zone
+counts and full affected-zone records. Supply order changes intentionally; source
+and destination sizing, terminals, zone assignments and plant graph stay protected.
+
+Heating capacity/UA/maximum water flow or cooling design air/water flow reset to
+Autosize, as does controller maximum flow. Other ratings, schedule, metadata and
+controller scalar values stay unchanged. `impact.before_control` / `after_control` show translated managers/reference nodes
+and fan position. Moving a heating coil from before the fan to the supply outlet
+changes draw-through to blow-through, and fan-compensated MixedAir tracking to
+direct supply-outlet control. The change can alter cooling/heating sizing and
+operation even when every rating is retained. These control fields are checked
+independently after saving. The sensor follows the destination outlet;
+its actuator remains the water inlet. Heating UA sizing context in the plan refers
+to the destination air loop. Relocation does not guarantee either loop can still
+meet its loads; size both systems and review their intended conditioning strategy.
+
+Apply rewires explicit connections rather than calling `addToNode` on an already
+connected coil. Saved independent checks cover both air paths, exact plant branch,
+whole-model connection graph, retained identities/fields/settings, removed/new
+objects and result mappings. Translation precedes publication; native design-day
+tests additionally guard branch integrity because translation alone does not
+detect adjacent-node branch errors.

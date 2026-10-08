@@ -788,6 +788,11 @@ def plan_edit(model, sdk, config):
 
 
 def plan_connection(model, sdk, config):
+    if config.get("operation") == "relocate_air":
+        from common.coil_relocation import plan_relocation
+
+        validate_config(config, "connection")
+        return plan_relocation(model, sdk, config)
     if config.get("operation") == "migrate_plant":
         from common.coil_migration import plan_migration
 
@@ -797,6 +802,10 @@ def plan_connection(model, sdk, config):
 
 
 def change(model, sdk, planned):
+    if planned["parameters"]["operation"] == "relocate_air":
+        from common.coil_relocation import relocate
+
+        return relocate(model, sdk, planned)
     if planned["parameters"]["operation"] == "migrate_plant":
         from common.coil_migration import migrate
 
@@ -847,6 +856,10 @@ def change(model, sdk, planned):
 
 
 def validate_model(model, sdk, planned, result):
+    if planned["parameters"]["operation"] == "relocate_air":
+        from common.coil_relocation import validate_relocation
+
+        return validate_relocation(model, sdk, planned, result)
     if planned["parameters"]["operation"] == "migrate_plant":
         from common.coil_migration import validate_migration
 

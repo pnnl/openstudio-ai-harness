@@ -39,8 +39,12 @@ knowledge, and workflow-state tools for AI-assisted building-energy modeling.
   controller/air identities while resetting sizing and rebuilding water links.
   Its review reports remaining source-plant loads and warns when no coils remain;
   active retained water-temperature mismatches name the editor for follow-up.
-  Same-class replacement remains internal; class conversion and air relocation
-  require separate contracts. VAV/CAV share the setters; saved validation and
+  The connector also relocates a water coil to a selected supply outlet on the same
+  or another main air loop, preserving its plant branch and equipment identities.
+  `openstudio-coil-replacer` converts main-supply water heating to electric with
+  explicit efficiency, preserved temperature control, Autosize and reference-policy choices.
+  It reports removed water equipment and the new coil identity. Same-class
+  replacement remains internal. VAV/CAV share the setters; saved validation and
   EnergyPlus translation precede publication. Heating UA
   rated temperatures are optional, informational metadata. Missing plant equipment
   or controls produces a warning for an in-place edit and marks simulation readiness false;

@@ -1,5 +1,5 @@
 {
-  "title": "Main-supply water-coil attachment or plant migration",
+  "title": "Main-supply water-coil attachment, plant migration or air relocation",
   "oneOf": [
     {
       "type": "object",
@@ -280,6 +280,41 @@
           "enum": [
             "Autosize"
           ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "output_model_path",
+        "operation"
+      ],
+      "properties": {
+        "output_model_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "operation": {
+          "type": "string",
+          "enum": [
+            "relocate_air"
+          ]
+        },
+        "coil": {
+          "$ref": "#/$defs/selector"
+        },
+        "sizing": {
+          "type": "string",
+          "enum": [
+            "Autosize"
+          ]
+        },
+        "air_loop": {
+          "$ref": "#/$defs/selector"
+        },
+        "air_node": {
+          "$ref": "#/$defs/selector"
         }
       }
     }

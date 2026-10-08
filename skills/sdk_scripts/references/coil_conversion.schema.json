@@ -1,0 +1,73 @@
+{
+  "title": "Main-supply water heating to electric conversion",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "output_model_path"
+  ],
+  "properties": {
+    "output_model_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "coil": {
+      "$ref": "#/$defs/selector"
+    },
+    "efficiency": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 1
+    },
+    "sizing": {
+      "type": "string",
+      "enum": [
+        "Autosize"
+      ]
+    },
+    "reference_policy": {
+      "type": "string",
+      "enum": [
+        "Reject"
+      ]
+    },
+    "temperature_control": {
+      "type": "string",
+      "enum": [
+        "Preserve"
+      ],
+      "description": "Preserve existing outlet managers and translator-generated supply-air/fan compensation. Fixed-temperature changes are outside this conversion."
+    }
+  },
+  "$defs": {
+    "selector": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "handle"
+          ],
+          "properties": {
+            "handle": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,4 +1,4 @@
-"""Reviewed main-supply water-coil in-place edits and supply-outlet attachment."""
+"""Reviewed main-supply water-coil edits, attachment and plant migration."""
 
 from collections import Counter
 import json
@@ -350,7 +350,7 @@ def heating_rating_usage(values, loop, plant, default_fields):
     )
 
 
-def plan(model, sdk, config, mode):
+def plan(model, sdk, config, mode, *, topology_change=False):
     validate_config(config, mode)
     planned = dict(
         ready=False,
@@ -630,7 +630,11 @@ def plan(model, sdk, config, mode):
         maximum = after_settings["controller"]["maximum_flow_m3_s"]
         if isinstance(maximum, (int, float)) and minimum > maximum:
             planned["errors"].append("Controller minimum flow exceeds maximum flow")
-        if after == before and after_settings == before_settings:
+        if (
+            after == before
+            and after_settings == before_settings
+            and not topology_change
+        ):
             planned["errors"].append("Edit must change at least one value")
     else:
         after_settings = dict(
@@ -784,10 +788,19 @@ def plan_edit(model, sdk, config):
 
 
 def plan_connection(model, sdk, config):
+    if config.get("operation") == "migrate_plant":
+        from common.coil_migration import plan_migration
+
+        validate_config(config, "connection")
+        return plan_migration(model, sdk, config)
     return plan(model, sdk, config, "connection")
 
 
 def change(model, sdk, planned):
+    if planned["parameters"]["operation"] == "migrate_plant":
+        from common.coil_migration import migrate
+
+        return migrate(model, sdk, planned)
     p = planned["parameters"]
     r = planned["resolved_objects"]
     kind = p["kind"]
@@ -834,6 +847,10 @@ def change(model, sdk, planned):
 
 
 def validate_model(model, sdk, planned, result):
+    if planned["parameters"]["operation"] == "migrate_plant":
+        from common.coil_migration import validate_migration
+
+        return validate_migration(model, sdk, planned, result)
     p = planned["parameters"]
     r = planned["resolved_objects"]
     mode = p["operation"]

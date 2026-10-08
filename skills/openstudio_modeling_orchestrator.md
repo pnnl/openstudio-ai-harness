@@ -42,12 +42,15 @@ task-specific skill before acting; do not recreate its procedure from memory.
 - Use `openstudio-water-coil-editor` for existing main-supply water-coil ratings,
   name, availability, Autosize resets and controller settings. These are in-place
   setters preserving coil, controller, connection, metadata and reference handles,
-  including EMS/LifeCycleCost. Use `openstudio-water-coil-connector` only to attach
+  including EMS/LifeCycleCost. Use `openstudio-water-coil-connector` to attach
   a new water coil at the selected air loop's supply outlet and compatible existing
-  plant demand branch. Interior/inlet nodes are unsupported. Select design,
-  schedule, sizing and controller choices explicitly; finalize a new controller
-  after both connections. Same-class replacement is not exported. Class conversion,
-  location changes, plant migration and OA/unitary/terminal coils need separate
+  plant demand branch, or to migrate an existing main-supply coil to another ready
+  water plant with explicit Autosize resets. Migration preserves coil/controller/
+  air identities; it requires a dedicated single-coil demand branch and may rebuild
+  water nodes/connections. Present both plants and sizing/identity effects. New
+  attachment requires explicit design, schedule, sizing and controller choices;
+  interior/inlet attachment is unsupported. Same-class replacement is not exported.
+  Class conversion, air-location changes and OA/unitary/terminal coils need separate
   coverage. Whole VAV/CAV creation shares these setters within its parent transaction.
 - Use `openstudio-plant-loop-creator` as an independent plant-building module for
   hot-water, chilled-water and associated condenser systems. Route direct plant

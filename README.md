@@ -34,9 +34,14 @@ knowledge, and workflow-state tools for AI-assisted building-energy modeling.
   `openstudio-water-coil-editor` changes explicit ratings, names, availability,
   autosizing and controller values, preserving coil/controller/connection/reference
   handles. `openstudio-water-coil-connector` attaches only at the supply outlet and
-  finalizes its new controller after plant and air connections. Same-class replacement
-  is internal pending a topology-changing contract. VAV/CAV share the setters;
-  saved validation and EnergyPlus translation precede publication. Heating UA
+  finalizes its new controller after plant and air connections. It also migrates
+  existing main-supply water coils to another ready water plant, preserving coil/
+  controller/air identities while resetting sizing and rebuilding water links.
+  Its review reports remaining source-plant loads and warns when no coils remain;
+  active retained water-temperature mismatches name the editor for follow-up.
+  Same-class replacement remains internal; class conversion and air relocation
+  require separate contracts. VAV/CAV share the setters; saved validation and
+  EnergyPlus translation precede publication. Heating UA
   rated temperatures are optional, informational metadata. Missing plant equipment
   or controls produces a warning for an in-place edit and marks simulation readiness false;
   attachment requires a ready plant.

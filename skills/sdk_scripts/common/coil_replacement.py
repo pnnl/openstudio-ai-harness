@@ -1,7 +1,8 @@
 """Deferred same-class coil clone/reconnect primitive; never exported.
 
-In-place edits do not call this code. Class conversion, plant migration and
-location changes need a new topology/controller/reference contract before use.
+In-place edits do not call this code. Plant migration uses existing objects in
+coil_migration. Class conversion and location changes need a new
+topology/controller/reference contract before using this clone primitive.
 The caller must establish reference migration and saved-model validation.
 """
 

@@ -500,6 +500,15 @@ resources:
         skill: openstudio-water-coil-connector
         path: scripts/common/water_coil.py
 
+  - source: skills/sdk_scripts/common/coil_migration.py
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-editor
+        path: scripts/common/coil_migration.py
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-connector
+        path: scripts/common/coil_migration.py
+
   - source: skills/sdk_scripts/edit_water_coil.py
     owners:
       - hosts: [claude, codex]

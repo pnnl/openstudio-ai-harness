@@ -67,6 +67,29 @@ def test_openstudio_status_explains_missing_cli(monkeypatch, tmp_path: Path) -> 
     ]
     assert "read-only platform-specific discovery" in status["recommendation"]
     assert "--path <confirmed-executable>" in status["recommendation"]
+    # The SDK interpreter is reported even when the native CLI is missing.
+    assert status["sdk_python"]["executable"] == mcp_server.sys.executable
+    assert status["sdk_python"]["available"] is True
+    assert status["sdk_python"]["openstudio_sdk_version"]
+
+
+def test_sdk_python_is_unavailable_when_openstudio_import_fails(monkeypatch) -> None:
+    """Package metadata is not enough: a broken native extension must fail."""
+    mcp_server._probe_sdk_python.cache_clear()
+    monkeypatch.setattr(
+        mcp_server,
+        "_SDK_PYTHON_PROBE_SCRIPT",
+        "raise ImportError('libopenstudiolib.so: cannot open shared object file')",
+    )
+    try:
+        status = OpenStudioService._sdk_python_status()
+    finally:
+        mcp_server._probe_sdk_python.cache_clear()
+
+    assert status["executable"] == mcp_server.sys.executable
+    assert status["available"] is False
+    assert status["openstudio_sdk_version"] is None
+    assert "cannot open shared object file" in status["error"]
 
 
 def test_invalid_openstudio_path_does_not_select_a_different_installation(

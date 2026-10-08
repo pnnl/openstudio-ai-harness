@@ -160,7 +160,8 @@ For development exports from this checkout, use `.venv/bin/openstudio-ai`
 code. An older pipx-installed command can combine older generated setup/helpers
 with this checkout's skill files; `--workspace-root` selects assets, not the
 installed exporter code. Both exports configure PNNL as `openstudio_ai` launching
-`openstudio-ai-mcp`; NLR setup uses `openstudio-mcp`. PNNL workflow records use
+`openstudio-ai-mcp` (through a pinned `uvx` spec in marketplace mode); NLR setup
+uses `openstudio-mcp`. PNNL workflow records use
 `nlr_openstudio` as their stable provider identifier, separate from the host
 connection name.
 

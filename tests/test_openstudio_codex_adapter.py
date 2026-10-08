@@ -7,6 +7,11 @@ import pytest
 
 from adapters.codex_adapter import AGENTS_GENERATED_START, CodexAdapter
 from adapters.contracts import HostAdapterConfig
+from adapters.runtime_helpers import (
+    runtime_doctor_command,
+    runtime_uvx_args,
+    runtime_uvx_command,
+)
 from openstudio_ai_mcp.compatibility import plugin_mcp_environment
 
 
@@ -330,31 +335,34 @@ def test_codex_adapter_marketplace_mode_exports_runtime_setup(tmp_path: Path) ->
     mcp_json = json.loads((plugin_dir / ".mcp.json").read_text(encoding="utf-8"))
     server = mcp_json["mcpServers"]["openstudio_ai"]
     assert server == {
-        "command": "openstudio-ai-mcp",
-        "args": ["--transport", "stdio"],
+        "command": "uvx",
+        "args": [
+            *runtime_uvx_args("openstudio-ai-mcp"),
+            "--transport",
+            "stdio",
+        ],
         "env": plugin_mcp_environment(),
     }
     assert (plugin_dir / "skills" / "setup-openstudio-ai" / "SKILL.md").exists()
     assert (plugin_dir / "skills" / "doctor-openstudio-ai" / "SKILL.md").exists()
     assert (plugin_dir / "skills" / "repair-openstudio-ai" / "SKILL.md").exists()
-    assert (
-        plugin_dir / "skills" / "setup-openstudio-ai" / "scripts" / "install_runtime.py"
-    ).exists()
-    assert (
-        plugin_dir / "skills" / "setup-openstudio-ai" / "scripts" / "doctor_runtime.py"
-    ).exists()
+    assert not (plugin_dir / "skills" / "setup-openstudio-ai" / "scripts").exists()
     assert not (plugin_dir / "commands").exists()
     assert not (plugin_dir / "installers").exists()
 
     setup = (plugin_dir / "skills" / "setup-openstudio-ai" / "SKILL.md").read_text(
         encoding="utf-8"
     )
-    assert "python --version" in setup
-    assert "python3 --version" in setup
-    assert "that command's `--help`" in setup
+    assert "uvx --version" in setup
+    assert "pipx install uv" in setup
+    assert "never to install the OpenStudio AI runtime" in setup
+    assert runtime_uvx_command("openstudio-ai", "install-runtime") in setup
+    assert runtime_doctor_command() in setup
+    assert "python3" not in setup
+    assert ".venv" not in setup
     assert "energy-modeler language" in setup
     assert "diagnose command discovery before editing plugin files" in setup
-    assert "do not replace it with an absolute `.venv/bin` path" in setup
+    assert "do not replace it with an absolute path" in setup
     assert "--runtime-mode local" in setup
     assert "restart Codex" in setup
     assert "plugin_ready: false" in setup
@@ -363,24 +371,13 @@ def test_codex_adapter_marketplace_mode_exports_runtime_setup(tmp_path: Path) ->
         encoding="utf-8"
     )
     assert "plugin_ready: false" in repair
+    assert "uvx --reinstall" in repair
     assert "restart Codex or reconnect the MCP server" in repair
     assert "current project's `AGENTS.md`" in setup
     assert "required part of setup" in setup
     assert "openstudio-ai install codex --target-dir . --dry-run --force" in setup
     assert "openstudio-ai install codex --target-dir . --force" in setup
     assert "unmanaged" in setup
-    installer = (
-        plugin_dir / "skills" / "setup-openstudio-ai" / "scripts" / "install_runtime.py"
-    ).read_text(encoding="utf-8")
-    assert "OPENSTUDIO_AI_PACKAGE_SPEC" in installer
-    assert '"pip", "install", "--upgrade"' in installer
-    assert '["pipx", "upgrade", "--install", "openstudio-ai"]' in installer
-    assert 'runtime_cli, "install-runtime"' in installer
-    assert "Placeholder installer" not in installer
-    doctor = (
-        plugin_dir / "skills" / "setup-openstudio-ai" / "scripts" / "doctor_runtime.py"
-    ).read_text(encoding="utf-8")
-    assert '"--plugin-contract-version"' in doctor
 
     exported_text = "\n".join(
         path.read_text(encoding="utf-8")

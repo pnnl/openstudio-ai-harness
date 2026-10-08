@@ -25,7 +25,8 @@ def register_runtime_tools(mcp, service) -> None:
         description=(
             "Report whether this MCP server can run the native OpenStudio CLI, "
             "including whether it was found through OPENSTUDIO_PATH, saved runtime "
-            "configuration, or PATH."
+            "configuration, or PATH. `sdk_python.executable` is the interpreter "
+            "this server runs in; host-side OpenStudio SDK scripts must use it."
         ),
     )
     async def runtime_openstudio_status() -> dict[str, Any]:

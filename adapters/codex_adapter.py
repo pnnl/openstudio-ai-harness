@@ -9,7 +9,14 @@ from pathlib import Path
 
 from adapters.base import OpenStudioAiHostAdapter
 from adapters.contracts import RUNTIME_MODES, HostAdapterConfig, HostLaunchPlan
-from adapters.runtime_helpers import write_runtime_helpers
+from adapters.runtime_helpers import (
+    doctor_triage_guidance,
+    marketplace_mcp_server_config,
+    offline_guidance,
+    prepare_runtime_guidance,
+    runtime_doctor_command,
+    runtime_uvx_command,
+)
 from harness.asset_manifest import (
     reference_exports_for_host,
     skill_exports_for_host,
@@ -233,20 +240,6 @@ def _planned_export_files(
             plugin_dir / "skills" / skill_name / "SKILL.md"
             for skill_name in _marketplace_setup_skill_docs()
         )
-        files.extend(
-            [
-                plugin_dir
-                / "skills"
-                / "setup-openstudio-ai"
-                / "scripts"
-                / "install_runtime.py",
-                plugin_dir
-                / "skills"
-                / "setup-openstudio-ai"
-                / "scripts"
-                / "doctor_runtime.py",
-            ]
-        )
     files.extend(
         export.target
         for export in skill_exports_for_host(workspace_root, plugin_dir, "codex")
@@ -297,11 +290,6 @@ def _write_plugin_package(
         skill.target.write_text(
             _render_exported_skill(skill.source, skill.skill),
             encoding="utf-8",
-        )
-
-    if runtime_mode == "marketplace":
-        _write_installer_assets(
-            plugin_dir / "skills" / "setup-openstudio-ai" / "scripts"
         )
 
     _write_skill_references(plugin_dir / "skills", workspace_root)
@@ -392,7 +380,9 @@ def _mcp_server_config(workspace_root: Path, runtime_mode: str) -> dict[str, obj
                 **plugin_mcp_environment(),
             },
         }
-    if runtime_mode in {"installed", "marketplace"}:
+    if runtime_mode == "marketplace":
+        return marketplace_mcp_server_config(plugin_mcp_environment())
+    if runtime_mode == "installed":
         return {
             "command": "openstudio-ai-mcp",
             "args": ["--transport", "stdio"],
@@ -441,6 +431,11 @@ def _render_install_doc(
     """Render installation instructions for the exported Codex plugin."""
     export_ref = "<path-to-this-marketplace-folder>"
     validate_ref = "<path-to-this-plugin-json>"
+    install_codex = "openstudio-ai install codex --target-dir <path-to-project>"
+    if runtime_mode == "marketplace":
+        install_codex = runtime_uvx_command(
+            "openstudio-ai", "install", "codex", "--target-dir", "<path-to-project>"
+        )
     if runtime_mode != "marketplace":
         export_ref = str(export_root)
         validate_ref = str(
@@ -467,7 +462,7 @@ def _render_install_doc(
         "OpenStudio requests should consistently enter the workflow router, install "
         "the managed OpenStudio block into `AGENTS.md`:\n\n"
         "```bash\n"
-        "openstudio-ai install codex --target-dir <path-to-project>\n"
+        f"{install_codex}\n"
         "```\n\n"
         "Use `--dry-run` to preview. If the project already has an unmanaged "
         "`AGENTS.md`, use `--force` only after reviewing the proposed append. "
@@ -475,8 +470,8 @@ def _render_install_doc(
         "## Runtime Setup\n\n"
         "After installation, invoke the setup skill with `$setup-openstudio-ai` (or ask "
         "Codex in plain language to set up OpenStudio AI). `/setup-openstudio-ai` is not "
-        "a Codex CLI skill command. The setup skill checks Python, checks "
-        "`openstudio-ai-mcp`, and explains any missing installation steps in "
+        "a Codex CLI skill command. The setup skill checks uv, prepares the pinned "
+        "runtime, and explains any missing installation steps in "
         "energy-modeler language.\n"
     )
 
@@ -498,14 +493,15 @@ def _render_plugin_readme(
         "simulation, results, learning capture, and HVAC workflows.\n"
         "- `skills/*/references/`: reviewed SDK context packs, prompt contracts, "
         "blackboard schemas, and learning schemas used by the owning skills.\n"
-        "- `skills/setup-openstudio-ai/scripts/`: marketplace runtime setup helpers.\n\n"
+        "- `skills/setup-openstudio-ai/`: marketplace runtime setup through uv.\n\n"
         "## Skills\n\n"
         f"{skill_names}\n\n"
         "## Runtime Note\n\n"
         f"Runtime mode: `{runtime_mode}`.\n\n"
         "In `local` mode, this plugin references a source checkout. In `installed` "
-        "and `marketplace` mode, it expects the `openstudio-ai-mcp` command to be "
-        "available on the user's machine.\n"
+        "mode, it expects the `openstudio-ai-mcp` command to be available on the "
+        "user's machine. In `marketplace` mode, it launches the matching runtime "
+        "release through `uvx`.\n"
     )
 
 
@@ -515,6 +511,11 @@ def _render_connectors_doc(workspace_root: Path, runtime_mode: str) -> str:
         runtime_text = (
             "The current `.mcp.json` points to the local checkout:\n\n"
             f"- `{workspace_root}`\n"
+        )
+    elif runtime_mode == "marketplace":
+        runtime_text = (
+            "The current `.mcp.json` launches the pinned runtime through uv:\n\n"
+            f"- `{runtime_uvx_command('openstudio-ai-mcp', '--transport', 'stdio')}`\n"
         )
     else:
         runtime_text = (
@@ -534,6 +535,16 @@ def _render_connectors_doc(workspace_root: Path, runtime_mode: str) -> str:
 
 def _marketplace_setup_skill_docs() -> dict[str, str]:
     """Return marketplace setup skills for no-code runtime onboarding."""
+    configure = runtime_uvx_command(
+        "openstudio-ai", "configure-openstudio", "--path", "<confirmed-executable>"
+    )
+    doctor = runtime_doctor_command()
+    routing_preview = runtime_uvx_command(
+        "openstudio-ai", "install", "codex", "--target-dir", ".", "--dry-run", "--force"
+    )
+    routing = runtime_uvx_command(
+        "openstudio-ai", "install", "codex", "--target-dir", ".", "--force"
+    )
     return {
         "setup-openstudio-ai": _skill_markdown(
             name="setup-openstudio-ai",
@@ -541,31 +552,23 @@ def _marketplace_setup_skill_docs() -> dict[str, str]:
             body=(
                 "# Setup OpenStudio AI\n\n"
                 "Help the user get OpenStudio AI ready without assuming programming experience.\n\n"
-                "1. Explain that OpenStudio AI needs a local runtime command named "
-                "`openstudio-ai-mcp` so the AI assistant can safely run OpenStudio tools. "
+                "1. Explain that OpenStudio AI runs its runtime through `uv`, which "
+                "downloads the exact runtime release this plugin was built for, "
+                "including its own Python. The user does not need to choose a Python. "
                 "Also explain that setup includes adding or updating the OpenStudio AI "
                 "marked block in the current project's `AGENTS.md`; it preserves all "
                 "unrelated project instructions.\n"
-                "2. Resolve Python before checking runtime commands. Check the current "
-                "project's `.venv/bin/python` (or `.venv\\Scripts\\python.exe` on Windows) "
-                "first, then a configured project Python, then `python --version` and "
-                "`python3 --version`. Require Python 3.10 or newer and record whether "
-                "each candidate can import `openstudio`. If both the project virtual "
-                "environment and global Python are usable, select the project virtual "
-                "environment for this setup, even if its OpenStudio package needs "
-                "installation. Report the selected executable. If no "
-                "supported Python exists, explain how to install Python 3.10 or newer "
-                "and stop until it is available. Do not create or install an environment "
-                "during this discovery step.\n"
-                "3. Check whether `openstudio-ai-mcp` is available beside the selected "
-                "interpreter, and run that command's `--help`. A command on `PATH` from "
-                "another Python environment does not count.\n"
-                "4. Run the script beside this skill at `scripts/doctor_runtime.py` "
-                "with the selected Python interpreter.\n"
+                "2. Check whether uv is available by running `uvx --version`. If it is "
+                "missing, ask before installing it. If `pipx --version` works, prefer "
+                "`pipx install uv`; otherwise offer an installer from "
+                "https://docs.astral.sh/uv/getting-started/installation/. Use pipx only "
+                "to install uv, never to install the OpenStudio AI runtime.\n"
+                f"3. {prepare_runtime_guidance('Codex')}"
+                f"4. Run the doctor: `{doctor}`.\n"
                 "5. Treat `core_ready: true` from the doctor as the only successful core "
                 "setup result. If OpenStudio is missing, perform read-only platform discovery, "
                 "show the candidate executable to the user, and after approval run "
-                "`openstudio-ai configure-openstudio --path <confirmed-executable>`. Then "
+                f"`{configure}`. Then "
                 "restart Codex and rerun doctor. Do not edit a versioned plugin cache file.\n"
                 "6. Review the doctor's optional `nlr_openstudio` capability. NLR OpenStudio-MCP "
                 "is optional: a missing Docker installation or unconfigured NLR must not block "
@@ -574,31 +577,23 @@ def _marketplace_setup_skill_docs() -> dict[str, str]:
                 "https://pnnl.github.io/openstudio-ai-plugins/#quick-start. Explain that "
                 "Docker Desktop must be installed and running, then the user follows that "
                 "page to configure the MCP server as `openstudio-mcp` and restarts Codex.\n"
-                "7. If the runtime is missing or the doctor reports `plugin_ready: false`, "
-                "explain in normal energy-modeler language that the installed plugin needs "
-                "a newer runtime interface and ask before running "
-                "`scripts/install_runtime.py` with the same Python command.\n"
-                "8. If installation succeeds but `openstudio-ai-mcp` is still missing, "
-                "diagnose command discovery before editing plugin files. Run "
-                '`-c "import sys, sysconfig; print(sys.executable); '
-                "print(sysconfig.get_path('scripts'))\"` with the selected Python, then check "
-                "whether that scripts directory is on the PATH used to launch Codex. For "
-                "a marketplace plugin, keep `.mcp.json` set to the portable command "
-                "`openstudio-ai-mcp`; do not replace it with an absolute `.venv/bin` path. "
-                "After the user approves a PATH update, restart Codex from that environment.\n"
+                f"7. {doctor_triage_guidance()}"
+                "8. If `uvx` works in a terminal but the MCP server still cannot start, "
+                "diagnose command discovery before editing plugin files: check whether the "
+                "directory containing `uvx` is on the PATH used to launch Codex. Keep "
+                "`.mcp.json` set to the portable `uvx` launch; do not replace it with an "
+                "absolute path. After the user approves a PATH update, restart Codex from "
+                "that environment.\n"
                 "9. If this is intentionally a repository checkout with a project virtual "
                 "environment, explain that it is local development: re-export with "
                 "`--runtime-mode local` instead of modifying a marketplace export.\n"
-                "10. When `openstudio-ai` is available beside the selected Python, run "
-                "that command's `doctor`.\n"
-                "11. If installation changed runtime command availability or repaired a "
-                "contract mismatch, tell the user to restart Codex or reconnect the failed "
+                f"10. {offline_guidance('Codex')}"
+                "11. If setup prepared or rebuilt the runtime, or the MCP server had "
+                "failed to connect, tell the user to restart Codex or reconnect the failed "
                 "MCP server. Codex discovers MCP tools only when it starts the server, so a "
                 "new tool cannot appear in the current session.\n"
                 "12. Complete project routing as a required part of setup. Preview the managed "
-                "project guidance with `openstudio-ai install codex --target-dir . --dry-run "
-                "--force`, then run `openstudio-ai install codex --target-dir . --force` "
-                "using the selected environment's `openstudio-ai` command. "
+                f"project guidance with `{routing_preview}`, then run `{routing}`. "
                 "This creates `AGENTS.md` when absent, updates only the OpenStudio AI marked "
                 "block when it already exists, or appends that block to an unmanaged file "
                 "without replacing existing instructions. Do not present this as a separate "
@@ -613,10 +608,11 @@ def _marketplace_setup_skill_docs() -> dict[str, str]:
             description="Diagnose OpenStudio AI runtime readiness.",
             body=(
                 "# Doctor OpenStudio AI\n\n"
-                "Run the setup skill's `scripts/doctor_runtime.py`, then run "
-                "`openstudio-ai doctor` if the command exists. Explain missing Python, "
-                "missing runtime, missing OpenStudio, or path problems as setup items, "
-                "not programming failures.\n"
+                f"Run `{doctor}`. If `uvx` is missing, follow the setup skill. "
+                f"{doctor_triage_guidance()}"
+                "Explain "
+                "missing uv, missing runtime, missing OpenStudio, or path problems as "
+                "setup items, not programming failures.\n"
             ),
         ),
         "repair-openstudio-ai": _skill_markdown(
@@ -624,13 +620,13 @@ def _marketplace_setup_skill_docs() -> dict[str, str]:
             description="Guide non-destructive repair of the OpenStudio AI runtime.",
             body=(
                 "# Repair OpenStudio AI\n\n"
-                "First run the doctor command. If the runtime is missing or it reports "
-                "`plugin_ready: false`, ask for approval before running the setup skill's "
-                "`scripts/install_runtime.py`, then restart Codex or reconnect the MCP "
-                "server before retrying. Do not "
-                "delete user models, simulation outputs, or project files. If the installer "
-                "found the command beside its Python but Codex cannot find it, follow the "
-                "setup skill's PATH diagnosis. Do not hard-code a project virtualenv path "
+                "First run the doctor command. "
+                f"{doctor_triage_guidance()}"
+                "After preparing or rebuilding the runtime, restart Codex or reconnect "
+                "the MCP server before retrying. Do not "
+                "delete user models, simulation outputs, or project files. If `uvx` works "
+                "in a terminal but Codex cannot find it, follow the "
+                "setup skill's PATH diagnosis. Do not hard-code an absolute path "
                 "into a marketplace `.mcp.json`. Describe each repair step in plain language "
                 "for an energy modeler.\n"
             ),
@@ -702,11 +698,6 @@ def _strip_yaml_frontmatter(content: str) -> str:
         return content
     remainder = content[end + len("\n---") :]
     return remainder.lstrip("\n")
-
-
-def _write_installer_assets(installers_dir: Path) -> None:
-    """Write shared marketplace runtime helpers."""
-    write_runtime_helpers(installers_dir)
 
 
 def _default_workspace_root() -> Path:

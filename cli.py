@@ -3,6 +3,8 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
+import shlex
 import shutil
 import sqlite3
 import subprocess
@@ -14,6 +16,10 @@ from typing import Any
 from adapters.claude_code_adapter import ClaudeCodeAdapter
 from adapters.codex_adapter import CodexAdapter
 from adapters.contracts import RUNTIME_MODES, HostAdapterConfig
+from adapters.runtime_helpers import (
+    marketplace_mcp_args,
+    runtime_uvx_command,
+)
 from openstudio_ai_mcp.runtime_config import (
     openstudio_version_from_output,
     resolve_openstudio_executable_with_source,
@@ -63,6 +69,36 @@ def _command_available(command: str) -> dict[str, Any]:
                 path = str(candidate)
                 break
     return {"command": command, "available": path is not None, "path": path}
+
+
+def _launched_by_uvx() -> bool:
+    """Whether this process runs in uv's ephemeral `uvx` environment.
+
+    Marketplace plugins start the runtime with `uvx`, which sets `UV` and runs
+    from uv's `archive-v0` cache. There, `openstudio-ai` is not on the user's
+    PATH, so remediation must name the pinned `uvx` command instead.
+    """
+    return bool(os.getenv("UV")) and "archive-v0" in Path(sys.prefix).parts
+
+
+def _runtime_command(*args: str) -> str:
+    """Return the runtime CLI command a user can run in this installation mode."""
+    if _launched_by_uvx():
+        return runtime_uvx_command("openstudio-ai", *args)
+    return shlex.join(["openstudio-ai", *args])
+
+
+def _reinstall_hint() -> str:
+    """Return how to rebuild a damaged runtime in this installation mode."""
+    if _launched_by_uvx():
+        rebuild = runtime_uvx_command("openstudio-ai", "install-runtime", reinstall=True)
+        return f"Rebuild the cached runtime with `{rebuild}`"
+    return f"Reinstall openstudio-ai, or run `{_runtime_command('repair')}` if this is an editable development checkout"
+
+
+def _version_tuple(value: object) -> tuple[int, ...] | None:
+    match = re.match(r"\s*(\d+)\.(\d+)", str(value or ""))
+    return (int(match.group(1)), int(match.group(2))) if match else None
 
 
 def _run_probe(command: list[str], *, timeout_seconds: int = 10) -> dict[str, Any]:
@@ -292,10 +328,7 @@ def _check_runtime_assets(root: Path) -> dict[str, Any]:
         "missing_directories": missing_dirs,
     }
     if not ok:
-        result["message"] = (
-            "Packaged runtime assets are missing. Reinstall openstudio-ai, or run "
-            "`openstudio-ai repair` if this is an editable development checkout."
-        )
+        result["message"] = f"Packaged runtime assets are missing. {_reinstall_hint()}."
     return result
 
 
@@ -311,8 +344,8 @@ def _runtime_storage_status(workspace_dir: Path) -> dict[str, Any]:
     }
     if not workspace_dir.exists():
         status["message"] = (
-            "Runtime storage is not initialized yet. Run `openstudio-ai install-runtime` "
-            "to create user-local storage."
+            "Runtime storage is not initialized yet. Run "
+            f"`{_runtime_command('install-runtime')}` to create user-local storage."
         )
         return status
     if not workspace_dir.is_dir():
@@ -452,7 +485,7 @@ def _doctor_diagnostics(checks: dict[str, Any]) -> list[dict[str, str]]:
                 "runtime_storage_not_ready",
                 "error",
                 storage.get("message", "OpenStudio AI runtime storage is not ready."),
-                "Run `openstudio-ai install-runtime` to initialize user-local storage.",
+                f"Run `{_runtime_command('install-runtime')}` to initialize user-local storage.",
                 storage.get("error"),
             )
         )
@@ -463,7 +496,7 @@ def _doctor_diagnostics(checks: dict[str, Any]) -> list[dict[str, str]]:
                 "runtime_assets_missing",
                 "error",
                 checks["assets"]["message"],
-                "Reinstall openstudio-ai, then run `openstudio-ai repair` if the issue remains.",
+                f"{_reinstall_hint()}.",
                 ", ".join(
                     checks["assets"]["missing_files"]
                     + checks["assets"]["missing_directories"]
@@ -477,7 +510,12 @@ def _doctor_diagnostics(checks: dict[str, Any]) -> list[dict[str, str]]:
                 "openstudio_python_sdk_unavailable",
                 "error",
                 "The OpenStudio Python SDK is unavailable, so model editing and measures are not ready.",
-                "Install the native OpenStudio application, then reinstall openstudio-ai and rerun doctor.",
+                (
+                    f"{_reinstall_hint()}, then rerun doctor."
+                    if _launched_by_uvx()
+                    else "Install the native OpenStudio application, then reinstall "
+                    "openstudio-ai and rerun doctor."
+                ),
                 str(checks["python_openstudio"].get("error") or "SDK import failed"),
             )
         )
@@ -501,12 +539,30 @@ def _doctor_diagnostics(checks: dict[str, Any]) -> list[dict[str, str]]:
                 "error",
                 "The native OpenStudio command is unavailable, so simulations are not ready.",
                 "Install OpenStudio, save a confirmed executable with "
-                "`openstudio-ai configure-openstudio --path <executable>`, set "
-                "OPENSTUDIO_PATH, or add openstudio to PATH; then rerun doctor.",
+                f"`{_runtime_command('configure-openstudio', '--path', '<executable>')}`, "
+                "set OPENSTUDIO_PATH, or add openstudio to PATH; then rerun doctor.",
                 str(
                     checks["openstudio"].get("error")
                     or "OpenStudio version probe failed"
                 ),
+            )
+        )
+
+    sdk_version = checks["python_openstudio"].get("version")
+    cli_version = checks["openstudio"].get("version_probe", {}).get("openstudio_version")
+    sdk_release, cli_release = _version_tuple(sdk_version), _version_tuple(cli_version)
+    if sdk_release and cli_release and sdk_release > cli_release:
+        diagnostics.append(
+            _diagnostic(
+                "openstudio_sdk_cli_version_mismatch",
+                "warning",
+                f"The OpenStudio Python SDK ({sdk_version}) used for model edits is newer "
+                f"than the native OpenStudio CLI ({cli_version}) used for simulations.",
+                f"Install OpenStudio {sdk_release[0]}.{sdk_release[1]} or newer and save it "
+                "with "
+                f"`{_runtime_command('configure-openstudio', '--path', '<executable>')}`. "
+                "Until then, models saved by SDK scripts may load only with version "
+                "translation warnings or fail to simulate.",
             )
         )
     return diagnostics
@@ -639,8 +695,9 @@ def _doctor_payload(
     else:
         checks["openstudio"]["error"] = (
             "OpenStudio executable not found. Save a confirmed path with "
-            "`openstudio-ai configure-openstudio --path <executable>`, set "
-            "OPENSTUDIO_PATH, or add openstudio to PATH before model edits or simulations."
+            f"`{_runtime_command('configure-openstudio', '--path', '<executable>')}`, "
+            "set OPENSTUDIO_PATH, or add openstudio to PATH before model edits or "
+            "simulations."
         )
 
     checks["mcp_ready"] = (
@@ -779,7 +836,7 @@ def _cmd_install_runtime(_: argparse.Namespace) -> int:
     print("OpenStudio AI runtime installer")
     print("The runtime package is already installed if this command is available.")
     print(f"Initialized runtime workspace at: {workspace_dir}")
-    print("Run `openstudio-ai doctor` to validate MCP readiness.")
+    print(f"Run `{_runtime_command('doctor')}` to validate MCP readiness.")
     return 0
 
 
@@ -815,7 +872,7 @@ def _cmd_configure_openstudio(args: argparse.Namespace) -> int:
         return 2
     print(f"Saved OpenStudio executable: {path.resolve()} ({version})")
     print(f"Runtime configuration: {destination}")
-    print("Reconnect Claude Code or Codex, then run `openstudio-ai doctor`.")
+    print(f"Reconnect Claude Code or Codex, then run `{_runtime_command('doctor')}`.")
     return 0
 
 
@@ -824,7 +881,7 @@ def _cmd_repair(_: argparse.Namespace) -> int:
     (data_dir / "workspace").mkdir(parents=True, exist_ok=True)
     print("OpenStudio AI repair completed non-destructive checks.")
     print(f"Ensured runtime workspace exists at: {data_dir / 'workspace'}")
-    print("Run `openstudio-ai doctor` for the current readiness report.")
+    print(f"Run `{_runtime_command('doctor')}` for the current readiness report.")
     return 0
 
 
@@ -1178,15 +1235,37 @@ def _cmd_validate_export(args: argparse.Namespace) -> int:
         )
         return 1
 
-    if args.runtime_mode in {"installed", "marketplace"}:
+    if args.runtime_mode == "installed":
         if server.get("command") != "openstudio-ai-mcp" or server.get("args") != [
             "--transport",
             "stdio",
         ]:
             print(
-                "Installed/marketplace exports must point to openstudio-ai-mcp.",
+                "Installed exports must point to openstudio-ai-mcp.",
                 file=sys.stderr,
             )
+            print(f"Actual: {server}", file=sys.stderr)
+            return 1
+
+    if args.runtime_mode == "marketplace":
+        # Validate the complete pinned launch. Non-strict mode accepts an older
+        # export by pinning the runtime release that export declares; strict mode
+        # requires the current release.
+        declared_version = server_env.get("OPENSTUDIO_AI_PLUGIN_VERSION")
+        expected_args = (
+            marketplace_mcp_args()
+            if args.strict_runtime_version
+            else marketplace_mcp_args(version=declared_version) if declared_version else None
+        )
+        if server.get("command") != "uvx" or expected_args is None or (
+            server.get("args") != expected_args
+        ):
+            print(
+                "Marketplace exports must launch openstudio-ai-mcp through a pinned uvx "
+                "spec that matches the declared OPENSTUDIO_AI_PLUGIN_VERSION.",
+                file=sys.stderr,
+            )
+            print(f"Expected args: {expected_args}", file=sys.stderr)
             print(f"Actual: {server}", file=sys.stderr)
             return 1
 
@@ -1215,16 +1294,12 @@ def _cmd_validate_export(args: argparse.Namespace) -> int:
         marketplace_required = (
             [
                 "skills/setup-openstudio-ai/SKILL.md",
-                "skills/setup-openstudio-ai/scripts/install_runtime.py",
-                "skills/setup-openstudio-ai/scripts/doctor_runtime.py",
                 "skills/doctor-openstudio-ai/SKILL.md",
                 "skills/repair-openstudio-ai/SKILL.md",
             ]
             if is_claude
             else [
                 "skills/setup-openstudio-ai/SKILL.md",
-                "skills/setup-openstudio-ai/scripts/install_runtime.py",
-                "skills/setup-openstudio-ai/scripts/doctor_runtime.py",
                 "skills/doctor-openstudio-ai/SKILL.md",
                 "skills/repair-openstudio-ai/SKILL.md",
             ]

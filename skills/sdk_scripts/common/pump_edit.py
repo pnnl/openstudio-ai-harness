@@ -136,6 +136,48 @@ def curve_minimum(c):
     return min(a + x * (b + x * (cc + x * d)) for x in points if 0 <= x <= 1)
 
 
+def power_check(after, flow):
+    """Shared rated-power feasibility and active-sizing messages, without sizing."""
+    errors, warnings = [], []
+    if after["rated_power_w"] != "Autosize":
+        warnings.append(
+            "Rated electric power is fixed: head/motor efficiency and sizing-factor changes do not recalculate it. Request rated_power_w: Autosize explicitly if recalculation is intended"
+        )
+        if flow == "Autosize":
+            maximum_flow = (
+                after["rated_power_w"] * after["motor_efficiency"] / after["head_pa"]
+                if after["head_pa"] > 0
+                else None
+            )
+            warnings.append(
+                "Motor-output feasibility cannot be checked before sizing: rated flow is autosized "
+                "while electric power is fixed. After sizing, verify implied hydraulic efficiency "
+                "flow × head / (rated power × motor efficiency) <= 1."
+                + (
+                    f" Maximum feasible design flow is {maximum_flow:.9g} m³/s."
+                    if maximum_flow is not None
+                    else ""
+                )
+            )
+        if (
+            isinstance(flow, (float, int))
+            and flow * after["head_pa"]
+            > after["rated_power_w"] * after["motor_efficiency"] + 1e-9
+        ):
+            errors.append(
+                "Fixed flow/head require more hydraulic power than the rated motor can deliver"
+            )
+    elif after["power_sizing_method"] == "PowerPerFlow":
+        warnings.append(
+            "Autosized electric power uses flow times electric_power_per_flow; head and motor efficiency do not change that sizing calculation"
+        )
+    else:
+        warnings.append(
+            "Autosized electric power uses flow × head × shaft_power_per_flow_per_head / motor_efficiency; re-run sizing"
+        )
+    return errors, warnings
+
+
 def plan(model, sdk, config):
     schema = json.loads(
         (
@@ -210,44 +252,11 @@ def plan(model, sdk, config):
     if planned["errors"]:
         return planned
     warnings = planned["warnings"]
-    if after["rated_power_w"] != "Autosize":
-        warnings.append(
-            "Rated electric power is fixed: head/motor efficiency and sizing-factor changes do not recalculate it. Request rated_power_w: Autosize explicitly if recalculation is intended"
-        )
-        flow = sized(pump, "ratedFlowRate")
-        if flow == "Autosize":
-            maximum_flow = (
-                after["rated_power_w"] * after["motor_efficiency"] / after["head_pa"]
-                if after["head_pa"] > 0
-                else None
-            )
-            warnings.append(
-                "Motor-output feasibility cannot be checked before sizing: rated flow is autosized "
-                "while electric power is fixed. After sizing, verify implied hydraulic efficiency "
-                "flow × head / (rated power × motor efficiency) <= 1."
-                + (
-                    f" Maximum feasible design flow is {maximum_flow:.9g} m³/s."
-                    if maximum_flow is not None
-                    else ""
-                )
-            )
-        if (
-            isinstance(flow, (float, int))
-            and flow * after["head_pa"]
-            > after["rated_power_w"] * after["motor_efficiency"] + 1e-9
-        ):
-            planned["errors"].append(
-                "Fixed flow/head require more hydraulic power than the rated motor can deliver"
-            )
-            return planned
-    elif after["power_sizing_method"] == "PowerPerFlow":
-        warnings.append(
-            "Autosized electric power uses flow times electric_power_per_flow; head and motor efficiency do not change that sizing calculation"
-        )
-    else:
-        warnings.append(
-            "Autosized electric power uses flow × head × shaft_power_per_flow_per_head / motor_efficiency; re-run sizing"
-        )
+    power_errors, power_warnings = power_check(after, sized(pump, "ratedFlowRate"))
+    planned["errors"].extend(power_errors)
+    warnings.extend(power_warnings)
+    if planned["errors"]:
+        return planned
     if (
         "electric_power_per_flow" in patch
         and after["power_sizing_method"] != "PowerPerFlow"

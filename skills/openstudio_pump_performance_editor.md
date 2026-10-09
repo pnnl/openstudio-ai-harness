@@ -1,6 +1,6 @@
 ---
 name: openstudio-pump-performance-editor
-description: Edit an existing plant-loop constant- or variable-speed pump's head, efficiency, electric-power sizing or simple operating controls in place. Retain pump identity and plumbing; class replacement and headered pumps require separate coverage.
+description: Edit an existing plant-loop constant- or variable-speed pump's head, efficiency, electric-power sizing or simple operating controls in place. Retain pump identity and plumbing; class changes use the pump replacer and headered pumps need separate coverage.
 metadata:
   version: 0.4.0
 ---
@@ -43,9 +43,11 @@ affect operation; forward translation does not establish simulation performance.
 This operation does not change pump class, minimum/design flow, schedules, plant
 sizing, pressure-reset controls, loop arrangement or other pumps. Four explicit
 variable-speed coefficients describe power versus flow; they do not install a
-VFD reset system or convert a constant-flow plant. Headered/condensate pumps and
-real class replacement need separate coverage. Report covered failures without
-writing a substitute or broadening the edit.
+VFD reset system or convert a constant-flow plant. Genuine single constant ↔
+variable-speed class changes use `openstudio-pump-replacer`; retain explicit
+flow/power, curve/minimum-flow and reference choices. Headered/condensate pumps
+and pressure-control redesign need separate coverage. Report covered failures
+without writing a substitute or broadening the edit.
 
 Return output/report paths, the retained pump handle and before/after settings.
 Keep the OSM and `<stem>/` companion together; honor `requires_companion_workflow`.

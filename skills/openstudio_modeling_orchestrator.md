@@ -31,11 +31,39 @@ task-specific skill before acting; do not recreate its procedure from memory.
   different CAV arrangement before routing; generic prototype controls do not
   imply fixed airflow in every zone or template compliance. VAV/CAV parent scripts
   compose shared equipment functions inside one reviewed model transaction.
+- Use `openstudio-economizer-editor` for explicit in-place economizer type,
+  lockout and temperature/enthalpy cutoff edits on an existing direct OA controller.
+  It preserves ventilation, DCV, schedules, sizing, topology and handles. Review
+  retained additive limits, 100% OA floors and overriding controls; route minimum
+  OA/DCV edits to `openstudio-ventilation-editor`. Use the OA connector for
+  intake/recovery attachment. Do not draft a substitute script for covered economizer work.
+- Use `openstudio-ventilation-editor` for explicit in-place minimum/maximum OA
+  flow, OA schedule-reference and ZoneSum DCV edits on an existing direct OA system.
+  It preserves zone OA/People, schedule contents, sizing, economizer and handles.
+  DCV does not implicitly reset minimum flow or fraction floors: discuss masking
+  floors and require explicit changes. Review occupancy, airflow caps, schedule
+  ranges and sizing warnings; honor simulation readiness. Other MV-method DCV,
+  CO2/IAQ and zone policy need separate coverage; route intake/recovery attachment
+  to `openstudio-outdoor-air-connector`.
+  Do not generate a substitute script for covered ventilation work.
+- Use `openstudio-outdoor-air-connector` to attach a direct OA system at a served
+  loop's main supply inlet, or sensible/latent heat recovery to empty OA/relief
+  streams. Preview both-stream wiring and require explicit flow, effectiveness,
+  power, frost, bypass and outlet-control choices. It does not infer template
+  defaults or resize existing equipment. Shared/dedicated and embedded OA need
+  separate coverage. Use `openstudio-heat-recovery-editor` for explicit in-place
+  performance/control changes on an existing exchanger, preserving its handles,
+  curves and references. Retained curves scale with 100% effectiveness edits.
+  Verify translated outlet/reference setpoints and honor simulation readiness.
+  Do not generate substitute scripts for covered intake or recovery work.
 - Use `openstudio-pump-performance-editor` for explicit in-place head, motor,
   electric-power sizing, operating-mode or variable-speed power-curve edits on
   a selected single plant supply/demand pump. Preserve its handles and plumbing;
   inspect fixed-power/inactive-sizing warnings before promising energy savings.
-  Pump class changes, banks and pressure-reset redesign need separate coverage.
+  Use `openstudio-pump-replacer` for genuine single constant ↔ variable-speed
+  class changes with explicit curve/minimum flow and flow/power policies. It
+  retains plant boundaries/controls and rejects references requiring migration.
+  Banks and pressure-reset/plant-flow redesign need separate coverage.
   Do not generate an ad hoc script for a covered pump edit.
 - Use `openstudio-supply-fan-performance-editor` for explicit efficiency/pressure changes
   to an existing air loop's sole direct constant- or variable-volume supply fan.

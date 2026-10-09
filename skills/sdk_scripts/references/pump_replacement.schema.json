@@ -1,0 +1,110 @@
+{
+  "title": "Genuine single-pump class replacement",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "output_model_path"
+  ],
+  "$defs": {
+    "selector": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "handle"
+          ],
+          "properties": {
+            "handle": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      ]
+    }
+  },
+  "properties": {
+    "output_model_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "plant_loop": {
+      "$ref": "#/$defs/selector"
+    },
+    "pump": {
+      "$ref": "#/$defs/selector"
+    },
+    "target_class": {
+      "type": "string",
+      "enum": [
+        "ConstantSpeed",
+        "VariableSpeed"
+      ]
+    },
+    "flow_policy": {
+      "type": "string",
+      "enum": [
+        "Preserve",
+        "Autosize"
+      ]
+    },
+    "power_policy": {
+      "type": "string",
+      "enum": [
+        "Preserve",
+        "Autosize"
+      ]
+    },
+    "plant_policy": {
+      "type": "string",
+      "enum": [
+        "Preserve"
+      ]
+    },
+    "reference_policy": {
+      "type": "string",
+      "enum": [
+        "Reject"
+      ]
+    },
+    "end_use_subcategory": {
+      "type": "string",
+      "minLength": 1
+    },
+    "variable_speed": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "minimum_flow_m3_s": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "power_coefficients": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": {
+            "type": "number",
+            "minimum": -1000000.0,
+            "maximum": 1000000.0
+          }
+        }
+      }
+    }
+  }
+}

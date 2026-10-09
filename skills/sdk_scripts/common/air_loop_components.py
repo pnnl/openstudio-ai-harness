@@ -3,6 +3,9 @@
 from __future__ import annotations
 from common.hvac_equipment import call, schedule
 from common.air_system_recipe import VAV
+from common.economizer_equipment import set_settings as set_economizer_settings
+from common.ventilation_equipment import set_settings as set_ventilation_settings
+from common.outdoor_air import ref
 from common.fan_equipment import require_performance, set_performance
 
 
@@ -87,17 +90,19 @@ def attach_fan(model, sdk, loop, p, r, c, *, recipe=VAV):
 def attach_outdoor_air(model, sdk, loop, p, r, c, *, recipe=VAV):
     oa = sdk.model.ControllerOutdoorAir(model)
     call(oa, "setName", f"{p['system_name']} OA Controller")
-    call(oa, "setMinimumLimitType", c["oa_minimum_limit_type"])
-    call(oa, "autosizeMinimumOutdoorAirFlowRate")
-    call(oa, "resetMaximumFractionofOutdoorAirSchedule")
-    call(oa, "resetEconomizerMinimumLimitDryBulbTemperature")
-    call(oa, "setEconomizerControlType", p["economizer"])
+    ventilation = dict(
+        minimum_limit_type=c["oa_minimum_limit_type"],
+        minimum_flow_m3_s="Autosize",
+        maximum_fraction_schedule=None,
+    )
+    set_economizer_settings(
+        oa, {"minimum_dry_bulb_c": None, "control_type": p["economizer"]}
+    )
     if "outdoor_air_schedule" in r["schedules"]:
-        call(
-            oa,
-            recipe.oa_schedule_setter,
-            schedule(model, sdk, r["schedules"]["outdoor_air_schedule"]),
+        ventilation[recipe.oa_schedule_mode + "_schedule"] = ref(
+            schedule(model, sdk, r["schedules"]["outdoor_air_schedule"])
         )
+    set_ventilation_settings(model, sdk, oa, None, ventilation)
     call(
         oa.controllerMechanicalVentilation(),
         "setName",

@@ -3,6 +3,7 @@
 from collections import Counter
 from common.water_coil import original_types, raw_fields, ref
 from common.model_preservation import snapshot, fingerprint
+from common.temperature_control import node_temperature_managers, translated_workspace
 
 
 def connection_graph(model, tokens):
@@ -125,37 +126,10 @@ def control_context(model, sdk, coil, loop):
     """
     getter = getattr(coil, "airOutletModelObject", None) or coil.outletModelObject
     outlet = getter().get().to_Node().get()
-    translator = sdk.energyplus.ForwardTranslator()
-    workspace = translator.translateModel(model)
-    if translator.errors():
-        raise ValueError(
-            "Cannot verify translated coil control: "
-            + "; ".join(x.logMessage() for x in translator.errors())
-        )
-    node_lists = {
-        x.getString(0).get(): [x.getString(i).get() for i in range(1, x.numFields())]
-        for x in workspace.getObjectsByType(sdk.IddObjectType("NodeList"))
-    }
-    managers = []
-    for obj in workspace.objects():
-        kind = obj.iddObject().name()
-        if not kind.startswith("SetpointManager:"):
-            continue
-        fields = {
-            obj.iddObject().getField(i).get().name(): optional_string(obj, i)
-            for i in range(obj.numFields())
-        }
-        targets = fields.get(
-            "Setpoint Node or NodeList Name", fields.get("Setpoint Node Name", "")
-        )
-        if (
-            outlet.nameString() not in node_lists.get(targets, [targets])
-            or fields.get("Control Variable", "Temperature") != "Temperature"
-        ):
-            continue
-        fields.pop("Name", None)
-        managers.append(dict(type=kind, fields=fields))
-    managers.sort(key=lambda x: (x["type"], str(sorted(x["fields"].items()))))
+    workspace = translated_workspace(
+        model, sdk, "Cannot verify translated coil control"
+    )
+    managers = node_temperature_managers(workspace, sdk, outlet.nameString())
     components = list(loop.supplyComponents())
     index = next(i for i, x in enumerate(components) if x.handle() == coil.handle())
     fans = [
@@ -191,8 +165,3 @@ def control_context(model, sdk, coil, loop):
         position_relative_to_fan=position,
         control_reference=description,
     )
-
-
-def optional_string(obj, index):
-    value = obj.getString(index)
-    return value.get() if value.is_initialized() else ""

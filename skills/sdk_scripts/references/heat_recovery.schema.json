@@ -1,0 +1,224 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "output_model_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "attach",
+        "edit"
+      ]
+    },
+    "air_loop": {
+      "$ref": "#/$defs/selector"
+    },
+    "heat_exchanger": {
+      "$ref": "#/$defs/selector"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "settings": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "nominal_power_w": {
+          "type": "number",
+          "minimum": 0
+        },
+        "nominal_flow_m3_s": {
+          "oneOf": [
+            {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            {
+              "type": "string",
+              "enum": [
+                "Autosize"
+              ]
+            }
+          ]
+        },
+        "heat_exchanger_type": {
+          "type": "string",
+          "enum": [
+            "Plate",
+            "Rotary"
+          ]
+        },
+        "frost_control": {
+          "type": "string",
+          "enum": [
+            "None",
+            "ExhaustOnly",
+            "MinimumExhaustTemperature",
+            "ExhaustAirRecirculation"
+          ]
+        },
+        "frost_threshold_c": {
+          "type": "number",
+          "minimum": -100,
+          "maximum": 100
+        },
+        "initial_defrost_fraction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "defrost_fraction_increase_per_k": {
+          "type": "number",
+          "minimum": 0
+        },
+        "supply_outlet_temperature_control": {
+          "type": "boolean"
+        },
+        "economizer_lockout": {
+          "type": "boolean"
+        },
+        "availability_schedule": {
+          "$ref": "#/$defs/selector"
+        },
+        "sensible_heating_100": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "latent_heating_100": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "sensible_cooling_100": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "latent_cooling_100": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": []
+    },
+    "part_load_effectiveness": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sensible_heating": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "latent_heating": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "sensible_cooling": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "latent_cooling": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "sensible_heating",
+        "latent_heating",
+        "sensible_cooling",
+        "latent_cooling"
+      ]
+    },
+    "part_load_policy": {
+      "type": "string",
+      "enum": [
+        "Linear75To100ConstantOutside"
+      ]
+    },
+    "bypass_control": {
+      "type": "string",
+      "enum": [
+        "BypassWhenWithinEconomizerLimits",
+        "BypassWhenOAFlowGreaterThanMinimum"
+      ]
+    },
+    "pretreat_limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "minimum_temperature_c": {
+          "type": "number",
+          "minimum": -100,
+          "maximum": 100
+        },
+        "maximum_temperature_c": {
+          "type": "number",
+          "minimum": -100,
+          "maximum": 100
+        },
+        "minimum_humidity_ratio": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "maximum_humidity_ratio": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "minimum_temperature_c",
+        "maximum_temperature_c",
+        "minimum_humidity_ratio",
+        "maximum_humidity_ratio"
+      ]
+    }
+  },
+  "required": [
+    "output_model_path"
+  ],
+  "$defs": {
+    "selector": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "handle"
+          ],
+          "properties": {
+            "handle": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      ]
+    }
+  },
+  "title": "Explicit direct OA heat-recovery attachment or in-place edit"
+}

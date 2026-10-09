@@ -44,8 +44,49 @@ knowledge, and workflow-state tools for AI-assisted building-energy modeling.
   reviewed copy transaction. Plans expose fixed power, inactive sizing factors
   and motor feasibility that requires sizing when flow is autosized;
   saved checks and translation precede publication. Native cases verify actual
-  power under both autosizing methods and fixed power. Pump class changes, banks,
-  flow changes and pressure-reset redesign need separate coverage.
+  power under both autosizing methods and fixed power.
+  `openstudio-pump-replacer` handles genuine single constant ↔ variable-speed
+  class changes with explicit rated-flow/power policies and variable-speed curve/
+  minimum flow. It retains plant position, boundary nodes, common controls and
+  compatible reporting references; pump/connection handles change. Native paired
+  runs verify unchanged design sizing and the selected operating-power curve.
+  Constant-speed supply plans expose explicit and translated demand bypasses,
+  warning when the OSM has none while preserving the requested plant topology.
+  Pump banks, pressure/VFD hardware and plant-flow redesign need separate coverage.
+- `openstudio-economizer-editor` changes explicit economizer type, lockout and
+  temperature/enthalpy cutoffs in place, preserving OA/MV identities, ventilation,
+  schedules, sizing and equipment. Plans expose retained additive limits and OA
+  overrides and verifies a translated mixed-air temperature setpoint source for
+  enabled economizers; missing control marks simulation unready. Saved checks
+  and translation precede copied publication. VAV/CAV
+  creation shares the canonical setters. Minimum-OA/DCV uses the independent
+  ventilation editor; direct intake/recovery attachment uses the OA connector.
+  Native VAV/CAV pairs verify actual
+  economizer status and OA-flow response on mild design days.
+- `openstudio-ventilation-editor` edits explicit minimum/maximum OA flow, schedule
+  references and existing ZoneSum DCV in place. Zone OA/People, schedule contents,
+  sizing, economizer, equipment and identities remain protected. The editor
+  preserves OSM flow/fraction settings unless explicitly changed. Plans expose occupancy inputs,
+  nominal OA, schedule ranges, caps and sizing/control warnings. DCV review
+  distinguishes declared and translated OA floors, flags
+  verified blocking floors as ineffective, and explains the SDK's Autosize-to-zero
+  DCV translation; partial floors retain qualified warnings. VAV/CAV share
+  the ventilation setters; saved validation and translation precede copied
+  publication. Native pairs verify occupancy-driven requested and actual OA
+  reductions, with unchanged full-occupancy requests. Other ventilation-method
+  DCV and CO2/IAQ policy need separate coverage.
+- `openstudio-outdoor-air-connector` attaches a direct OA intake to a served loop
+  without one, or sensible/latent recovery to empty direct OA/relief streams.
+  Explicit ventilation, effectiveness, power, frost, bypass and outlet-control
+  choices are previewed; both air streams and all new controls/curves are checked
+  after saving. Optional pretreat control requires a verified mixed-air reference.
+  `openstudio-heat-recovery-editor` edits an existing exchanger in place, retaining
+  curves, nodes, controls and incoming references. Plans explain curve scaling
+  and mark missing temperature control simulation-unready. Uncontrolled recovery
+  on cooled-air loops warns about added cooling load; native comparisons report
+  downstream coil energy alongside recovered heat. Native VAV/CAV cases
+  verify heat transfer, economizer lockout and newly attached intakes. Shared/
+  dedicated OA, embedded equipment and exchanger replacement need separate coverage.
 - Independent water-coil skills separate in-place settings edits from new attachment.
   `openstudio-water-coil-editor` changes explicit ratings, names, availability,
   autosizing and controller values, preserving coil/controller/connection/reference

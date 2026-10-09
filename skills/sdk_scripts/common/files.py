@@ -65,3 +65,23 @@ def write_json(report, output):
             json.dumps(report, sort_keys=True, allow_nan=False) + "\n", encoding="utf-8"
         )
         publish(staged, output)
+
+
+def check_model_paths(source, output):
+    if (
+        not source.is_absolute()
+        or not source.is_file()
+        or source.suffix.lower() != ".osm"
+    ):
+        raise ValueError("Input must be an existing absolute .osm path")
+    if not output.is_absolute() or output.suffix.lower() != ".osm":
+        raise ValueError("Output must be a new absolute .osm path")
+    if output.exists() or output.is_symlink() or output.with_suffix("").exists():
+        raise ValueError("Output model or companion folder already exists")
+    parent = output.parent
+    while not parent.exists():
+        if parent == parent.parent:
+            raise ValueError("Output drive/root does not exist")
+        parent = parent.parent
+    if not parent.is_dir():
+        raise ValueError("Output parent is not a directory")

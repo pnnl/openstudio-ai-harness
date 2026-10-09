@@ -6,30 +6,19 @@ import json
 from pathlib import Path
 import shutil
 import tempfile
-from common.version_guard import require_sdk, load_model, load_contract
+from common.version_guard import (
+    require_sdk,
+    load_model,
+    load_contract,
+    PreparationRequired,
+)
+from common.diagnostics import failure_report, mismatch
 from common.input_validation import read_json
 from common.files import publish, check_report_path, write_json
 from common.companions import inspect, stage, verify, digest, external_file_status
 
 
-def check_paths(source, output):
-    if (
-        not source.is_absolute()
-        or not source.is_file()
-        or source.suffix.lower() != ".osm"
-    ):
-        raise ValueError("Input must be an existing absolute .osm path")
-    if not output.is_absolute() or output.suffix.lower() != ".osm":
-        raise ValueError("Output must be a new absolute .osm path")
-    if output.exists() or output.is_symlink() or output.with_suffix("").exists():
-        raise ValueError("Output model or companion folder already exists")
-    parent = output.parent
-    while not parent.exists():
-        if parent == parent.parent:
-            raise ValueError("Output drive/root does not exist")
-        parent = parent.parent
-    if not parent.is_dir():
-        raise ValueError("Output parent is not a directory")
+from common.files import check_model_paths as check_paths
 
 
 def preflight(source, config, operation, planner):
@@ -37,9 +26,12 @@ def preflight(source, config, operation, planner):
     if not isinstance(config, dict):
         raise ValueError("Configuration must be an object")
     output = Path(config.get("output_model_path", ""))
-    check_paths(source, output)
     original = digest(source)
-    model, translator = load_model(sdk, source)
+    try:
+        model, translator = load_model(sdk, source)
+    except PreparationRequired as exc:
+        return dict(failure_report(exc, operation), input_sha256=original)
+    check_paths(source, output)
     warnings = [x.logMessage() for x in translator.warnings()]
     planned = planner(model, sdk, config)
     ready = planned.get("ready", True)
@@ -92,10 +84,14 @@ def apply(plan_path, operation, planner, creator, validator):
         raise ValueError("Incomplete preflight plan; rerun preflight")
     source = Path(report["input_model_path"])
     if digest(source) != report["input_sha256"]:
-        raise ValueError("Stale input hash; rerun preflight")
+        raise mismatch(
+            {"input_sha256": report["input_sha256"]},
+            {"input_sha256": digest(source)},
+            "Stale input hash; rerun preflight",
+        )
     fresh = preflight(source, report["configuration"], operation, planner)
     if fresh != report:
-        raise ValueError("Reviewed plan differs from fresh preflight")
+        raise mismatch(report, fresh)
     output = Path(report["output_model_path"])
     model, _ = load_model(sdk, source)
     if digest(source) != report["input_sha256"]:
@@ -217,7 +213,7 @@ def cli(operation, planner, creator, validator, inventory):
         print(json.dumps(compact, allow_nan=False))
         return 0 if report["ok"] else 2
     except Exception as exc:
-        failure = dict(ok=False, ready=False, error=str(exc), operation=operation)
+        failure = failure_report(exc, operation)
         if (
             "report" in locals()
             and report.get("mode") == "edit_model"

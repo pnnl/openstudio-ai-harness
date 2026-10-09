@@ -15,7 +15,8 @@ from common.companions import inspect as inspect_companions
 from common.input_validation import validate, read_json
 from common.hvac_inventory import inventory
 from common.vav_plan import plan, assumption_review
-from common.version_guard import require_sdk, load_model
+from common.version_guard import require_sdk, load_model, PreparationRequired
+from common.diagnostics import failure_report
 
 
 def preflight(input_path: Path, config_path: Path | None = None) -> dict:
@@ -24,6 +25,12 @@ def preflight(input_path: Path, config_path: Path | None = None) -> dict:
     if not input_path.is_file() or input_path.suffix.lower() != ".osm":
         raise ValueError("Input must be an existing .osm file")
     source_hash = hashlib.sha256(input_path.read_bytes()).hexdigest()
+    try:
+        model, translator = load_model(sdk, input_path)
+    except PreparationRequired as exc:
+        return dict(
+            failure_report(exc, "create_vav"), input_sha256=source_hash, changes=[]
+        )
     config = {}
     if config_path:
         config = read_json(config_path)
@@ -41,7 +48,6 @@ def preflight(input_path: Path, config_path: Path | None = None) -> dict:
             "errors": errors,
             "changes": [],
         }
-    model, translator = load_model(sdk, input_path)
     catalog = inventory(model)
     resolved = plan(config, catalog, input_path)
     if resolved["ready"]:
@@ -117,13 +123,7 @@ def main() -> int:
             check_report_path(args.report)
         report = preflight(args.input, args.config)
     except Exception as exc:
-        report = {
-            "ok": False,
-            "ready": False,
-            "mode": "inspect_only",
-            "error": str(exc),
-            "changes": [],
-        }
+        report = dict(failure_report(exc), changes=[])
     try:
         summary = emit(report, args.report, args.candidate_filter)
     except Exception as exc:

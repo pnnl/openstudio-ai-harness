@@ -314,6 +314,8 @@ def test_contract_bump_metadata_has_no_fixed_sdk_release(
     monkeypatch.setattr(guard, "load_contract", lambda: contract)
     monkeypatch.setattr(apply_module, "load_contract", lambda: contract)
     monkeypatch.setattr(sdk[0], "openStudioVersion", lambda: "3.12.0+test")
+    # This test simulates future contract plumbing, not an older-model migration.
+    monkeypatch.setattr(guard, "model_version", lambda path: "3.12.0")
     path = reviewed_plan(sdk, model_file, config, tmp_path)
     report = apply_module.apply(path)
     assert report["openstudio_version"] == "3.12.0+test" and report["validation"]["ok"]

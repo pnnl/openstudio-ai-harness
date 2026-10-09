@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Bundled model preparation result",
+  "type": "object",
+  "required": [
+    "ok",
+    "ready",
+    "operation",
+    "status",
+    "input_model_path",
+    "source_version",
+    "target_version"
+  ],
+  "properties": {
+    "ok": {
+      "type": "boolean"
+    },
+    "ready": {
+      "const": false
+    },
+    "operation": {
+      "const": "prepare_model"
+    },
+    "status": {
+      "enum": [
+        "prepared",
+        "already_current",
+        "requires_preparation"
+      ]
+    },
+    "input_model_path": {
+      "type": "string"
+    },
+    "source_version": {
+      "type": "string"
+    },
+    "target_version": {
+      "type": "string"
+    },
+    "input_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "output_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "lineage": {
+      "type": "object",
+      "required": [
+        "source",
+        "prepared"
+      ]
+    },
+    "state_patch": {
+      "type": "object"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "prepared"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "input_sha256",
+          "output_model_path",
+          "output_sha256",
+          "lineage",
+          "translator",
+          "object_changes",
+          "validation",
+          "state_patch",
+          "companion_directory",
+          "workflow_path"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "already_current"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "input_sha256",
+          "output_model_path",
+          "output_sha256",
+          "translator",
+          "validation",
+          "state_patch"
+        ]
+      }
+    }
+  ]
+}

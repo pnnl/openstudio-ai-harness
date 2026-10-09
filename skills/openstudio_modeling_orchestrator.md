@@ -141,3 +141,10 @@ task-specific skill before acting; do not recreate its procedure from memory.
   or review learning only after the user explicitly agrees.
 - Personal lessons are local guidance. Never promote them directly into trusted
   skills, knowledge, measures, or MCP tools.
+
+For a local bundle returning `requires_preparation`, run that owning skill's
+`scripts/prepare_model.py` through its verified CLI with a new copied output and
+JSON report. Store original → prepared lineage/state patch, then re-inventory
+and re-preflight the prepared path. Do not write ad hoc normalization scripts
+or bypass exact plan checks. This applies after the existing NLR-first provider
+transition; preparation does not change provider priority.

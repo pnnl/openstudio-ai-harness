@@ -342,6 +342,9 @@ resources:
       - hosts: [claude, codex]
         skill: openstudio-outdoor-air-connector
         path: scripts/common/input_validation.py
+      - hosts: [claude, codex]
+        skill: openstudio-sdk-model-editor
+        path: scripts/common/input_validation.py
   - source: skills/sdk_scripts/common/hvac_inventory.py
     owners:
       - hosts: [claude, codex]
@@ -484,6 +487,9 @@ resources:
       - hosts: [claude, codex]
         skill: openstudio-outdoor-air-connector
         path: scripts/common/files.py
+      - hosts: [claude, codex]
+        skill: openstudio-sdk-model-editor
+        path: scripts/common/files.py
   - source: skills/sdk_scripts/common/companions.py
     owners:
       - hosts: [claude, codex]
@@ -537,6 +543,9 @@ resources:
         path: scripts/common/companions.py
       - hosts: [claude, codex]
         skill: openstudio-outdoor-air-connector
+        path: scripts/common/companions.py
+      - hosts: [claude, codex]
+        skill: openstudio-sdk-model-editor
         path: scripts/common/companions.py
   - source: skills/sdk_scripts/common/model_transaction.py
     owners:
@@ -800,6 +809,21 @@ resources:
         path: scripts/common/model_preservation.py
       - hosts: [claude, codex]
         skill: openstudio-outdoor-air-connector
+        path: scripts/common/model_preservation.py
+      - hosts: [claude, codex]
+        skill: openstudio-sdk-model-editor
+        path: scripts/common/model_preservation.py
+      - hosts: [claude, codex]
+        skill: openstudio-vav-reheat-system-creator
+        path: scripts/common/model_preservation.py
+      - hosts: [claude, codex]
+        skill: openstudio-plant-loop-creator
+        path: scripts/common/model_preservation.py
+      - hosts: [claude, codex]
+        skill: openstudio-hvac-remover
+        path: scripts/common/model_preservation.py
+      - hosts: [claude, codex]
+        skill: openstudio-cav-system-creator
         path: scripts/common/model_preservation.py
   - source: skills/sdk_scripts/common/coil_equipment.py
     owners:
@@ -1298,6 +1322,257 @@ resources:
       - hosts: [claude, codex]
         skill: openstudio-outdoor-air-connector
         path: scripts/references/outdoor_air_attach.schema.json
+
+  - source: skills/sdk_scripts/common/diagnostics.py
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-sdk-model-editor
+        path: scripts/common/diagnostics.py
+      - hosts: [claude, codex]
+        skill: openstudio-vav-reheat-system-creator
+        path: scripts/common/diagnostics.py
+      - hosts: [claude, codex]
+        skill: openstudio-plant-loop-creator
+        path: scripts/common/diagnostics.py
+      - hosts: [claude, codex]
+        skill: openstudio-hvac-remover
+        path: scripts/common/diagnostics.py
+      - hosts: [claude, codex]
+        skill: openstudio-cav-system-creator
+        path: scripts/common/diagnostics.py
+      - hosts: [claude, codex]
+        skill: openstudio-supply-fan-performance-editor
+        path: scripts/common/diagnostics.py
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-editor
+        path: scripts/common/diagnostics.py
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-connector
+        path: scripts/common/diagnostics.py
+      - hosts: [claude, codex]
+        skill: openstudio-coil-replacer
+        path: scripts/common/diagnostics.py
+      - hosts: [claude, codex]
+        skill: openstudio-supply-fan-replacer
+        path: scripts/common/diagnostics.py
+      - hosts: [claude, codex]
+        skill: openstudio-pump-performance-editor
+        path: scripts/common/diagnostics.py
+      - hosts: [claude, codex]
+        skill: openstudio-pump-replacer
+        path: scripts/common/diagnostics.py
+      - hosts: [claude, codex]
+        skill: openstudio-economizer-editor
+        path: scripts/common/diagnostics.py
+      - hosts: [claude, codex]
+        skill: openstudio-ventilation-editor
+        path: scripts/common/diagnostics.py
+      - hosts: [claude, codex]
+        skill: openstudio-heat-recovery-editor
+        path: scripts/common/diagnostics.py
+      - hosts: [claude, codex]
+        skill: openstudio-outdoor-air-connector
+        path: scripts/common/diagnostics.py
+  - source: skills/sdk_scripts/common/model_preparation.py
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-sdk-model-editor
+        path: scripts/common/model_preparation.py
+      - hosts: [claude, codex]
+        skill: openstudio-vav-reheat-system-creator
+        path: scripts/common/model_preparation.py
+      - hosts: [claude, codex]
+        skill: openstudio-plant-loop-creator
+        path: scripts/common/model_preparation.py
+      - hosts: [claude, codex]
+        skill: openstudio-hvac-remover
+        path: scripts/common/model_preparation.py
+      - hosts: [claude, codex]
+        skill: openstudio-cav-system-creator
+        path: scripts/common/model_preparation.py
+      - hosts: [claude, codex]
+        skill: openstudio-supply-fan-performance-editor
+        path: scripts/common/model_preparation.py
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-editor
+        path: scripts/common/model_preparation.py
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-connector
+        path: scripts/common/model_preparation.py
+      - hosts: [claude, codex]
+        skill: openstudio-coil-replacer
+        path: scripts/common/model_preparation.py
+      - hosts: [claude, codex]
+        skill: openstudio-supply-fan-replacer
+        path: scripts/common/model_preparation.py
+      - hosts: [claude, codex]
+        skill: openstudio-pump-performance-editor
+        path: scripts/common/model_preparation.py
+      - hosts: [claude, codex]
+        skill: openstudio-pump-replacer
+        path: scripts/common/model_preparation.py
+      - hosts: [claude, codex]
+        skill: openstudio-economizer-editor
+        path: scripts/common/model_preparation.py
+      - hosts: [claude, codex]
+        skill: openstudio-ventilation-editor
+        path: scripts/common/model_preparation.py
+      - hosts: [claude, codex]
+        skill: openstudio-heat-recovery-editor
+        path: scripts/common/model_preparation.py
+      - hosts: [claude, codex]
+        skill: openstudio-outdoor-air-connector
+        path: scripts/common/model_preparation.py
+  - source: skills/sdk_scripts/prepare_model.py
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-sdk-model-editor
+        path: scripts/prepare_model.py
+      - hosts: [claude, codex]
+        skill: openstudio-vav-reheat-system-creator
+        path: scripts/prepare_model.py
+      - hosts: [claude, codex]
+        skill: openstudio-plant-loop-creator
+        path: scripts/prepare_model.py
+      - hosts: [claude, codex]
+        skill: openstudio-hvac-remover
+        path: scripts/prepare_model.py
+      - hosts: [claude, codex]
+        skill: openstudio-cav-system-creator
+        path: scripts/prepare_model.py
+      - hosts: [claude, codex]
+        skill: openstudio-supply-fan-performance-editor
+        path: scripts/prepare_model.py
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-editor
+        path: scripts/prepare_model.py
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-connector
+        path: scripts/prepare_model.py
+      - hosts: [claude, codex]
+        skill: openstudio-coil-replacer
+        path: scripts/prepare_model.py
+      - hosts: [claude, codex]
+        skill: openstudio-supply-fan-replacer
+        path: scripts/prepare_model.py
+      - hosts: [claude, codex]
+        skill: openstudio-pump-performance-editor
+        path: scripts/prepare_model.py
+      - hosts: [claude, codex]
+        skill: openstudio-pump-replacer
+        path: scripts/prepare_model.py
+      - hosts: [claude, codex]
+        skill: openstudio-economizer-editor
+        path: scripts/prepare_model.py
+      - hosts: [claude, codex]
+        skill: openstudio-ventilation-editor
+        path: scripts/prepare_model.py
+      - hosts: [claude, codex]
+        skill: openstudio-heat-recovery-editor
+        path: scripts/prepare_model.py
+      - hosts: [claude, codex]
+        skill: openstudio-outdoor-air-connector
+        path: scripts/prepare_model.py
+  - source: skills/sdk_scripts/schemas/preparation_report.schema.json
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-sdk-model-editor
+        path: references/preparation_report.schema.json
+      - hosts: [claude, codex]
+        skill: openstudio-vav-reheat-system-creator
+        path: references/preparation_report.schema.json
+      - hosts: [claude, codex]
+        skill: openstudio-plant-loop-creator
+        path: references/preparation_report.schema.json
+      - hosts: [claude, codex]
+        skill: openstudio-hvac-remover
+        path: references/preparation_report.schema.json
+      - hosts: [claude, codex]
+        skill: openstudio-cav-system-creator
+        path: references/preparation_report.schema.json
+      - hosts: [claude, codex]
+        skill: openstudio-supply-fan-performance-editor
+        path: references/preparation_report.schema.json
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-editor
+        path: references/preparation_report.schema.json
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-connector
+        path: references/preparation_report.schema.json
+      - hosts: [claude, codex]
+        skill: openstudio-coil-replacer
+        path: references/preparation_report.schema.json
+      - hosts: [claude, codex]
+        skill: openstudio-supply-fan-replacer
+        path: references/preparation_report.schema.json
+      - hosts: [claude, codex]
+        skill: openstudio-pump-performance-editor
+        path: references/preparation_report.schema.json
+      - hosts: [claude, codex]
+        skill: openstudio-pump-replacer
+        path: references/preparation_report.schema.json
+      - hosts: [claude, codex]
+        skill: openstudio-economizer-editor
+        path: references/preparation_report.schema.json
+      - hosts: [claude, codex]
+        skill: openstudio-ventilation-editor
+        path: references/preparation_report.schema.json
+      - hosts: [claude, codex]
+        skill: openstudio-heat-recovery-editor
+        path: references/preparation_report.schema.json
+      - hosts: [claude, codex]
+        skill: openstudio-outdoor-air-connector
+        path: references/preparation_report.schema.json
+  - source: skills/sdk_scripts/references/model_preparation.md
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-sdk-model-editor
+        path: references/model_preparation.md
+      - hosts: [claude, codex]
+        skill: openstudio-vav-reheat-system-creator
+        path: references/model_preparation.md
+      - hosts: [claude, codex]
+        skill: openstudio-plant-loop-creator
+        path: references/model_preparation.md
+      - hosts: [claude, codex]
+        skill: openstudio-hvac-remover
+        path: references/model_preparation.md
+      - hosts: [claude, codex]
+        skill: openstudio-cav-system-creator
+        path: references/model_preparation.md
+      - hosts: [claude, codex]
+        skill: openstudio-supply-fan-performance-editor
+        path: references/model_preparation.md
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-editor
+        path: references/model_preparation.md
+      - hosts: [claude, codex]
+        skill: openstudio-water-coil-connector
+        path: references/model_preparation.md
+      - hosts: [claude, codex]
+        skill: openstudio-coil-replacer
+        path: references/model_preparation.md
+      - hosts: [claude, codex]
+        skill: openstudio-supply-fan-replacer
+        path: references/model_preparation.md
+      - hosts: [claude, codex]
+        skill: openstudio-pump-performance-editor
+        path: references/model_preparation.md
+      - hosts: [claude, codex]
+        skill: openstudio-pump-replacer
+        path: references/model_preparation.md
+      - hosts: [claude, codex]
+        skill: openstudio-economizer-editor
+        path: references/model_preparation.md
+      - hosts: [claude, codex]
+        skill: openstudio-ventilation-editor
+        path: references/model_preparation.md
+      - hosts: [claude, codex]
+        skill: openstudio-heat-recovery-editor
+        path: references/model_preparation.md
+      - hosts: [claude, codex]
+        skill: openstudio-outdoor-air-connector
+        path: references/model_preparation.md
 
 skills:
   - id: openstudio-outdoor-air-connector

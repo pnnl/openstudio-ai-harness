@@ -465,14 +465,15 @@ def test_explicit_pascal_pressure_and_distinct_plenum(
     assert result["conversions"] == []
 
 
-def test_older_model_translation_is_repeatable_and_read_only(sdk):
+def test_older_model_gate_is_repeatable_and_read_only(sdk):
     _, module = sdk
     source = Path("tests/fixtures/sample.osm").resolve()
     before = source.read_bytes()
     first = module.preflight(source)
     second = module.preflight(source)
     assert first == second
-    assert first["ok"] and not first["ready"]
+    assert not first["ok"] and not first["ready"]
+    assert first["status"] == "requires_preparation"
     assert source.read_bytes() == before
 
 

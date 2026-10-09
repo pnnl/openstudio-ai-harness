@@ -12,6 +12,7 @@ import shutil
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from common.version_guard import require_sdk, release_version, load_contract, load_model
+from common.diagnostics import failure_report, mismatch
 from report import emit
 from common.files import check_report_path
 from common.input_validation import validate
@@ -57,7 +58,11 @@ def apply(plan_path: Path) -> dict:
         raise ValueError("Plan input must be an existing absolute .osm path")
     original = digest(source)
     if original != reviewed["input_sha256"]:
-        raise ValueError("Stale input hash; rerun preflight before applying")
+        raise mismatch(
+            {"input_sha256": reviewed["input_sha256"]},
+            {"input_sha256": original},
+            "Stale input hash; rerun preflight before applying",
+        )
     config = reviewed["configuration"]
     schema = json.loads(
         (
@@ -77,8 +82,10 @@ def apply(plan_path: Path) -> dict:
         model, source, Path(fresh["parameters"]["output_model_path"]), sdk
     )
     if fresh != reviewed["plan"]:
-        raise ValueError(
-            "Resolved plan differs from bundled preflight; rerun inspection"
+        raise mismatch(
+            reviewed["plan"],
+            fresh,
+            "Resolved plan differs from bundled preflight; rerun inspection",
         )
     output = Path(fresh["parameters"]["output_model_path"])
     if str(output) != reviewed["output_model_path"]:
@@ -248,13 +255,9 @@ def main():
             check_report_path(args.report)
         report = apply(args.plan)
     except Exception as exc:
-        report = {
-            "ok": False,
-            "mode": "edit_model",
-            "error": str(exc),
-            "changes": [],
-            "state_patch": {},
-        }
+        report = dict(
+            failure_report(exc), mode="edit_model", changes=[], state_patch={}
+        )
     try:
         summary = emit(report, args.report, args.candidate_filter)
     except Exception as exc:

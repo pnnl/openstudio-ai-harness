@@ -274,3 +274,10 @@ the host path from the script's own directory; resolve and validate it beneath
 - For long-running or mixed workflows: clearly separate each phase, mention
   important state/artifacts/failures, and state whether another iteration is
   recommended.
+
+For a local bundle returning `requires_preparation`, run that owning skill's
+`scripts/prepare_model.py` through its verified CLI with a new copied output and
+JSON report. Store original → prepared lineage/state patch, then re-inventory
+and re-preflight the prepared path. Do not write ad hoc normalization scripts
+or bypass exact plan checks. This applies after the existing NLR-first provider
+transition; preparation does not change provider priority.

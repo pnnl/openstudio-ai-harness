@@ -8,6 +8,19 @@ metadata:
 
 ## Direct script workflow
 
+If inventory or preflight returns `status: requires_preparation`, run this bundled
+operation through the verified CLI before any modeling plan:
+
+```text
+<verified-cli> execute_python_script <skill>/scripts/prepare_model.py --input <original.osm> --output <new-prepared.osm> --report <new-preparation.json>
+```
+
+Store its `state_patch` and original → prepared `lineage` in workflow state. Use
+`output_model_path` for a fresh inventory and preflight; never reuse the blocked
+plan or write an ad hoc normalizer. `already_current` reuses the input and writes
+no model. Invalid current-version references require diagnosis rather than
+manufactured repair. See [model preparation](references/model_preparation.md).
+
 First honor provider selection: when NLR OpenStudio MCP is configured and
 compatible, use `delegated-nlr-modeling` as the preferred provider. This local
 bundle applies when NLR is absent/unavailable/incompatible or its documented

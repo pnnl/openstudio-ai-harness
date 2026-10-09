@@ -5,6 +5,19 @@ metadata:
   version: 0.4.0
 ---
 
+If inventory or preflight returns `status: requires_preparation`, run this bundled
+operation through the verified CLI before any modeling plan:
+
+```text
+<verified-cli> execute_python_script <skill>/scripts/prepare_model.py --input <original.osm> --output <new-prepared.osm> --report <new-preparation.json>
+```
+
+Store its `state_patch` and original → prepared `lineage` in workflow state. Use
+`output_model_path` for a fresh inventory and preflight; never reuse the blocked
+plan or write an ad hoc normalizer. `already_current` reuses the input and writes
+no model. Invalid current-version references require diagnosis rather than
+manufactured repair. See [model preparation](references/model_preparation.md).
+
 Prefer configured, compatible NLR through `delegated-nlr-modeling`. After a local
 provider selection/transition, run `scripts/doctor.py` with host Python 3.10+ and
 use the verified exact-release OpenStudio executable. Resolve scripts beside

@@ -66,6 +66,14 @@ def summarize(report, report_path, candidate_filter=None):
         "workflow_path",
         "simulation_ready",
         "requires_companion_workflow",
+        "status",
+        "requires_preparation",
+        "source_version",
+        "target_version",
+        "reason",
+        "handle_changes",
+        "next_action",
+        "diagnostic",
     )
     summary = {key: report[key] for key in keys if key in report}
     if report.get("external_file_validation"):
@@ -93,7 +101,11 @@ def summarize(report, report_path, candidate_filter=None):
             for key in ("ok", "checks", "errors", "supply_order")
             if key in report["validation"]
         }
-    if report["mode"] == "inspect_only" and not report.get("ready"):
+    if (
+        report["mode"] == "inspect_only"
+        and not report.get("ready")
+        and not report.get("requires_preparation")
+    ):
         catalog = report.get("candidates", {})
         limit = 8
         filtered = {

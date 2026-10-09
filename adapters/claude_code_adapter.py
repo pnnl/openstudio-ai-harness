@@ -13,6 +13,7 @@ from adapters.runtime_helpers import write_runtime_helpers
 from harness.asset_manifest import (
     agent_source_for_host,
     reference_exports_for_host,
+    resource_exports_for_host,
     skill_exports_for_host,
     skill_ids_for_host,
     skill_sources_for_host,
@@ -355,6 +356,10 @@ def _planned_export_files(
         export.target
         for export in reference_exports_for_host(workspace_root, plugin_dir, "claude")
     )
+    files.extend(
+        export.target
+        for export in resource_exports_for_host(workspace_root, plugin_dir, "claude")
+    )
     return sorted(files)
 
 
@@ -516,6 +521,9 @@ def _write_plugin_package(
 
     _write_marketplace_setup_skills(plugin_dir / "skills", runtime_mode)
     _write_skill_references(plugin_dir / "skills", workspace_root)
+    for export in resource_exports_for_host(workspace_root, plugin_dir, "claude"):
+        export.target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(export.source, export.target)
 
     if runtime_mode == "marketplace":
         setup_scripts_dir = plugin_dir / "skills" / "setup-openstudio-ai" / "scripts"

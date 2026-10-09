@@ -26,7 +26,8 @@ and approval model.
   refresh exported plugins to use those workflows.
 - The diagnostic MVP (`model_inspect`, `sim_diagnose`, and
   `results_plausibility`) and its curated fixtures are planned for contract `6`.
-- Current branch: `main`; release metadata is being prepared for `0.4.0`.
+- Current development branch: `enhance_skills_scripts`; release metadata remains
+  at `0.4.0`.
 - The current foundation is a Python 3.10+ package with an MCP 2.x runtime,
   Codex and Claude Code plugin exports, trusted skills/knowledge, local
   SQLite-backed workflow state, model lifecycle support, asynchronous
@@ -111,7 +112,221 @@ uv sync --project standalone
 uv run --project standalone python -m pytest -q standalone/tests
 ```
 
+## Skill-bound SDK development — October 5, 2026
+
+Phases 1–5 and the review remediations are consolidated in
+[the SDK development summary](docs/SKILL_BOUND_SDK_SUMMARY.md). It replaces the
+phase/review documents and print-only probes. Production code and assertion-based
+regressions remain. The exact phase-4 sizing baseline moved to
+`tests/fixtures/vav_sizing_baseline.json`; evaluator/parity tests now read it there.
+
+Current decisions: package-wide OpenStudio 3.11.0; compatible NLR first; local
+specific skills before bespoke SDK programming. Covered VAV edits execute directly
+from their skill bundles. Portable outputs retain their companion workflow;
+internal runtime snapshots use absolute copied CSV paths across measure copies.
+CSV snapshot failures block simulation; weather warnings permit replacement
+weather through epw_path/model_set_weather. Complete reports are written directly.
+
+Last modeling verification: 14 focused regressions passed, including four native
+weather replacement simulations; 20 round-3/job/session tests passed. Historical
+phase/review/export results and context estimates are in the summary. Actual
+agent/billed tokens remain unmeasured. The remaining low-priority issue is runtime
+OS App `file:files/x.epw` and companion weather fallback; explicit epw_path works.
+Existing package artifacts predate the latest fix and this consolidation.
+
+Documentation cleanup: unrelated docs retained, obsolete links updated, baseline
+parity checks passed (6 tests). No commit/push/install/release performed. Next:
+review the consolidated record and prepare coordinated package/plugin release checks.
+
+## Main merge conflict resolution — October 5, 2026
+
+Resolved `prompts/openstudio_agent.md` and `skills/openstudio_sdk_model_editor.md`.
+Retained compatible NLR priority, specific skill routing before bespoke SDK code,
+and the exact package SDK doctor/guard gate. Main's project-first Python order
+now selects only the standard-library doctor launcher; SDK model scripts use the
+native executable verified by doctor, with no project-virtualenv recovery after
+an incompatible SDK result. Provider transitions/host-path rules are preserved.
+
+Verification: 45 resource/export adapter tests passed; exported SDK skill passed
+skill-creator validation. Other incoming merge changes were left intact. No merge
+commit, push, install or release performed.
+
+## Standalone CI lock correction — October 5, 2026
+
+The standalone lock's editable parent metadata still declared OpenStudio >=3.10.0
+while pyproject.toml requires ==3.11.0. Corrected only that constraint, preserving
+all resolved dependency versions. CI's uv 0.12.5 accepts `uv lock --project
+standalone --check --offline`; Python 3.10.18 locked-sync dry run passes. The local
+uv 0.8.18 resolver rewrites markers/downgrades uncached packages, so use CI's pinned
+uv when regenerating this lock.
+
+Updated the standalone SDK-guidance assertion to follow the conditional bespoke
+reference introduced by skill-bound routing. All 22 standalone tests pass in the
+existing Python 3.13.7 environment. Python 3.10 dependency installation/tests and
+Linux CI execution were not performed locally; the 3.10 check was resolution-only.
+No workflow changes, commit or push performed. Rerun standalone CI after committing
+these changes.
+
+## Plant creation and HVAC removal — October 5, 2026
+
+Implemented two additional skills with directly bound scripts:
+`openstudio-plant-loop-creator` and `openstudio-hvac-remover`. Both are independent
+modeling modules, not restricted to VAV preparation. Plant requests build supply
+equipment, pumping and controls; the selected air-side skill connects its water
+coils to the returned plants. VAV is one supported consumer. Removal is composed
+only when the requested workflow needs it. Compatible configured NLR retains
+priority. No automatic fuel
+choice or broader removal scope is authorized by a VAV request alone.
+
+Plant creation follows the traced generic prototype HW/CHW/CW functions, with
+explicit sources and `prototype_plants_v1` assumptions. Water-cooled chillers
+receive a new condenser loop and variable-speed tower; primary/secondary CHW uses
+generic common-pipe pumping. Weather-derived condenser sizing, heat-pump plants,
+PRM heat exchangers/EMS and standards postprocessing remain outside this profile.
+Removal inventories air loops, VRF roots and zone equipment, previews their SDK
+cascade, and independently validates preserved plants/geometry/loads/schedules/
+thermostats after saving. Both transactions preserve inputs and existing outputs,
+carry referenced companions and require EnergyPlus translation before publication.
+
+Verification: 22 new bundle tests passed, including nine plant-source combinations,
+three native plant-to-hydronic-VAV design-day runs with positive sized capacities,
+failure cases and independently relocated Claude/Codex bundles. Another 217
+surrounding VAV/doctor/report/manifest/export tests passed. Five affected exported
+skills passed frontmatter validation. Native execution was macOS OpenStudio 3.11.0;
+annual performance and Linux/Windows execution remain unverified. Details and
+commands are in the consolidated SDK summary. Regenerate exports before local
+agent trials; installed plugins do not acquire these scripts automatically.
+No commit, push, plugin installation or release performed.
+
+Routing clarification: orchestrator, agent prompt and SDK/plant skill now explicitly
+describe plant building and removal as independent modules. Plant-only requests
+do not imply VAV creation or HVAC removal; air-side skills own coil-to-plant demand
+connections. Claude/Codex adapter checks passed (23 tests); diff whitespace check
+passed. Script behavior did not change in this clarification.
+
+## VAV assumption review — October 5, 2026
+
+Replaced skill guidance's implicit accept-or-stop behavior with use-proposed or
+review/adjust. Partial configured preflight now emits `assumption_review` from
+the canonical defaults, distinguishing user inputs, proposed defaults and fixed
+controls. It does not select a profile, enable control assumptions or authorize
+apply. The host presents grouped questions or a compact table; supported changes
+update input fields. Unsupported fixed-control changes remain pending for scoped
+development/provider coverage rather than being silently accepted. Creation still
+requires a ready approved plan. No browser UI or custom-control schema was added.
+
+Verification: 144 impacted preflight/apply/report/host adapter tests passed, with
+a new no-approval/no-publication review regression. Full review records remain
+on disk; stdout exposes status/counts only. The consolidated summary records the
+workflow. No plugin installation, commit or push performed.
+
+## Shared HVAC modules and CAV — October 6, 2026
+
+Phases 1–3 of [the modularization work guide](docs/HVAC_MODULARIZATION_WORK.md)
+are implemented and verified. VAV retains its contract through thin interfaces;
+shared modules own equipment, multizone planning/assembly and independent saved
+getters. New `openstudio-cav-system-creator` runs guarded inventory/preflight/apply
+without a modeling runtime and is exported/routed for both hosts. It models the
+generic prototype CAV arrangement, not arbitrary constant-airflow topology.
+Compatible NLR stays first. Partial CAV plans support review without approval.
+
+Verification: 218 combined tests passed; three strengthened native VAV sizing tests
+match the historical numeric baseline (normal hydronic/electric-DX cases). Both
+native CAV cooling cases and independently relocated Claude/Codex bundles passed.
+Static bundle import closure and three exported skill validations passed. The initial CAV
+zero central-heating result is superseded by F1 remediation below; real
+capacity/control review remains necessary. Native Windows/Linux, annual runs
+and live-agent token measurements remain unverified. Next review: independent
+fan performance and coil-attachment contracts; the former is now implemented
+below, and coil attachment remains the next checkpoint.
+No commit/push/install/release performed; regenerate exports before agent trials.
+
+## HVAC review follow-up F1–F5 — October 6, 2026
+
+CAV now requires an explicit OA schedule/null choice independently of profile
+approval. Constant-1 fraction schedules mean 100% outdoor air; both all-OA sizing
+flags follow that choice, and review/summary state the economizer consequence.
+Other positive/variable fractions conservatively size at 100% OA and disclose
+possible oversizing. Null keeps minimum ventilation sizing. Re-preflight old CAV
+plans. Native hydronic comparison confirmed central HW capacity rises from 0 to
+20.88 kW, cooling design load from 32.43 to 74.31 kW, with unchanged 1.431 m³/s fan
+flow and no Severe/Fatal errors. Native tests require positive central heat.
+
+All fan-class deltas are checked, recipe metadata is frozen/shared across assembly
+and validation, custom-profile pressure conversion uses its own fields, and shared
+inventory is HVAC-neutral with a VAV compatibility import. Details/evidence and
+review commands are in the modularization guide. Verification: 237 combined tests
+passed, including native CAV water/DX, historical VAV numeric parity and relocated
+Claude/Codex bundles. Three exported skills passed validation; changed-Python
+formatting and diff whitespace checks passed.
+User review/probe files under docs/reviews remain preserved. No commit/push/install
+or release performed.
+
+## Supply-fan performance editing, G1–G3 — October 6, 2026
+
+Phase 4 now exposes `openstudio-supply-fan-performance-editor` and
+`edit_supply_fan_performance.py`, replacing the unreleased same-class swap skill.
+Explicit efficiency/pressure edits call setters on the existing CV/VV supply fan.
+Fan, connections, metadata and incoming reference handles remain unchanged;
+LifeCycleCost and EMS actuators are accepted and protected after reload.
+Class-changing requests must not route here. The tested node-preserving swap
+primitive remains unexported in `common/fan_replacement.py` pending curve,
+terminal/sizing and reference-migration decisions.
+
+The planner and editor share `fan_equipment.pressure_pa`. Whole VAV/CAV fan
+construction requires complete performance values before creating a fan, and
+full setters check before mutation. Only explicit edits permit partial inputs.
+Compatible NLR stays first; the package-wide exact SDK pin remains unchanged.
+Re-export both hosts and regenerate old replacement plans because the operation
+name and approved preservation contract changed. Review files under docs/reviews
+remain preserved. See docs/HVAC_MODULARIZATION_WORK.md for contract and checks.
+
+Verification: 289 combined tests passed, including 52 fan cases, two native
+design-day runs and both relocated host bundles. Saved tests preserve incoming
+references/identities; six tests retain deferred node-surgery coverage. All three
+edited skills passed exported validation, and nine changed Python files/diffs
+passed formatting/whitespace checks. Current native evidence/logs are in ignored
+outputs/supply-fan-performance-review/evidence.json; earlier phase-4 swap evidence
+and user review/probe files remain historical.
+Next review: phase 5 water-coil attachment/controller lifecycle, with rating-only
+changes distinguished from attachment/replacement. No commit/push/install/release.
+
+## Main-supply water-coil operations — October 6, 2026
+
+Phase 5 implements `openstudio-water-coil-ratings-editor` and
+`openstudio-water-coil-connector`. Rating-only edits use setters in place,
+preserving coil/controller/metadata/connection and incoming-reference identities.
+Attachment selects a main-supply outlet node and compatible ready plant demand;
+replacement is explicit, same class/air loop/plant, with four boundary nodes
+preserved and new coil/controller handles. References needing migration block
+replacement. Finalization sets action, flow, convergence and sensor/actuator nodes
+after both connections. OA/unitary/terminal locations, manual construction sizing,
+class conversion and plant migration require separate coverage.
+
+VAV/CAV share `coil_equipment` rating/controller setters. `model_preservation` is
+now a neutral dependency also exported with the fan editor. Existing resources
+remain hash-bound; empty OSM weather metadata populated from a workflow is checked
+against its EPW. Missing weather warns without blocking edits. Inventory is flat
+and bounded in stdout. Compatible NLR remains first and the package-wide exact
+OpenStudio pin is unchanged. Re-export both hosts before local use.
+
+Verification: 386 combined tests passed, including 97 water-coil cases and twelve
+VAV/CAV design-day runs with positive selected-coil capacity and no Severe/Fatal
+errors. Both relocated hosts passed doctor/preflight/apply; existing VAV/CAV/fan/
+plant/removal, manifest/import closure, reports and exports remain verified.
+Four phase-5 skills passed exported validation; 17 changed Python files and diffs
+passed formatting/whitespace checks. Native evidence/logs are in ignored
+outputs/water-coil-phase5-review/evidence.json. See docs/HVAC_MODULARIZATION_WORK.md
+for full contracts, source/API trace, limitations and local commands.
+Next review: the three phase-5 contracts, then additional placements/migrations.
+No commit/push/install/release initiated by this task.
+
 ## Near-Term Backlog
+
+- Skill-bound SDK development is complete within the user-selected local
+  evaluation scope. See `docs/SKILL_BOUND_SDK_SUMMARY.md` for decisions, review
+  disposition, source trace, historical verification and remaining limitations.
+  Prepare a coordinated SDK/package/plugin release after review.
 
 - Refresh CI/release checks into an explicit host/runtime/version/evaluation
   matrix, including real simulation readiness where the native executable is

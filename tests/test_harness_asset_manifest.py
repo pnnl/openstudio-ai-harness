@@ -24,10 +24,31 @@ def test_asset_manifest_registers_every_product_skill() -> None:
     source_skills = {
         path.relative_to(workspace_root)
         for path in (workspace_root / "skills").glob("*.md")
-        if path.name != "HVAC_CHILD_SKILL_MANAGEMENT.md"
     }
 
     assert registered_sources == source_skills
+    for host in ("claude", "codex"):
+        retired = {
+            "openstudio-hvac-" + name
+            for name in (
+                "air-loop-creator",
+                "central-cooling-coil-creator",
+                "central-heating-coil-creator",
+                "outdoor-air-system-creator",
+                "schedule-resolver",
+                "sizing-system-configurator",
+                "supply-fan-creator",
+                "system-validator",
+                "vav-terminal-creator",
+            )
+        }
+        assert not retired.intersection(
+            skill_ids_for_host(workspace_root, host)
+        ), "Retired VAV child routes must not be exported"
+        assert "openstudio-hvac-remover" in skill_ids_for_host(workspace_root, host)
+        assert "openstudio-plant-loop-creator" in skill_ids_for_host(
+            workspace_root, host
+        )
     assert "openstudio-modeling-orchestrator" not in skill_ids_for_host(
         workspace_root, "claude"
     )
@@ -81,6 +102,7 @@ def test_asset_manifest_schema_documents_product_registry() -> None:
         "skills",
         "agents",
         "references",
+        "resources",
     }
     assert set(schema["$defs"]) >= {
         "skill",
@@ -145,3 +167,26 @@ def test_asset_manifest_rejects_unsafe_reference_subdirectory() -> None:
                 ],
             }
         )
+
+
+def test_manifest_sources_are_tracked_in_git() -> None:
+    """Export must not depend on resources that disappear in a clean checkout."""
+    import subprocess
+    import shutil
+
+    if not Path(".git").exists() or shutil.which("git") is None:
+        pytest.skip("Git tracking check requires a checkout and Git executable")
+    manifest = yaml.safe_load(Path("harness/asset_manifest.yaml").read_text())
+    sources = sorted(
+        {
+            entry["source"]
+            for section in ("skills", "agents", "references", "resources")
+            for entry in manifest.get(section, [])
+        }
+    )
+    result = subprocess.run(
+        ["git", "ls-files", "--error-unmatch", "--", *sources],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr

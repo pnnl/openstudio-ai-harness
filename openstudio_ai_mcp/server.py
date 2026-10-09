@@ -36,6 +36,7 @@ from blackboard.operations import (
     record_failure,
 )
 from openstudio_ai_mcp.compatibility import evaluate_plugin_compatibility
+from openstudio_ai_mcp.model_resources import copy_model_resources
 from openstudio_ai_mcp.runtime_config import (
     openstudio_version_from_output,
     resolve_openstudio_executable_with_source,
@@ -272,14 +273,23 @@ class OpenStudioService:
                         artifact.model_revision_id
                     )
                     if revision is None:
-                        revision = self.state_store.get_model_revision_for_model(model_id)
+                        revision = self.state_store.get_model_revision_for_model(
+                            model_id
+                        )
                     model_state = OpenStudioModelState(
                         model_id=model_id,
                         metadata={
                             "model_uri": model_uri,
                             "weather": artifact.metadata.get("weather"),
+                            "resource_warnings": artifact.metadata.get(
+                                "resource_warnings", []
+                            ),
+                            "weather_warnings": artifact.metadata.get(
+                                "weather_warnings", []
+                            ),
                             "workspace_id": artifact.metadata.get("workspace_id"),
-                            "session_id": artifact.session_id or (revision or {}).get("session_id"),
+                            "session_id": artifact.session_id
+                            or (revision or {}).get("session_id"),
                             "model_revision_id": (revision or {}).get("revision_id"),
                         },
                     )
@@ -295,46 +305,140 @@ class OpenStudioService:
         workspace_id = f"model-{uuid4()}"
         model_uri = args.model_uri
         source_sha256 = "unavailable"
+        resource_warnings = []
+        weather_warnings = []
+        snapshot_weather = None
         if source_path.exists():
             workspace = self.workspace_manager.create_workspace(workspace_id)
             snapshot_path = workspace / "source.osm"
-            shutil.copy2(source_path, snapshot_path)
+            try:
+                if (
+                    source_path.stat().st_size
+                    > self.workspace_manager.max_workspace_bytes
+                ):
+                    raise ValueError("Model exceeds workspace quota")
+                shutil.copy2(source_path, snapshot_path)
+                try:
+                    copy_model_resources(
+                        source_path,
+                        snapshot_path,
+                        max_resource_bytes=self.workspace_manager.max_workspace_bytes
+                        - self.workspace_manager.workspace_size(workspace_id),
+                        copy_weather=False,
+                    )
+                except Exception as exc:
+                    # Loading for inspection/repair must survive resource failures.
+                    shutil.rmtree(snapshot_path.with_suffix(""), ignore_errors=True)
+                    shutil.copy2(source_path, snapshot_path)
+                    resource_warnings.append(str(exc))
+                try:
+                    raw_weather = self._extract_weather_path_from_osm(snapshot_path)
+                    if raw_weather:
+                        candidate = self._resolve_path_with_model_context(
+                            raw_weather, snapshot_path
+                        )
+                        if not candidate.is_file():
+                            original_weather = self._extract_weather_path_from_osm(
+                                source_path
+                            )
+                            candidate = (
+                                self._resolve_path_with_model_context(
+                                    original_weather, source_path
+                                )
+                                if original_weather
+                                else candidate
+                            )
+                        if candidate.is_file():
+                            if workspace not in candidate.parents:
+                                remaining = (
+                                    self.workspace_manager.max_workspace_bytes
+                                    - self.workspace_manager.workspace_size(
+                                        workspace_id
+                                    )
+                                )
+                                if candidate.stat().st_size > remaining:
+                                    weather_warnings.append(
+                                        "Weather exceeds remaining workspace quota"
+                                    )
+                                else:
+                                    weather_copy = (
+                                        workspace / "weather" / candidate.name
+                                    )
+                                    weather_copy.parent.mkdir()
+                                    shutil.copy2(candidate, weather_copy)
+                                    snapshot_weather = str(weather_copy)
+                            else:
+                                snapshot_weather = str(candidate)
+                except Exception as exc:
+                    shutil.rmtree(workspace / "weather", ignore_errors=True)
+                    weather_warnings.append(str(exc))
+                self.workspace_manager.ensure_quota(workspace_id)
+            except BaseException:
+                self.workspace_manager.cleanup_workspace(workspace_id)
+                raise
             model_uri = snapshot_path.as_uri()
             source_sha256 = self._sha256(snapshot_path)
             self._register_workspace(
                 workspace_id=workspace_id,
                 kind="model_snapshot",
                 session_id=args.session_id,
-                metadata={"source_uri": args.model_uri, "source_sha256": source_sha256},
+                metadata={
+                    "source_uri": args.model_uri,
+                    "source_sha256": source_sha256,
+                    "original_source_sha256": self._sha256(source_path),
+                    "resource_warnings": resource_warnings,
+                    "weather_warnings": weather_warnings,
+                },
             )
         artifact = self.artifacts.create(
             kind="osm",
-            metadata={"model_uri": model_uri, "source_uri": args.model_uri, "loaded": True,
-                      "workspace_id": workspace_id if source_path.exists() else None,
-                      "session_id": args.session_id},
+            metadata={
+                "model_uri": model_uri,
+                "source_uri": args.model_uri,
+                "loaded": True,
+                "weather": snapshot_weather,
+                "resource_warnings": resource_warnings,
+                "weather_warnings": weather_warnings,
+                "original_source_sha256": self._sha256_or_unavailable(args.model_uri),
+                "workspace_id": workspace_id if source_path.exists() else None,
+                "session_id": args.session_id,
+            },
             parent_id=None,
             session_id=args.session_id,
         )
         revision_id = self._record_model_revision(
-            session_id=args.session_id, model_id=artifact.artifact_id, parent_revision_id=None,
-            operation="load", source_sha256=source_sha256,
-            metadata={"source_uri": args.model_uri, "artifact_id": artifact.artifact_id},
+            session_id=args.session_id,
+            model_id=artifact.artifact_id,
+            parent_revision_id=None,
+            operation="load",
+            source_sha256=source_sha256,
+            metadata={
+                "source_uri": args.model_uri,
+                "artifact_id": artifact.artifact_id,
+            },
         )
         self.artifacts.set_context(
-            artifact.artifact_id, session_id=args.session_id, model_revision_id=revision_id
+            artifact.artifact_id,
+            session_id=args.session_id,
+            model_revision_id=revision_id,
         )
         self.model_states[artifact.artifact_id] = OpenStudioModelState(
             model_id=artifact.artifact_id,
             metadata={
                 "model_uri": model_uri,
-                "weather": None,
+                "weather": snapshot_weather,
+                "resource_warnings": resource_warnings,
+                "weather_warnings": weather_warnings,
                 "workspace_id": workspace_id if source_path.exists() else None,
                 "session_id": args.session_id,
                 "model_revision_id": revision_id,
             },
         )
         return success_payload(
-            model_id=artifact.artifact_id, model_revision_id=revision_id, metadata=artifact.to_dict()
+            model_id=artifact.artifact_id,
+            model_revision_id=revision_id,
+            metadata=artifact.to_dict(),
+            warnings=resource_warnings + weather_warnings,
         )
 
     def model_clone(self, args: ModelCloneArgs) -> dict[str, Any]:
@@ -345,16 +449,27 @@ class OpenStudioService:
         artifact = self.artifacts.create(
             kind="osm",
             parent_id=args.model_id,
-            metadata={"cloned_from": args.model_id, "model_uri": base.metadata.get("model_uri"),
-                      "weather": base.metadata.get("weather"), "workspace_id": base.metadata.get("workspace_id"),
-                      "session_id": session_id},
+            metadata={
+                "cloned_from": args.model_id,
+                "model_uri": base.metadata.get("model_uri"),
+                "weather": base.metadata.get("weather"),
+                "workspace_id": base.metadata.get("workspace_id"),
+                "resource_warnings": base.metadata.get("resource_warnings", []),
+                "weather_warnings": base.metadata.get("weather_warnings", []),
+                "session_id": session_id,
+            },
             session_id=session_id,
         )
         revision_id = self._record_model_revision(
-            session_id=session_id, model_id=artifact.artifact_id,
-            parent_revision_id=base.metadata.get("model_revision_id"), operation="clone",
+            session_id=session_id,
+            model_id=artifact.artifact_id,
+            parent_revision_id=base.metadata.get("model_revision_id"),
+            operation="clone",
             source_sha256=self._sha256_or_unavailable(base.metadata.get("model_uri")),
-            metadata={"source_model_id": args.model_id, "artifact_id": artifact.artifact_id},
+            metadata={
+                "source_model_id": args.model_id,
+                "artifact_id": artifact.artifact_id,
+            },
         )
         self.artifacts.set_context(
             artifact.artifact_id, session_id=session_id, model_revision_id=revision_id
@@ -1165,6 +1280,12 @@ class OpenStudioService:
     ) -> dict[str, Any]:
         model_state = self._get_model_state(model_id)
         model_path = self._resolve_model_path(model_state.metadata.get("model_uri", ""))
+        # Only external CSV snapshot failures block; weather is resolved below.
+        if model_state.metadata.get("resource_warnings"):
+            raise ValueError(
+                "Resource snapshot incomplete; repair and reload before simulation: "
+                + "; ".join(model_state.metadata["resource_warnings"])
+            )
         weather_path = self._resolve_weather_path(model_state, options)
 
         workspace = self.workspace_manager.create_workspace(job_id)
@@ -1175,12 +1296,26 @@ class OpenStudioService:
 
         osm_target = workspace / "in.osm"
         shutil.copy2(model_path, osm_target)
+        remaining = (
+            self.workspace_manager.max_workspace_bytes
+            - self.workspace_manager.workspace_size(job_id)
+            - weather_path.stat().st_size
+        )
+        if remaining < 0:
+            raise ValueError(
+                "Model/weather exceed remaining simulation workspace quota"
+            )
+        file_paths = copy_model_resources(
+            model_path, osm_target, max_resource_bytes=remaining, copy_weather=False
+        )
+        self.workspace_manager.ensure_quota(job_id)
         epw_target = workspace / weather_path.name
         shutil.copy2(weather_path, epw_target)
 
         osw_path = workspace / "in.osw"
         osw_payload = {
             "seed_file": osm_target.name,
+            "file_paths": file_paths,
             "weather_file": epw_target.name,
             "run_directory": "run",
             "steps": [],

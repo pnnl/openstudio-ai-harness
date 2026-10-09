@@ -109,15 +109,20 @@ replace engineering review, unit checks, or before/after validation.
 Switch to the OpenStudio AI SDK route only when the model has evidence that NLR
 cannot express the requested operation after consulting the relevant NLR skill
 and capability/API lookup. Record the unsupported operation, NLR evidence,
-reason for the transition, input model artifact, and selected local runtime in
-the blackboard before drafting code.
+reason for the transition, input model artifact, and selected local SDK in
+the blackboard before local SDK execution.
 
 Export or copy the NLR model to its recorded host-visible staging path first.
 For the demo topology, a provider path `/runs/<suffix>` maps to
 `./nlr-workspace/runs/<suffix>` from the demo repository root. `/runs` is never
-valid in host-side source code. Load `openstudio-sdk-model-editor`, retrieve
-the required OpenStudio AI SDK documentation, verify a local OpenStudio runtime,
-and write a new output model rather than overwriting the delegated artifact.
+valid in host-side source code. Choose a specific energy-modeling skill first:
+supported VAV creation uses `openstudio-vav-reheat-system-creator` and its bundled
+doctor/preflight/apply workflow. This local bundle executes through host tools,
+without the OpenStudio AI modeling runtime. Only when no specific skill covers
+the request, load `openstudio-sdk-model-editor` and its bespoke-edit reference,
+retrieve the required API documentation and draft scoped code. In either route,
+verify the exact local OpenStudio release recorded in the package compatibility contract and
+write a new output model rather than overwriting the delegated artifact.
 
 The SDK edit is a new provider phase. After it completes, validate and record
 the output. A later simulation may use OpenStudio AI or may be explicitly

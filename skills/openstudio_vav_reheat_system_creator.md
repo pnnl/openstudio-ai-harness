@@ -1,190 +1,193 @@
 ---
 name: openstudio_vav_reheat_system_creator
-description: Parent checklist skill for phased OpenStudio Python SDK workflows that add a multi-zone VAV reheat air system.
-version: 0.4.0
-output_format: markdown_with_json_summary
+description: Create a multi-zone VAV system in an OSM using bundled, version-pinned scripts and saved-model topology validation.
+metadata:
+  version: 0.4.0
+  output_format: markdown_with_json_summary
 ---
 
-## Scope
+## Direct script workflow
 
-Use this parent skill when the user asks to add, create, prototype, or draft a
-multi-zone VAV reheat air system in an OpenStudio model.
-
-This skill does not hold object-level implementation detail. It owns workflow
-state, clarification gates, phase order, child-skill routing, and final handoff.
-Use host Python execution only through the bounded script workflow in
-`openstudio_sdk_model_editor`. Use MCP `model_*`, `sim_*`, and `results_*` for
-validation, simulation, and results after the edited model is saved.
-
-## Load First
-
-Before any VAV script drafting, load:
-
-- `openstudio_sdk_model_editor`
-- `openstudio_workflow_state`
-- `sdk_index`
-
-Load exactly one child skill for the active edit phase. Do not load all child
-skills or all SDK packs at once.
-
-Load SDK context packs only when needed:
-
-- `sdk_core_patterns`: before drafting an executable SDK script.
-- `sdk_hvac`: air loop, sizing, fan, coils, outdoor air, terminals, or HVAC
-  validation phases.
-- `sdk_schedules`: schedule resolver phase.
-- `sdk_spaces_zones_loads`: preflight or zone/space-scoped validation.
-
-## Parent Rules
-
-- Initialize and maintain the task-global state table from
-  `openstudio_workflow_state`.
-- Treat the state table as the source of truth for paths, target zones,
-  schedules, coil choices, plant loops, fan inputs, assumptions, warnings,
-  created objects, and checklist status.
-- Pass only the relevant state subset to each phase.
-- Require each child phase to return a `state_patch`; apply it before moving on.
-- Do not let a child phase re-ask for values already present in state.
-- If a user changes a global value, update state first and re-evaluate
-  downstream pending steps.
-- Keep each edit script focused and visible to the user before execution.
-- Never overwrite the input `.osm` unless the user explicitly approves.
-
-## Required Global Inputs
-
-Known values or approved defaults are required before model-editing phases:
-
-- input model path and output model path;
-- system name;
-- target thermal zones;
-- reheat type: `Water`, `NaturalGas`, `Electricity`, or `None`;
-- central heating type: hot-water loop, gas, electric, or none;
-- central cooling type: chilled-water loop or explicit DX fallback;
-- HVAC operation schedule or approved Always On Discrete default;
-- optional outdoor-air damper schedule or approved unset value;
-- fan total efficiency, motor efficiency, pressure rise, and pressure units;
-- minimum system airflow ratio;
-- sizing option, usually `Coincident`;
-- economizer control type or approved default;
-- optional return plenum.
-
-For water coils, require an existing plant-loop name. Do not create hot-water or
-chilled-water plant loops in this parent workflow unless the user starts a
-separate loop-creation task.
-
-Record every default in `assumptions` using:
+If inventory or preflight returns `status: requires_preparation`, run this bundled
+operation through the verified CLI before any modeling plan:
 
 ```text
-Object:Name.parameter: assumed to be x
+<verified-cli> execute_python_script <skill>/scripts/prepare_model.py --input <original.osm> --output <new-prepared.osm> --report <new-preparation.json>
 ```
 
-## Phase Map
+Store its `state_patch` and original → prepared `lineage` in workflow state. Use
+`output_model_path` for a fresh inventory and preflight; never reuse the blocked
+plan or write an ad hoc normalizer. `already_current` reuses the input and writes
+no model. Invalid current-version references require diagnosis rather than
+manufactured repair. See [model preparation](references/model_preparation.md).
 
-Run these phases in order unless the current state proves a phase is already
-complete. Each phase must return a `state_patch`.
+First honor provider selection: when NLR OpenStudio MCP is configured and
+compatible, use `delegated-nlr-modeling` as the preferred provider. This local
+bundle applies when NLR is absent/unavailable/incompatible or its documented
+fallback records that it cannot cover the request. Preserve the provider
+transition and host-visible model path before local SDK execution.
 
-| Step | Phase | Child Skill |
-| --- | --- | --- |
-| 0 | Initialize state | `openstudio_workflow_state` |
-| 1 | Preflight inspection | parent short script |
-| 2 | Clarification gate | parent state update |
-| 3 | Air loop | `openstudio_hvac_air_loop_creator` |
-| 4 | Schedules and SAT setpoint manager | `openstudio_hvac_schedule_resolver` |
-| 5 | Sizing system | `openstudio_hvac_sizing_system_configurator` |
-| 6 | Supply fan | `openstudio_hvac_supply_fan_creator` |
-| 7 | Central heating coil | `openstudio_hvac_central_heating_coil_creator` |
-| 8 | Central cooling coil | `openstudio_hvac_central_cooling_coil_creator` |
-| 9 | Outdoor air and air-loop controls | `openstudio_hvac_outdoor_air_system_creator` |
-| 10 | Zone terminals and zone sizing | `openstudio_hvac_vav_terminal_creator` |
-| 11 | Validation | `openstudio_hvac_system_validator` |
-| 12 | Simulation/results handoff | MCP `model_*`, `sim_*`, `results_*` |
+Run this skill's scripts through host tools, independently of OpenStudio AI's
+runtime or measure registry. Claude Code resolves `${CLAUDE_SKILL_DIR}`; Codex
+uses this `SKILL.md`'s actual directory. Run implementation files without reading
+them into context. Do not load SDK wiki packs for this supported workflow.
+Legacy object-level VAV skills have been removed.
 
-## Preflight
+1. Run host Python 3.10+ on `scripts/doctor.py`. Require exit 0 and `ok: true`;
+   use its absolute `openstudio_executable` for every SDK command. The package
+   requires the exact package release in `scripts/compatibility.json`. Explicit executable paths are authoritative;
+   mismatches block. Request the exact installation/path reported by doctor;
+   do not install automatically or try another SDK/project virtualenv.
+2. If selected zones already have HVAC, use `openstudio-hvac-remover` to inventory
+   and remove the human-selected systems in a copy. Show all zones affected by
+   shared air loops/VRF systems; preserve stairs/other equipment unless explicitly
+   selected. Do not draft a separate removal script. If water coils are selected
+   and compatible plants are absent, use `openstudio-plant-loop-creator` after the
+   human chooses plant sources and generic assumptions. Offer hydronic plant
+   creation rather than forcing DX/gas/electric air coils because plants are absent.
+   Run each preparation as a separate reviewed transaction, then preflight VAV
+   against the latest output using the returned plant names/handles.
+3. Set `defaults_profile: prototype_vav_v1` only when the human user explicitly
+   chose the generic prototype defaults. Set `dx_approved: true` only when the
+   human explicitly chose DX cooling. A broad request to add VAV, an agent's own
+   suggestion, or missing input is not approval. Prior explicit human selections
+   persist across turns; do not ask again for the same choice. Keep these fields
+   absent until that choice is established.
+   Read [the input contract](scripts/references/vav_input.schema.json). Prepare
+   configuration JSON from the user's selections. If names/handles are unknown,
+   inspect with `vav_preflight.py --input <absolute-input.osm>` first; otherwise
+   go directly to configured preflight. Partial configurations return missing
+   inputs and conflicts without saving a model.
+   If defaults are undecided or declined, follow the assumption review below;
+   declining proposed defaults means review/adjust, not cancellation.
+4. Run configured preflight and persist its full report using the commands
+   below. Review the summary's parameters, resolved references, units, and
+   warnings. The full plan contains the assumption ledger. Clarify only missing
+   or conflicting choices; approval already provided by the user persists.
+   Require `ok: true` and `ready: true` before creation.
+5. When the user's request authorizes those selections/defaults, run apply on
+   the saved version-2 plan. Require `ok: true` and `validation.ok: true` in the
+   summary. Apply rechecks the SDK, source hash and resolved plan, creates the
+   system, reloads a staged OSM, independently checks topology/settings, and
+   exclusively publishes to the selected new output path.
+6. Return the output path, completed creation/topology checks, key assumptions
+   and warnings, and report paths. Sizing/simulation remain pending. When those
+   are requested, hand the saved model to the simulation/results skills.
 
-Before editing, draft a short inspection script that loads the input model and
-returns a state patch with:
+Entrypoints persist full reports directly with `--report` and print compact
+summaries. Use the report file and exit code as authoritative; SDK logging before
+or after stdout cannot invalidate the saved plan. Normal runs need two commands:
 
-- conditioned thermal zones and spaces;
-- existing air loops and served zones;
-- hot-water and chilled-water plant loops;
-- candidate HVAC operation and outdoor-air schedules;
-- relevant thermostats, sizing objects, and availability managers when useful;
-- whether an air loop with the requested system name already exists;
-- missing required state fields.
-
-## Clarification Gate
-
-Ask one focused clarification question when state is missing or risky. Combine
-missing fields from the state table and child skills whenever practical.
-
-Clarify before drafting edit scripts when:
-
-- target zones are ambiguous;
-- water coils are requested without plant-loop names;
-- fan pressure rise lacks units;
-- DX cooling fallback lacks explicit approval;
-- schedule names/defaults are unresolved;
-- the requested air-loop name already exists;
-- output path would overwrite the input model.
-
-## Standards-Derived Defaults
-
-The workflow follows the OpenStudio Standards VAV reheat sequence from
-`model_add_vav_reheat`. Keep detailed implementation in child skills, but keep
-these global defaults in state:
-
-- design temperatures: preheat 45 F, precool 55 F, central heating 55 F,
-  central cooling 55 F, zone heating 104 F, zone cooling 55 F;
-- sizing load type `Sensible`;
-- system outdoor-air method `ZoneSum`;
-- sizing option `Coincident` unless user overrides;
-- minimum system airflow ratio `0.3` unless user overrides;
-- fan end-use subcategory `VAV System Fans`;
-- OA minimum limit type `FixedMinimum`;
-- night-cycle control `CycleOnAny`;
-- night-cycle runtime `1800` seconds;
-- terminal minimum airflow input method `Constant`;
-- damper heating action `Normal`;
-- zone heating maximum airflow fraction `1.0`.
-
-Convert all numeric SDK setter inputs to SI before execution and record
-conversions in state.
-
-## Phase Result Contract
-
-Every phase script must print the standard `openstudio_sdk_model_editor` JSON
-result plus a narrow `state_patch`:
-
-```json
-{
-  "ok": true,
-  "mode": "edit_model",
-  "input_model_path": "...",
-  "output_model_path": "...",
-  "changes": [],
-  "warnings": [],
-  "counts": {},
-  "summary": "...",
-  "state_patch": {
-    "completed_steps": [],
-    "pending_steps_remove": [],
-    "created_objects": {},
-    "assumptions": [],
-    "warnings": []
-  }
-}
+```text
+<verified-executable> execute_python_script <skill-dir>/scripts/vav_preflight.py --input <input.osm> --config <config.json> --report <plan.json>
+<verified-executable> execute_python_script <skill-dir>/scripts/vav_apply.py --plan <plan.json> --report <apply-report.json>
 ```
 
-## Final Handoff
+Use absolute paths and new report paths; quote shell paths containing spaces.
+Check each exit code separately. Require the persisted plan's `ready: true` and
+apply's `validation.ok: true` plus `translation.ok: true`. Full inventories and
+assumption ledgers stay on disk. Unready summaries show at most eight candidates
+per category, total counts, and a truncation marker. Use `--candidate-filter`
+with a name fragment or read the full report only for the relevant selection.
+`report.py` remains a troubleshooting utility for old logs, not the normal flow.
 
-After validation, summarize:
+## Supported inputs and assumptions
 
-- final model path;
-- completed and pending steps;
-- created object names;
-- assumptions and warnings;
-- validation results.
+### Review assumptions with the user
 
-Then recommend MCP handoff: `model_load`, `model_validate`, `sim_run`,
-`results_query` with `sizing_summary`, and review of autosized flow/capacity
-outputs before annual simulation.
+Use a compact review table or the host's question/form interface rather than
+"enable prototype_vav_v1 or stop". Label the profile "generic prototype settings";
+keep its machine identifier in the saved configuration. Offer "Use the proposed
+settings" and "Review and adjust". Cancellation is a separate explicit choice.
+
+1. Run partial configured preflight without `defaults_profile` when undecided.
+   Its saved `assumption_review` proposes values from the same canonical defaults
+   used by the builder, preserves supplied values, and labels editable inputs
+   versus fixed controls. `needs_review` is not approval or an executable plan;
+   expected missing-input errors keep apply blocked while discussion continues.
+2. Group the review into schedules/fan; ventilation/economizer/airflow;
+   temperatures/sizing; and equipment/controls. Show columns **Setting, Value,
+   Source, Can change**. Include units; emphasize proposed values and unresolved
+   choices. Show only controls relevant to selected equipment (e.g. no gas burner
+   efficiency for an all-electric system), keeping the full record on disk.
+3. Ask which group to adjust, then ask only its unresolved choices. Put supported
+   changes in configuration fields from the input schema. Preserve earlier user
+   choices; do not require confirmation of the same values again. Fixed controls
+   are not currently editable: explain a requested unsupported change and retain
+   it as pending for separately scoped bundle development/provider coverage.
+   Never claim it was applied or silently revert it to the profile value.
+4. Present the resulting selection and the relevant fixed controls together.
+   Once the human accepts those remaining generic controls, set `defaults_profile`
+   and rerun preflight. Keep custom input values explicit. Review newly introduced
+   changes only; apply only a ready saved plan with established authorization.
+
+For example, a review row can show `fan.pressure_rise: 750 Pa | user input |
+editable`, while `night_cycle: CycleOnAny | generic control | fixed in this bundle`.
+Do not describe profile selection as changing only hidden controls if it also
+fills missing editable inputs. The form is an agent-guided review using host UI
+or Markdown, not a separately installed web application.
+
+Selectors use exactly one name or handle; duplicate names require handles.
+Selected zones need spaces and a thermostat, must not be plenums, and must have
+no existing HVAC. Specify a new absolute `.osm` output; the VAV transaction itself requires unserved zones; the HVAC-removal skill
+prepares selected existing systems for replacement.
+
+Water coils require explicitly selected compatible existing plants with supply
+equipment, an outlet setpoint manager, and suitable design supply/return
+temperatures. These checks do not establish equipment capacity or control
+performance. Use the plant-loop skill to create missing plants first. Central heating supports Water, NaturalGas, Electricity, or None;
+reheat supports the same choices; cooling supports Water or explicitly approved
+DXTwoSpeed (`dx_approved: true`). Fan pressure needs a value and Pa/inH2O units.
+The contract covers existing operation/OA schedules, optional return plenum,
+economizer, airflow fractions, sizing option, and design temperatures.
+
+`defaults_profile: prototype_vav_v1` selects generic prototype assumptions only
+when the human explicitly selected those generic defaults. The plan lists every supplied default.
+This follows the inner standards VAV builder; the outer prototype dispatcher
+always selects hydronic VAV and can create plants. Independent coil/plant-role
+selection and central heating None are explicit extensions. Template controls,
+compliance processing, and ventilation adequacy are not established by this
+profile. New SDK UUIDs differ across runs; settings and topology are deterministic.
+
+## Failures and continuity
+
+On failure, read the persisted error, resolve that cause, and rerun preflight if
+inputs or configuration changed. Do not edit bundled code, generate an alternative
+VAV script, or switch SDK/runtime to work around the failure. Unsupported scope
+needs a separately scoped development/repair task. If report publication fails after a model was created, retain the returned output
+path and diagnose the report destination; never repeat creation merely to obtain
+a report. A new plan/report must use new paths.
+
+Existing output and concurrent destination writers are preserved. Repeating apply
+refuses the existing output and companion folder. Apply carries referenced weather,
+external files, referenced measures and supported file arguments into the Application-style
+`<output-stem>/` folder, hashes dependencies, rewrites portable paths and emits
+`workflow.osw`. Missing required model external files and ambiguous workflows block.
+Missing weather warns and leaves simulation pending.
+EnergyPlus translation is checked before publishing. Hard-link publication is
+atomic when supported; otherwise exclusive copy still refuses an existing output,
+but concurrent readers can see a partial file until the success report. Cloud
+sync completion is not guaranteed by local publication. Failed writes clean up
+owned partial files; failed creation can leave parent directories.
+
+The saved configuration, plan, logs and apply report provide local continuity.
+If an active long-running task already uses `openstudio-workflow-state`, normalize
+and record the reports' `state_patch`, output path, assumptions and validation.
+Workflow-state MCP calls are separate from script execution; their availability
+is not a prerequisite for this local operation. If NLR currently owns the model,
+respect its recorded provider transition and host-visible path before SDK work.
+
+Missing weather produces a warning and `simulation_ready=false`; it does not block
+VAV editing. Missing referenced model external data blocks editing. Unavailable workflow measures
+or input arguments warn and mark simulation unready; empty/output arguments are retained. Copying
+uses OpenStudio workflow lookup, omits repository metadata, blocks secret-like
+files and limits referenced resources to 256 MiB. Move the OSM and its companion
+folder together; resolve resources through the companion workflow.
+
+For outputs with external CSV schedules, inspect `requires_companion_workflow`.
+Use `OpenStudio::Model.load` / Python `openstudio.model.Model.load`, or attach
+`<stem>/workflow.osw` before translating. Plain VersionTranslator loads can lose
+external filenames without reporting translator errors; the apply report checks
+this separately from the workflow-attached gate. Keep the OSM and companion
+folder together. The harness preserves external resources in its model snapshot
+and simulation job and simulates the saved model without re-running source measures.

@@ -31,14 +31,18 @@ def apply_state_patch(state: dict[str, Any], patch: dict[str, Any]) -> dict[str,
 def mark_phase_complete(state: dict[str, Any], phase: str) -> dict[str, Any]:
     patch = {"completed_steps": sorted(set(state.get("completed_steps", [])) | {phase})}
     next_state = apply_state_patch(state, patch)
-    next_state["pending_steps"] = [item for item in next_state.get("pending_steps", []) if item != phase]
+    next_state["pending_steps"] = [
+        item for item in next_state.get("pending_steps", []) if item != phase
+    ]
     return next_state
 
 
 def record_assumption(state: dict[str, Any], assumption: str) -> dict[str, Any]:
     assumptions = list(state.get("assumptions", []))
     assumptions.append(assumption)
-    return apply_state_patch(state, {"assumptions": assumptions})
+    next_state = apply_state_patch(state, {})
+    next_state["assumptions"] = assumptions
+    return next_state
 
 
 def record_artifact(state: dict[str, Any], artifact: dict[str, Any]) -> dict[str, Any]:
@@ -53,10 +57,19 @@ def record_failure(state: dict[str, Any], failure: dict[str, Any]) -> dict[str, 
     return apply_state_patch(state, {"failures": failures, "status": "needs_attention"})
 
 
-def _deep_merge(target: dict[str, Any], patch: dict[str, Any]) -> None:
+def _deep_merge(
+    target: dict[str, Any], patch: dict[str, Any], *, history: bool = True
+) -> None:
     for key, value in patch.items():
         if isinstance(value, dict) and isinstance(target.get(key), dict):
-            _deep_merge(target[key], value)
+            _deep_merge(target[key], value, history=False)
+        elif (
+            history
+            and key in {"completed_steps", "assumptions"}
+            and isinstance(value, list)
+        ):
+            entries = list(target.get(key, []))
+            entries.extend(item for item in value if item not in entries)
+            target[key] = entries
         else:
             target[key] = value
-

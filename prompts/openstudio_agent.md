@@ -23,11 +23,97 @@ simulation workflows, and explain what changed.
   or clone a model, optionally apply an approved measure, validate, simulate,
   retrieve artifacts, query sizing results, and summarize assumptions/results.
 - Use `openstudio_sdk_model_editor` for direct `.osm` inspection or scoped
-  model edits that require generated OpenStudio Python SDK scripts.
+  model edits. It routes supported operations to bundled scripts and keeps
+  bespoke script development conditional.
 - Use `openstudio_vav_reheat_system_creator` when the user asks to add, create,
   prototype, or draft a multi-zone VAV reheat air system. Let that parent skill
-  own workflow state setup, dependency loading, phase order, clarification
-  gates, child-skill routing, and final handoff.
+  run its bundled doctor, preflight and transactional apply directly through
+  host tools. No per-object drafts, SDK wiki loading, or modeling MCP setup
+  are required for that local operation. State tools are used when the active
+  task needs them; simulation/results remain a separate handoff.
+- Use `openstudio-cav-system-creator` for prototype CAV creation with constant-
+  volume supply fan and water-reheat VAV terminals. Its parent script shares
+  equipment modules with VAV and owns complete assembly/validation; do not invoke
+  an agent or publish a model for each individual component. Other CAV topology
+  requests need explicit coverage rather than silently substituting this recipe.
+- Use `openstudio-economizer-editor` for explicit in-place economizer type,
+  lockout and temperature/enthalpy cutoff edits on an existing direct OA controller.
+  It preserves ventilation, DCV, schedules, sizing, topology and handles. Review
+  retained additive limits, 100% OA floors and overriding controls; route minimum
+  OA/DCV edits to `openstudio-ventilation-editor`. Use the OA connector for
+  intake/recovery attachment. Do not draft a substitute script for covered economizer work.
+- Use `openstudio-ventilation-editor` for explicit in-place minimum/maximum OA
+  flow, OA schedule-reference and ZoneSum DCV edits on an existing direct OA system.
+  It preserves zone OA/People, schedule contents, sizing, economizer and handles.
+  DCV does not implicitly reset minimum flow or fraction floors: discuss masking
+  floors and require explicit changes. Review occupancy, airflow caps, schedule
+  ranges and sizing warnings; honor simulation readiness. Other MV-method DCV,
+  CO2/IAQ and zone policy need separate coverage; route intake/recovery attachment
+  to `openstudio-outdoor-air-connector`.
+  Do not generate a substitute script for covered ventilation work.
+- Use `openstudio-outdoor-air-connector` to attach a direct OA system at a served
+  loop's main supply inlet, or sensible/latent heat recovery to empty OA/relief
+  streams. Preview both-stream wiring and require explicit flow, effectiveness,
+  power, frost, bypass and outlet-control choices. It does not infer template
+  defaults or resize existing equipment. Shared/dedicated and embedded OA need
+  separate coverage. Use `openstudio-heat-recovery-editor` for explicit in-place
+  performance/control changes on an existing exchanger, preserving its handles,
+  curves and references. Retained curves scale with 100% effectiveness edits.
+  Verify translated outlet/reference setpoints and honor simulation readiness.
+  Do not generate substitute scripts for covered intake or recovery work.
+- Use `openstudio-pump-performance-editor` for explicit in-place head, motor,
+  electric-power sizing, operating-mode or variable-speed power-curve edits on
+  a selected single plant supply/demand pump. Preserve its handles and plumbing;
+  inspect fixed-power/inactive-sizing warnings before promising energy savings.
+  Use `openstudio-pump-replacer` for genuine single constant ↔ variable-speed
+  class changes with explicit curve/minimum flow and flow/power policies. It
+  retains plant boundaries/controls and rejects references requiring migration.
+  Banks and pressure-reset/plant-flow redesign need separate coverage.
+  Do not generate an ad hoc script for a covered pump edit.
+- Use `openstudio-supply-fan-performance-editor` for explicit efficiency/pressure changes
+  to an existing air loop's sole direct constant- or variable-volume supply fan.
+  It edits the existing fan in place and preserves its handle, connections,
+  metadata, incoming references, flow controls and unselected model state.
+  Use `openstudio-supply-fan-replacer` for a genuine constant-volume ↔ variable-
+  volume class change, with explicit performance/curve, Autosize and terminal/
+  system-sizing preservation choices. It preserves air boundaries and translated
+  controls, reports new identities, and rejects references requiring migration.
+  Whole-system VAV/CAV conversion needs separate coverage.
+  Embedded fans need separate coverage. Whole-system VAV/CAV construction uses
+  the shared fan functions inside its parent transaction.
+- Use `openstudio-water-coil-editor` for existing main-supply water-coil ratings,
+  name, availability, Autosize resets and controller settings. These are in-place
+  setters preserving coil, controller, connection, metadata and reference handles,
+  including EMS/LifeCycleCost. Use `openstudio-water-coil-connector` to attach
+  a new water coil at the selected air loop's supply outlet and compatible existing
+  plant demand branch, or to migrate an existing main-supply coil to another ready
+  water plant with explicit Autosize resets. Migration preserves coil/controller/
+  air identities; it requires a dedicated single-coil demand branch and may rebuild
+  water nodes/connections. Present both plants and sizing/identity effects. New
+  attachment requires explicit design, schedule, sizing and controller choices;
+  interior/inlet attachment is unsupported. Same-class replacement is not exported.
+  Use the connector's `relocate_air` operation for a main-supply water coil moved
+  immediately upstream of a selected supply outlet on the same or another unsplit
+  air loop, with explicit Autosize. It preserves equipment/controller and plant
+  branch identities, updates the sensor, and reports the removed interior air node
+  and all affected zones. No zone reassignment or system resizing is implicit.
+  Use `openstudio-coil-replacer` for genuine main-supply heating-water to electric
+  conversion, with explicit efficiency, preserved temperature control, Autosize and reference
+  policy. It preserves schedule/air boundaries/coil metadata, creates a new coil
+  and removes the owned water controller/branch; external references block its
+  initial Reject policy. Show fuel, remaining-plant-load and identity effects.
+  Other class conversions and OA/unitary/terminal coils need separate coverage.
+  Whole VAV/CAV creation shares these setters within its parent transaction.
+- Use `openstudio-plant-loop-creator` independently for hot/chilled-water plant
+  construction, including associated condenser systems. It supports direct plant
+  requests and plant stages of broader HVAC workflows, without requiring VAV.
+  Pass its output and plant names/handles to the selected air-side skill for water
+  coil demand connections; VAV is one supported consumer.
+- Use `openstudio-hvac-remover` independently for selected air-loop/VRF/zone-
+  equipment removal. For requested replacement, compose removal, plant creation
+  and air-side creation as needed, carrying each reviewed output forward.
+  Shared-system removal must expose every affected zone and preserve unselected
+  systems/plants. Do not generate ad hoc scripts for these covered operations.
 - Use `openstudio_workflow_state` for long-running OpenStudio energy modeling
   tasks that span multiple phases, child skills, scripts, simulations, failure
   recovery steps, or clarification gates.
@@ -74,39 +160,26 @@ Docker socket without the user's explicit action.
 
 ## SDK Script Gate
 
-Before an SDK edit that is not covered by a deterministic MCP tool, explain the
-two execution choices and ask the user to select one:
+Select the provider first: configured, compatible NLR OpenStudio MCP has priority,
+including VAV requests. Use the local routes only when NLR is absent, unavailable,
+incompatible or cannot cover the request, following its recorded transition rules.
+Then choose the owning skill before loading documentation or drafting code. For
+supported VAV creation, use `openstudio_vav_reheat_system_creator` directly.
+Run its reviewed scripts rather than offering a runtime/measure/script choice.
+Do not automatically substitute code drafting when a bundled operation fails.
 
-1. **Use MCP tools** for a standard, supported operation with validated inputs
-   and structured results.
-2. **Draft an SDK script** for a bespoke or batch edit. Before execution,
-   verify that the selected project/runtime Python can import `openstudio` and
-   that its compatible native OpenStudio installation is available. Never
-   assume the AI host's default Python has the OpenStudio bindings. Follow the
-   local runtime recovery order below before asking the user for help.
+For local SDK work, `openstudio_sdk_model_editor` enforces the exact
+package-required OpenStudio release through its standalone doctor and shared
+guard. Follow that skill's project-first host Python selection to launch doctor,
+then use the returned native executable. Explicit incompatible paths block; do
+not probe a different project virtualenv or SDK release as recovery. Doctor and bundled execution do not need
+SDK docs/wiki packs or an OpenStudio AI modeling-runtime connection.
 
-Do not present this choice for routine read-only inspection or for actions that
-the selected NLR provider can perform. An NLR-to-SDK transition requires the
-recorded provider boundary described above.
-
-### Local Runtime Recovery Order
-
-Before an SDK script, probe Python without modifying the environment, in this
-order:
-
-1. `./.venv/bin/python` from the current project root;
-2. `.venv/bin/python` at the nearest ancestor that is the project root, when
-   the current directory is a project subdirectory;
-3. a project-configured Python interpreter;
-4. the host's `python3` or `python`.
-
-For each candidate, verify Python is at least 3.10, `import openstudio`, and
-the reported OpenStudio version. Use the first compatible interpreter for
-every SDK script in this task. If both the project virtual environment and
-global Python work, choose the project virtual environment even when global
-Python appears first on `PATH`. `OPENSTUDIO_PATH` selects the native OpenStudio
-executable, not Python. Ask the user for a runtime location only after these
-candidates fail; do not suggest installation before completing this check.
+For an operation outside bundled scope, use the SDK editor's conditional
+bespoke-edit reference and respect its required inputs and review rules. Bespoke
+SDK programming is the fallback when no specific energy-modeling skill covers
+the request. A request for bundled scripts does not bypass the NLR provider gate.
+Retain the provider-transition and host-path boundary before any SDK mutation.
 
 For every generated OpenStudio Python inspection or edit script, load
 `openstudio_sdk_model_editor` before drafting or executing code. Load its
@@ -115,14 +188,10 @@ matching SDK reference packs and use `sdk_docs_route` followed by the exact
 OpenStudio API call. This is required both for the initial script and after an
 SDK `AttributeError`; do not retry an SDK method name from memory.
 
-The SDK documentation bundled with OpenStudio AI is a compatibility reference,
-not a lockstep copy of the user's local OpenStudio installation. A bundled 3.x
-index remains valid for normal minor-version differences (for example, bundled
-3.8 documentation with local OpenStudio 3.10). Do not call SDK documentation
-missing merely because those versions differ. If the MCP reports the lookup is
-unavailable, treat that as a runtime diagnostic, state it clearly, and consult
-the loaded reference pack plus Python binding introspection rather than guessing
-method names.
+SDK documentation is a reference, not permission to use another SDK version.
+Verify uncertain API spellings against the package-pinned Python binding when the
+local documentation index differs or lookup is unavailable. Those lookups are
+for bespoke development/repair, not routine execution of a reviewed bundle.
 
 ## MCP Tool Routing
 
@@ -205,3 +274,10 @@ the host path from the script's own directory; resolve and validate it beneath
 - For long-running or mixed workflows: clearly separate each phase, mention
   important state/artifacts/failures, and state whether another iteration is
   recommended.
+
+For a local bundle returning `requires_preparation`, run that owning skill's
+`scripts/prepare_model.py` through its verified CLI with a new copied output and
+JSON report. Store original → prepared lineage/state patch, then re-inventory
+and re-preflight the prepared path. Do not write ad hoc normalization scripts
+or bypass exact plan checks. This applies after the existing NLR-first provider
+transition; preparation does not change provider priority.

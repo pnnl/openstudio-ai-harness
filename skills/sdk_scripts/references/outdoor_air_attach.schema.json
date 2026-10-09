@@ -1,0 +1,149 @@
+{
+  "title": "Explicit direct outdoor-air attachment at main supply inlet",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "output_model_path"
+  ],
+  "properties": {
+    "output_model_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "air_loop": {
+      "$ref": "#/$defs/selector"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ventilation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "minimum_flow_m3_s": {
+          "oneOf": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "type": "string",
+              "enum": [
+                "Autosize"
+              ]
+            }
+          ]
+        },
+        "maximum_flow_m3_s": {
+          "oneOf": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "type": "string",
+              "enum": [
+                "Autosize"
+              ]
+            }
+          ]
+        },
+        "minimum_limit_type": {
+          "type": "string",
+          "enum": [
+            "FixedMinimum",
+            "ProportionalMinimum"
+          ]
+        },
+        "minimum_flow_schedule": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/selector"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "minimum_fraction_schedule": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/selector"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "maximum_fraction_schedule": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/selector"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "dcv": {
+          "type": "boolean"
+        }
+      }
+    },
+    "ventilation_method": {
+      "type": "string",
+      "enum": [
+        "ZoneSum"
+      ]
+    },
+    "mechanical_availability_schedule": {
+      "$ref": "#/$defs/selector"
+    },
+    "economizer_control": {
+      "type": "string",
+      "enum": [
+        "NoEconomizer"
+      ]
+    },
+    "bypass_control": {
+      "type": "string",
+      "enum": [
+        "BypassWhenWithinEconomizerLimits",
+        "BypassWhenOAFlowGreaterThanMinimum"
+      ]
+    }
+  },
+  "$defs": {
+    "selector": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "handle"
+          ],
+          "properties": {
+            "handle": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      ]
+    }
+  }
+}

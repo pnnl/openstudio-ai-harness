@@ -54,7 +54,7 @@ def test_claude_code_adapter_writes_mcp_config_and_instructions(tmp_path: Path) 
     instructions = (tmp_path / ".claude" / "CLAUDE.md").read_text(encoding="utf-8")
     assert GENERATED_START in instructions
     assert "OpenStudio AI Harness" in instructions
-    assert "openstudio_hvac_air_loop_creator.md" in instructions
+    assert "openstudio_vav_reheat_system_creator.md" in instructions
     assert "HVAC_CHILD_SKILL_MANAGEMENT.md" not in instructions
 
 
@@ -122,12 +122,14 @@ def test_claude_code_adapter_exports_plugin_package(tmp_path: Path) -> None:
     assert "Before suggesting installation, use read-only discovery" in simulate_skill
     assert "Only when discovery finds no executable" in simulate_skill
     assert (
-        plugin_dir / "skills" / "openstudio-hvac-air-loop-creator" / "SKILL.md"
+        plugin_dir / "skills" / "openstudio-vav-reheat-system-creator" / "SKILL.md"
     ).exists()
     delegated_nlr_skill = plugin_dir / "skills" / "delegated-nlr-modeling" / "SKILL.md"
     assert delegated_nlr_skill.exists()
     assert "NLR Skill Guidance" in delegated_nlr_skill.read_text(encoding="utf-8")
-    assert "NLR Mount-Access Recovery" in delegated_nlr_skill.read_text(encoding="utf-8")
+    assert "NLR Mount-Access Recovery" in delegated_nlr_skill.read_text(
+        encoding="utf-8"
+    )
     assert not (
         plugin_dir / "skills" / "HVAC-CHILD-SKILL-MANAGEMENT" / "SKILL.md"
     ).exists()
@@ -222,8 +224,10 @@ def test_claude_code_adapter_exports_plugin_package(tmp_path: Path) -> None:
     assert "Never promote them" in agent_prompt
     assert "## SDK Script Gate" in agent_prompt
     assert "do not retry an SDK method name from memory" in agent_prompt
-    assert "bundled 3.x" in agent_prompt
-    assert "./.venv/bin/python" in agent_prompt
+    sdk_skill = plugin_dir / "skills/openstudio-sdk-model-editor"
+    contract = json.loads((sdk_skill / "scripts/compatibility.json").read_text())
+    assert contract["required_openstudio_version"] == "3.11.0"
+    assert (sdk_skill / "references/openstudio_sdk_generated_edits.md").is_file()
     assert "./nlr-workspace/runs/<suffix>" in agent_prompt
     assert "NLR Mount-Access Recovery" in agent_prompt
     readme = (plugin_dir / "README.md").read_text(encoding="utf-8")
@@ -327,10 +331,10 @@ def test_claude_code_adapter_exports_workflow_skill_frontmatter(tmp_path: Path) 
     assert skill.startswith("---\n")
     assert "name: add-vav-reheat\n" in skill
     assert (
-        "description: Plan and execute a phased OpenStudio VAV reheat workflow.\n"
+        "description: Add a multi-zone VAV system using the parent skill's bundled scripts.\n"
         in skill
     )
-    assert "\n---\n\n# Add VAV Reheat" in skill
+    assert "\n---\n\nPrioritize configured, compatible NLR OpenStudio MCP" in skill
     propose_measure = (
         tmp_path / "openstudio-ai" / "skills" / "propose-measure" / "SKILL.md"
     ).read_text(encoding="utf-8")
@@ -345,14 +349,14 @@ def test_claude_code_adapter_exports_skill_frontmatter(tmp_path: Path) -> None:
         tmp_path
         / "openstudio-ai"
         / "skills"
-        / "openstudio-hvac-air-loop-creator"
+        / "openstudio-vav-reheat-system-creator"
         / "SKILL.md"
     ).read_text(encoding="utf-8")
     assert skill.startswith("---\n")
-    assert "name: openstudio-hvac-air-loop-creator\n" in skill
-    assert "description: Create or confirm the parent AirLoopHVAC object" in skill
+    assert "name: openstudio-vav-reheat-system-creator\n" in skill
+    assert "description: Create a multi-zone VAV system in an OSM" in skill
     assert "version: 0.4.0\n" in skill
-    assert "\n---\n\n## Scope" in skill
+    assert "\n---\n\n## Direct script workflow" in skill
 
 
 def test_claude_code_adapter_export_plugin_dry_run_does_not_write(

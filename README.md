@@ -14,10 +14,142 @@ knowledge, and workflow-state tools for AI-assisted building-energy modeling.
   by Claude Code and Codex through MCP; the CLI curates candidates and detects
   repeated scripts as candidate measures. “Opt-in” means explicit learning-tool
   invocation, not a runtime enable/disable setting.
-- HVAC workflow skills and generated child skills.
+- HVAC workflow skills with a bundled VAV creation workflow; legacy object-level
+  VAV skills and their generation machinery have been removed.
+- VAV and prototype CAV now compose shared equipment scripts in one system
+  transaction. The CAV skill supports a constant-volume supply fan, water heat/
+  reheat and water or approved DX cooling with VAV-reheat terminals. See the
+  [modularization review guide](docs/HVAC_MODULARIZATION_WORK.md) for phases,
+  source trace, supported arrangements and verification. CAV requires
+  an explicit outdoor-air choice and aligns 100% OA operation with coil sizing;
+  approved CAV plans must be regenerated after this correction.
+- The independent `openstudio-supply-fan-performance-editor` skill edits explicit
+  efficiency/pressure values on a selected air loop's direct constant- or
+  variable-volume fan in place. Fan, connection, metadata and reference handles
+  remain stable, including LifeCycleCost and EMS actuators. Saved validation and
+  translation precede publication of a new copy. VAV/CAV creation requires complete
+  performance inputs and shares setters/pressure conversion with this editor.
+  `openstudio-supply-fan-replacer` now handles genuine constant ↔ variable-volume
+  replacement with explicit curve/performance and terminal/system-sizing choices.
+  It preserves air boundary nodes and translated controls, reports changed fan/
+  connection identities, and rejects references needing migration. Existing
+  compatible fan-name outputs/custom electricity meters remain intact. An optional
+  explicit end-use label supports reporting changes; stale retained labels warn.
+  Terminals and system sizing remain unchanged; whole-system conversion and
+  embedded fans require separate coverage.
+- `openstudio-pump-performance-editor` edits one existing single constant- or
+  variable-speed plant pump on either supply or demand side, retaining its
+  identity, connections, metadata and references. Explicit head, motor settings,
+  operating mode, electric-power sizing and variable-speed coefficients use a
+  reviewed copy transaction. Plans expose fixed power, inactive sizing factors
+  and motor feasibility that requires sizing when flow is autosized;
+  saved checks and translation precede publication. Native cases verify actual
+  power under both autosizing methods and fixed power.
+  `openstudio-pump-replacer` handles genuine single constant ↔ variable-speed
+  class changes with explicit rated-flow/power policies and variable-speed curve/
+  minimum flow. It retains plant position, boundary nodes, common controls and
+  compatible reporting references; pump/connection handles change. Native paired
+  runs verify unchanged design sizing and the selected operating-power curve.
+  Constant-speed supply plans expose explicit and translated demand bypasses,
+  warning when the OSM has none while preserving the requested plant topology.
+  Pump banks, pressure/VFD hardware and plant-flow redesign need separate coverage.
+- `openstudio-economizer-editor` changes explicit economizer type, lockout and
+  temperature/enthalpy cutoffs in place, preserving OA/MV identities, ventilation,
+  schedules, sizing and equipment. Plans expose retained additive limits and OA
+  overrides and verifies a translated mixed-air temperature setpoint source for
+  enabled economizers; missing control marks simulation unready. Saved checks
+  and translation precede copied publication. VAV/CAV
+  creation shares the canonical setters. Minimum-OA/DCV uses the independent
+  ventilation editor; direct intake/recovery attachment uses the OA connector.
+  Native VAV/CAV pairs verify actual
+  economizer status and OA-flow response on mild design days.
+- `openstudio-ventilation-editor` edits explicit minimum/maximum OA flow, schedule
+  references and existing ZoneSum DCV in place. Zone OA/People, schedule contents,
+  sizing, economizer, equipment and identities remain protected. The editor
+  preserves OSM flow/fraction settings unless explicitly changed. Plans expose occupancy inputs,
+  nominal OA, schedule ranges, caps and sizing/control warnings. DCV review
+  distinguishes declared and translated OA floors, flags
+  verified blocking floors as ineffective, and explains the SDK's Autosize-to-zero
+  DCV translation; partial floors retain qualified warnings. VAV/CAV share
+  the ventilation setters; saved validation and translation precede copied
+  publication. Native pairs verify occupancy-driven requested and actual OA
+  reductions, with unchanged full-occupancy requests. Other ventilation-method
+  DCV and CO2/IAQ policy need separate coverage.
+- `openstudio-outdoor-air-connector` attaches a direct OA intake to a served loop
+  without one, or sensible/latent recovery to empty direct OA/relief streams.
+  Explicit ventilation, effectiveness, power, frost, bypass and outlet-control
+  choices are previewed; both air streams and all new controls/curves are checked
+  after saving. Optional pretreat control requires a verified mixed-air reference.
+  `openstudio-heat-recovery-editor` edits an existing exchanger in place, retaining
+  curves, nodes, controls and incoming references. Plans explain curve scaling
+  and mark missing temperature control simulation-unready. Uncontrolled recovery
+  on cooled-air loops warns about added cooling load; native comparisons report
+  downstream coil energy alongside recovered heat. Native VAV/CAV cases
+  verify heat transfer, economizer lockout and newly attached intakes. Shared/
+  dedicated OA, embedded equipment and exchanger replacement need separate coverage.
+- Independent water-coil skills separate in-place settings edits from new attachment.
+  `openstudio-water-coil-editor` changes explicit ratings, names, availability,
+  autosizing and controller values, preserving coil/controller/connection/reference
+  handles. `openstudio-water-coil-connector` attaches only at the supply outlet and
+  finalizes its new controller after plant and air connections. It also migrates
+  existing main-supply water coils to another ready water plant, preserving coil/
+  controller/air identities while resetting sizing and rebuilding water links.
+  Its review reports remaining source-plant loads and warns when no coils remain;
+  active retained water-temperature mismatches name the editor for follow-up.
+  The connector also relocates a water coil to a selected supply outlet on the same
+  or another main air loop, preserving its plant branch and equipment identities.
+  `openstudio-coil-replacer` converts main-supply water heating to electric with
+  explicit efficiency, preserved temperature control, Autosize and reference-policy choices.
+  It reports removed water equipment and the new coil identity. Same-class
+  replacement remains internal. VAV/CAV share the setters; saved validation and
+  EnergyPlus translation precede publication. Heating UA
+  rated temperatures are optional, informational metadata. Missing plant equipment
+  or controls produces a warning for an in-place edit and marks simulation readiness false;
+  attachment requires a ready plant.
+- Independent bundled plant creation and selective HVAC removal support standalone
+  requests and broader HVAC workflows, including VAV replacement. Air-side skills
+  connect their water coils to the created plants. Plant choices include gas/electric boilers, district heating/cooling,
+  and air- or water-cooled chillers with condenser towers. Removal previews the SDK
+  cascade for selected air loops, VRF systems and zone equipment while protecting
+  existing plants and model loads. Both use reviewed plans and new output copies;
+  native design-day checks cover three plant-to-VAV configurations. See the
+  [supported assumptions and verification](docs/SKILL_BOUND_SDK_SUMMARY.md#plant-creation-and-hvac-removal-extension).
 - Reviewed OpenStudio SDK knowledge packs.
+- Skill resource export for both hosts, including verbatim scripts and nested
+  helpers. This package pins OpenStudio 3.11.0 consistently in its dependency,
+  lock metadata and exported compatibility contract. SDK skills include a
+  grouped assumption review with editable inputs and visible fixed controls;
+  declining proposed VAV defaults leads to review/adjust rather than cancellation.
+  SDK skills also include a
+  standalone doctor and shared version guard. The VAV skill includes read-only preflight, reviewed-plan apply,
+  exclusive publication, independent saved-topology and EnergyPlus translation
+  checks, referenced resource relocation through OpenStudio workflow lookup, and bounded summaries
+  with reports written directly by each entrypoint. Scripts run directly through host tools;
+  supported VAV edits require no modeling MCP runtime or per-object code drafting.
+  Outputs use portable references and Application-style companion folders; missing
+  weather warns without blocking VAV editing. External CSV outputs report when
+  they require the companion workflow; model snapshots and simulations retain
+  those resources. Runtime snapshots use absolute CSV references across measure
+  copies; CSV resource failures warn during load so inspection and repair remain
+  available, then block simulation until repaired and reloaded. Weather warnings
+  remain visible and allow an explicit or later-set weather file. Follow-up regressions cover every
+  behavior control and native simulation after moving ScheduleFile resources.
+  Bespoke SDK guidance is a conditional reference. Native hydronic
+  and electric/DX design-day sizing checks cover a five-zone fixture. See
+  [Skill-bound SDK development summary](docs/SKILL_BOUND_SDK_SUMMARY.md). The specified
+  instruction route uses approximately 75% less text; actual agent-token savings
+  remain unmeasured. Configured, compatible NLR OpenStudio MCP has provider priority.
+  After provider selection, use a specific modeling skill; bespoke SDK programming
+  is the fallback for requests those skills do not cover.
 - Packaging north-star plan for stable `pip install` and marketplace agentic
   installation paths.
+
+Package/plugin releases are tied to their tested OpenStudio SDK release. Updating
+that release requires a new package/plugin release, coordinated dependency and
+compatibility changes, and native verification of exported bundles; changing the
+contract alone is not a supported upgrade. A newer NLR model must remain with a
+compatible provider or use a matching package release; local scripts never
+downgrade it. See [SDK release requirements](docs/SKILL_BOUND_SDK_SUMMARY.md#decisions-and-architecture).
 
 ## Development Setup
 

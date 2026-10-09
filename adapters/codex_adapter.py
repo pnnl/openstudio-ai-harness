@@ -12,6 +12,7 @@ from adapters.contracts import RUNTIME_MODES, HostAdapterConfig, HostLaunchPlan
 from adapters.runtime_helpers import write_runtime_helpers
 from harness.asset_manifest import (
     reference_exports_for_host,
+    resource_exports_for_host,
     skill_exports_for_host,
     skill_ids_for_host,
     skill_sources_for_host,
@@ -255,6 +256,10 @@ def _planned_export_files(
         export.target
         for export in reference_exports_for_host(workspace_root, plugin_dir, "codex")
     )
+    files.extend(
+        export.target
+        for export in resource_exports_for_host(workspace_root, plugin_dir, "codex")
+    )
     return sorted(files)
 
 
@@ -305,6 +310,9 @@ def _write_plugin_package(
         )
 
     _write_skill_references(plugin_dir / "skills", workspace_root)
+    for export in resource_exports_for_host(workspace_root, plugin_dir, "codex"):
+        export.target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(export.source, export.target)
 
 
 def _render_plugin_json() -> str:

@@ -31,6 +31,10 @@ def test_release_archives_exclude_local_openstudio_fixtures(tmp_path: Path) -> N
         name for name in wheel_names if name.startswith(wheel_blocked_prefixes)
     ]
     assert not wheel_blocked
+    assert "scripts/evaluate_skill_vav.py" not in wheel_names
+    assert "skills/sdk_scripts/common/companions.py" in wheel_names
+    assert "skills/sdk_scripts/common/files.py" in wheel_names
+    assert "openstudio_ai_mcp/model_resources.py" in wheel_names
     assert "openstudio_ai_mcp/server.py" in wheel_names
     assert "openstudio_ai_mcp/compatibility.py" in wheel_names
     assert "openstudio_ai_mcp/sdk_docs/docs/api/classes-3.10.0.yaml.gz" in wheel_names

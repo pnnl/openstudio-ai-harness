@@ -1,0 +1,68 @@
+{
+  "verified_date": "2026-10-04",
+  "required_openstudio_version": "3.11.0",
+  "reference_commit": "8bad404ef113019661fc0c14274a3554234219f7",
+  "fixture_sha256": "7af92ec11f5e929c3e93dc74e47ab760d81a3b88c049ec4f9849e2024e5a47be",
+  "cases": [
+    {
+      "case": "electric_dx",
+      "topology_checks": 138,
+      "fan_flow_m3_s": [
+        1.4310159079597569
+      ],
+      "terminal_flows_m3_s": [
+        0.25019314662245623,
+        0.27987617154145966,
+        0.3084520931154303,
+        0.3208497222460251,
+        0.3290476519091644
+      ],
+      "reheat_capacities_w": {
+        "CORE_ZN ZN REHEAT COIL": 3091.2831208940866,
+        "PERIMETER_ZN_1 ZN REHEAT COIL": 3297.6902248997844,
+        "PERIMETER_ZN_2 ZN REHEAT COIL": 2507.4164461187374,
+        "PERIMETER_ZN_3 ZN REHEAT COIL": 3215.531205202499,
+        "PERIMETER_ZN_4 ZN REHEAT COIL": 2804.8974357350266
+      },
+      "cooling_capacity_or_design_load_w": [
+        32763.42193699081
+      ],
+      "severe_errors": 0,
+      "fatal_errors": 0,
+      "warning_count": 29,
+      "node_connection_errors": false,
+      "energyplus_summary": "************* EnergyPlus Completed Successfully-- 29 Warning; 0 Severe Errors; Elapsed Time=00hr 00min  0.33sec",
+      "energyplus_error_log_sha256": "026e77178db37767fa6eb960a36efbff029967f54c627ce7bffe0d81ea2a881a"
+    },
+    {
+      "case": "hydronic",
+      "topology_checks": 193,
+      "fan_flow_m3_s": [
+        1.4310159079597569
+      ],
+      "terminal_flows_m3_s": [
+        0.25019314662245623,
+        0.27987617154145966,
+        0.3084520931154303,
+        0.3208497222460251,
+        0.3290476519091644
+      ],
+      "reheat_capacities_w": {
+        "CORE_ZN ZN REHEAT COIL": 1770.3748127124964,
+        "PERIMETER_ZN_1 ZN REHEAT COIL": 2908.2363432634374,
+        "PERIMETER_ZN_2 ZN REHEAT COIL": 1894.7094150883572,
+        "PERIMETER_ZN_3 ZN REHEAT COIL": 2880.3565005140294,
+        "PERIMETER_ZN_4 ZN REHEAT COIL": 1979.0243508075143
+      },
+      "cooling_capacity_or_design_load_w": [
+        32430.776104889635
+      ],
+      "severe_errors": 0,
+      "fatal_errors": 0,
+      "warning_count": 28,
+      "node_connection_errors": false,
+      "energyplus_summary": "************* EnergyPlus Completed Successfully-- 28 Warning; 0 Severe Errors; Elapsed Time=00hr 00min  0.41sec",
+      "energyplus_error_log_sha256": "49b210a283e0df2c11964de4d0600e56c160103ac6fc388033fae905f2841091"
+    }
+  ]
+}

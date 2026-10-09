@@ -114,12 +114,12 @@ def test_codex_adapter_exports_plugin_package(tmp_path: Path) -> None:
     assert (
         plugin_dir / "skills" / "openstudio-modeling-orchestrator" / "SKILL.md"
     ).exists()
-    delegated_nlr_skill = (
-        plugin_dir / "skills" / "delegated-nlr-modeling" / "SKILL.md"
-    )
+    delegated_nlr_skill = plugin_dir / "skills" / "delegated-nlr-modeling" / "SKILL.md"
     assert delegated_nlr_skill.exists()
     assert "SDK Fallback Boundary" in delegated_nlr_skill.read_text(encoding="utf-8")
-    assert "NLR Mount-Access Recovery" in delegated_nlr_skill.read_text(encoding="utf-8")
+    assert "NLR Mount-Access Recovery" in delegated_nlr_skill.read_text(
+        encoding="utf-8"
+    )
     assert (plugin_dir / "skills" / "add-vav-reheat" / "SKILL.md").exists()
     assert (plugin_dir / "skills" / "propose-measure" / "SKILL.md").exists()
     assert (plugin_dir / "skills" / "view-openstudio-geometry" / "SKILL.md").exists()
@@ -130,7 +130,7 @@ def test_codex_adapter_exports_plugin_package(tmp_path: Path) -> None:
     assert "## MCP-Only Boundary" in simulate_skill
     assert "do not use a local CLI fallback" in simulate_skill
     assert (
-        plugin_dir / "skills" / "openstudio-hvac-air-loop-creator" / "SKILL.md"
+        plugin_dir / "skills" / "openstudio-vav-reheat-system-creator" / "SKILL.md"
     ).exists()
     assert (plugin_dir / "skills" / "openstudio-workflow-state" / "SKILL.md").exists()
     assert not (
@@ -242,11 +242,11 @@ def test_codex_adapter_exports_plugin_package(tmp_path: Path) -> None:
         / "blackboard_contract.md"
     ).read_text(encoding="utf-8")
     source_skill = (
-        plugin_dir / "skills" / "openstudio-hvac-air-loop-creator" / "SKILL.md"
+        plugin_dir / "skills" / "openstudio-vav-reheat-system-creator" / "SKILL.md"
     ).read_text(encoding="utf-8")
     assert not sdk_index.startswith("---\n")
     assert not blackboard_contract.startswith("---\n")
-    assert "name: openstudio-hvac-air-loop-creator\n" in source_skill
+    assert "name: openstudio-vav-reheat-system-creator\n" in source_skill
     assert not (plugin_dir / "commands").exists()
     assert not (plugin_dir / "installers").exists()
     assert not (plugin_dir / "instructions").exists()

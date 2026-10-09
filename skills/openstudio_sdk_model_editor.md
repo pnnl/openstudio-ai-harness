@@ -1,9 +1,23 @@
 ---
 name: openstudio_sdk_model_editor
-description: Inspect and edit OpenStudio models through host Python execution and the OpenStudio Python SDK.
-version: 0.4.0
-output_format: markdown_with_json_summary
+description: Route local OSM inspection and edits to bundled SDK skills, or guide bespoke SDK scripts when no bundled operation applies.
+metadata:
+  version: 0.4.0
+  output_format: markdown_with_json_summary
 ---
+
+If inventory or preflight returns `status: requires_preparation`, run this bundled
+operation through the verified CLI before any modeling plan:
+
+```text
+<verified-cli> execute_python_script <skill>/scripts/prepare_model.py --input <original.osm> --output <new-prepared.osm> --report <new-preparation.json>
+```
+
+Store its `state_patch` and original → prepared `lineage` in workflow state. Use
+`output_model_path` for a fresh inventory and preflight; never reuse the blocked
+plan or write an ad hoc normalizer. `already_current` reuses the input and writes
+no model. Invalid current-version references require diagnosis rather than
+manufactured repair. See [model preparation](references/model_preparation.md).
 
 ## Scope
 
@@ -12,14 +26,17 @@ it to run simulations or retrieve simulation results. Simulation execution,
 polling, artifacts, and SQL-backed result retrieval belong to the OpenStudio MCP
 tools.
 
-Use host Python execution only when the task requires a generated Python script
-against a local `.osm` file. Host Python execution means the Python mechanism
+Use host execution for bundled SDK scripts and scoped generated scripts against
+a local `.osm` file. Bundled SDK scripts run directly through the host, without
+the OpenStudio AI MCP runtime or measure registry. Host execution means the mechanism
 available in the current agent host: AUTOMA-AI may expose `run_python`, Codex
 may use its shell/Python execution environment, Claude Code may use its
 approved command or script execution path, and some hosts may require asking the
-user to run the displayed script manually. Do not execute Python scripts for
-tasks that can be completed with MCP `model_*`, `sim_*`, or `results_*` tools.
+user to run the displayed script manually. Simulation and results use MCP
+`sim_*` and `results_*` tools. Bundled model-edit operations use their skill scripts.
 
+When NLR is configured and compatible, prioritize `delegated-nlr-modeling` before
+local SDK work. Requests mentioning scripts do not bypass that provider gate.
 When NLR is selected as the modeling provider, this skill is available only
 after `delegated-nlr-modeling` records a supported provider transition. It must
 use the host-visible staged model path recorded in the blackboard, never an NLR
@@ -41,247 +58,142 @@ Disallowed uses:
 - SQL result retrieval;
 - artifact retrieval;
 - network calls;
-- shell commands or subprocesses;
+- shell commands or subprocesses inside model-edit scripts (the bundled doctor
+  may launch read-only CLI and embedded SDK probes);
 - overwriting the original model unless explicitly requested.
 
-## Senior Modeler Workflow
+## Choose the operation first
 
-1. Classify the request before writing code:
-   - `inspect_only`: read model data and summarize.
-   - `edit_model`: make a safe copy and edit model objects.
-   - `simulate_or_results`: use MCP tools instead of host Python execution.
-   - `ambiguous_or_risky`: ask a clarifying question.
-2. Load SDK wiki context:
-   - call `sdk_docs_route` with the user request to identify likely SDK domains,
-     wiki packs, and OpenStudio classes;
-   - load `sdk_index` to choose relevant examples and confirm the routing
-     choice;
-   - load `sdk_core_patterns` before drafting an SDK script;
-   - load every required domain pack from **SDK Context-Pack Selection** below
-     before drafting code;
-   - when a request spans multiple domains, load all matching packs instead of
-     guessing from memory.
-3. Retrieve exact SDK documentation before drafting code:
-   - use `sdk_docs_get_method` for constructors, setters, getters, unit-sensitive
-     methods, and methods not already shown in the loaded wiki examples;
-   - use `sdk_docs_list_methods` when the class is known but the exact method
-     name is uncertain;
-   - use `sdk_docs_search_methods` or `sdk_docs_find_classes` when the class is
-     uncertain;
-   - summarize important retrieved facts before writing code, especially return
-     type, parameter type, units, optional values, and exception warnings.
-   - if SDK docs are not configured, state that exact local SDK docs were
-     unavailable and rely on loaded wiki examples plus targeted Python binding
-     introspection instead of guessing.
-4. Use Python binding introspection only as a targeted fallback:
-   - OpenStudio docs describe the C++ API, while the Python binding may expose
-     generated helper names;
-   - if a collection getter or generated binding method is not present in the
-     C++ docs, inspect `dir(model)` or `dir(openstudio.model.ClassName)` before
-     assuming a spelling;
-   - keep introspection snippets read-only and do not use them as permission to
-     edit the model.
-5. Confirm required inputs:
-   - model path or URI;
-   - target object scope, such as all spaces, a named space type, thermal zones,
-     envelope surfaces, schedules, loads, constructions, or HVAC objects;
-   - requested edit values and units;
-   - output path when an edit is requested.
-6. For any script that creates a new OpenStudio object in the model, review the
-   relevant SDK wiki pattern and `sdk_docs_get_method` constructor/setter docs
-   before drafting the script, then identify all required inputs:
-   - object name;
-   - numeric parameters and unit system;
-   - referenced model objects, such as schedules, constructions, thermal zones,
-     nodes, surfaces, or materials;
-   - target assignment location, such as a construction layer index, air loop,
-     space, zone, or building default set.
-   If any required value, unit system, or referenced object is missing, ask the
-   user for clarification before execution. OpenStudio setters generally expect
-   SI values; if the user provides IP values, convert them before calling the
-   SDK. If a setter requires another OpenStudio object, retrieve candidate
-   objects from the model and ask the user to select one. If the user explicitly
-   says to keep defaults, list assumptions with this exact format:
-   `Object:Name.parameter: assumed to be x`.
-7. Draft a short workflow before using host Python execution:
-   - input model path;
-   - inspection or edit target;
-   - OpenStudio SDK APIs expected to be used;
-   - loaded SDK wiki packs used as examples;
-   - SDK documentation methods retrieved with `sdk_docs_get_method`;
-   - any Python binding introspection used to verify method spelling;
-   - validation checks;
-   - output model path for edits.
-8. For edits, never overwrite the original model unless the user explicitly asks.
-   Write a new `.osm` under `outputs/` or another user-approved path.
-9. Prepare a bounded Python script for the current host's Python execution
-   mechanism, or split the task into multiple scripts when the scope is
-   complex. Use the script-length rules below.
-10. Summarize like a senior building energy modeler:
-   - what was inspected or changed;
-   - affected object counts and names when practical;
-   - before/after values for edits;
-   - assumptions and unresolved issues;
-   - output model path;
-   - recommended next step, usually validation or simulation via MCP.
+- For multi-zone VAV creation, load `openstudio_vav_reheat_system_creator` and
+  run its bundle after provider selection. Do this before loading SDK docs or
+  wiki packs. No routine object-level code drafting is needed.
+- For prototype CAV construction, use `openstudio-cav-system-creator`; its parent
+  composes shared equipment modules with a reviewed system-specific recipe.
+  Confirm the requested CAV topology matches its supported arrangement.
+- Use `openstudio-economizer-editor` for explicit in-place economizer type,
+  lockout and temperature/enthalpy cutoff edits on an existing direct OA controller.
+  It preserves ventilation, DCV, schedules, sizing, topology and handles. Review
+  retained additive limits, 100% OA floors and overriding controls; route minimum
+  OA/DCV edits to `openstudio-ventilation-editor`. Use the OA connector for
+  intake/recovery attachment. Do not draft a substitute script for covered economizer work.
+- Use `openstudio-ventilation-editor` for explicit in-place minimum/maximum OA
+  flow, OA schedule-reference and ZoneSum DCV edits on an existing direct OA system.
+  It preserves zone OA/People, schedule contents, sizing, economizer and handles.
+  DCV does not implicitly reset minimum flow or fraction floors: discuss masking
+  floors and require explicit changes. Review occupancy, airflow caps, schedule
+  ranges and sizing warnings; honor simulation readiness. Other MV-method DCV,
+  CO2/IAQ and zone policy need separate coverage; route intake/recovery attachment
+  to `openstudio-outdoor-air-connector`.
+  Do not generate a substitute script for covered ventilation work.
+- Use `openstudio-outdoor-air-connector` to attach a direct OA system at a served
+  loop's main supply inlet, or sensible/latent heat recovery to empty OA/relief
+  streams. Preview both-stream wiring and require explicit flow, effectiveness,
+  power, frost, bypass and outlet-control choices. It does not infer template
+  defaults or resize existing equipment. Shared/dedicated and embedded OA need
+  separate coverage. Use `openstudio-heat-recovery-editor` for explicit in-place
+  performance/control changes on an existing exchanger, preserving its handles,
+  curves and references. Retained curves scale with 100% effectiveness edits.
+  Verify translated outlet/reference setpoints and honor simulation readiness.
+  Do not generate substitute scripts for covered intake or recovery work.
+- Use `openstudio-pump-performance-editor` for explicit in-place head, motor,
+  electric-power sizing, operating-mode or variable-speed power-curve edits on
+  a selected single plant supply/demand pump. Preserve its handles and plumbing;
+  inspect fixed-power/inactive-sizing warnings before promising energy savings.
+  Use `openstudio-pump-replacer` for genuine single constant ↔ variable-speed
+  class changes with explicit curve/minimum flow and flow/power policies. It
+  retains plant boundaries/controls and rejects references requiring migration.
+  Banks and pressure-reset/plant-flow redesign need separate coverage.
+  Do not generate an ad hoc script for a covered pump edit.
+- Use `openstudio-supply-fan-performance-editor` for explicit efficiency/pressure changes
+  to an existing air loop's sole direct constant- or variable-volume supply fan.
+  It edits the existing fan in place and preserves its handle, connections,
+  metadata, incoming references, flow controls and unselected model state.
+  Use `openstudio-supply-fan-replacer` for a genuine constant-volume ↔ variable-
+  volume class change, with explicit performance/curve, Autosize and terminal/
+  system-sizing preservation choices. It preserves air boundaries and translated
+  controls, reports new identities, and rejects references requiring migration.
+  Whole-system VAV/CAV conversion needs separate coverage.
+  Embedded fans need separate coverage. Whole-system VAV/CAV construction uses
+  the shared fan functions inside its parent transaction.
+- Use `openstudio-water-coil-editor` for existing main-supply water-coil ratings,
+  name, availability, Autosize resets and controller settings. These are in-place
+  setters preserving coil, controller, connection, metadata and reference handles,
+  including EMS/LifeCycleCost. Use `openstudio-water-coil-connector` to attach
+  a new water coil at the selected air loop's supply outlet and compatible existing
+  plant demand branch, or to migrate an existing main-supply coil to another ready
+  water plant with explicit Autosize resets. Migration preserves coil/controller/
+  air identities; it requires a dedicated single-coil demand branch and may rebuild
+  water nodes/connections. Present both plants and sizing/identity effects. New
+  attachment requires explicit design, schedule, sizing and controller choices;
+  interior/inlet attachment is unsupported. Same-class replacement is not exported.
+  Use the connector's `relocate_air` operation for a main-supply water coil moved
+  immediately upstream of a selected supply outlet on the same or another unsplit
+  air loop, with explicit Autosize. It preserves equipment/controller and plant
+  branch identities, updates the sensor, and reports the removed interior air node
+  and all affected zones. No zone reassignment or system resizing is implicit.
+  Use `openstudio-coil-replacer` for genuine main-supply heating-water to electric
+  conversion, with explicit efficiency, preserved temperature control, Autosize and reference
+  policy. It preserves schedule/air boundaries/coil metadata, creates a new coil
+  and removes the owned water controller/branch; external references block its
+  initial Reject policy. Show fuel, remaining-plant-load and identity effects.
+  Other class conversions and OA/unitary/terminal coils need separate coverage.
+  Whole VAV/CAV creation shares these setters within its parent transaction.
+- For standalone plant construction or a plant stage of broader HVAC work, use
+  `openstudio-plant-loop-creator`; pass its output/plant selectors to the selected
+  air-side skill for water-coil connections when requested.
+- For scoped HVAC removal, independently or before requested replacement, use
+  `openstudio-hvac-remover`.
+  These are bundled operations, not bespoke-code fallbacks.
+- For other local inspection/edits, read
+  [bespoke SDK guidance](references/openstudio_sdk_generated_edits.md) only
+  after confirming that no specific energy-modeling skill provides the requested
+  operation. Bespoke SDK programming is the fallback for uncovered requests.
+- A failed or unsupported bundled operation is not permission to draft a
+  substitute; report the cause and scope any extension/repair separately.
 
-## Local Runtime Recovery
+## Exact SDK Release Gate
 
-Before executing an SDK script, resolve Python without installing anything.
-Check the current project's `./.venv/bin/python` first, or the nearest project
-root's `.venv/bin/python` when working in a subdirectory. Then check a
-project-configured Python, followed by the host's `python3` or `python`.
-For each candidate, verify its Python version is at least 3.10, that it can
-import `openstudio`, and the reported OpenStudio version. Use the first
-compatible interpreter for every SDK script in this task. When both the
-project virtual environment and a global interpreter work, choose the project
-virtual environment. Do not switch to the global interpreter merely because
-it appears first on `PATH`. `OPENSTUDIO_PATH` selects the native OpenStudio
-executable; it is not a Python interpreter. Ask the user for a runtime location
-only after these candidates fail.
+This package requires the exact OpenStudio release recorded in
+`scripts/compatibility.json`. Build metadata is allowed; prereleases and other
+patch releases are rejected. Do not change the contract to accommodate an installed version.
 
-## SDK Context-Pack Selection
+Before SDK model execution, run `scripts/doctor.py` beside this skill with a host
+Python 3.10+ interpreter. Prefer the current project's `./.venv/bin/python`, or
+its nearest project root's `.venv/bin/python` when working in a subdirectory;
+then try a project-configured interpreter, followed by host `python3` or `python`.
+Check the Python version without modifying the environment and use the first
+usable interpreter to launch doctor. `OPENSTUDIO_PATH` selects the native
+OpenStudio executable, not this host Python interpreter.
 
-Always load `sdk_index` and `sdk_core_patterns` first for SDK scripts. Then load
-the domain packs below based on the requested inspection or edit. Do not draft
-the Python script until all matching packs are loaded.
+Doctor uses only the standard library; the host Python does not need OpenStudio
+or OpenStudio AI installed. For Claude Code resolve the
+script through `${CLAUDE_SKILL_DIR}`; for Codex resolve it relative to this
+`SKILL.md`'s actual directory, not the user's current working directory.
 
-- Load `sdk_geometry` for geometry, building stories, spaces as geometric
-  containers, surfaces, subsurfaces, exterior walls, roofs, floors, WWR,
-  window/skylight/door area, shading surfaces, azimuth, orientation, cardinal
-  direction, north axis, centroid/vertex edits, or envelope area summaries.
-- Load `sdk_spaces_zones_loads` for spaces, thermal zones, plenums,
-  part-of-total-floor-area flags, zone multipliers, internal loads, people,
-  lights, electric/gas equipment, load densities, outdoor air, and
-  space/zone-level summary tables.
-- Load both `sdk_geometry` and `sdk_spaces_zones_loads` when a geometry task
-  also needs space or zone multipliers, thermal-zone grouping, floor area by
-  zone, or load summaries by space.
-- Load `sdk_constructions` for construction assignments, construction layers,
-  opaque materials, massless or standard material R-values, U-factor changes,
-  insulation edits, simple glazing, SHGC, visible transmittance, and
-  construction summaries by surface type.
-- Load both `sdk_geometry` and `sdk_constructions` when summarizing envelope
-  areas by construction, editing fenestration constructions, or changing
-  constructions on selected surfaces/subsurfaces.
-- Load `sdk_schedules` for schedule rulesets, schedule type limits, day
-  schedules, hourly profiles, multipliers, occupancy/lighting/equipment
-  schedules, and schedule value edits.
-- Load both `sdk_schedules` and `sdk_spaces_zones_loads` when inspecting or
-  editing loads that depend on schedules.
-- Load `sdk_daylighting` for daylighting controls, daylight sensors, sensor
-  position, illuminance setpoints, duplicate daylighting controls, and
-  daylighting-related model edits.
-- Load both `sdk_daylighting` and `sdk_geometry` when sensor placement depends
-  on floor vertices, space geometry, exterior fenestration, or centroid points.
-- Load `sdk_hvac` for air-loop topology, plant-loop topology, zone equipment,
-  thermostats, setpoint managers, coils, fans, outdoor air controllers, sizing
-  objects, HVAC availability schedules, and served-zone summaries.
-- Load `openstudio_vav_reheat_system_creator` in addition to `sdk_hvac` when
-  the user asks to add, create, prototype, or draft a multi-zone VAV reheat
-  system. That skill owns the VAV system creation sequence and required
-  clarification gates.
-- Load both `sdk_hvac` and `sdk_spaces_zones_loads` when HVAC information needs
-  to be summarized by space, thermal zone, or served zone.
-- Load `sdk_simulation_results` only to explain or review OpenStudio simulation
-  files, OSW setup, SQL attachment, or result-extraction idioms. Do not use this
-  pack as permission to run simulations or retrieve results through host Python
-  execution; route actual simulation and result workflows to MCP `sim_*` and
-  `results_*`.
-- Load `sdk_review_prompts` only when testing or reviewing the knowledge-base
-  routing behavior.
+Doctor can discover the required executable or accept `--openstudio /absolute/path`
+(also accepts `OPENSTUDIO_PATH`). Explicit paths are authoritative: incompatibility
+blocks execution rather than triggering fallback. Read its JSON report and exit
+code. Continue only when `ok` is true, using the returned absolute
+`openstudio_executable` to launch SDK scripts:
 
-Required geometry rule: if a script uses `surface.azimuth()`, it must use the
-`surface_azimuth_degrees(surface)` helper from `sdk_geometry`. Do not treat raw
-`surface.azimuth()` as degrees and do not manually convert with `math.pi`.
-If needed, verify this with `sdk_docs_get_method` for
-`PlanarSurface.azimuth`, which documents the angle in radians.
-
-Required OpenStudio API naming rule: follow the exact SDK method spelling shown
-in the loaded wiki examples. Some OpenStudio collection getters use historical
-plural spellings that do not match common English pluralization. For building
-stories, use the `sdk_geometry` example spelling exactly:
-`model.getBuildingStorys()`. If a generated Python collection getter is not
-present in the C++ SDK docs, verify it with Python binding introspection before
-drafting code.
-
-Required object-creation rule: when creating a new OpenStudio object, do not
-draft or execute the script until required names, numeric values, units,
-referenced model objects, and assignment targets are known. If missing, ask the
-user. If defaults are approved, list each assumption as
-`Object:Name.parameter: assumed to be x`.
-
-## Script Length And Multi-Step Rules
-
-Prefer small, inspectable scripts. Some hosts record script length metadata and
-failed executions for later experience review, but the agent must still keep
-scripts reviewable regardless of host.
-
-- For scripts up to 120 lines, a single script is acceptable when the task is
-  scoped and clear.
-- For scripts over 120 lines, provide a section map before execution and make
-  sure the full script is visible to the user as a fenced `python` block or text
-  artifact.
-- For scripts over 250 lines, do not execute as one script unless the user
-  explicitly approves a single long script. Split the work into phases instead.
-
-Use multi-step scripting for complex model edits, especially HVAC creation,
-multi-object schedule edits, construction library changes, and workflows that
-need user choices. The default phases are:
-
-1. **Preflight inspection**: read the model and report candidate zones,
-   schedules, loops, systems, constructions, or target objects.
-2. **Clarification gate**: ask the user to select missing objects, units,
-   defaults, and assumptions.
-3. **Focused edit script**: make one scoped copy/edit/save operation.
-4. **Validation script or MCP validation**: verify object counts, assignments,
-   warnings, and output model path.
-5. **Simulation handoff**: use MCP `sim_*` and `results_*` tools when simulation
-   or result retrieval is requested.
-
-When host Python execution fails, do not immediately retry from memory. Read the
-error, identify the failed SDK call or assumption, check loaded wiki context or
-SDK docs for the relevant class/method, then draft a shorter corrected script or
-debugging script. After three failed attempts, stop and ask the user to review
-the script and failure summary.
-
-## Required Script Result Contract
-
-The Python script should print one final JSON object with these fields:
-
-```json
-{
-  "ok": true,
-  "mode": "inspect_only|edit_model",
-  "input_model_path": "...",
-  "output_model_path": "...",
-  "changes": [],
-  "warnings": [],
-  "counts": {},
-  "summary": "..."
-}
+```text
+<verified-executable> execute_python_script <absolute-script-path> <arguments>
 ```
 
-If the task fails, print:
+Every executable SDK script must independently call the bundled
+`common.version_guard.require_sdk()` before loading or editing a user's model.
+The embedded launcher needs the script's folder added to `sys.path` to import
+its local helpers; follow `scripts/sdk_probe.py` when developing entrypoints.
+Doctor verifies CLI identity and the embedded SDK/model binding, but a prior
+successful doctor report never replaces the entrypoint's version check.
 
-```json
-{
-  "ok": false,
-  "error": "Clear failure reason.",
-  "warnings": []
-}
-```
+On failure, report the required and detected versions and the installation link
+from doctor. Request installation of the exact release or its executable path.
+Do not install automatically, use a different release, or fall back to a host
+virtualenv. CLI/SDK mismatch must be resolved before any model operation.
 
-## Safety Rules
-
-- Use `openstudio.openstudioosversion.VersionTranslator().loadModel(str(input_path))`
-  for loading.
-- Check `is_initialized()` before accessing the model.
-- Save edited models with `model.save(str(output_path), True)`.
-- Preserve the original model file.
-- Keep scripts deterministic and local-file only.
-- Do not import modules blocked by the current host's Python execution policy:
-  `subprocess`, `socket`, `requests`, `urllib`, or `ctypes`.
-- Do not import network libraries.
-- Do not use shell commands or subprocesses.
-- Do not perform simulation or results retrieval with host Python execution.
+Compatibility checks and supported bundled execution need no SDK wiki packs
+or API documentation lookup. Bespoke scripts follow the linked reference,
+including its API verification, required-input, result, and review rules.
+Execute them through the doctor-selected CLI with the shared guard; project
+Python environments are not an incompatible-version fallback.

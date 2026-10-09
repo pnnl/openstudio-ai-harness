@@ -24,6 +24,10 @@ def validate(
             target = target[part]
         return validate(value, target, root, path)
     errors = []
+    if "if" in schema:
+        branch = "else" if validate(value, schema["if"], root, path) else "then"
+        if branch in schema:
+            errors.extend(validate(value, schema[branch], root, path))
     if "oneOf" in schema:
         matches = sum(
             not validate(value, option, root, path) for option in schema["oneOf"]
@@ -73,6 +77,8 @@ def validate(
     if isinstance(value, list):
         if len(value) < schema.get("minItems", 0):
             errors.append(f"{path}: requires at least {schema['minItems']} items")
+        if "maxItems" in schema and len(value) > schema["maxItems"]:
+            errors.append(f"{path}: requires at most {schema['maxItems']} items")
         if schema.get("uniqueItems") and any(
             item in value[:i] for i, item in enumerate(value)
         ):

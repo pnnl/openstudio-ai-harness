@@ -40,9 +40,10 @@ reloads, checks protected objects and EnergyPlus translation before publishing a
 new model copy. It preserves schedules, fan curve/flow settings, sizing, plants,
 other systems and incoming references such as LifeCycleCost and EMS actuators.
 
-A request to replace a constant-volume fan with a variable-volume or variable-speed
-fan requires a separate class-changing replacement contract. Do not route that
-request here or reduce it to an efficiency edit. Embedded packaged/unitary or zone
+A request to replace a constant-volume fan with a variable-volume fan uses
+`openstudio-supply-fan-replacer` and its explicit curve/terminal/sizing contract.
+Do not reduce that request to an efficiency edit. Clarify other variable-speed
+fan classes before choosing this bounded replacement. Embedded packaged/unitary or zone
 fans, split supply paths and multiple direct fans also need separate coverage.
 Report covered failures without drafting a substitute or broadening the edit.
 

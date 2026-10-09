@@ -29,7 +29,23 @@ knowledge, and workflow-state tools for AI-assisted building-energy modeling.
   remain stable, including LifeCycleCost and EMS actuators. Saved validation and
   translation precede publication of a new copy. VAV/CAV creation requires complete
   performance inputs and shares setters/pressure conversion with this editor.
-  Embedded fans and class-changing replacement require separate coverage.
+  `openstudio-supply-fan-replacer` now handles genuine constant ↔ variable-volume
+  replacement with explicit curve/performance and terminal/system-sizing choices.
+  It preserves air boundary nodes and translated controls, reports changed fan/
+  connection identities, and rejects references needing migration. Existing
+  compatible fan-name outputs/custom electricity meters remain intact. An optional
+  explicit end-use label supports reporting changes; stale retained labels warn.
+  Terminals and system sizing remain unchanged; whole-system conversion and
+  embedded fans require separate coverage.
+- `openstudio-pump-performance-editor` edits one existing single constant- or
+  variable-speed plant pump on either supply or demand side, retaining its
+  identity, connections, metadata and references. Explicit head, motor settings,
+  operating mode, electric-power sizing and variable-speed coefficients use a
+  reviewed copy transaction. Plans expose fixed power, inactive sizing factors
+  and motor feasibility that requires sizing when flow is autosized;
+  saved checks and translation precede publication. Native cases verify actual
+  power under both autosizing methods and fixed power. Pump class changes, banks,
+  flow changes and pressure-reset redesign need separate coverage.
 - Independent water-coil skills separate in-place settings edits from new attachment.
   `openstudio-water-coil-editor` changes explicit ratings, names, availability,
   autosizing and controller values, preserving coil/controller/connection/reference

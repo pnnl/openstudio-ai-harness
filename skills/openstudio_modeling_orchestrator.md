@@ -31,12 +31,21 @@ task-specific skill before acting; do not recreate its procedure from memory.
   different CAV arrangement before routing; generic prototype controls do not
   imply fixed airflow in every zone or template compliance. VAV/CAV parent scripts
   compose shared equipment functions inside one reviewed model transaction.
+- Use `openstudio-pump-performance-editor` for explicit in-place head, motor,
+  electric-power sizing, operating-mode or variable-speed power-curve edits on
+  a selected single plant supply/demand pump. Preserve its handles and plumbing;
+  inspect fixed-power/inactive-sizing warnings before promising energy savings.
+  Pump class changes, banks and pressure-reset redesign need separate coverage.
+  Do not generate an ad hoc script for a covered pump edit.
 - Use `openstudio-supply-fan-performance-editor` for explicit efficiency/pressure changes
   to an existing air loop's sole direct constant- or variable-volume supply fan.
   It edits the existing fan in place and preserves its handle, connections,
   metadata, incoming references, flow controls and unselected model state.
-  Class-changing replacement (including a request to swap CAV for variable-speed)
-  requires a separate contract; do not route it to this performance editor.
+  Use `openstudio-supply-fan-replacer` for a genuine constant-volume ↔ variable-
+  volume class change, with explicit performance/curve, Autosize and terminal/
+  system-sizing preservation choices. It preserves air boundaries and translated
+  controls, reports new identities, and rejects references requiring migration.
+  Whole-system VAV/CAV conversion needs separate coverage.
   Embedded fans need separate coverage. Whole-system VAV/CAV construction uses
   the shared fan functions inside its parent transaction.
 - Use `openstudio-water-coil-editor` for existing main-supply water-coil ratings,

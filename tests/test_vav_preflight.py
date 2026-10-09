@@ -509,3 +509,52 @@ def prepare_existing_plant(os, model, loop, heating):
     schedule.setValue(supply)
     manager = os.model.SetpointManagerScheduled(model, schedule)
     assert manager.addToNode(loop.supplyOutletNode())
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        ({"head": 4, "units": "ft"}, ["$.head: violates maximum 3"]),
+        ({"head": 3, "units": "ft"}, []),
+        ({"head": 4, "units": "Pa"}, []),
+        ({"head": 1001, "units": "Pa"}, ["$.head: violates maximum 1000"]),
+        ({"head": 4}, []),
+        ({}, []),
+    ],
+)
+def test_bounded_schema_conditional_limits_respect_required_inputs(
+    modules, value, expected
+):
+    validate, _ = modules
+    schema = {
+        "type": "object",
+        "if": {"required": ["units"], "properties": {"units": {"enum": ["ft"]}}},
+        "then": {"properties": {"head": {"maximum": 3}}},
+        "else": {"properties": {"head": {"maximum": 1000}}},
+    }
+    assert validate(value, schema) == expected
+
+
+@pytest.mark.parametrize(
+    "count,expected",
+    [
+        (0, ["$.curve: requires at least 4 items"]),
+        (3, ["$.curve: requires at least 4 items"]),
+        (4, []),
+        (5, ["$.curve: requires at most 4 items"]),
+    ],
+)
+def test_bounded_schema_array_length_reports_nested_path(modules, count, expected):
+    validate, _ = modules
+    schema = {
+        "type": "object",
+        "properties": {
+            "curve": {
+                "type": "array",
+                "minItems": 4,
+                "maxItems": 4,
+                "items": {"type": "number"},
+            }
+        },
+    }
+    assert validate({"curve": [1] * count}, schema) == expected

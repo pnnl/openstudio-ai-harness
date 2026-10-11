@@ -6,6 +6,7 @@ import shutil
 import subprocess
 
 import pytest
+from plugin_fixture import copy_plugin_for_skill
 from test_vav_preflight import sdk
 from test_water_coil_operations import fixture, preflight, apply
 from test_coil_conversion import run_design_days
@@ -393,7 +394,7 @@ def test_relocated_native_air_relocation_bundle(sdk, tmp_path, host):
     exported = tmp_path / "export"
     adapter.export_plugin(exported, dry_run=False)
     relocated = tmp_path / "relocated-skill"
-    shutil.copytree(
+    relocated = copy_plugin_for_skill(
         next(exported.rglob("openstudio-water-coil-connector/SKILL.md")).parent,
         relocated,
     )

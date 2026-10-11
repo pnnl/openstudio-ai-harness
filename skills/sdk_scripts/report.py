@@ -74,6 +74,8 @@ def summarize(report, report_path, candidate_filter=None):
         "handle_changes",
         "next_action",
         "diagnostic",
+        "failure_receipt",
+        "failure_capture_unavailable",
     )
     summary = {key: report[key] for key in keys if key in report}
     if report.get("external_file_validation"):

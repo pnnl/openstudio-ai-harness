@@ -299,7 +299,7 @@ def test_exported_sdk_doctor_blocks_missing_release_without_runtime(tmp_path, ho
     result = adapter.export_plugin(tmp_path / "export", dry_run=False)
     scripts = result.plugin_dir / "skills/openstudio-sdk-model-editor/scripts"
     assert (
-        json.loads((scripts / "compatibility.json").read_text())[
+        json.loads((result.plugin_dir / "sdk/compatibility.json").read_text())[
             "required_openstudio_version"
         ]
         == "3.11.0"

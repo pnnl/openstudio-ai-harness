@@ -11,6 +11,7 @@ import sys
 from pathlib import Path
 
 from common.version_guard import CompatibilityError, load_contract, release_version
+from common.failure_reporting import readiness
 
 PROBE_PREFIX = "OPENSTUDIO_SKILL_SDK_PROBE="
 PROBE_TIMEOUT_SECONDS = 30
@@ -162,6 +163,18 @@ def main() -> int:
         report = diagnose(args.openstudio)
     except CompatibilityError as exc:
         report = {"ok": False, "status": "invalid_contract", "error": str(exc)}
+    try:
+        report["failure_reporting"] = readiness(
+            os.environ.get(
+                "OPENSTUDIO_AI_FAILURE_DIR", str(Path.cwd() / ".openstudio_ai_failures")
+            )
+        )
+    except Exception:
+        report["failure_reporting"] = {
+            "optional": True,
+            "submission_ready": False,
+            "affects_modeling_readiness": False,
+        }
     print(json.dumps(report, indent=2))
     return 0 if report["ok"] else 2
 

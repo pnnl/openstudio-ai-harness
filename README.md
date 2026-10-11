@@ -114,9 +114,20 @@ knowledge, and workflow-state tools for AI-assisted building-energy modeling.
   existing plants and model loads. Both use reviewed plans and new output copies;
   native design-day checks cover three plant-to-VAV configurations. See the
   [supported assumptions and verification](docs/SKILL_BOUND_SDK_SUMMARY.md#plant-creation-and-hvac-removal-extension).
+- Unexpected execution failures route to `report-openstudio-failure`, which
+  automatically submits sanitized diagnostics to `pnnl/openstudio-ai-harness`.
+  Issues are created under your own authenticated GitHub account.
+  Original exception text stays local; public errors use fixed messages and
+  plugin file/function/line locations.
+  Models and companions are excluded; missing authentication/network retains
+  local drafts. Reporting readiness is optional, with a project-level disable
+  policy. See the [reporting contract and tests](docs/FAILURE_REPORTING_INCREMENT_C.md).
 - Reviewed OpenStudio SDK knowledge packs.
-- Skill resource export for both hosts, including verbatim scripts and nested
-  helpers. This package pins OpenStudio 3.11.0 consistently in its dependency,
+- Skill resource export for both hosts, with one plugin-local `sdk/` library
+  and fixed launchers in owning skills. Install or move the complete plugin;
+  no separate shared package is required. Export records size evidence and
+  enforces a 1 MiB SDK-resource budget. See the [packaging contract and review commands](docs/SHARED_SDK_PACKAGING_INCREMENT_B.md).
+  This package pins OpenStudio 3.11.0 consistently in its dependency,
   lock metadata and exported compatibility contract. SDK skills include a
   grouped assumption review with editable inputs and visible fixed controls;
   declining proposed VAV defaults leads to review/adjust rather than cancellation.
@@ -310,6 +321,7 @@ is appended.
 
 ## Key Docs
 
+- [SDK Integration Review and Revised Priorities](docs/SDK_INTEGRATION_REVIEW.md)
 - [Contributing](CONTRIBUTING.md)
 - [Multi-lab Assessment and One-month Plan](docs/MULTILAB_ONE_MONTH_PLAN.md)
 - [Harness Details](docs/HARNESS_DETAILS.md)
@@ -331,3 +343,9 @@ Local runtime state is intentionally ignored by Git:
 
 The MCP runtime uses local SQLite metadata and filesystem workspaces for large
 OSM, SQL, and log artifacts.
+
+Bundled SDK operations now gate older or handle-unstable OSMs before planning.
+The shared loader also rejects missing air- or plant-loop availability lists.
+Their skill-local `prepare_model.py` creates a stable reported working copy, then
+the workflow repeats inventory/preflight with all exact checks intact. See the
+[increment A contract and local verification commands](docs/MODEL_PREPARATION_INCREMENT_A.md).

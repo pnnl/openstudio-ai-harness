@@ -8,6 +8,11 @@ The guard costs about one extra model load; absolute overhead scales with model
 size. The internal `check_stability=False` option is for explicit preparation and
 measurement, not an agent workaround. No classes or handles are ignored.
 
+The installed plugin contains one `sdk/` payload and fixed skill launchers. Keep
+the complete plugin together, including `sdk/` and `skills/`. The launcher checks
+the shared bundle before execution; `plugin_incomplete` means restore that full
+plugin. It never searches another checkout or installs a package.
+
 Run `scripts/prepare_model.py --input <absolute-original.osm> --output
 <absolute-new.osm> --report <absolute-new.json>` through the doctor-verified CLI.
 Preparation alone may translate an older OSM. It resolves companions against the

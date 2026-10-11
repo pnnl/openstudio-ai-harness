@@ -1,10 +1,30 @@
 $schema: asset_manifest.schema.json
 version: 3
+sdk_library:
+  max_bytes: 1048576
 
 # Verbatim skill files with explicit destinations. Shared helpers may have
 # multiple owners; nested paths are preserved.
 resources:
+  - source: skills/sdk_scripts/common/failure_reporting.py
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-sdk-model-editor
+        path: scripts/common/failure_reporting.py
+  # Independent recovery copy intentionally works even if sdk/ is damaged.
+  - source: skills/sdk_scripts/common/failure_reporting.py
+    owners:
+      - hosts: [claude, codex]
+        skill: report-openstudio-failure
+        path: scripts/report_failure.py
+  - source: skills/failure_reporting/event.schema.json
+    owners:
+      - hosts: [claude, codex]
+        skill: report-openstudio-failure
+        path: references/event.schema.json
   - source: skills/sdk_scripts/common/__init__.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-sdk-model-editor
@@ -61,6 +81,7 @@ resources:
         skill: openstudio-outdoor-air-connector
         path: scripts/common/__init__.py
   - source: skills/sdk_scripts/doctor.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-sdk-model-editor
@@ -117,6 +138,7 @@ resources:
         skill: openstudio-outdoor-air-connector
         path: scripts/doctor.py
   - source: skills/sdk_scripts/sdk_probe.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-sdk-model-editor
@@ -173,6 +195,7 @@ resources:
         skill: openstudio-outdoor-air-connector
         path: scripts/sdk_probe.py
   - source: skills/sdk_scripts/common/version_guard.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-sdk-model-editor
@@ -229,6 +252,7 @@ resources:
         skill: openstudio-outdoor-air-connector
         path: scripts/common/version_guard.py
   - source: skills/sdk_scripts/compatibility.json
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-sdk-model-editor
@@ -285,11 +309,13 @@ resources:
         skill: openstudio-outdoor-air-connector
         path: scripts/compatibility.json
   - source: skills/sdk_scripts/vav_preflight.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-vav-reheat-system-creator
         path: scripts/vav_preflight.py
   - source: skills/sdk_scripts/common/input_validation.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-vav-reheat-system-creator
@@ -346,6 +372,7 @@ resources:
         skill: openstudio-sdk-model-editor
         path: scripts/common/input_validation.py
   - source: skills/sdk_scripts/common/hvac_inventory.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-vav-reheat-system-creator
@@ -392,17 +419,20 @@ resources:
         skill: openstudio-outdoor-air-connector
         path: scripts/common/hvac_inventory.py
   - source: skills/sdk_scripts/common/vav_inventory.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-vav-reheat-system-creator
         path: scripts/common/vav_inventory.py
 
   - source: skills/sdk_scripts/common/vav_plan.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-vav-reheat-system-creator
         path: scripts/common/vav_plan.py
   - source: skills/sdk_scripts/references/vav_input.schema.json
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-vav-reheat-system-creator
@@ -413,27 +443,32 @@ resources:
         path: scripts/references/vav_input.schema.json
 
   - source: skills/sdk_scripts/report.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-vav-reheat-system-creator
         path: scripts/report.py
   - source: skills/sdk_scripts/vav_apply.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-vav-reheat-system-creator
         path: scripts/vav_apply.py
   - source: skills/sdk_scripts/common/vav_create.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-vav-reheat-system-creator
         path: scripts/common/vav_create.py
   - source: skills/sdk_scripts/common/vav_validate.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-vav-reheat-system-creator
         path: scripts/common/vav_validate.py
 
   - source: skills/sdk_scripts/common/files.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-vav-reheat-system-creator
@@ -491,6 +526,7 @@ resources:
         skill: openstudio-sdk-model-editor
         path: scripts/common/files.py
   - source: skills/sdk_scripts/common/companions.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-vav-reheat-system-creator
@@ -548,6 +584,7 @@ resources:
         skill: openstudio-sdk-model-editor
         path: scripts/common/companions.py
   - source: skills/sdk_scripts/common/model_transaction.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-plant-loop-creator
@@ -597,27 +634,32 @@ resources:
         skill: openstudio-outdoor-air-connector
         path: scripts/common/model_transaction.py
   - source: skills/sdk_scripts/common/plant_create.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-plant-loop-creator
         path: scripts/common/plant_create.py
   - source: skills/sdk_scripts/common/hvac_remove.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-hvac-remover
         path: scripts/common/hvac_remove.py
   - source: skills/sdk_scripts/plant_loops.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-plant-loop-creator
         path: scripts/plant_loops.py
   - source: skills/sdk_scripts/remove_hvac.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-hvac-remover
         path: scripts/remove_hvac.py
 
   - source: skills/sdk_scripts/common/hvac_equipment.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-vav-reheat-system-creator
@@ -661,6 +703,7 @@ resources:
         skill: openstudio-outdoor-air-connector
         path: scripts/common/hvac_equipment.py
   - source: skills/sdk_scripts/common/air_system_recipe.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-vav-reheat-system-creator
@@ -670,6 +713,7 @@ resources:
         path: scripts/common/air_system_recipe.py
 
   - source: skills/sdk_scripts/common/air_loop_components.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-vav-reheat-system-creator
@@ -680,6 +724,7 @@ resources:
         path: scripts/common/air_loop_components.py
 
   - source: skills/sdk_scripts/common/multizone_plan.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-vav-reheat-system-creator
@@ -690,6 +735,7 @@ resources:
         path: scripts/common/multizone_plan.py
 
   - source: skills/sdk_scripts/common/multizone_assembly.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-vav-reheat-system-creator
@@ -700,6 +746,7 @@ resources:
         path: scripts/common/multizone_assembly.py
 
   - source: skills/sdk_scripts/common/air_loop_validate.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-vav-reheat-system-creator
@@ -710,24 +757,28 @@ resources:
         path: scripts/common/air_loop_validate.py
 
   - source: skills/sdk_scripts/common/cav_system.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-cav-system-creator
         path: scripts/common/cav_system.py
 
   - source: skills/sdk_scripts/cav_system.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-cav-system-creator
         path: scripts/cav_system.py
 
   - source: skills/sdk_scripts/references/cav_input.md
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-cav-system-creator
         path: scripts/references/cav_input.md
 
   - source: skills/sdk_scripts/common/fan_equipment.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-supply-fan-performance-editor
@@ -744,6 +795,7 @@ resources:
         path: scripts/common/fan_equipment.py
 
   - source: skills/sdk_scripts/common/fan_edit.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-supply-fan-performance-editor
@@ -754,24 +806,28 @@ resources:
         path: scripts/common/fan_edit.py
 
   - source: skills/sdk_scripts/edit_supply_fan_performance.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-supply-fan-performance-editor
         path: scripts/edit_supply_fan_performance.py
 
   - source: skills/sdk_scripts/references/fan_performance.md
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-supply-fan-performance-editor
         path: scripts/references/fan_performance.md
 
   - source: skills/sdk_scripts/references/fan_performance.schema.json
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-supply-fan-performance-editor
         path: scripts/references/fan_performance.schema.json
 
   - source: skills/sdk_scripts/common/model_preservation.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-supply-fan-performance-editor
@@ -826,6 +882,7 @@ resources:
         skill: openstudio-cav-system-creator
         path: scripts/common/model_preservation.py
   - source: skills/sdk_scripts/common/coil_equipment.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-water-coil-editor
@@ -867,6 +924,7 @@ resources:
         skill: openstudio-outdoor-air-connector
         path: scripts/common/coil_equipment.py
   - source: skills/sdk_scripts/common/water_coil.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-water-coil-editor
@@ -893,6 +951,7 @@ resources:
         skill: openstudio-outdoor-air-connector
         path: scripts/common/water_coil.py
   - source: skills/sdk_scripts/common/coil_migration.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-water-coil-editor
@@ -919,18 +978,21 @@ resources:
         skill: openstudio-outdoor-air-connector
         path: scripts/common/coil_migration.py
   - source: skills/sdk_scripts/edit_water_coil.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-water-coil-editor
         path: scripts/edit_water_coil.py
 
   - source: skills/sdk_scripts/connect_water_coil.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-water-coil-connector
         path: scripts/connect_water_coil.py
 
   - source: skills/sdk_scripts/references/water_coil_edit.schema.json
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-water-coil-editor
@@ -943,6 +1005,7 @@ resources:
         path: scripts/references/water_coil_edit.schema.json
 
   - source: skills/sdk_scripts/references/water_coil_connection.schema.json
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-water-coil-editor
@@ -955,17 +1018,20 @@ resources:
         path: scripts/references/water_coil_connection.schema.json
 
   - source: skills/sdk_scripts/references/water_coil_edit.md
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-water-coil-editor
         path: scripts/references/water_coil_edit.md
 
   - source: skills/sdk_scripts/references/water_coil_connection.md
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-water-coil-connector
         path: scripts/references/water_coil_connection.md
   - source: skills/sdk_scripts/common/coil_topology.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-coil-replacer
@@ -993,30 +1059,35 @@ resources:
         skill: openstudio-outdoor-air-connector
         path: scripts/common/coil_topology.py
   - source: skills/sdk_scripts/common/coil_conversion.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-coil-replacer
         path: scripts/common/coil_conversion.py
 
   - source: skills/sdk_scripts/replace_coil.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-coil-replacer
         path: scripts/replace_coil.py
 
   - source: skills/sdk_scripts/references/coil_conversion.schema.json
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-coil-replacer
         path: scripts/references/coil_conversion.schema.json
 
   - source: skills/sdk_scripts/references/coil_conversion.md
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-coil-replacer
         path: scripts/references/coil_conversion.md
 
   - source: skills/sdk_scripts/common/coil_relocation.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-water-coil-editor
@@ -1044,6 +1115,7 @@ resources:
         skill: openstudio-outdoor-air-connector
         path: scripts/common/coil_relocation.py
   - source: skills/sdk_scripts/common/fan_class_replacement.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-supply-fan-replacer
@@ -1051,23 +1123,27 @@ resources:
 
 
   - source: skills/sdk_scripts/references/fan_replacement.md
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-supply-fan-replacer
         path: scripts/references/fan_replacement.md
 
   - source: skills/sdk_scripts/references/fan_replacement.schema.json
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-supply-fan-replacer
         path: scripts/references/fan_replacement.schema.json
 
   - source: skills/sdk_scripts/replace_supply_fan.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-supply-fan-replacer
         path: scripts/replace_supply_fan.py
   - source: skills/sdk_scripts/common/pump_edit.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-pump-performance-editor
@@ -1077,16 +1153,19 @@ resources:
         path: scripts/common/pump_edit.py
 
   - source: skills/sdk_scripts/edit_pump_performance.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-pump-performance-editor
         path: scripts/edit_pump_performance.py
   - source: skills/sdk_scripts/references/pump_performance.md
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-pump-performance-editor
         path: scripts/references/pump_performance.md
   - source: skills/sdk_scripts/references/pump_performance.schema.json
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-pump-performance-editor
@@ -1096,26 +1175,31 @@ resources:
         path: scripts/references/pump_performance.schema.json
 
   - source: skills/sdk_scripts/common/pump_class_replacement.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-pump-replacer
         path: scripts/common/pump_class_replacement.py
   - source: skills/sdk_scripts/references/pump_replacement.md
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-pump-replacer
         path: scripts/references/pump_replacement.md
   - source: skills/sdk_scripts/references/pump_replacement.schema.json
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-pump-replacer
         path: scripts/references/pump_replacement.schema.json
   - source: skills/sdk_scripts/replace_pump.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-pump-replacer
         path: scripts/replace_pump.py
   - source: skills/sdk_scripts/common/economizer_edit.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-economizer-editor
@@ -1127,6 +1211,7 @@ resources:
         skill: openstudio-outdoor-air-connector
         path: scripts/common/economizer_edit.py
   - source: skills/sdk_scripts/common/economizer_equipment.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-cav-system-creator
@@ -1144,22 +1229,26 @@ resources:
         skill: openstudio-outdoor-air-connector
         path: scripts/common/economizer_equipment.py
   - source: skills/sdk_scripts/edit_economizer.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-economizer-editor
         path: scripts/edit_economizer.py
   - source: skills/sdk_scripts/references/economizer.md
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-economizer-editor
         path: scripts/references/economizer.md
   - source: skills/sdk_scripts/references/economizer.schema.json
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-economizer-editor
         path: scripts/references/economizer.schema.json
 
   - source: skills/sdk_scripts/common/temperature_control.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-coil-replacer
@@ -1195,6 +1284,7 @@ resources:
         skill: openstudio-outdoor-air-connector
         path: scripts/common/temperature_control.py
   - source: skills/sdk_scripts/common/outdoor_air.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-ventilation-editor
@@ -1215,6 +1305,7 @@ resources:
         skill: openstudio-outdoor-air-connector
         path: scripts/common/outdoor_air.py
   - source: skills/sdk_scripts/common/ventilation_context.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-ventilation-editor
@@ -1226,6 +1317,7 @@ resources:
         skill: openstudio-outdoor-air-connector
         path: scripts/common/ventilation_context.py
   - source: skills/sdk_scripts/common/ventilation_edit.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-ventilation-editor
@@ -1234,6 +1326,7 @@ resources:
         skill: openstudio-outdoor-air-connector
         path: scripts/common/ventilation_edit.py
   - source: skills/sdk_scripts/common/ventilation_equipment.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-ventilation-editor
@@ -1248,21 +1341,25 @@ resources:
         skill: openstudio-outdoor-air-connector
         path: scripts/common/ventilation_equipment.py
   - source: skills/sdk_scripts/edit_ventilation.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-ventilation-editor
         path: scripts/edit_ventilation.py
   - source: skills/sdk_scripts/references/ventilation.md
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-ventilation-editor
         path: scripts/references/ventilation.md
   - source: skills/sdk_scripts/references/ventilation.schema.json
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-ventilation-editor
         path: scripts/references/ventilation.schema.json
   - source: skills/sdk_scripts/common/heat_recovery.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-heat-recovery-editor
@@ -1271,6 +1368,7 @@ resources:
         skill: openstudio-outdoor-air-connector
         path: scripts/common/heat_recovery.py
   - source: skills/sdk_scripts/common/outdoor_air_topology.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-heat-recovery-editor
@@ -1279,6 +1377,7 @@ resources:
         skill: openstudio-outdoor-air-connector
         path: scripts/common/outdoor_air_topology.py
   - source: skills/sdk_scripts/manage_heat_recovery.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-heat-recovery-editor
@@ -1287,6 +1386,7 @@ resources:
         skill: openstudio-outdoor-air-connector
         path: scripts/manage_heat_recovery.py
   - source: skills/sdk_scripts/references/heat_recovery.md
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-heat-recovery-editor
@@ -1295,6 +1395,7 @@ resources:
         skill: openstudio-outdoor-air-connector
         path: scripts/references/heat_recovery.md
   - source: skills/sdk_scripts/references/heat_recovery.schema.json
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-heat-recovery-editor
@@ -1303,27 +1404,32 @@ resources:
         skill: openstudio-outdoor-air-connector
         path: scripts/references/heat_recovery.schema.json
   - source: skills/sdk_scripts/attach_outdoor_air.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-outdoor-air-connector
         path: scripts/attach_outdoor_air.py
   - source: skills/sdk_scripts/common/outdoor_air_attach.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-outdoor-air-connector
         path: scripts/common/outdoor_air_attach.py
   - source: skills/sdk_scripts/references/outdoor_air_attach.md
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-outdoor-air-connector
         path: scripts/references/outdoor_air_attach.md
   - source: skills/sdk_scripts/references/outdoor_air_attach.schema.json
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-outdoor-air-connector
         path: scripts/references/outdoor_air_attach.schema.json
 
   - source: skills/sdk_scripts/common/diagnostics.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-sdk-model-editor
@@ -1374,6 +1480,7 @@ resources:
         skill: openstudio-outdoor-air-connector
         path: scripts/common/diagnostics.py
   - source: skills/sdk_scripts/common/model_preparation.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-sdk-model-editor
@@ -1424,6 +1531,7 @@ resources:
         skill: openstudio-outdoor-air-connector
         path: scripts/common/model_preparation.py
   - source: skills/sdk_scripts/prepare_model.py
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-sdk-model-editor
@@ -1474,6 +1582,7 @@ resources:
         skill: openstudio-outdoor-air-connector
         path: scripts/prepare_model.py
   - source: skills/sdk_scripts/schemas/preparation_report.schema.json
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-sdk-model-editor
@@ -1524,6 +1633,7 @@ resources:
         skill: openstudio-outdoor-air-connector
         path: references/preparation_report.schema.json
   - source: skills/sdk_scripts/references/model_preparation.md
+    scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
         skill: openstudio-sdk-model-editor
@@ -1619,6 +1729,9 @@ skills:
     hosts: [claude, codex]
   - id: github-issue-submitter
     source: skills/github_issue_submitter.md
+    hosts: [claude, codex]
+  - id: report-openstudio-failure
+    source: skills/report_openstudio_failure.md
     hosts: [claude, codex]
   - id: delegated-nlr-modeling
     source: skills/delegated_nlr_modeling.md

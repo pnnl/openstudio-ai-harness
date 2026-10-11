@@ -18,6 +18,16 @@ plan or write an ad hoc normalizer. `already_current` reuses the input and write
 no model. Invalid current-version references require diagnosis rather than
 manufactured repair. See [model preparation](references/model_preparation.md).
 
+These script paths are fixed launchers into the installed plugin's shared `sdk/`
+library. Keep the complete plugin together when copying or distributing it. A
+`plugin_incomplete` result requires restoring the complete plugin; do not search
+for another SDK library or generate a replacement script. Setup remains the
+usual plugin installation plus this skill's doctor.
+
+Unexpected execution failures route to `report-openstudio-failure` before
+recovery; pass any `failure_receipt`. Expected readiness/input questions,
+including `requires_preparation`, do not submit.
+
 Prefer compatible configured NLR through `delegated-nlr-modeling`. This local
 bundle applies after provider fallback/transition, using the recorded host model
 path. It runs directly through host tools and preserves the source model.

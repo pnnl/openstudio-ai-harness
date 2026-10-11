@@ -18,6 +18,7 @@ from harness.asset_manifest import (
     skill_ids_for_host,
     skill_sources_for_host,
 )
+from harness.plugin_sdk import SDK_PACKAGING_GUIDANCE, write_resources
 from harness.registry import discover_harness_assets
 from openstudio_ai_mcp.compatibility import package_version, plugin_mcp_environment
 
@@ -166,7 +167,8 @@ class ClaudeCodeAdapter(OpenStudioAiHostAdapter):
             encoding="utf-8",
         )
         (marketplace_dir / "INSTALL.md").write_text(
-            _render_install_doc(marketplace_dir, plugin_name, runtime_mode),
+            _render_install_doc(marketplace_dir, plugin_name, runtime_mode)
+            + SDK_PACKAGING_GUIDANCE,
             encoding="utf-8",
         )
         _write_plugin_package(plugin_dir, plan, workspace_root, runtime_mode)
@@ -493,7 +495,9 @@ def _write_plugin_package(
         encoding="utf-8",
     )
     (plugin_dir / "README.md").write_text(
-        _render_plugin_readme(plan, workspace_root, runtime_mode), encoding="utf-8"
+        _render_plugin_readme(plan, workspace_root, runtime_mode)
+        + SDK_PACKAGING_GUIDANCE,
+        encoding="utf-8",
     )
     (plugin_dir / "CONNECTORS.md").write_text(
         _render_connectors_doc(workspace_root, runtime_mode),
@@ -521,13 +525,12 @@ def _write_plugin_package(
 
     _write_marketplace_setup_skills(plugin_dir / "skills", runtime_mode)
     _write_skill_references(plugin_dir / "skills", workspace_root)
-    for export in resource_exports_for_host(workspace_root, plugin_dir, "claude"):
-        export.target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(export.source, export.target)
-
     if runtime_mode == "marketplace":
         setup_scripts_dir = plugin_dir / "skills" / "setup-openstudio-ai" / "scripts"
         _write_installer_assets(setup_scripts_dir)
+    write_resources(
+        resource_exports_for_host(workspace_root, plugin_dir, "claude"), plugin_dir
+    )
 
 
 def _render_exported_skill(skill_path: Path, skill_name: str) -> str:
@@ -602,7 +605,9 @@ def _write_marketplace_setup_skills(skills_dir: Path, runtime_mode: str) -> None
     for skill_name, content in _marketplace_setup_skill_docs().items():
         target_dir = skills_dir / skill_name
         target_dir.mkdir(parents=True, exist_ok=True)
-        (target_dir / "SKILL.md").write_text(content, encoding="utf-8")
+        (target_dir / "SKILL.md").write_text(
+            content + SDK_PACKAGING_GUIDANCE, encoding="utf-8"
+        )
 
 
 def _marketplace_setup_skill_docs() -> dict[str, str]:

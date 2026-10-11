@@ -9,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from common.diagnostics import failure_report
 from common.files import check_report_path, write_json
 from common.model_preparation import prepare
+from common.failure_reporting import capture_exception
 
 
 def main():
@@ -29,6 +30,11 @@ def main():
             failure.update(
                 output_model_path=report["output_model_path"], report_error=True
             )
+        failure.update(
+            capture_exception(
+                exc, "prepare_model", "prepare", args, locals().get("report")
+            )
+        )
         if not args.report.exists():
             try:
                 write_json(failure, args.report)

@@ -345,13 +345,11 @@ def test_new_skill_exports_run_relocated_without_runtime(sdk, tmp_path, host):
     adapter = ClaudeCodeAdapter(cfg) if host == "claude" else CodexAdapter(cfg)
     exported = tmp_path / "export"
     adapter.export_plugin(exported, dry_run=False)
-    for skill, script in [
-        ("openstudio-plant-loop-creator", "plant_loops.py"),
-        ("openstudio-hvac-remover", "remove_hvac.py"),
-    ]:
-        original = next(exported.rglob(skill + "/SKILL.md")).parent
-        bundle = tmp_path / skill
-        shutil.copytree(original, bundle)
+    plugin = next(
+        exported.rglob("openstudio-hvac-remover/SKILL.md")
+    ).parent.parent.parent
+    moved_plugin = tmp_path / "relocated plugin"
+    shutil.copytree(plugin, moved_plugin)
     shutil.rmtree(exported)
     src = removal_fixture(sdk[0], tmp_path)
     for skill, script, params in [
@@ -366,7 +364,7 @@ def test_new_skill_exports_run_relocated_without_runtime(sdk, tmp_path, host):
             },
         ),
     ]:
-        bundle = tmp_path / skill
+        bundle = moved_plugin / "skills" / skill
         cfgfile = tmp_path / (skill + ".json")
         cfgfile.write_text(json.dumps(params))
         doctor = subprocess.run(

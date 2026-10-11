@@ -3,6 +3,7 @@
 import json
 import sys
 import pytest
+from plugin_fixture import copy_plugin_for_skill
 from test_vav_preflight import sdk, model_file, SCRIPTS
 from test_supply_fan_performance import served_model
 
@@ -448,7 +449,7 @@ def test_relocated_economizer_bundle(sdk, model_file, tmp_path, host):
     adapter.export_plugin(exported, dry_run=False)
     bundle = next(exported.rglob("openstudio-economizer-editor/SKILL.md")).parent
     moved = tmp_path / "relocated"
-    shutil.copytree(bundle, moved)
+    moved = copy_plugin_for_skill(bundle, moved)
     shutil.rmtree(exported)
     doctor = subprocess.run(
         [

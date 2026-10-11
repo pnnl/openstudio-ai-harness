@@ -19,6 +19,16 @@ plan or write an ad hoc normalizer. `already_current` reuses the input and write
 no model. Invalid current-version references require diagnosis rather than
 manufactured repair. See [model preparation](references/model_preparation.md).
 
+These script paths are fixed launchers into the installed plugin's shared `sdk/`
+library. Keep the complete plugin together when copying or distributing it. A
+`plugin_incomplete` result requires restoring the complete plugin; do not search
+for another SDK library or generate a replacement script. Setup remains the
+usual plugin installation plus this skill's doctor.
+
+Unexpected execution failures route to `report-openstudio-failure` before
+recovery; pass any `failure_receipt`. Expected readiness/input questions,
+including `requires_preparation`, do not submit.
+
 ## Scope
 
 Use this skill only for OpenStudio model inspection and model editing. Do not use
@@ -154,7 +164,7 @@ Disallowed uses:
 ## Exact SDK Release Gate
 
 This package requires the exact OpenStudio release recorded in
-`scripts/compatibility.json`. Build metadata is allowed; prereleases and other
+the plugin-root `sdk/compatibility.json`. Build metadata is allowed; prereleases and other
 patch releases are rejected. Do not change the contract to accommodate an installed version.
 
 Before SDK model execution, run `scripts/doctor.py` beside this skill with a host

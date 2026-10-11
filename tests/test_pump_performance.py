@@ -6,6 +6,7 @@ import subprocess
 import sqlite3
 import sys
 import pytest
+from plugin_fixture import copy_plugin_for_skill
 from test_vav_preflight import sdk, SCRIPTS
 from test_supply_fan_performance import native_cli
 
@@ -432,7 +433,7 @@ def test_exported_pump_bundle_executes_after_relocation(sdk, tmp_path, host):
     adapter.export_plugin(exported, dry_run=False)
     skill = next(exported.rglob("openstudio-pump-performance-editor/SKILL.md")).parent
     moved = tmp_path / "relocated"
-    shutil.copytree(skill, moved)
+    moved = copy_plugin_for_skill(skill, moved)
     shutil.rmtree(exported)
     doctor = subprocess.run(
         [

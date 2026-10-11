@@ -7,6 +7,7 @@ import sqlite3
 import subprocess
 
 import pytest
+from plugin_fixture import copy_plugin_for_skill
 from test_vav_preflight import sdk
 from test_water_coil_operations import fixture
 from test_supply_fan_performance import native_cli
@@ -648,7 +649,7 @@ def test_relocated_native_fan_bundle(sdk, tmp_path, host):
     ).export_plugin(root, dry_run=False)
     bundle = next(root.rglob("openstudio-supply-fan-replacer/SKILL.md")).parent
     relocated = tmp_path / "relocated"
-    shutil.copytree(bundle, relocated)
+    relocated = copy_plugin_for_skill(bundle, relocated)
     shutil.rmtree(root)
     config = tmp_path / "config.json"
     config.write_text(json.dumps(cfg))

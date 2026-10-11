@@ -103,6 +103,7 @@ def test_asset_manifest_schema_documents_product_registry() -> None:
         "agents",
         "references",
         "resources",
+        "sdk_library",
     }
     assert set(schema["$defs"]) >= {
         "skill",

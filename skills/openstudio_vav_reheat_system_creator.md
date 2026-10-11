@@ -21,6 +21,16 @@ plan or write an ad hoc normalizer. `already_current` reuses the input and write
 no model. Invalid current-version references require diagnosis rather than
 manufactured repair. See [model preparation](references/model_preparation.md).
 
+These script paths are fixed launchers into the installed plugin's shared `sdk/`
+library. Keep the complete plugin together when copying or distributing it. A
+`plugin_incomplete` result requires restoring the complete plugin; do not search
+for another SDK library or generate a replacement script. Setup remains the
+usual plugin installation plus this skill's doctor.
+
+Unexpected execution failures route to `report-openstudio-failure` before
+recovery; pass any `failure_receipt`. Expected readiness/input questions,
+including `requires_preparation`, do not submit.
+
 First honor provider selection: when NLR OpenStudio MCP is configured and
 compatible, use `delegated-nlr-modeling` as the preferred provider. This local
 bundle applies when NLR is absent/unavailable/incompatible or its documented
@@ -35,7 +45,7 @@ Legacy object-level VAV skills have been removed.
 
 1. Run host Python 3.10+ on `scripts/doctor.py`. Require exit 0 and `ok: true`;
    use its absolute `openstudio_executable` for every SDK command. The package
-   requires the exact package release in `scripts/compatibility.json`. Explicit executable paths are authoritative;
+   requires the exact package release in the plugin-root `sdk/compatibility.json`. Explicit executable paths are authoritative;
    mismatches block. Request the exact installation/path reported by doctor;
    do not install automatically or try another SDK/project virtualenv.
 2. If selected zones already have HVAC, use `openstudio-hvac-remover` to inventory

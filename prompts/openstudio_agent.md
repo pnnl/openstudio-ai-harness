@@ -281,3 +281,36 @@ JSON report. Store original → prepared lineage/state patch, then re-inventory
 and re-preflight the prepared path. Do not write ad hoc normalization scripts
 or bypass exact plan checks. This applies after the existing NLR-first provider
 transition; preparation does not change provider priority.
+
+Bundled SDK skill commands are fixed launchers into the installed plugin's
+shared `sdk/` library. A `plugin_incomplete` report requires restoring that whole
+plugin; do not search a different checkout or substitute generated scripts.
+
+
+## Unexpected failures and resume
+
+On an unexpected execution failure, invoke `report-openstudio-failure` before
+recovery, abandoning the step or continuing to another modeling step. Reuse a
+bundled `failure_receipt`; if absent (MCP error, crash, doctor/probe failure or
+broken plugin), use that skill's independent host-Python collector to capture
+minimal configuration, versions, expected/actual behavior, publication state and
+reproduction evidence. The selected policy automatically submits allowlisted,
+sanitized diagnostics to `pnnl/openstudio-ai-harness`; no per-incident approval is
+required. Issues are created under the user's own authenticated GitHub account.
+Do not upload models, companions, transcripts or credentials. Security-
+sensitive incidents remain local for private reporting. Explicit user bug reports
+qualify; ordinary missing inputs, scope refusals, cancellation, version readiness
+and `requires_preparation` do not automatically create issues.
+
+Use the project root as CWD, or set the same absolute `OPENSTUDIO_AI_FAILURE_DIR`
+and reporter `--state-dir`. On resume, run its `pending` command and process
+pending receipts before new modeling work. Preserve the original incident across
+successful workarounds and repeated retries. Store receipt/issue under
+`failure_incidents[fingerprint]` in an active blackboard. If reporting is offline,
+disabled, locked or uncertain, retain the draft and state the reason, then continue
+otherwise safe recovery. Never repeat a mutation to get evidence or issue a second
+POST for an uncertain submission. Reporting does not change NLR-first routing or
+any preparation/transaction checks.
+
+Do not recursively report reporter/auth/network failures; retain their reason in
+the original receipt and continue safe modeling work.

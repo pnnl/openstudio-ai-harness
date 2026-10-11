@@ -1,4 +1,4 @@
-"""Bundled local SDK imports must resolve inside each independently moved skill."""
+"""All bundled SDK imports resolve inside the one plugin-local library."""
 
 import ast
 from pathlib import Path
@@ -19,7 +19,9 @@ def test_sdk_bundle_local_import_closure(tmp_path, host):
     for item in exports:
         if item.source.suffix != ".py" or not item.source.is_relative_to(sources):
             continue
-        tree = ast.parse(item.source.read_text())
+        tree = ast.parse(
+            item.content if item.content is not None else item.source.read_text()
+        )
         for node in ast.walk(tree):
             if isinstance(node, ast.ImportFrom):
                 imported = [node.module] if not node.level else []
@@ -33,10 +35,7 @@ def test_sdk_bundle_local_import_closure(tmp_path, host):
                 if name not in modules:
                     continue
                 relative = Path(*name.split(".")).with_suffix(".py")
-                # All resource destinations preserve the scripts module root.
-                script_root = next(
-                    parent for parent in item.target.parents if parent.name == "scripts"
-                )
+                script_root = tmp_path / "sdk"
                 assert (
                     script_root / relative in targets
                 ), f"{item.target}: missing local import {name}"

@@ -9,6 +9,7 @@ import sqlite3
 import subprocess
 import sys
 import pytest
+from plugin_fixture import copy_plugin_for_skill
 from test_vav_preflight import sdk, model_file, SCRIPTS
 from vav_fixture import prepare_vav_fixture
 
@@ -414,7 +415,7 @@ def test_cav_bundle_native_after_relocation(sdk, model_file, tmp_path, host):
     adapter.export_plugin(export, dry_run=False)
     skill = next(export.rglob("openstudio-cav-system-creator/SKILL.md")).parent
     moved = tmp_path / "relocated"
-    shutil.copytree(skill, moved)
+    moved = copy_plugin_for_skill(skill, moved)
     shutil.rmtree(export)
     doctor = subprocess.run(
         [

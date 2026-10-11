@@ -40,6 +40,10 @@ def test_release_archives_exclude_local_openstudio_fixtures(tmp_path: Path) -> N
     assert "openstudio_ai_mcp/sdk_docs/docs/api/classes-3.10.0.yaml.gz" in wheel_names
     assert "openstudio_ai_mcp/sdk_docs/docs/api/methods-3.10.0.yaml.gz" in wheel_names
     assert "skills/openstudio_vav_reheat_system_creator.md" in wheel_names
+    assert "harness/plugin_sdk.py" in wheel_names
+    assert "skills/report_openstudio_failure.md" in wheel_names
+    assert "skills/sdk_scripts/common/failure_reporting.py" in wheel_names
+    assert "skills/failure_reporting/event.schema.json" in wheel_names
     assert "prompts/openstudio_agent.md" in wheel_names
 
     sdist = next(tmp_path.glob("*.tar.gz"))

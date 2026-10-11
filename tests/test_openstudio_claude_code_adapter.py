@@ -225,7 +225,7 @@ def test_claude_code_adapter_exports_plugin_package(tmp_path: Path) -> None:
     assert "## SDK Script Gate" in agent_prompt
     assert "do not retry an SDK method name from memory" in agent_prompt
     sdk_skill = plugin_dir / "skills/openstudio-sdk-model-editor"
-    contract = json.loads((sdk_skill / "scripts/compatibility.json").read_text())
+    contract = json.loads((plugin_dir / "sdk/compatibility.json").read_text())
     assert contract["required_openstudio_version"] == "3.11.0"
     assert (sdk_skill / "references/openstudio_sdk_generated_edits.md").is_file()
     assert "./nlr-workspace/runs/<suffix>" in agent_prompt

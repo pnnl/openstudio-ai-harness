@@ -17,6 +17,7 @@ from common.hvac_inventory import inventory
 from common.vav_plan import plan, assumption_review
 from common.version_guard import require_sdk, load_model, PreparationRequired
 from common.diagnostics import failure_report
+from common.failure_reporting import capture_exception
 
 
 def preflight(input_path: Path, config_path: Path | None = None) -> dict:
@@ -124,6 +125,7 @@ def main() -> int:
         report = preflight(args.input, args.config)
     except Exception as exc:
         report = dict(failure_report(exc), changes=[])
+        report.update(capture_exception(exc, "create_vav", "preflight", args))
     try:
         summary = emit(report, args.report, args.candidate_filter)
     except Exception as exc:
@@ -134,6 +136,7 @@ def main() -> int:
                     "error": str(exc),
                     "output_model_path": report.get("output_model_path"),
                     "report_error": True,
+                    **capture_exception(exc, "create_vav", "report", args, report),
                 }
             )
         )

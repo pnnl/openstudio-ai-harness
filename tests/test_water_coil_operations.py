@@ -7,6 +7,7 @@ import sqlite3
 import subprocess
 import sys
 import pytest
+from plugin_fixture import copy_plugin_for_skill
 from test_vav_preflight import sdk, SCRIPTS
 from vav_fixture import prepare_vav_fixture
 from test_supply_fan_performance import native_cli
@@ -490,7 +491,7 @@ def test_relocated_native_coil_bundle(sdk, tmp_path, host, mode):
     )
     bundle = next(exported.rglob(name + "/SKILL.md")).parent
     relocated = tmp_path / "relocated"
-    shutil.copytree(bundle, relocated)
+    relocated = copy_plugin_for_skill(bundle, relocated)
     shutil.rmtree(exported)
     entry = (
         "edit_water_coil.py"

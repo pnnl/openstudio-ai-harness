@@ -35,6 +35,6 @@ state/snapshots/*
 state/workflow_runs/*
 
 # Generated local package exports
+.openstudio_ai_failures/
 openstudio-ai-claude-plugin/
 openstudio-ai-codex-plugin/
-

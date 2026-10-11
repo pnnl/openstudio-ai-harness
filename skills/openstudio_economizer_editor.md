@@ -18,6 +18,16 @@ plan or write an ad hoc normalizer. `already_current` reuses the input and write
 no model. Invalid current-version references require diagnosis rather than
 manufactured repair. See [model preparation](references/model_preparation.md).
 
+These script paths are fixed launchers into the installed plugin's shared `sdk/`
+library. Keep the complete plugin together when copying or distributing it. A
+`plugin_incomplete` result requires restoring the complete plugin; do not search
+for another SDK library or generate a replacement script. Setup remains the
+usual plugin installation plus this skill's doctor.
+
+Unexpected execution failures route to `report-openstudio-failure` before
+recovery; pass any `failure_receipt`. Expected readiness/input questions,
+including `requires_preparation`, do not submit.
+
 Prefer configured, compatible NLR through `delegated-nlr-modeling`. After a local
 provider selection/transition, run `scripts/doctor.py` with host Python 3.10+ and
 use the verified exact-release OpenStudio executable. Resolve scripts beside

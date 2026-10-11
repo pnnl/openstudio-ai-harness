@@ -13,6 +13,7 @@ from common.version_guard import (
     PreparationRequired,
 )
 from common.diagnostics import failure_report, mismatch
+from common.failure_reporting import capture_exception
 from common.input_validation import read_json
 from common.files import publish, check_report_path, write_json
 from common.companions import inspect, stage, verify, digest, external_file_status
@@ -222,6 +223,15 @@ def cli(operation, planner, creator, validator, inventory):
             failure.update(
                 output_model_path=report["output_model_path"], report_error=True
             )
+        failure.update(
+            capture_exception(
+                exc,
+                operation,
+                "apply" if args.plan else "preflight" if args.config else "inventory",
+                args,
+                locals().get("report"),
+            )
+        )
         if not args.report.exists():
             try:
                 write_json(failure, args.report)

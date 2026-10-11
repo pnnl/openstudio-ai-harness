@@ -3,6 +3,7 @@
 import json
 import sys
 import pytest
+from plugin_fixture import copy_plugin_for_skill
 from test_vav_preflight import sdk, model_file, SCRIPTS
 from test_ventilation import fixture
 
@@ -583,7 +584,7 @@ def test_independently_relocated_phase10c_bundle(
     adapter.export_plugin(exported, dry_run=False)
     bundle = next(exported.rglob(skill + "/SKILL.md")).parent
     moved = tmp_path / "relocated"
-    shutil.copytree(bundle, moved)
+    moved = copy_plugin_for_skill(bundle, moved)
     shutil.rmtree(exported)
     doctor = subprocess.run(
         [

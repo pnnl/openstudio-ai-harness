@@ -13,6 +13,7 @@ import shutil
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from common.version_guard import require_sdk, release_version, load_contract, load_model
 from common.diagnostics import failure_report, mismatch
+from common.failure_reporting import capture_exception
 from report import emit
 from common.files import check_report_path
 from common.input_validation import validate
@@ -258,6 +259,7 @@ def main():
         report = dict(
             failure_report(exc), mode="edit_model", changes=[], state_patch={}
         )
+        report.update(capture_exception(exc, "create_vav", "apply", args))
     try:
         summary = emit(report, args.report, args.candidate_filter)
     except Exception as exc:
@@ -268,6 +270,7 @@ def main():
                     "error": str(exc),
                     "output_model_path": report.get("output_model_path"),
                     "report_error": True,
+                    **capture_exception(exc, "create_vav", "report", args, report),
                 }
             )
         )

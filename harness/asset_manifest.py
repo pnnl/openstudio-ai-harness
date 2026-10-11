@@ -30,11 +30,12 @@ class ReferenceExport:
 
 @dataclass(frozen=True)
 class ResourceExport:
-    """A verbatim file copied to an explicit path inside an owning skill."""
+    """A copied resource or fixed generated launcher at a validated target."""
 
     source: Path
     target: Path
     skill: str
+    content: str | None = None
 
 
 def resource_exports_for_host(
@@ -66,7 +67,10 @@ def resource_exports_for_host(
         for target in targets
     )
     exports: list[ResourceExport] = []
-    for resource in _load_manifest().get("resources", []):
+    manifest = _load_manifest()
+    for resource in manifest.get("resources", []):
+        if resource.get("scope") == "plugin-sdk":
+            continue
         owners = [owner for owner in resource["owners"] if host in owner["hosts"]]
         if not owners:
             continue
@@ -87,6 +91,24 @@ def resource_exports_for_host(
                 raise ValueError(f"Resource destination collision: {target}")
             reserved.add(target)
             exports.append(ResourceExport(source, target, owner["skill"]))
+    from harness.plugin_sdk import plan_resources
+
+    shared = plan_resources(
+        manifest.get("resources", []),
+        workspace_root,
+        plugin_dir,
+        host,
+        manifest.get("sdk_library", {}).get("max_bytes", 0),
+        ResourceExport,
+    )
+    for export in shared:
+        target = export.target
+        if any(
+            target == p or target in p.parents or p in target.parents for p in reserved
+        ):
+            raise ValueError(f"Resource destination collision: {target}")
+        reserved.add(target)
+        exports.append(export)
     return sorted(exports, key=lambda export: str(export.target))
 
 
@@ -222,6 +244,19 @@ def _validate_manifest(data: dict[str, Any]) -> None:
         raise ValueError("asset_manifest.yaml resources must be a list")
     for index, resource in enumerate(resources):
         _validate_resource(resource, index, skill_hosts)
+    library = data.get("sdk_library")
+    if library is not None:
+        if (
+            not isinstance(library, dict)
+            or set(library) != {"max_bytes"}
+            or type(library["max_bytes"]) is not int
+            or library["max_bytes"] <= 0
+        ):
+            raise ValueError(
+                "sdk_library must declare a positive integer max_bytes budget"
+            )
+    if any(r.get("scope") == "plugin-sdk" for r in resources) and library is None:
+        raise ValueError("Shared SDK resources require sdk_library budget")
 
 
 def _validate_resource(
@@ -229,7 +264,10 @@ def _validate_resource(
 ) -> None:
     if not isinstance(resource, dict):
         raise ValueError(f"Resource manifest entry {index} must be an object")
-    _validate_fields(resource, {"source", "owners"}, "resource", index)
+    _validate_fields(resource, {"source", "owners", "scope"}, "resource", index)
+    scope = resource.get("scope", "skill")
+    if not isinstance(scope, str) or scope not in {"skill", "plugin-sdk"}:
+        raise ValueError("Resource scope must be skill or plugin-sdk")
     source = resource.get("source")
     if (
         not isinstance(source, str)
@@ -252,6 +290,25 @@ def _validate_resource(
             raise ValueError(
                 f"Resource entry {source} requires a safe destination path"
             )
+        if scope == "plugin-sdk" and PurePosixPath(path).parts[0] not in {
+            "scripts",
+            "references",
+        }:
+            raise ValueError(
+                "Shared SDK owners must use scripts or references destinations"
+            )
+        if scope == "plugin-sdk":
+            prefix = PurePosixPath("skills/sdk_scripts")
+            if not PurePosixPath(source).is_relative_to(prefix):
+                raise ValueError("Shared SDK sources must be inside skills/sdk_scripts")
+            destination = PurePosixPath(path)
+            if destination.parts[0] == "scripts" and (
+                destination.relative_to("scripts")
+                != PurePosixPath(source).relative_to(prefix)
+            ):
+                raise ValueError(
+                    "Shared script destination must match its canonical SDK path"
+                )
 
 
 def _validate_skill(

@@ -6,6 +6,10 @@ documentation. Root-level files are kept to operational entry points only:
 
 ## Current Docs
 
+- [SDK integration and review summary](SDK_INTEGRATION_SUMMARY.md): consolidated
+  A–D contracts, completed review fixes, native evidence, reproduction commands
+  and the next equipment checkpoint.
+
 - [Skill-bound SDK development summary](SKILL_BOUND_SDK_SUMMARY.md): phases,
   OpenStudio version/routing decisions, VAV source trace, review fixes, verification
   evidence and remaining limits.

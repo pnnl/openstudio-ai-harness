@@ -27,21 +27,202 @@ the operation is now `edit_supply_fan_performance`. The node-preserving replacem
 primitive remains unexported pending a class-changing contract. The work guide
 records verification; phase 5 below implements the water-coil checkpoint.
 
-Phase 5 exposes independent main-supply water-coil rating edits and connection
-operations. Rating edits keep every coil/controller/reference identity; attachment
-and explicit same-plant/class replacement manage graph links and finalize the owned
-controller after both connections. VAV/CAV reuse rating/controller setters. The work
-guide defines initial placement, explicit design/Autosize/controller choices,
-reference migration limits, saved validation and native/export verification.
-The combined check passed 386 tests, including 97 water-coil cases, twelve native
-VAV/CAV design-day runs and both relocated hosts with pinned doctor checks.
+Phase 5 now separates in-place main-supply water-coil settings from outlet-only
+attachment. H1 restricts attachment to the supply outlet so preflight and apply
+agree; H2 moves names, availability, Autosize resets and controller changes into
+`openstudio-water-coil-editor`, preserving identities and references. Same-class
+replacement is unexported pending a topology-changing contract. Re-export both
+hosts and regenerate reviewed water-coil plans; the old ratings-editor name and
+replacement configurations are retired. The work guide records review changes,
+native design-day evidence and current verification: 416 combined checks passed,
+including 127 water-coil cases, twelve native design days and both relocated hosts.
+H3/H4 additionally clarify optional informational UA rated temperatures and allow
+in-place edits on unchanged incomplete plants, with a repair warning and false
+simulation readiness. Paired native VAV/CAV sizing confirms unchanged positive
+capacity, UA and flow when only rated-temperature metadata changes; current
+verification and source links are in the work guide. H3/H4 verification passed
+438 combined checks, including 149 water-coil cases.
+
+H1–H4 are approved and the user reports successful Claude Code/Codex trials.
+Phase 6a extends the existing connector with explicit plant migration while
+retaining coil/controller/air identities. Dedicated water-only demand branches,
+destination readiness, explicit Autosize resets and protected graph validation
+bound this operation. The work guide records 304 targeted checks, including
+43 migration cases, four positive native sizing runs and both relocated hosts.
+Phases 6b/6c now add bounded real heating-water to electric conversion and main-
+supply water-coil air relocation. `openstudio-coil-replacer` requires explicit
+efficiency, preserved temperature control, Autosize and reference-policy choices; the existing
+connector handles relocation to a supply outlet. Same-class settings stay in the
+editor, and the old same-class clone/reconnect primitive remains unexported.
+J1–J4 follow-up exposes retained source-plant loads/cleanup limits and an explicit
+editor follow-up for active water-temperature mismatches. Minimal SDK probes pin
+controller removal/creation, and eight matched native runs verify preserved sizing
+at identical plant conditions. The work guide records 188 targeted checks, including
+56 migration cases, matched metrics and the small VAV heating fixture limitation.
+
+The work guide now records the equipment backlog beyond coils: fan replacement,
+pumps, outdoor-air controls, terminals/reheat, heat recovery, plant-equipment
+operations and unitary/zone-system recipes. These are future coverage; 6b/6c do
+not implement every equipment family or every coil conversion.
+K1–K3 follow-up removes the conversion's fixed outlet setpoint and temperature
+schedule. Explicit `temperature_control: Preserve` retains existing managers or
+OpenStudio-generated supply-air/fan heat compensation, verified before and after
+saving. Old temperature configs are rejected. Relocation shows both fan position
+and translated control-reference changes in its impact/warning.
+Current targeted verification passed 328 distinct checks, including eight native
+design-day runs and both independently relocated host bundles for each operation.
+Two native control traces verify fan-compensated setpoints and zero heating or
+electricity when inlet air needs no heating. The work guide contains the review
+map, measured capacities, control evidence and verification limits.
+
+K1–K3 are approved. Phase 7 implements the next equipment operation through
+`openstudio-supply-fan-replacer`: genuine constant ↔ variable-volume class changes
+with explicit performance/curve, Autosize and terminal/system-sizing preservation
+choices. Air boundary/control locations and metadata stay intact; fan/connection
+identities change and references requiring migration are rejected. Whole-system
+conversion remains outside the fan operation. Its review is approved; phase 8
+pump operations are described below.
+Phase 7 verification passed 163 targeted checks, including both native power traces,
+existing fan regressions, four independently relocated operation/host bundles and
+exports. The latest variable-volume trace exercises the requested minimum-power
+flow floor. Detailed evidence and limits are in the work guide.
+L1–L3 follow-up preserves compatible fan-name outputs/custom electricity meters,
+adds explicit end-use label selection with stale-label warnings, and states
+terminal-driven variable airflow/linear power in constant-volume impact. Current
+verification passed 185 targeted checks; native custom meter and fan-variable
+energy totals match after replacement and label changes. Re-export and regenerate
+plans; the work guide records supported reporting references and verification limits.
+
+Phase 7/L1–L3 are approved. Phase 8 adds `openstudio-pump-performance-editor`:
+explicit in-place single constant/variable-speed plant-pump edits on supply or
+demand sides, preserving identity/plumbing/references. Head/motor/control,
+fixed/Autosize power, both power-sizing methods/factors and explicit power curves
+use the existing copied-output transaction. Plans explain fixed power and
+inactive factors; class replacement/banks/flow/pressure-reset changes remain future
+contracts. Targeted verification: 108 checks including 12 native design-day runs
+and both relocated host bundles with doctor and inventory/preflight/apply.
+Pressure-sized power changes 117.688→55.747 W; actual electricity ratios agree
+with head/efficiency changes. Fixed and flow-only sizing cases retain rated power.
+The work guide records scope, review map, evidence and simulation limitations.
+
+M1–M2 follow-up makes fixed-power/autosized-flow motor feasibility explicitly
+pending sizing, with the hydraulic-efficiency formula and feasible flow limit in
+plan/apply warnings. No power reset is inferred. Schema validation now enforces
+an equivalent 10 MPa head ceiling in both units and exactly four coefficients,
+using bounded conditional and array-length checks. Re-export and regenerate pump
+plans; the work guide records the review disposition and limitations.
+
+Phase 8/M1–M2 are reviewed. Phase 9 implements `openstudio-pump-replacer` for
+genuine single constant ↔ variable-speed class replacement, with explicit rated
+flow/power Preserve or Autosize policies and minimum-flow/curve choices. It retains
+plant position, boundary nodes, common controls, effective zone heat-loss split,
+metadata and compatible reporting references. Pump/connection identities change;
+direct references requiring migration block. Pressure/VFD hardware, pump banks
+and plant-flow redesign remain future coverage. Same-class edits retain identity
+through the performance editor. Component-setpoint operations may update only the
+selected pump's class reference; all other control fields remain protected.
+
+Phase 9 verification: **195 targeted checks passed**, including twelve native
+replacement and twelve existing-editor design-day runs, unchanged design sizing,
+actual cubic power versus flow, and four independently relocated operation/host
+bundles. Seven exported affected skills pass validation. The work guide records
+the contract, review map, source trace, evidence, commands and limits. Design-day
+electricity comparisons are fixture evidence rather than annual savings. Re-export
+both hosts and regenerate replacement plans; no full CI/release validation was run.
+
+N1 pump follow-up exposes explicit OSM and verified translated demand bypasses,
+with a warning for constant-speed supply replacement when the OSM has no verified
+uncontrolled path. Full branch checks exclude inlet/outlet pipes and controlled
+coil branches; saved validation recomputes status. Common-pipe mode is visible.
+OpenStudio 3.11.0 synthesizes a bypass in the native no-OSM-bypass fixture. A separate
+IDF experiment removes it and confirms changed flow resolution without a specific
+EnergyPlus overflow warning. The work guide records the five native runs and
+scope; Preserve adds no OSM plumbing. Re-export hosts and regenerate pump plans.
+N1 verification passed 145 focused checks, including 17 native runs and both
+relocated host bundles. Full CI and unrelated equipment suites were not rerun.
+
+Phase 10a adds `openstudio-economizer-editor` for explicit in-place type, lockout
+and four optional cutoff fields. All unspecified limits, ventilation/DCV, schedules,
+controllers, equipment and handles remain protected. The preview exposes effective
+limits and retained overrides, including constant 100% OA and hydronic compressor
+lockout limitations. VAV/CAV parent construction shares the setters. Independent
+bundles execute doctor, inventory, preflight and apply after relocation. Native
+VAV/CAV before/after runs verify active economizing and increased OA fraction,
+with no Severe/Fatal errors; these are operational design-day checks, not annual
+savings or ventilation compliance. Minimum OA/DCV (10b) and OA topology/heat
+recovery (10c) remain separate review checkpoints. See the work guide for exact
+verification, source trace, artifacts and review map.
+
+Phase 10a verification: **185 targeted checks passed**, including four native
+economizer comparison runs, two existing CAV sizing runs and both relocated hosts.
+Six affected exported skills pass validation. Changed-file formatting and
+whitespace checks pass; full CI and annual performance were not rerun. Re-export
+hosts for the new skill/shared setter. Phase 10a is ready for review.
+
+Phase 10a E1–E2 follow-up inspects the requested result's translated mixed-air
+node control, sharing the coil work's node-manager collector. No verified single
+Temperature setpoint source warns and sets simulation unready while allowing the
+scoped copied edit. Saved control context is rechecked. Saved/reported numeric
+settings use the fan/pump tolerance; nulls/enums, protected fields and plan/hash
+binding stay exact. Seventeen regressions include a load-controlled unitary loop.
+Re-export affected bundles and regenerate plans; the work guide records current
+verification and limits. Custom EMS/reference-chain execution remains a separate
+verification, and review/probe files are unchanged.
+
+E1–E2 verification passed **283 distinct targeted checks** across overlapping
+regression and economizer/packaging batches, including four native runs and both
+relocated hosts. Both exported economizer skills and changed-file formatting/
+whitespace checks pass. Evidence: `outputs/economizer-review-e1/evidence.json`.
+Full CI and coil/fan native cases were not rerun.
+
+Phase 10b adds `openstudio-ventilation-editor` for explicit in-place minimum/
+maximum OA flow, schedule references and existing ZoneSum DCV. Zone OA/People,
+schedule contents/type limits, sizing, economizer, topology and all identities
+remain protected. Enabling DCV does not implicitly clear a minimum flow/fraction
+floor. Plans expose inherited occupancy/OA inputs, nominal design requirements,
+caps, schedule bounds and readiness warnings. Untyped schedule attachment is
+unready before SDK setters can mutate protected schedules. VAV/CAV share the
+setters in their existing parent transaction.
+
+The shared OA reader now resolves raw MV UUIDs correctly; retained MV method/DCV
+is visible in economizer plans. Re-export both hosts and regenerate plans.
+**259 distinct targeted checks passed**, with 57 final ventilation checks, four
+new native DCV before/after runs, surrounding economizer/VAV/CAV/packaging checks
+and relocated host bundles. Eight exported affected skills pass validation.
+Low-occupancy MV request reaches 0.118033 of baseline; full-occupancy requests
+match, and all four DCV runs have no Severe/Fatal errors. These are design-day
+observations, not annual savings or ventilation compliance. Review/source map,
+exact commands and artifacts: work guide Phase 10b and
+`outputs/ventilation-phase10b/evidence.json`. Phase 10b is ready for review;
+10c OA topology/heat recovery is next. Full CI and Linux/Windows native runs were
+not repeated. User review/probe files remain unchanged.
+
+Phase 10b V1 makes a verified persistent fixed controller floor at/above design
+OA explicit: `dcv_effective: false`, direct no-reduction wording and an explicit
+`minimum_flow_m3_s` change to allow reductions. Partial floors keep qualified
+warnings. Native tests corrected the Autosize premise: OpenStudio 3.11.0 translates
+Autosize to zero with DCV and actual OA falls, while the OSM field remains unchanged.
+Plans expose declared/translated minima and recheck the latter after saving.
+Null effectiveness does not promise a benefit. No reset or new readiness gate.
+
+V1 verification: **108 targeted checks passed**, including all 77 ventilation
+checks and six paired native cases (twelve runs), plus packaging/import/resource
+checks. Fixed design floors keep actual OA unchanged; zero and Autosize permit
+reductions in both systems, with no Severe/Fatal errors. Both relocated/validated
+host bundles pass. Work guide Phase 10b V1 and
+`outputs/ventilation-review-v1/evidence.json` contain the detailed results.
+Regenerate reviewed ventilation plans and host exports. User review/probe files
+remain unchanged; full CI and unrelated native suites were not rerun.
 
 The goal is to reduce agent context and repeated script drafting while making
 model edits reproducible and reviewable. Reviewed Python SDK scripts ship with
 the skill that owns the operation. Claude Code and Codex execute them directly
 through host tools; supported VAV edits do not pass through the modeling MCP
 runtime or measure registry. Shared helpers have one canonical source under
-`skills/sdk_scripts/` and are copied into owning bundles by the manifest/adapters.
+`skills/sdk_scripts/`. [Integration increment B](SDK_INTEGRATION_SUMMARY.md#b--shared-sdk-packaging)
+exports one plugin-local `sdk/` library and fixed owning-skill launchers; copy
+or install the complete plugin. Earlier independently moved skill tests below
+describe their original verification; current relocation tests move the plugin.
 Normal agent runs read the skill and argument contract, rather than implementation
 code or multiple SDK wiki packs.
 
@@ -69,6 +250,38 @@ matrix updates plus native verification of both exports. Updating the contract
 alone is insufficient. Newer NLR models require a compatible provider or matching
 package; local scripts do not downgrade them. Best-effort MCP loading for
 inspection is distinct from accepting a model for pinned SDK editing.
+
+
+Phase 10c adds `openstudio-outdoor-air-connector` for new direct intake or
+sensible/latent recovery attachment, and `openstudio-heat-recovery-editor` for
+identity-preserving existing HX edits. Explicit effectiveness, power, frost,
+availability, bypass and outlet-control choices replace inferred template policy.
+The connector verifies both air streams, new-object/control/curve fields and the
+whole graph; pretreat needs a translated reference setpoint. Existing ratings
+edits preserve curves and disclose part-load scaling. Source hashes, companion
+files, protected state and translation precede copied publication.
+
+**109 targeted checks passed**, including eight native VAV/CAV design-day cases,
+six independently relocated owning bundles and host packaging checks. Economizer
+lockout suspends recovery/power; new intakes work with subsequent recovery.
+W1 confirms that pretreat avoids unnecessary recovery and downstream cooling
+in this fixture; recovered watts alone do not establish useful recovery. Full CI and annual/cold-climate defrost behavior were not rerun.
+Phase 10c is ready for review; source map, reproduction and results are in the
+work guide; artifacts are under `outputs/heat-recovery-phase10c/`.
+
+
+
+Phase 10c W1 adds an advisory uncontrolled-recovery warning and impact context
+when outlet control is off on a cooled-air loop, including in-place edits. Paired
+native winter comparisons show 75.357 kWh (VAV) / 73.039 kWh (CAV) added cooling
+with control off, almost exactly the additional recovered heat; heating/reheat
+remain essentially unchanged. Pretreat avoids heat-then-cool in these fixtures.
+Thermal coil loads and HX electricity are reported separately; they do not
+establish net HVAC input energy or annual savings. **100 targeted checks passed**,
+including 16 new warning cases, six moved bundles and six native checks/eight
+simulations. See the work guide W1 section and `outputs/heat-recovery-review-w1/`.
+Refresh exports and recovery plans. User review/probe files remain unchanged.
+
 
 ## Completed phases
 
@@ -507,3 +720,19 @@ review probes are retired; assertion-based regressions remain under `tests/`.
 
 The phase-4 numerical baseline was extracted into the test fixture rather than
 discarded. General user/developer/release docs and unrelated work remain intact.
+
+
+## Read-only HVAC visualization (increment D, October 11, 2026)
+
+openstudio-hvac-visualizer now routes local topology inspection through the same
+pinned SDK/preparation boundary and one shared plugin payload. It produces JSON,
+Mermaid and Markdown, with actual connection/port provenance, complete zone
+inventory and separate control/membership relationships. Local diagrams retain
+private model labels and are excluded from automatic public issues. Unsupported
+embedded air paths and legacy port discrepancies warn; inspection never saves
+source/companions or validates sizing/operation. NLR priority is unchanged.
+
+D is ready for review: 317 unique targeted tests passed, including 21 visualizer
+cases and both relocated native host launchers. Both exports inspect the same
+prepared integration model into byte-identical graphs with all 522 connections.
+See [the D contract and reviewer commands](SDK_INTEGRATION_SUMMARY.md#d--read-only-hvac-visualization).

@@ -23,7 +23,7 @@ knowledge, and workflow-state tools for AI-assisted building-energy modeling.
   the pinned SDK and bundled model preparation after the existing NLR priority
   gate. Component ports retain their provenance; embedded paths and legacy port
   discrepancies warn. Weather and simulation are not required. See the
-  [increment D review guide](docs/HVAC_VISUALIZER_INCREMENT_D.md) for coverage and commands.
+  [increment D review guide](docs/SDK_INTEGRATION_SUMMARY.md#d--read-only-hvac-visualization) for coverage and commands.
 - Opt-in, user-local learning evidence and review-gated personal lessons shared
   by Claude Code and Codex through MCP; the CLI curates candidates and detects
   repeated scripts as candidate measures. “Opt-in” means explicit learning-tool
@@ -135,12 +135,12 @@ knowledge, and workflow-state tools for AI-assisted building-energy modeling.
   plugin file/function/line locations.
   Models and companions are excluded; missing authentication/network retains
   local drafts. Reporting readiness is optional, with a project-level disable
-  policy. See the [reporting contract and tests](docs/FAILURE_REPORTING_INCREMENT_C.md).
+  policy. See the [reporting contract and tests](docs/SDK_INTEGRATION_SUMMARY.md#c--automatic-failure-reporting).
 - Reviewed OpenStudio SDK knowledge packs.
 - Skill resource export for both hosts, with one plugin-local `sdk/` library
   and fixed launchers in owning skills. Install or move the complete plugin;
   no separate shared package is required. Export records size evidence and
-  enforces a 1 MiB SDK-resource budget. See the [packaging contract and review commands](docs/SHARED_SDK_PACKAGING_INCREMENT_B.md).
+  enforces a 1 MiB SDK-resource budget. See the [packaging contract and review commands](docs/SDK_INTEGRATION_SUMMARY.md#b--shared-sdk-packaging).
   This package pins OpenStudio 3.11.0 consistently in its dependency,
   lock metadata and exported compatibility contract. SDK skills include a
   grouped assumption review with editable inputs and visible fixed controls;
@@ -335,7 +335,7 @@ is appended.
 
 ## Key Docs
 
-- [SDK Integration Review and Revised Priorities](docs/SDK_INTEGRATION_REVIEW.md)
+- [SDK Integration and Review Summary](docs/SDK_INTEGRATION_SUMMARY.md#status-and-development-rules)
 - [Contributing](CONTRIBUTING.md)
 - [Multi-lab Assessment and One-month Plan](docs/MULTILAB_ONE_MONTH_PLAN.md)
 - [Harness Details](docs/HARNESS_DETAILS.md)
@@ -362,4 +362,4 @@ Bundled SDK operations now gate older or handle-unstable OSMs before planning.
 The shared loader also rejects missing air- or plant-loop availability lists.
 Their skill-local `prepare_model.py` creates a stable reported working copy, then
 the workflow repeats inventory/preflight with all exact checks intact. See the
-[increment A contract and local verification commands](docs/MODEL_PREPARATION_INCREMENT_A.md).
+[increment A contract and local verification commands](docs/SDK_INTEGRATION_SUMMARY.md#a--deterministic-inputs-and-explicit-preparation).

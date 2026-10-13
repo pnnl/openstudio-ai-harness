@@ -374,6 +374,106 @@
         "If user permits defaults, lists assumptions as Object:Name.parameter: assumed to be x.",
         "Does not create the object before clarification or explicit default approval."
       ]
+    },
+    {
+      "id": "vav_bundle_selected_011",
+      "query": "Use the local bundled scripts to add a VAV system to five unserved zones. Use the approved prototype_vav_v1 defaults and electric heating/reheat with approved DXTwoSpeed cooling. Save a new OSM.",
+      "expected_behavior": {
+        "clarification_required": false,
+        "expected_route": "host_skill_bound_scripts",
+        "expected_skill": "openstudio_vav_reheat_system_creator",
+        "required_openstudio_version": "3.11.0",
+        "expected_knowledge_packs": [],
+        "must_show_full_python_before_execution": false
+      },
+      "pass_criteria": [
+        "Loads the parent and schema; executes bundled doctor, configured preflight, report and apply through host tools.",
+        "Uses exact OpenStudio 3.11.0 and a new output path; preserves input bytes.",
+        "Does not draft per-object code, read implementation files, load SDK wiki packs, or require modeling MCP setup.",
+        "Honors already approved defaults and requires ready plus saved-topology validation."
+      ],
+      "preconditions": {
+        "nlr_configured": false,
+        "execution_provider": "local_skill_bundle"
+      }
+    },
+    {
+      "id": "vav_bundle_missing_inputs_012",
+      "query": "Use local bundled scripts to add a VAV system; I have not decided the target zones or plant loops.",
+      "expected_behavior": {
+        "clarification_required": true,
+        "expected_route": "host_skill_bound_scripts",
+        "expected_skill": "openstudio_vav_reheat_system_creator",
+        "required_openstudio_version": "3.11.0",
+        "expected_knowledge_packs": [],
+        "must_show_full_python_before_execution": false
+      },
+      "pass_criteria": [
+        "Runs doctor and read-only preflight to obtain candidates and missing choices.",
+        "Asks for missing selections; does not apply an incomplete plan.",
+        "Does not create plants or replace existing HVAC."
+      ],
+      "preconditions": {
+        "nlr_configured": false,
+        "execution_provider": "local_skill_bundle"
+      }
+    },
+    {
+      "id": "vav_bundle_wrong_release_013",
+      "query": "Use the local VAV bundle with my explicitly supplied OpenStudio 3.8 executable.",
+      "expected_behavior": {
+        "clarification_required": false,
+        "expected_route": "host_skill_bound_scripts",
+        "expected_skill": "openstudio_vav_reheat_system_creator",
+        "required_openstudio_version": "3.11.0",
+        "expected_knowledge_packs": [],
+        "must_show_full_python_before_execution": false
+      },
+      "pass_criteria": [
+        "Doctor rejects the authoritative incompatible path and requests the exact 3.11.0 installation/path.",
+        "Does not substitute another installed SDK, project virtualenv, runtime, or generated script.",
+        "Does not read or mutate the model after doctor failure."
+      ],
+      "preconditions": {
+        "nlr_configured": false,
+        "execution_provider": "local_skill_bundle"
+      }
+    },
+    {
+      "id": "vav_bundle_failed_apply_014",
+      "query": "The saved VAV plan failed because its input hash is stale. Continue the local bundled workflow.",
+      "expected_behavior": {
+        "clarification_required": true,
+        "expected_route": "host_skill_bound_scripts",
+        "expected_skill": "openstudio_vav_reheat_system_creator",
+        "required_openstudio_version": "3.11.0",
+        "expected_knowledge_packs": [],
+        "must_show_full_python_before_execution": false
+      },
+      "pass_criteria": [
+        "Reports the saved failure and reruns preflight against the current input after resolving the change.",
+        "Does not edit the plan hash, draft replacement code or change SDK.",
+        "Uses a new output path if an output already exists; does not overwrite it."
+      ],
+      "preconditions": {
+        "nlr_configured": false,
+        "execution_provider": "local_skill_bundle"
+      }
+    },
+    {
+      "id": "vav_nlr_priority_015",
+      "query": "NLR OpenStudio MCP is configured and compatible. Add a VAV system; the plugin also contains local VAV scripts.",
+      "expected_behavior": {
+        "clarification_required": false,
+        "expected_route": "nlr_openstudio_mcp",
+        "expected_skill": "delegated_nlr_modeling"
+      },
+      "pass_criteria": [
+        "Selects NLR and its relevant guide before modeling, including requests mentioning bundled scripts.",
+        "Uses a specific local modeling skill only after documented NLR unavailability/incompatibility or unsupported-operation transition.",
+        "Does not draft bespoke SDK code when a specific modeling skill covers the request.",
+        "Does not load removed VAV child skills."
+      ]
     }
   ]
 }

@@ -19,3 +19,9 @@ Required operations:
 
 Do not use AUTOMA-AI native blackboard tools for OpenStudio AI harness state
 while evaluating the MCP blackboard path.
+
+Workflow patches preserve top-level history: `completed_steps` and `assumptions`
+append unique entries to existing lists. Nested lists and other lists (including
+`pending_steps`) retain replacement semantics. `blackboard_record_assumption`
+continues to append individual events, including repeated text. Initialize a new
+workflow when history must start fresh.

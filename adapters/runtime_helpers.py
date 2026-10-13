@@ -87,6 +87,15 @@ def nlr_mcp_status() -> dict[str, object]:
 
 
 def main() -> int:
+    reporting_script = Path(__file__).resolve().parents[3] / "skills" / "report-openstudio-failure" / "scripts" / "report_failure.py"
+    reporting = {"optional": True, "submission_ready": False, "affects_modeling_readiness": False}
+    if reporting_script.is_file():
+        try:
+            status = subprocess.run([sys.executable, "-I", "-S", str(reporting_script), "doctor"], capture_output=True, text=True, timeout=8)
+            if status.returncode == 0:
+                reporting = json.loads(status.stdout)
+        except (OSError, subprocess.TimeoutExpired, ValueError):
+            pass
     report = {
         "python": {
             "executable": sys.executable,
@@ -95,6 +104,7 @@ def main() -> int:
         "openstudio_ai_mcp": command_status("openstudio-ai-mcp"),
         "openstudio_ai": command_status("openstudio-ai"),
         "nlr_openstudio": nlr_mcp_status(),
+        "failure_reporting": reporting,
     }
     print(json.dumps(report, indent=2))
 

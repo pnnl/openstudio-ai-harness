@@ -21,12 +21,20 @@ and approval model.
 
 ## Current Status
 
-- Release candidate `0.4.0` uses MCP plugin interface contract `5`, adding
-  durable engineering-session, finding, and checkpoint surfaces. Hosts must
-  refresh exported plugins to use those workflows.
+- Release candidate `0.5.0` uses MCP plugin interface contract `6`, adding
+  `sdk_python` to `runtime_openstudio_status` so host-side SDK scripts run in
+  the MCP server's own environment. Contract `5` added durable
+  engineering-session, finding, and checkpoint surfaces. Hosts must refresh
+  exported plugins to use those workflows.
 - The diagnostic MVP (`model_inspect`, `sim_diagnose`, and
-  `results_plausibility`) and its curated fixtures are planned for contract `6`.
-- Current branch: `main`; release metadata is being prepared for `0.4.0`.
+  `results_plausibility`) and its curated fixtures are not yet part of the
+  contract; they will need a further contract bump when they ship.
+- Marketplace exports launch the runtime through a pinned `uv` launcher
+  (`adapters/mcp_launcher.py`). `0.4.0` is already on PyPI without
+  `sdk_python`, so `0.5.0` must be published to PyPI before the marketplace
+  export is published.
+- Current branch: `uvx-marketplace-runtime`; release metadata is being prepared
+  for `0.5.0`.
 - The current foundation is a Python 3.10+ package with an MCP 2.x runtime,
   Codex and Claude Code plugin exports, trusted skills/knowledge, local
   SQLite-backed workflow state, model lifecycle support, asynchronous

@@ -69,13 +69,28 @@ jobs:
           for attempt in 1 2 3 4 5 6; do
             if curl -fsS -o /dev/null "${url}"; then
               echo "openstudio-ai ${version} is available on PyPI."
-              exit 0
+              published=1
+              break
             fi
             echo "openstudio-ai ${version} not on PyPI yet (attempt ${attempt}); retrying in 30s."
             sleep 30
           done
-          echo "::error::openstudio-ai ${version} is not published on PyPI; refusing to export a marketplace that pins it."
-          exit 1
+          if [ -z "${published:-}" ]; then
+            echo "::error::openstudio-ai ${version} is not published on PyPI; refusing to export a marketplace that pins it."
+            exit 1
+          fi
+
+          # Existence alone accepts a reused version: an export whose version was
+          # not bumped pins an older published runtime with an older contract.
+          expected=$(jq -er '.plugin.mcp_interface_contract_version' "${RUNNER_TEMP}/marketplace/.generated.json")
+          actual=$(uvx --refresh-package openstudio-ai --python ">=3.10,<3.14" \
+            --from "openstudio-ai==${version}" python -c \
+            "from openstudio_ai_mcp.compatibility import PLUGIN_CONTRACT_VERSION; print(PLUGIN_CONTRACT_VERSION)")
+          if [ "${actual}" != "${expected}" ]; then
+            echo "::error::Published openstudio-ai ${version} serves MCP contract ${actual}, but this export requires ${expected}. Bump the package version and publish it before exporting."
+            exit 1
+          fi
+          echo "Published openstudio-ai ${version} serves MCP contract ${expected}."
 
       - name: Sync generated files into plugins checkout
         run: |

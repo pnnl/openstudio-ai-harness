@@ -27,9 +27,9 @@ with stdio:
 }
 ```
 
-## Optional Runtime Commands
+## Runtime Commands
 
-The runtime package should eventually provide:
+The runtime package provides:
 
 ```bash
 openstudio-ai doctor
@@ -58,7 +58,9 @@ Contract version `2` requires `runtime_openstudio_status`. Contract version `3`
 adds `model_export_geometry_viewer`, required by the standalone geometry-viewer
 skill. Contract version `4` adds the personal-learning tools used by the
 curate-learning workflow. Contract version `5` adds durable engineering-session,
-finding, and checkpoint tools. The simulation skill uses its preflight as an
+finding, and checkpoint tools. Contract version `6` adds `sdk_python` to
+`runtime_openstudio_status`, the interpreter that host-side SDK scripts must use.
+The simulation skill uses its preflight as an
 MCP-only workflow and must not fall back to direct OpenStudio, EnergyPlus,
 workflow, or SQL commands when the tool or MCP reconnection is unavailable.
 
@@ -127,8 +129,11 @@ Before a simulation, hosts should call `runtime_openstudio_status`. It reports
 the executable path and discovery source from the MCP process itself, not from
 the host shell. When unavailable, the simulation workflow performs read-only
 platform-specific discovery before offering installation guidance.
-- `openstudio-ai install-runtime`: installs or completes installation of the
-  runtime package after user approval.
+Other runtime commands:
+
+- `openstudio-ai install-runtime`: creates OpenStudio AI's user-local data folder
+  and prints next steps. It does not install the package: in marketplace mode,
+  running it through `uvx` is what downloads the pinned runtime into uv's cache.
 - `openstudio-ai repair`: attempts non-destructive fixes such as rebuilding
   indexes, recreating runtime folders, and explaining missing prerequisites.
 
@@ -146,11 +151,12 @@ Adapters must support three runtime modes:
 mode must not require a developer path such as `/Users/...`.
 
 Marketplace mode pins the runtime release to the plugin version, so the plugin
-and runtime contracts match by construction. Publish the matching
-`openstudio-ai` release to PyPI before publishing the plugin export, and bump
-the package version for every release that changes runtime behavior: an export
-whose pinned version already exists on PyPI launches that existing release, not
-the code it was exported from. Host-side SDK scripts use the interpreter
+and runtime contracts match as long as that version is a distinct release.
+Publish the matching `openstudio-ai` release to PyPI before publishing the
+plugin export, and bump the package version for every release that changes
+runtime behavior or the MCP contract: an export whose pinned version already
+exists on PyPI launches that existing release, not the code it was exported
+from, and `--reinstall` fetches the same release again. Host-side SDK scripts use the interpreter
 reported by `runtime_openstudio_status` (`sdk_python.executable`), which is the
 MCP server's own environment in every mode. `sdk_python.available` is true only
 when a fresh process with that interpreter can `import openstudio`; otherwise
@@ -163,7 +169,8 @@ expand in plugin `.mcp.json` files, and keeps the server in the host's working
 directory. The launcher checks whether uv can build the pinned environment with
 `--offline`. If it can, it starts the server with `uv tool run --offline`; if
 not (first launch, or after a plugin upgrade), it runs the same spec online. The
-pins are exact, so a cached environment is never out of date. `uv run` passes
+pins are exact, so a cached environment matches its pin; this relies on every
+change to the runtime shipping under a new version. `uv run` passes
 `-I` so modules in the host's working directory cannot shadow the launcher's
 standard-library imports.
 
@@ -256,7 +263,7 @@ The setup workflow should ask the host agent to:
 6. Explain the network dependency described above, and suggest `UV_OFFLINE=1`
    for setup and doctor commands run offline.
 7. Explain failures in normal energy-modeler language.
-8. Warn at the start that setup also enables automatic OpenStudio routing in
+8. (Codex only.) Warn at the start that setup also enables automatic OpenStudio routing in
    the current project. It is a required completion step, not a separate
    opt-in process. After the runtime is ready, preview
    `openstudio-ai install codex --target-dir . --dry-run --force`, then run
@@ -267,4 +274,3 @@ The setup workflow should ask the host agent to:
 Organizations that do not install from PyPI configure uv's package index (for
 example `UV_DEFAULT_INDEX`) rather than editing the plugin's launch command;
 see Network and offline behavior above.
-Installer failures should be explained in normal energy-modeler language.

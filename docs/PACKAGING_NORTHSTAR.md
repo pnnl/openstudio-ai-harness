@@ -232,26 +232,22 @@ project structure is stabilized.
    - `repair-openstudio-ai`
    - future `uninstall-openstudio-ai`
 
-4. Add cross-platform installer scripts.
+4. Add cross-platform runtime setup through uv.
 
-   ```text
-   Claude: skills/setup-openstudio-ai/scripts/install_runtime.py
-   Claude: skills/setup-openstudio-ai/scripts/doctor_runtime.py
-   Codex: skills/setup-openstudio-ai/scripts/install_runtime.py
-   Codex: skills/setup-openstudio-ai/scripts/doctor_runtime.py
-   ```
-
-   These should validate prerequisites, install or upgrade the runtime package
-   after user approval, support pinned/internal package specs through
-   `OPENSTUDIO_AI_PACKAGE_SPEC`, initialize runtime storage, and explain
-   failures in normal energy-modeler language.
+   Marketplace exports no longer bundle installer scripts. The setup skills run
+   `uvx ... openstudio-ai install-runtime` and `doctor` against the exact
+   runtime release pinned in `.mcp.json`. Setup validates prerequisites, asks
+   before preparing the runtime, initializes runtime storage, supports internal
+   package indexes through uv's `UV_DEFAULT_INDEX`, and explains failures in
+   normal energy-modeler language. See `RUNTIME_INSTALLATION_CONTRACT.md`.
 
 5. Add export tests.
 
    Tests should confirm:
 
    - marketplace exports include setup/doctor/repair skills;
-   - `.mcp.json` points to `openstudio-ai-mcp` in installed/marketplace mode;
+   - `.mcp.json` points to `openstudio-ai-mcp` in installed mode, and to the
+     pinned `uv` launcher in marketplace mode;
    - local mode still points to the source checkout;
    - exported instructions are cross-platform;
    - no hardcoded developer machine paths appear in marketplace mode;

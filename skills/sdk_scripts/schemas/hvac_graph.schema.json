@@ -1,0 +1,339 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Read-only OpenStudio HVAC graph, format 1 (local output, never public incident configuration)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "operation",
+    "input_sha256",
+    "source_version",
+    "openstudio_version",
+    "load_provenance",
+    "nodes",
+    "edges",
+    "groups",
+    "zones",
+    "warnings",
+    "coverage"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "operation": {
+      "const": "visualize_hvac"
+    },
+    "input_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "source_version": {
+      "type": "string"
+    },
+    "openstudio_version": {
+      "type": "string"
+    },
+    "load_provenance": {
+      "type": "object",
+      "required": [
+        "handle_guard",
+        "changes",
+        "translator",
+        "note"
+      ]
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/node"
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/edge"
+      }
+    },
+    "groups": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/group"
+      }
+    },
+    "zones": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "handle",
+          "name",
+          "air_loops",
+          "vrf_systems",
+          "equipment",
+          "ideal_loads",
+          "plenum",
+          "unserved"
+        ]
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "code",
+          "handle"
+        ]
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "required": [
+        "native_connection_count",
+        "represented_connection_count",
+        "embedded_air_paths",
+        "controls",
+        "vrf",
+        "sizing_or_operation_validated",
+        "warning_counts"
+      ],
+      "properties": {
+        "sizing_or_operation_validated": {
+          "const": false
+        }
+      }
+    }
+  },
+  "$defs": {
+    "strings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "handle",
+        "name",
+        "type",
+        "ports",
+        "groups",
+        "provenance"
+      ],
+      "properties": {
+        "handle": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "groups": {
+          "$ref": "#/$defs/strings"
+        },
+        "provenance": {
+          "const": "model_object"
+        },
+        "ports": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "index",
+              "field",
+              "direction",
+              "connection",
+              "field_index"
+            ],
+            "properties": {
+              "index": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "field": {
+                "type": "string"
+              },
+              "direction": {
+                "enum": [
+                  "in",
+                  "out"
+                ]
+              },
+              "connection": {
+                "type": "string"
+              },
+              "field_index": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    "edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "source",
+        "target",
+        "source_port",
+        "target_port",
+        "provenance",
+        "groups"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "flow",
+            "contains",
+            "vrf_membership",
+            "control",
+            "serves_zone",
+            "zone_boundary",
+            "plenum_zone"
+          ]
+        },
+        "source": {
+          "type": "string"
+        },
+        "target": {
+          "type": "string"
+        },
+        "source_port": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "target_port": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "source_field": {
+          "type": "string"
+        },
+        "target_field": {
+          "type": "string"
+        },
+        "medium": {
+          "enum": [
+            "air",
+            "water",
+            "unknown"
+          ]
+        },
+        "provenance": {
+          "type": "string"
+        },
+        "groups": {
+          "$ref": "#/$defs/strings"
+        },
+        "source_field_index": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "target_field_index": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "flow"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "source_field",
+              "target_field",
+              "medium",
+              "source_field_index",
+              "target_field_index"
+            ],
+            "properties": {
+              "source_port": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "target_port": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "provenance": {
+                "const": "OS_Connection"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "group": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "root",
+        "name",
+        "members",
+        "served_zones"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "air_loop",
+            "plant_loop",
+            "vrf_system",
+            "zone",
+            "unassigned"
+          ]
+        },
+        "root": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "members": {
+          "$ref": "#/$defs/strings"
+        },
+        "served_zones": {
+          "$ref": "#/$defs/strings"
+        }
+      }
+    }
+  }
+}

@@ -61,7 +61,7 @@ SAFE_WORDS = set(
 )
 SAFE_FLAGS = set(
     "--input --output --config --report --plan --openstudio --candidate-filter "
-    "--probe-timeout execute_python_script -m --json".split()
+    "--probe-timeout --output-dir --system execute_python_script -m --json".split()
 )
 CONFIG_KEYS = set(
     "operation type name handle air_loop air_loops plant_loop plant_loops zones "
@@ -498,7 +498,7 @@ class Sanitizer:
             elif re.fullmatch(r"(?:python(?:3(?:\.\d+)?)?|openstudio)(?:\.exe)?", base):
                 result.append(base)
             elif re.fullmatch(
-                r"(?:edit_|replace_|connect_|attach_|manage_|remove_|prepare_|vav_|plant_|cav_|sdk_)[a-z_]+\.py",
+                r"(?:edit_|replace_|connect_|attach_|manage_|remove_|prepare_|visualize_|vav_|plant_|cav_|sdk_)[a-z_]+\.py",
                 base,
             ):
                 result.append(base)

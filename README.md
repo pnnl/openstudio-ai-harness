@@ -10,6 +10,20 @@ knowledge, and workflow-state tools for AI-assisted building-energy modeling.
   self-contained OSM geometry viewers.
 - Claude Code plugin export.
 - Codex plugin export.
+- `openstudio-hvac-visualizer` produces read-only local JSON, Mermaid and Markdown
+  equipment views of air/plant connections, VRF membership and every thermal zone.
+  Zones are green, air-side equipment blue and water-side equipment orange;
+  SDK routing nodes and controls stay in the detailed JSON. One connected air
+  diagram reads from supply on the left through zones to return/exhaust on the
+  right, with verified outdoor boundary arrows and connected-path fan roles. Water
+  views omit routing-only bypass paths with a note and retain their JSON evidence.
+  VRF indoor units fold contained coils/fans into their labels; shared-zone labels
+  name other serving air/VRF systems. Hidden-only groups produce no empty diagrams.
+  It uses
+  the pinned SDK and bundled model preparation after the existing NLR priority
+  gate. Component ports retain their provenance; embedded paths and legacy port
+  discrepancies warn. Weather and simulation are not required. See the
+  [increment D review guide](docs/HVAC_VISUALIZER_INCREMENT_D.md) for coverage and commands.
 - Opt-in, user-local learning evidence and review-gated personal lessons shared
   by Claude Code and Codex through MCP; the CLI curates candidates and detects
   repeated scripts as candidate measures. “Opt-in” means explicit learning-tool

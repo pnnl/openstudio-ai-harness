@@ -166,6 +166,11 @@ incompatible or cannot cover the request, following its recorded transition rule
 Then choose the owning skill before loading documentation or drafting code. For
 supported VAV creation, use `openstudio_vav_reheat_system_creator` directly.
 Run its reviewed scripts rather than offering a runtime/measure/script choice.
+For HVAC diagrams or topology review, use `openstudio-hvac-visualizer` after the
+same NLR provider gate. Its read-only bundle produces a full local graph and
+overview/per-system Mermaid views without simulation or weather prerequisites.
+Do not reconstruct topology with ad hoc scripts or upload its private diagrams
+as part of automatic failure reporting.
 Do not automatically substitute code drafting when a bundled operation fails.
 
 For local SDK work, `openstudio_sdk_model_editor` enforces the exact

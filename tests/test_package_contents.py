@@ -44,6 +44,11 @@ def test_release_archives_exclude_local_openstudio_fixtures(tmp_path: Path) -> N
     assert "skills/report_openstudio_failure.md" in wheel_names
     assert "skills/sdk_scripts/common/failure_reporting.py" in wheel_names
     assert "skills/failure_reporting/event.schema.json" in wheel_names
+    assert "skills/openstudio_hvac_visualizer.md" in wheel_names
+    assert "skills/sdk_scripts/visualize_hvac.py" in wheel_names
+    assert "skills/sdk_scripts/common/hvac_graph.py" in wheel_names
+    assert "skills/sdk_scripts/common/hvac_diagram.py" in wheel_names
+    assert "skills/sdk_scripts/schemas/hvac_graph.schema.json" in wheel_names
     assert "prompts/openstudio_agent.md" in wheel_names
 
     sdist = next(tmp_path.glob("*.tar.gz"))

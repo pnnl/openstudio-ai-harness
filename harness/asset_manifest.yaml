@@ -6,6 +6,30 @@ sdk_library:
 # Verbatim skill files with explicit destinations. Shared helpers may have
 # multiple owners; nested paths are preserved.
 resources:
+  - source: skills/sdk_scripts/visualize_hvac.py
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-hvac-visualizer
+        path: scripts/visualize_hvac.py
+  - source: skills/sdk_scripts/common/hvac_graph.py
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-hvac-visualizer
+        path: scripts/common/hvac_graph.py
+  - source: skills/sdk_scripts/common/hvac_diagram.py
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-hvac-visualizer
+        path: scripts/common/hvac_diagram.py
+  - source: skills/sdk_scripts/schemas/hvac_graph.schema.json
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-hvac-visualizer
+        path: references/hvac_graph.schema.json
   - source: skills/sdk_scripts/common/failure_reporting.py
     scope: plugin-sdk
     owners:
@@ -84,6 +108,9 @@ resources:
     scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
+        skill: openstudio-hvac-visualizer
+        path: scripts/doctor.py
+      - hosts: [claude, codex]
         skill: openstudio-sdk-model-editor
         path: scripts/doctor.py
       - hosts: [claude, codex]
@@ -140,6 +167,9 @@ resources:
   - source: skills/sdk_scripts/sdk_probe.py
     scope: plugin-sdk
     owners:
+      - hosts: [claude, codex]
+        skill: openstudio-hvac-visualizer
+        path: scripts/sdk_probe.py
       - hosts: [claude, codex]
         skill: openstudio-sdk-model-editor
         path: scripts/sdk_probe.py
@@ -254,6 +284,9 @@ resources:
   - source: skills/sdk_scripts/compatibility.json
     scope: plugin-sdk
     owners:
+      - hosts: [claude, codex]
+        skill: openstudio-hvac-visualizer
+        path: scripts/compatibility.json
       - hosts: [claude, codex]
         skill: openstudio-sdk-model-editor
         path: scripts/compatibility.json
@@ -1534,6 +1567,9 @@ resources:
     scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
+        skill: openstudio-hvac-visualizer
+        path: scripts/prepare_model.py
+      - hosts: [claude, codex]
         skill: openstudio-sdk-model-editor
         path: scripts/prepare_model.py
       - hosts: [claude, codex]
@@ -1585,6 +1621,9 @@ resources:
     scope: plugin-sdk
     owners:
       - hosts: [claude, codex]
+        skill: openstudio-hvac-visualizer
+        path: references/preparation_report.schema.json
+      - hosts: [claude, codex]
         skill: openstudio-sdk-model-editor
         path: references/preparation_report.schema.json
       - hosts: [claude, codex]
@@ -1635,6 +1674,9 @@ resources:
   - source: skills/sdk_scripts/references/model_preparation.md
     scope: plugin-sdk
     owners:
+      - hosts: [claude, codex]
+        skill: openstudio-hvac-visualizer
+        path: references/model_preparation.md
       - hosts: [claude, codex]
         skill: openstudio-sdk-model-editor
         path: references/model_preparation.md
@@ -1723,6 +1765,9 @@ skills:
     hosts: [claude, codex]
   - id: openstudio-plant-loop-creator
     source: skills/openstudio_plant_loop_creator.md
+    hosts: [claude, codex]
+  - id: openstudio-hvac-visualizer
+    source: skills/openstudio_hvac_visualizer.md
     hosts: [claude, codex]
   - id: openstudio-hvac-remover
     source: skills/openstudio_hvac_remover.md

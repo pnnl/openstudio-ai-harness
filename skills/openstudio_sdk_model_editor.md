@@ -31,6 +31,10 @@ including `requires_preparation`, do not submit.
 
 ## Scope
 
+Route HVAC component/connection diagrams to `openstudio-hvac-visualizer`, which
+owns read-only graph extraction and Mermaid/Markdown artifacts. Follow the same
+NLR provider selection and preparation gates before local visualization.
+
 Use this skill only for OpenStudio model inspection and model editing. Do not use
 it to run simulations or retrieve simulation results. Simulation execution,
 polling, artifacts, and SQL-backed result retrieval belong to the OpenStudio MCP

@@ -23,6 +23,10 @@ task-specific skill before acting; do not recreate its procedure from memory.
   edits. It checks for a bundled operation before its bespoke-edit guidance.
 - Use `view-openstudio-geometry` to generate a read-only, self-contained HTML
   geometry viewer from an `.osm` model.
+- Use `openstudio-hvac-visualizer` to inspect HVAC components, directed ports and
+  served zones as local JSON/Mermaid/Markdown before selection/removal or after
+  an edit. Keep NLR priority and the recorded fallback boundary. Link the compact
+  overview or selected diagrams; full topology and private labels stay local.
 - Use `openstudio-vav-reheat-system-creator` for multi-zone VAV work through
   its exact-release doctor, bundled preflight/apply, and saved-model validator.
   Do not draft objects individually; the legacy child skills have been removed.

@@ -151,7 +151,7 @@ def test_every_public_entrypoint_resolves_after_complete_relocation(plugin, tmp_
         for p in plugin.glob("skills/*/scripts/*.py")
         if "runpy.run_path" in p.read_text()
     ]
-    assert len(scripts) == 66
+    assert len(scripts) == 70
     for script in scripts:
         if script.name == "sdk_probe.py":
             continue  # Probe has no argparse; the separate native case executes it.

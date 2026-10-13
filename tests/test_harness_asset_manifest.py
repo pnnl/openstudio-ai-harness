@@ -46,6 +46,7 @@ def test_asset_manifest_registers_every_product_skill() -> None:
             skill_ids_for_host(workspace_root, host)
         ), "Retired VAV child routes must not be exported"
         assert "openstudio-hvac-remover" in skill_ids_for_host(workspace_root, host)
+        assert "openstudio-hvac-visualizer" in skill_ids_for_host(workspace_root, host)
         assert "openstudio-plant-loop-creator" in skill_ids_for_host(
             workspace_root, host
         )

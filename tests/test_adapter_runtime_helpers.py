@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shlex
 from pathlib import Path
 
 import pytest
@@ -183,9 +184,33 @@ def test_triage_does_not_treat_fresh_storage_as_a_stale_runtime() -> None:
     assert "--reinstall" in rest
 
 
+def test_offline_flag_precedes_the_console_script() -> None:
+    argv = shlex.split(runtime_uvx_command("openstudio-ai", "doctor", offline=True))
+    assert argv[:2] == ["uvx", "--offline"]
+    assert argv.index("--offline") < argv.index("openstudio-ai")
+    assert argv.count("--offline") == 1
+    both = shlex.split(
+        runtime_uvx_command("openstudio-ai", "install-runtime", offline=True, reinstall=True)
+    )
+    assert both[:3] == ["uvx", "--offline", "--reinstall"]
+    assert "--offline" not in shlex.split(runtime_uvx_command("openstudio-ai", "doctor"))
+
+
+def test_triage_tells_agent_to_retry_offline_when_uvx_cannot_start() -> None:
+    text = doctor_triage_guidance()
+    # Offline failures happen before the doctor can print remediation, so the
+    # hint must not be tied to a diagnostic code.
+    assert "before printing a result" in text
+    assert runtime_doctor_command(offline=True) in text
+    assert runtime_uvx_command("openstudio-ai", "install-runtime", offline=True) in text
+    # A shell-specific prefix would fail in Windows cmd and PowerShell.
+    assert "UV_OFFLINE" not in text
+
+
 def test_offline_guidance_names_working_uv_settings() -> None:
     text = offline_guidance("Claude Code")
-    assert "UV_OFFLINE=1" in text
+    assert runtime_doctor_command(offline=True) in text
+    assert "UV_OFFLINE" not in text
     assert "UV_DEFAULT_INDEX" in text
     assert "UV_NO_INDEX" not in text
 

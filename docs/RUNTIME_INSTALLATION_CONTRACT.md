@@ -189,7 +189,7 @@ Plain `uvx` commands, such as setup's `install-runtime` and the doctor, behave
 differently. uv rechecks the package index for cached responses that are more
 than about 10 minutes old, even for an exact pin with a fully cached runtime:
 
-- Offline users prefix those commands with `UV_OFFLINE=1` after setup has
+- Offline users run those commands with `uvx --offline ...` after setup has
   filled uv's cache.
 - Organizations with an internal mirror set `UV_DEFAULT_INDEX`. `UV_NO_INDEX`
   alone does not stop `uvx` from contacting PyPI.
@@ -260,8 +260,9 @@ The setup workflow should ask the host agent to:
    approval. In marketplace mode the doctor's remediation text names the pinned
    `uvx` commands, because `openstudio-ai` is not on PATH.
 5. Diagnose a `uv` missing from the PATH that launches the host.
-6. Explain the network dependency described above, and suggest `UV_OFFLINE=1`
-   for setup and doctor commands run offline.
+6. Explain the network dependency described above. When a setup or doctor
+   command fails offline before printing a result, retry the generated
+   `uvx --offline ...` form of that command.
 7. Explain failures in normal energy-modeler language.
 8. (Codex only.) Warn at the start that setup also enables automatic OpenStudio routing in
    the current project. It is a required completion step, not a separate

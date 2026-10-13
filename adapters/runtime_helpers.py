@@ -37,13 +37,23 @@ def runtime_uvx_args(command: str, *, version: str | None = None) -> list[str]:
     return [*runtime_uvx_options(version=version), command]
 
 
-def runtime_uvx_command(command: str, *args: str, reinstall: bool = False) -> str:
-    """Return a copyable shell command for a runtime console script via `uvx`."""
-    options = ["--reinstall"] if reinstall else []
+def runtime_uvx_command(
+    command: str, *args: str, reinstall: bool = False, offline: bool = False
+) -> str:
+    """Return a copyable shell command for a runtime console script via `uvx`.
+
+    `offline` runs from uv's cache without contacting the package index. It is a
+    `uvx` flag rather than `UV_OFFLINE=1` so the command works in every shell,
+    and it must precede the console script, or the script would receive it.
+    """
+    options = [
+        *(["--offline"] if offline else []),
+        *(["--reinstall"] if reinstall else []),
+    ]
     return shlex.join(["uvx", *options, *runtime_uvx_args(command), *args])
 
 
-def runtime_doctor_command() -> str:
+def runtime_doctor_command(*, offline: bool = False) -> str:
     """Return the doctor command that checks this plugin against its runtime."""
     return runtime_uvx_command(
         "openstudio-ai",
@@ -53,6 +63,7 @@ def runtime_doctor_command() -> str:
         package_version(),
         "--plugin-contract-version",
         PLUGIN_CONTRACT_VERSION,
+        offline=offline,
     )
 
 MCP_LAUNCHER_PATH = Path(__file__).with_name("mcp_launcher.py")
@@ -117,6 +128,8 @@ def doctor_triage_guidance() -> str:
     """How to act on `plugin_ready: false` without misreading a fresh machine."""
     install = runtime_uvx_command("openstudio-ai", "install-runtime")
     rebuild = runtime_uvx_command("openstudio-ai", "install-runtime", reinstall=True)
+    offline_doctor = runtime_doctor_command(offline=True)
+    offline_install = runtime_uvx_command("openstudio-ai", "install-runtime", offline=True)
     return (
         "If the doctor reports `plugin_ready: false`, read its `diagnostics` codes "
         "before acting. `runtime_storage_not_ready` means the runtime has not been "
@@ -124,7 +137,13 @@ def doctor_triage_guidance() -> str:
         "`plugin_runtime_incompatible` (or `plugin_compatibility.ok: false`) means uv's "
         "cached runtime is stale or damaged: explain that in normal energy-modeler "
         f"language and ask before rebuilding it with `{rebuild}`. For any other code, "
-        "follow that diagnostic's `remediation`.\n"
+        "follow that diagnostic's `remediation`. If a `uvx` setup or doctor command "
+        "itself fails before printing a result, with a network or package-index error "
+        "after about 30 seconds, the machine is probably offline. Once setup has filled "
+        f"uv's cache, retry with `{offline_doctor}` or `{offline_install}`. These run "
+        "from the cache without contacting the package index; if they report that the "
+        "requirements are unsatisfiable, the runtime is not cached yet and setup needs "
+        "the network once.\n"
     )
 
 
@@ -135,7 +154,8 @@ def offline_guidance(host: str) -> str:
         "cache without network access; it needs the network only for the first download "
         "and after a plugin upgrade. The `uvx` setup and doctor commands still recheck "
         "the package index about every 10 minutes, so when the user runs them offline, "
-        "suggest prefixing them with `UV_OFFLINE=1`. Organizations with an internal "
+        "add `--offline` immediately after `uvx`, before any other option, as in "
+        f"`{runtime_doctor_command(offline=True)}`. Organizations with an internal "
         "package mirror can set `UV_DEFAULT_INDEX` in the environment that launches "
         f"{host}. Do not edit `.mcp.json` for this.\n"
     )

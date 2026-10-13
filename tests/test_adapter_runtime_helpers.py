@@ -8,12 +8,14 @@ import pytest
 import cli
 from adapters.runtime_helpers import (
     OPENSTUDIO_PYTHON_SDK_VERSION,
+    RUNTIME_PYTHON_VERSION,
     doctor_triage_guidance,
     marketplace_mcp_args,
     offline_guidance,
     prepare_runtime_guidance,
     runtime_doctor_command,
     runtime_uvx_args,
+    runtime_uvx_command,
 )
 from openstudio_ai_mcp.compatibility import PLUGIN_CONTRACT_VERSION, package_version
 
@@ -77,6 +79,20 @@ def test_marketplace_uvx_pin_matches_lockfile() -> None:
         "openstudio-ai-mcp",
     ]
     assert f"openstudio-ai=={package_version()}" in runtime_uvx_args("openstudio-ai")
+
+
+def test_runtime_python_range_matches_requires_python() -> None:
+    """uv may reuse any in-range interpreter, so the range must start at the
+    package's `requires-python` floor and stop before Pythons without wheels."""
+    pyproject = (Path(__file__).resolve().parents[1] / "pyproject.toml").read_text(
+        encoding="utf-8"
+    )
+    assert 'requires-python = ">=3.10"' in pyproject
+    assert RUNTIME_PYTHON_VERSION == ">=3.10,<3.14"
+    args = runtime_uvx_args("openstudio-ai")
+    assert args[args.index("--python") + 1] == RUNTIME_PYTHON_VERSION
+    # The copyable shell command must quote the range so `<` is not a redirect.
+    assert "--python '>=3.10,<3.14'" in runtime_uvx_command("openstudio-ai", "doctor")
 
 
 def test_marketplace_mcp_args_pin_an_explicit_release() -> None:

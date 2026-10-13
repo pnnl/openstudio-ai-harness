@@ -6,10 +6,10 @@ import shlex
 
 from openstudio_ai_mcp.compatibility import PLUGIN_CONTRACT_VERSION, package_version
 
-# Marketplace plugins launch the runtime through `uvx` with an exact spec, so the
-# plugin, MCP server, and SDK-script interpreter all come from one pinned
-# environment. `openstudio` publishes wheels for this Python on every platform.
-RUNTIME_PYTHON_VERSION = "3.12"
+# Marketplace plugins launch the runtime through `uvx` with an exact package spec,
+# so the plugin, MCP server, and SDK-script interpreter all come from one pinned,
+# isolated environment.
+RUNTIME_PYTHON_VERSION = ">=3.10,<3.14"
 # Keep in step with the `openstudio` version in uv.lock (enforced by tests).
 OPENSTUDIO_PYTHON_SDK_VERSION = "3.11.0"
 

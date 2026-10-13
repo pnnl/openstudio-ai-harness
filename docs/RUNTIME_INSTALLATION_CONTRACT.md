@@ -140,7 +140,7 @@ Adapters must support three runtime modes:
 | --- | --- | --- |
 | `local` | current Python executable with `-m openstudio_ai_mcp.server` | Developer checkout testing. |
 | `installed` | `openstudio-ai-mcp` | User or enterprise already installed the runtime. |
-| `marketplace` | `uvx --python 3.12 --from openstudio-ai==<plugin-version> --with openstudio==<sdk-version> openstudio-ai-mcp` plus setup skills | Marketplace/no-code onboarding. Requires only uv. |
+| `marketplace` | `uvx --python ">=3.10,<3.14" --from openstudio-ai==<plugin-version> --with openstudio==<sdk-version> openstudio-ai-mcp` plus setup skills | Marketplace/no-code onboarding. Requires only uv. |
 
 `local` mode may reference a source checkout. `installed` and `marketplace`
 mode must not require a developer path such as `/Users/...`.
@@ -172,8 +172,9 @@ offline:
   that launches the host, after setup has filled uv's cache.
 - Organizations with an internal mirror set `UV_DEFAULT_INDEX`. `UV_NO_INDEX`
   alone does not stop `uvx` from contacting PyPI.
-- Air-gapped installs also need Python 3.12 provided ahead of time (for example
-  `uv python install 3.12` while connected, or `UV_PYTHON_INSTALL_MIRROR`),
+- Air-gapped installs also need a Python from 3.10 to 3.13 provided ahead of
+  time (an existing system Python, `uv python install 3.12` while connected, or
+  `UV_PYTHON_INSTALL_MIRROR`),
   plus a local wheelhouse through `UV_FIND_LINKS`.
 
 With an empty cache and no network, a launch fails after uv's retries (about

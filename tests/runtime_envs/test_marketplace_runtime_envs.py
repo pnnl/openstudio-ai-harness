@@ -29,6 +29,9 @@ from runtime_env_harness import (
 STATUS = ("runtime_openstudio_status", {})
 COMPATIBILITY = ("runtime_plugin_compatibility", {})
 PINNED_SDK_VERSION = "3.11.0"
+# Mirrors adapters.runtime_helpers.RUNTIME_PYTHON_VERSION.
+RUNTIME_PYTHON_RANGE = ">=3.10,<3.14"
+SUPPORTED_PYTHON_MINORS = {"3.10", "3.11", "3.12", "3.13"}
 HOME = "/home/modeler"
 
 SDK_SAVE_SCRIPT = """\
@@ -67,7 +70,8 @@ def assert_pinned_sdk_python(info: dict[str, Any]) -> None:
     assert info["available"] is True, info
     assert "error" not in info, info
     assert info["openstudio_sdk_version"] == PINNED_SDK_VERSION, info
-    assert info["python_version"].startswith("3.12."), info
+    minor = ".".join(info["python_version"].split(".")[:2])
+    assert minor in SUPPORTED_PYTHON_MINORS, info
     assert info["executable"].startswith(f"{HOME}/.cache/uv/"), info
 
 
@@ -93,7 +97,7 @@ def test_claude_and_codex_exports_share_one_pinned_launch(env_pool, export) -> N
     assert claude["command"] == codex["command"] == "uvx"
     assert claude["args"] == codex["args"]
     args = claude["args"]
-    assert args[args.index("--python") + 1] == "3.12"
+    assert args[args.index("--python") + 1] == RUNTIME_PYTHON_RANGE
     assert args[args.index("--from") + 1] == f"openstudio-ai=={version}"
     assert args[args.index("--with") + 1] == f"openstudio=={PINNED_SDK_VERSION}"
     assert claude["env"]["OPENSTUDIO_AI_PLUGIN_VERSION"] == version
@@ -334,12 +338,20 @@ def test_cleared_cache_without_network_fails_instead_of_hanging(
 
 
 @runtime_env("system-py310")
-def test_uvx_ignores_system_python_and_project_venv(env_pool) -> None:
+def test_uvx_reuses_system_python_but_not_its_packages(env_pool) -> None:
+    """uv borrows the in-range system interpreter instead of downloading one, but
+    the runtime still gets its own environment: neither the system Python nor the
+    project .venv gains `openstudio`."""
     env = env_pool("system-py310")
     info = sdk_python(env.run_mcp([STATUS]).results)
 
     assert_pinned_sdk_python(info)
+    assert info["python_version"].startswith("3.10."), info
     assert not info["executable"].startswith(f"{HOME}/project/.venv")
+    downloaded = env.sh(f"ls {HOME}/.local/share/uv/python")
+    assert downloaded.returncode != 0 or not downloaded.stdout.strip(), (
+        "uv downloaded a Python even though system 3.10 is in range"
+    )
     for candidate in ("python3", f"{HOME}/project/.venv/bin/python"):
         result = env.exec([candidate, "-c", "import openstudio"])
         assert result.returncode != 0, f"{candidate} unexpectedly imports openstudio"
@@ -489,7 +501,7 @@ def test_doctor_warns_when_sdk_is_newer_than_native_cli(env_pool) -> None:
 
 
 # ---------------------------------------------------------------------------
-# airgap: no public network; local wheelhouse and IT-provisioned Python 3.12
+# airgap: no public network; local wheelhouse and an IT-provisioned Python
 # ---------------------------------------------------------------------------
 
 
@@ -512,7 +524,8 @@ def test_airgap_without_provisioned_python_fails_clearly(env_pool) -> None:
         timeout=STARTUP_BUDGET_S * 4,
     )
     assert result.returncode != 0, result.describe()
-    assert "3.12" in result.stderr, result.describe()
+    # uv names the requested range, e.g. "No interpreter found for Python >=3.10, <3.14".
+    assert ">=3.10, <3.14" in result.stderr, result.describe()
 
 
 @runtime_env("airgap")

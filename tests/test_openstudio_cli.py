@@ -530,7 +530,7 @@ def test_cli_export_claude_marketplace(tmp_path: Path) -> None:
 
     plugin_dir = tmp_path / "openstudio-ai"
     mcp_json = json.loads((plugin_dir / ".mcp.json").read_text(encoding="utf-8"))
-    assert mcp_json["mcpServers"]["openstudio_ai"]["command"] == "uvx"
+    assert mcp_json["mcpServers"]["openstudio_ai"]["command"] == "uv"
     assert (plugin_dir / "skills" / "setup-openstudio-ai" / "SKILL.md").exists()
     assert not (plugin_dir / "skills" / "setup-openstudio-ai" / "scripts").exists()
     assert (
@@ -566,7 +566,7 @@ def test_cli_export_paired_marketplace_includes_provenance(tmp_path: Path) -> No
     for plugin in (claude_plugin, codex_plugin):
         config = json.loads((plugin / ".mcp.json").read_text(encoding="utf-8"))
         assert set(config["mcpServers"]) == {"openstudio_ai"}
-        assert config["mcpServers"]["openstudio_ai"]["command"] == "uvx"
+        assert config["mcpServers"]["openstudio_ai"]["command"] == "uv"
 
     readme = (tmp_path / "README.md").read_text(encoding="utf-8")
     assert "INSTALL.claude.md" in readme

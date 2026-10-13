@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import shlex
+from pathlib import Path
 
 from openstudio_ai_mcp.compatibility import PLUGIN_CONTRACT_VERSION, package_version
 
@@ -14,11 +15,12 @@ RUNTIME_PYTHON_VERSION = ">=3.10,<3.14"
 OPENSTUDIO_PYTHON_SDK_VERSION = "3.11.0"
 
 
-def runtime_uvx_args(command: str, *, version: str | None = None) -> list[str]:
-    """Return `uvx` arguments that run a runtime console script from the pinned spec.
+def runtime_uvx_options(*, version: str | None = None) -> list[str]:
+    """Return the `uvx` options that select the pinned runtime environment.
 
-    `version` defaults to this package's version; export validation passes the
-    version a plugin declares so historical exports can be checked exactly.
+    The spec is always exact: `version` defaults to this package's version, and
+    export validation passes the version a plugin declares so historical exports
+    can be checked exactly.
     """
     return [
         "--python",
@@ -27,8 +29,12 @@ def runtime_uvx_args(command: str, *, version: str | None = None) -> list[str]:
         f"openstudio-ai=={version or package_version()}",
         "--with",
         f"openstudio=={OPENSTUDIO_PYTHON_SDK_VERSION}",
-        command,
     ]
+
+
+def runtime_uvx_args(command: str, *, version: str | None = None) -> list[str]:
+    """Return `uvx` arguments that run a runtime console script from the pinned spec."""
+    return [*runtime_uvx_options(version=version), command]
 
 
 def runtime_uvx_command(command: str, *args: str, reinstall: bool = False) -> str:
@@ -49,15 +55,48 @@ def runtime_doctor_command() -> str:
         PLUGIN_CONTRACT_VERSION,
     )
 
+MCP_LAUNCHER_PATH = Path(__file__).with_name("mcp_launcher.py")
+
+
+def mcp_launcher_source() -> str:
+    """Return the standard-library launcher that prefers uv's cache."""
+    return MCP_LAUNCHER_PATH.read_text(encoding="utf-8")
+
 
 def marketplace_mcp_args(*, version: str | None = None) -> list[str]:
-    """Return the complete marketplace `uvx` argument list for the MCP server."""
-    return [*runtime_uvx_args("openstudio-ai-mcp", version=version), "--transport", "stdio"]
+    """Return the complete marketplace `uv` argument list for the MCP server.
+
+    `uv run` finds an in-range Python for the launcher (downloading one only if
+    none exists); `-I` keeps modules in the host's working directory from
+    shadowing the standard library. The launcher then runs the pinned
+    `uv tool run` spec offline when cached, online otherwise. `version` is
+    optional only because it defaults to this package's exact version.
+    """
+    return [
+        "run",
+        "--no-project",
+        "--python",
+        RUNTIME_PYTHON_VERSION,
+        "python",
+        "-I",
+        "-c",
+        mcp_launcher_source(),
+        *runtime_uvx_options(version=version),
+        "--",
+        "openstudio-ai-mcp",
+        "--transport",
+        "stdio",
+    ]
+
+
+def marketplace_runtime_spec(args: list[str]) -> list[str]:
+    """Return the pinned `uv tool run` options embedded in marketplace MCP args."""
+    return list(args[args.index("-c") + 2 : args.index("--")])
 
 
 def marketplace_mcp_server_config(env: dict[str, str]) -> dict[str, object]:
     """Return the marketplace MCP server launch config shared by all hosts."""
-    return {"command": "uvx", "args": marketplace_mcp_args(), "env": env}
+    return {"command": "uv", "args": marketplace_mcp_args(), "env": env}
 
 
 def prepare_runtime_guidance(host: str) -> str:
@@ -90,12 +129,13 @@ def doctor_triage_guidance() -> str:
 
 
 def offline_guidance(host: str) -> str:
-    """Explain the network dependency of the pinned `uvx` launch."""
+    """Explain when the marketplace launch and setup commands need the network."""
     return (
-        "Explain that uv rechecks the package index about every 10 minutes, even for "
-        "this exact pinned runtime, so the MCP server needs network access to start. If "
-        "the user works offline or on a restricted network, after setup succeeds suggest "
-        f"setting `UV_OFFLINE=1` in the environment that launches {host} (this also "
-        "affects their other uv commands); organizations with an internal package mirror "
-        "can set `UV_DEFAULT_INDEX` instead. Do not edit `.mcp.json` for this.\n"
+        "Explain that after setup has filled uv's cache, the MCP server starts from that "
+        "cache without network access; it needs the network only for the first download "
+        "and after a plugin upgrade. The `uvx` setup and doctor commands still recheck "
+        "the package index about every 10 minutes, so when the user runs them offline, "
+        "suggest prefixing them with `UV_OFFLINE=1`. Organizations with an internal "
+        "package mirror can set `UV_DEFAULT_INDEX` in the environment that launches "
+        f"{host}. Do not edit `.mcp.json` for this.\n"
     )

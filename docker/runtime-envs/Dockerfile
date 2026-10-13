@@ -39,8 +39,9 @@ COPY . .
 
 RUN uv sync --frozen --no-install-project --python /usr/local/bin/python3
 
-# Writes the launch file for an export: `uvx` arguments without the final
-# console-script name, so a stage can run other runtime commands with the same pin.
+# Writes the launch file for an export: the pinned `uvx` options embedded in the
+# launcher args (between the inlined source and `--`), so a stage can run other
+# runtime commands with the same pin.
 RUN cat > /usr/local/bin/export-plugins <<'EOF'
 #!/bin/sh
 set -eu
@@ -56,8 +57,8 @@ dest = Path(sys.argv[1])
 config = json.loads((dest / "claude/openstudio-ai/.mcp.json").read_text())
 server = next(iter(config["mcpServers"].values()))
 args = server["args"]
-command_index = args.index("openstudio-ai-mcp")
-(dest / "uvx-spec-args").write_text(" ".join(args[:command_index]) + "\n")
+spec = args[args.index("-c") + 2 : args.index("--")]
+(dest / "uvx-spec-args").write_text(" ".join(spec) + "\n")
 (dest / "plugin-version").write_text(server["env"]["OPENSTUDIO_AI_PLUGIN_VERSION"] + "\n")
 PY
 EOF

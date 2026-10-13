@@ -11,11 +11,14 @@ from adapters.runtime_helpers import (
     RUNTIME_PYTHON_VERSION,
     doctor_triage_guidance,
     marketplace_mcp_args,
+    marketplace_runtime_spec,
+    mcp_launcher_source,
     offline_guidance,
     prepare_runtime_guidance,
     runtime_doctor_command,
     runtime_uvx_args,
     runtime_uvx_command,
+    runtime_uvx_options,
 )
 from openstudio_ai_mcp.compatibility import PLUGIN_CONTRACT_VERSION, package_version
 
@@ -95,14 +98,63 @@ def test_runtime_python_range_matches_requires_python() -> None:
     assert "--python '>=3.10,<3.14'" in runtime_uvx_command("openstudio-ai", "doctor")
 
 
-def test_marketplace_mcp_args_pin_an_explicit_release() -> None:
-    assert marketplace_mcp_args() == [
-        *runtime_uvx_args("openstudio-ai-mcp"),
+def test_marketplace_mcp_args_run_the_launcher_with_the_pinned_spec() -> None:
+    args = marketplace_mcp_args()
+    options = [
+        "--python",
+        RUNTIME_PYTHON_VERSION,
+        "--from",
+        f"openstudio-ai=={package_version()}",
+        "--with",
+        f"openstudio=={OPENSTUDIO_PYTHON_SDK_VERSION}",
+    ]
+    assert runtime_uvx_options() == options
+    assert runtime_uvx_args("openstudio-ai-mcp") == [*options, "openstudio-ai-mcp"]
+    assert args == [
+        "run",
+        "--no-project",
+        "--python",
+        RUNTIME_PYTHON_VERSION,
+        "python",
+        "-I",
+        "-c",
+        mcp_launcher_source(),
+        *options,
+        "--",
+        "openstudio-ai-mcp",
         "--transport",
         "stdio",
     ]
+    assert marketplace_runtime_spec(args) == options
     historical = marketplace_mcp_args(version="0.0.1")
-    assert historical[historical.index("--from") + 1] == "openstudio-ai==0.0.1"
+    assert "openstudio-ai==0.0.1" in marketplace_runtime_spec(historical)
+
+
+def test_marketplace_mcp_command_line_fits_windows_limits() -> None:
+    """The launcher source is one argv entry. Stay under cmd.exe's 8191-character
+    limit (stricter than CreateProcess's 32767) in case a host launches via a shell."""
+    import subprocess
+
+    command_line = subprocess.list2cmdline(["uv", *marketplace_mcp_args()])
+    assert len(command_line) < 8191, len(command_line)
+
+
+def test_inlined_launcher_is_standard_library_only() -> None:
+    import ast
+    import sys
+
+    tree = ast.parse(mcp_launcher_source())
+    imported = {
+        alias.name.split(".")[0]
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Import)
+        for alias in node.names
+    } | {
+        node.module.split(".")[0]
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ImportFrom) and node.module
+    }
+    assert imported <= set(sys.stdlib_module_names), imported
 
 
 def test_doctor_command_requests_json_with_plugin_contract() -> None:

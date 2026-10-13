@@ -140,7 +140,7 @@ Adapters must support three runtime modes:
 | --- | --- | --- |
 | `local` | current Python executable with `-m openstudio_ai_mcp.server` | Developer checkout testing. |
 | `installed` | `openstudio-ai-mcp` | User or enterprise already installed the runtime. |
-| `marketplace` | `uvx --python ">=3.10,<3.14" --from openstudio-ai==<plugin-version> --with openstudio==<sdk-version> openstudio-ai-mcp` plus setup skills | Marketplace/no-code onboarding. Requires only uv. |
+| `marketplace` | `uv run --no-project --python ">=3.10,<3.14" python -I -c <launcher> --python ">=3.10,<3.14" --from openstudio-ai==<plugin-version> --with openstudio==<sdk-version> -- openstudio-ai-mcp` plus setup skills | Marketplace/no-code onboarding. Requires only uv. |
 
 `local` mode may reference a source checkout. `installed` and `marketplace`
 mode must not require a developer path such as `/Users/...`.
@@ -156,20 +156,34 @@ MCP server's own environment in every mode. `sdk_python.available` is true only
 when a fresh process with that interpreter can `import openstudio`; otherwise
 `sdk_python.error` explains the failure.
 
-`validate-export --runtime-mode marketplace` checks the complete `uvx`
+The marketplace `.mcp.json` inlines a small standard-library launcher
+([adapters/mcp_launcher.py](../adapters/mcp_launcher.py)) instead of calling
+`uvx` directly. Inlining avoids plugin-relative paths, which Codex does not
+expand in plugin `.mcp.json` files, and keeps the server in the host's working
+directory. The launcher checks whether uv can build the pinned environment with
+`--offline`. If it can, it starts the server with `uv tool run --offline`; if
+not (first launch, or after a plugin upgrade), it runs the same spec online. The
+pins are exact, so a cached environment is never out of date. `uv run` passes
+`-I` so modules in the host's working directory cannot shadow the launcher's
+standard-library imports.
+
+`validate-export --runtime-mode marketplace` checks the complete launcher
 argument list. It accepts an older export only when its `--from` pin matches the
 `OPENSTUDIO_AI_PLUGIN_VERSION` it declares; `--strict-runtime-version` requires
 the current release.
 
 ### Network and offline behavior
 
-uv rechecks the package index for cached responses that are more than about 10
-minutes old, even for an exact pin with a fully cached runtime. The marketplace
-launch therefore needs network access to start unless uv is told to stay
-offline:
+Once setup has filled uv's cache, the marketplace launch starts offline: the
+launcher runs cached runtimes with `--offline`. It needs the network only for
+the first download and after a plugin upgrade changes the pin.
 
-- Offline or restricted-network users set `UV_OFFLINE=1` in the environment
-  that launches the host, after setup has filled uv's cache.
+Plain `uvx` commands, such as setup's `install-runtime` and the doctor, behave
+differently. uv rechecks the package index for cached responses that are more
+than about 10 minutes old, even for an exact pin with a fully cached runtime:
+
+- Offline users prefix those commands with `UV_OFFLINE=1` after setup has
+  filled uv's cache.
 - Organizations with an internal mirror set `UV_DEFAULT_INDEX`. `UV_NO_INDEX`
   alone does not stop `uvx` from contacting PyPI.
 - Air-gapped installs also need a Python from 3.10 to 3.13 provided ahead of
@@ -238,9 +252,9 @@ The setup workflow should ask the host agent to:
    with `uvx --reinstall ...` after explaining what will happen and receiving
    approval. In marketplace mode the doctor's remediation text names the pinned
    `uvx` commands, because `openstudio-ai` is not on PATH.
-5. Diagnose a `uvx` missing from the PATH that launches the host.
+5. Diagnose a `uv` missing from the PATH that launches the host.
 6. Explain the network dependency described above, and suggest `UV_OFFLINE=1`
-   to users who work offline.
+   for setup and doctor commands run offline.
 7. Explain failures in normal energy-modeler language.
 8. Warn at the start that setup also enables automatic OpenStudio routing in
    the current project. It is a required completion step, not a separate

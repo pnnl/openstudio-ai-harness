@@ -1257,12 +1257,13 @@ def _cmd_validate_export(args: argparse.Namespace) -> int:
             if args.strict_runtime_version
             else marketplace_mcp_args(version=declared_version) if declared_version else None
         )
-        if server.get("command") != "uvx" or expected_args is None or (
+        if server.get("command") != "uv" or expected_args is None or (
             server.get("args") != expected_args
         ):
             print(
-                "Marketplace exports must launch openstudio-ai-mcp through a pinned uvx "
-                "spec that matches the declared OPENSTUDIO_AI_PLUGIN_VERSION.",
+                "Marketplace exports must launch openstudio-ai-mcp through the uv "
+                "launcher with a pinned spec that matches the declared "
+                "OPENSTUDIO_AI_PLUGIN_VERSION.",
                 file=sys.stderr,
             )
             print(f"Expected args: {expected_args}", file=sys.stderr)

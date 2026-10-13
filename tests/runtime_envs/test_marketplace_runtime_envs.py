@@ -21,6 +21,7 @@ import pytest
 
 from runtime_env_harness import (
     COLD_START_LIMIT_S,
+    MCP_TAIL,
     STARTUP_BUDGET_S,
     RuntimeEnv,
     recommended_runtime_commands,
@@ -94,12 +95,16 @@ def test_claude_and_codex_exports_share_one_pinned_launch(env_pool, export) -> N
     codex = env.mcp_server(export, "codex")
     version = env.plugin_version(export)
 
-    assert claude["command"] == codex["command"] == "uvx"
+    assert claude["command"] == codex["command"] == "uv"
     assert claude["args"] == codex["args"]
     args = claude["args"]
-    assert args[args.index("--python") + 1] == RUNTIME_PYTHON_RANGE
-    assert args[args.index("--from") + 1] == f"openstudio-ai=={version}"
-    assert args[args.index("--with") + 1] == f"openstudio=={PINNED_SDK_VERSION}"
+    # `uv run` picks the launcher's Python; the pinned spec follows the source.
+    assert args[:4] == ["run", "--no-project", "--python", RUNTIME_PYTHON_RANGE]
+    spec = args[args.index("-c") + 2 : args.index("--")]
+    assert spec[spec.index("--python") + 1] == RUNTIME_PYTHON_RANGE
+    assert spec[spec.index("--from") + 1] == f"openstudio-ai=={version}"
+    assert spec[spec.index("--with") + 1] == f"openstudio=={PINNED_SDK_VERSION}"
+    assert args[args.index("--") + 1 :] == MCP_TAIL
     assert claude["env"]["OPENSTUDIO_AI_PLUGIN_VERSION"] == version
     for value in [*args, *claude["env"].values()]:
         assert not value.startswith(("/Users/", "/home/", "/opt/")), value
@@ -288,11 +293,29 @@ def test_warm_cache_launches_offline_with_uv_offline(env_pool, observe) -> None:
 
 
 @runtime_env("uv-warm")
+@pytest.mark.parametrize("host", ["claude", "codex"])
+def test_exported_launch_starts_offline_from_warm_cache(env_pool, observe, host) -> None:
+    """The launcher runs a cached runtime with `--offline`, so the exported
+    launch needs neither network access nor `UV_OFFLINE`."""
+    env = env_pool("uv-warm", network="none")
+    run = env.run_mcp([STATUS], host=host, timeout=STARTUP_BUDGET_S * 4)
+    observe(
+        "uv-warm",
+        host=host,
+        network="none",
+        launcher_offline_initialize_seconds=round(run.initialize_seconds, 1),
+    )
+    assert_pinned_sdk_python(sdk_python(run.results))
+    assert run.initialize_seconds < STARTUP_BUDGET_S
+
+
+@runtime_env("uv-warm")
 @pytest.mark.xfail(
     strict=True,
-    reason="uv caches PyPI index responses for ~10 minutes; after that every uvx "
-    "launch revalidates against PyPI even with an exact pin and a warm cache, so the "
-    "exported launch (no UV_OFFLINE) fails offline after ~30 s of retries.",
+    reason="uv caches PyPI index responses for ~10 minutes; after that a plain uvx "
+    "launch revalidates against PyPI even with an exact pin and a warm cache, so it "
+    "fails offline after ~30 s of retries. The exported launch avoids this by running "
+    "cached runtimes with --offline (see the launcher tests).",
 )
 def test_warm_cache_launches_offline_after_index_cache_expires(
     env_pool, observe
@@ -382,7 +405,7 @@ def test_setup_bootstraps_uv_with_pipx_and_needs_path_fix(env_pool, observe) -> 
     fixed_path = f"{HOME}/.local/bin:/usr/local/bin:/usr/bin:/bin"
     server = env.mcp_server()
     run = env.run_mcp([STATUS], extra_env={"PATH": fixed_path})
-    assert server["command"] == "uvx"
+    assert server["command"] == "uv"
     assert_pinned_sdk_python(sdk_python(run.results))
 
 

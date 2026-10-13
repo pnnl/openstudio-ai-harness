@@ -251,10 +251,13 @@ class RuntimeEnv:
         """Run another runtime console script with the export's exact uvx pin."""
         server = self.mcp_server(export)
         launch = list(server["args"])
-        assert server["command"] == "uvx", server
+        assert server["command"] == "uv", server
         assert launch[-3:] == MCP_TAIL, launch
+        # The pinned `uv tool run` options sit between the inlined launcher
+        # source (after `-c`) and the `--` before the command.
+        spec = launch[launch.index("-c") + 2 : launch.index("--")]
         options = ["--reinstall"] if reinstall else []
-        return ["uvx", *options, *launch[:-3], command, *args]
+        return ["uvx", *options, *spec, command, *args]
 
     def doctor(self, export: str = "release-sim", **kwargs: Any) -> ExecResult:
         server = self.mcp_server(export)

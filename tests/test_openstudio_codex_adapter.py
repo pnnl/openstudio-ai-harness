@@ -8,8 +8,8 @@ import pytest
 from adapters.codex_adapter import AGENTS_GENERATED_START, CodexAdapter
 from adapters.contracts import HostAdapterConfig
 from adapters.runtime_helpers import (
+    marketplace_mcp_args,
     runtime_doctor_command,
-    runtime_uvx_args,
     runtime_uvx_command,
 )
 from openstudio_ai_mcp.compatibility import plugin_mcp_environment
@@ -335,12 +335,8 @@ def test_codex_adapter_marketplace_mode_exports_runtime_setup(tmp_path: Path) ->
     mcp_json = json.loads((plugin_dir / ".mcp.json").read_text(encoding="utf-8"))
     server = mcp_json["mcpServers"]["openstudio_ai"]
     assert server == {
-        "command": "uvx",
-        "args": [
-            *runtime_uvx_args("openstudio-ai-mcp"),
-            "--transport",
-            "stdio",
-        ],
+        "command": "uv",
+        "args": marketplace_mcp_args(),
         "env": plugin_mcp_environment(),
     }
     assert (plugin_dir / "skills" / "setup-openstudio-ai" / "SKILL.md").exists()

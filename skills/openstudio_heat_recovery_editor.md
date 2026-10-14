@@ -2,7 +2,7 @@
 name: openstudio-heat-recovery-editor
 description: Edit performance and controls of an existing direct outdoor-air sensible/latent heat exchanger in place, preserving equipment, curves, nodes and references. Use the outdoor-air connector for new attachment.
 metadata:
-  version: 0.4.0
+  version: 0.4.1
 ---
 
 If inventory or preflight returns `status: requires_preparation`, run this bundled

@@ -2,7 +2,7 @@
 name: openstudio-outdoor-air-connector
 description: Attach a direct outdoor-air intake to a served air loop without one, or attach sensible/latent heat recovery to empty direct OA and relief streams. Preview scoped rewiring and require explicit equipment and control choices.
 metadata:
-  version: 0.4.0
+  version: 0.4.1
 ---
 
 If inventory or preflight returns `status: requires_preparation`, run this bundled

@@ -2,7 +2,7 @@
 name: openstudio-water-coil-connector
 description: Attach a water coil at an air loop supply outlet, migrate its plant connection, or relocate an existing main-supply water coil to a selected supply outlet while retaining coil and controller identity.
 metadata:
-  version: 0.4.0
+  version: 0.4.1
 ---
 
 If inventory or preflight returns `status: requires_preparation`, run this bundled

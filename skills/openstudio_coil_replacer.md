@@ -2,7 +2,7 @@
 name: openstudio-coil-replacer
 description: Replace a directly connected main-supply water heating coil with an electric heating coil in a reviewed model copy. Use the water-coil editor for same-class settings changes.
 metadata:
-  version: 0.4.0
+  version: 0.4.1
 ---
 
 If inventory or preflight returns `status: requires_preparation`, run this bundled

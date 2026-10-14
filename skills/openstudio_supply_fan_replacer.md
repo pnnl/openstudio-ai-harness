@@ -2,7 +2,7 @@
 name: openstudio-supply-fan-replacer
 description: Replace a directly connected air-loop supply fan between constant-volume and variable-volume classes in a reviewed model copy. Use the performance editor for same-class efficiency or pressure changes.
 metadata:
-  version: 0.4.0
+  version: 0.4.1
 ---
 
 If inventory or preflight returns `status: requires_preparation`, run this bundled

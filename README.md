@@ -3,6 +3,11 @@
 OpenStudio AI Harness packages a local MCP runtime, host adapters, skills,
 knowledge, and workflow-state tools for AI-assisted building-energy modeling.
 
+Release preparation: **0.4.1**, using MCP plugin/runtime contract **6.0** and
+OpenStudio **3.11.0**. Refresh both the runtime and exported host plugin together;
+contract compatibility requires an exact match. See the
+[release guide](docs/RELEASE.md) for validation and publication steps.
+
 ## Current Capabilities
 
 - OpenStudio MCP server for model lifecycle, simulation, results, SDK lookup,

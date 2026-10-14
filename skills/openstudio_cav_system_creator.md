@@ -2,7 +2,7 @@
 name: openstudio-cav-system-creator
 description: Create a prototype CAV air system with water heating/reheat and water or approved two-speed DX cooling using reviewed bundled scripts.
 metadata:
-  version: 0.4.0
+  version: 0.4.1
 ---
 
 If inventory or preflight returns `status: requires_preparation`, run this bundled

@@ -47,8 +47,9 @@ OPENSTUDIO_AI_PLUGIN_VERSION
 OPENSTUDIO_AI_PLUGIN_CONTRACT_VERSION
 ```
 
-The package version identifies the release. The contract version identifies the
-plugin-to-MCP interface and changes only when that interface breaks. A runtime
+Release **0.4.1** declares contract **`6.0`**. The package version identifies the
+release; the contract version identifies the plugin-to-MCP interface baseline.
+Contract strings are compared exactly: `5` and `6` do not match `6.0`. A runtime
 starts when the contract differs, reports a compatibility notice, and continues
 to expose tools that remain compatible. The user should refresh the plugin or
 upgrade the runtime before relying on newly added skill workflows.
@@ -57,8 +58,10 @@ Contract version `2` requires `runtime_openstudio_status`. Contract version `3`
 adds `model_export_geometry_viewer`, required by the standalone geometry-viewer
 skill. Contract version `4` adds the personal-learning tools used by the
 curate-learning workflow. Contract version `5` adds durable engineering-session,
-finding, and checkpoint tools. The simulation skill uses its preflight as an
-MCP-only workflow and must not fall back to direct OpenStudio, EnergyPlus,
+finding, and checkpoint tools. Contract version `6.0` is the current coordinated
+runtime/plugin baseline for the skill-bound SDK release. The version bump alone
+does not add planned diagnostic MCP tools. The simulation skill uses its preflight
+as an MCP-only workflow and must not fall back to direct OpenStudio, EnergyPlus,
 workflow, or SQL commands when the tool or MCP reconnection is unavailable.
 
 Marketplace doctor helpers run:

@@ -2,7 +2,7 @@
 name: openstudio-water-coil-editor
 description: Edit a main-supply water coil's ratings, name, availability, autosizing and controller settings in place, preserving coil, controller, connection, metadata and reference handles.
 metadata:
-  version: 0.4.0
+  version: 0.4.1
 ---
 
 If inventory or preflight returns `status: requires_preparation`, run this bundled

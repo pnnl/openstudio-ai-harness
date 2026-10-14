@@ -2,7 +2,7 @@
 name: openstudio-plant-loop-creator
 description: Create hot-water and chilled-water plants, including condenser loops for water-cooled chillers, with reviewed bundled SDK scripts.
 metadata:
-  version: 0.4.0
+  version: 0.4.1
 ---
 
 If inventory or preflight returns `status: requires_preparation`, run this bundled

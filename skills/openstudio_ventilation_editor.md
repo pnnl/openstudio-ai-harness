@@ -2,7 +2,7 @@
 name: openstudio-ventilation-editor
 description: Edit minimum/maximum outdoor-air flow, OA schedule references and ZoneSum demand-controlled ventilation in place on an existing direct air-loop OA system. Preserve zone OA definitions, People, schedules, sizing, economizer, topology and handles.
 metadata:
-  version: 0.4.0
+  version: 0.4.1
 ---
 
 If inventory or preflight returns `status: requires_preparation`, run this bundled

@@ -2,7 +2,7 @@
 name: openstudio_vav_reheat_system_creator
 description: Create a multi-zone VAV system in an OSM using bundled, version-pinned scripts and saved-model topology validation.
 metadata:
-  version: 0.4.0
+  version: 0.4.1
   output_format: markdown_with_json_summary
 ---
 

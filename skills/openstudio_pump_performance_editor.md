@@ -2,7 +2,7 @@
 name: openstudio-pump-performance-editor
 description: Edit an existing plant-loop constant- or variable-speed pump's head, efficiency, electric-power sizing or simple operating controls in place. Retain pump identity and plumbing; class changes use the pump replacer and headered pumps need separate coverage.
 metadata:
-  version: 0.4.0
+  version: 0.4.1
 ---
 
 If inventory or preflight returns `status: requires_preparation`, run this bundled

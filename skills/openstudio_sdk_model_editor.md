@@ -2,7 +2,7 @@
 name: openstudio_sdk_model_editor
 description: Route local OSM inspection and edits to bundled SDK skills, or guide bespoke SDK scripts when no bundled operation applies.
 metadata:
-  version: 0.4.0
+  version: 0.4.1
   output_format: markdown_with_json_summary
 ---
 

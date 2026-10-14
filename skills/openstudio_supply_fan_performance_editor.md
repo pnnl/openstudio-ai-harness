@@ -2,7 +2,7 @@
 name: openstudio-supply-fan-performance-editor
 description: Edit efficiency and pressure on an existing direct constant- or variable-volume air-loop supply fan in place, preserving its identity, controls and references.
 metadata:
-  version: 0.4.0
+  version: 0.4.1
 ---
 
 If inventory or preflight returns `status: requires_preparation`, run this bundled

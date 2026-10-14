@@ -2,7 +2,7 @@
 name: openstudio-economizer-editor
 description: Edit economizer type, lockout and temperature/enthalpy cutoffs in place on an existing air loop's outdoor-air controller. Preserve ventilation, DCV, schedules, sizing, equipment and handles; use separate coverage for OA topology or heat recovery.
 metadata:
-  version: 0.4.0
+  version: 0.4.1
 ---
 
 If inventory or preflight returns `status: requires_preparation`, run this bundled

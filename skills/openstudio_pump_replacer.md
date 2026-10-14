@@ -2,7 +2,7 @@
 name: openstudio-pump-replacer
 description: Replace one existing plant-loop single constant-speed pump with a variable-speed pump, or the reverse, with explicit flow/power policies and variable-speed power curve. Same-class performance changes use the in-place pump editor.
 metadata:
-  version: 0.4.0
+  version: 0.4.1
 ---
 
 If inventory or preflight returns `status: requires_preparation`, run this bundled

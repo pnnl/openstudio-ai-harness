@@ -21,20 +21,19 @@ and approval model.
 
 ## Current Status
 
-- Release candidate `0.4.0` uses MCP plugin interface contract `5`, adding
-  durable engineering-session, finding, and checkpoint surfaces. Hosts must
-  refresh exported plugins to use those workflows.
+- Release preparation targets `0.4.1` with exact MCP plugin interface contract
+  `6.0`. Package, agent/skill metadata and both lockfiles are coordinated; hosts
+  must refresh the runtime and exported plugin together. Durable engineering-
+  session, finding and checkpoint surfaces remain available.
 - The diagnostic MVP (`model_inspect`, `sim_diagnose`, and
-  `results_plausibility`) and its curated fixtures are planned for contract `6`.
-- Phase 10a/E1–E2 has progressed through review. Phase 10b adds the independent
-  minimum-OA/ZoneSum DCV editor and shared VAV/CAV ventilation setters, preserving
-  zone OA/People, sizing, economizer and all identities. Native before/after pairs
-  verify occupancy-driven OA modulation. Phase 10c adds direct OA intake/recovery
-  attachment and in-place recovery editing, with explicit controls, protected graphs
-  and native VAV/CAV execution. It is ready for review; the work guide records
-  scope, source trace and evidence.
-- Current development branch: `enhance_skills_scripts`; release metadata remains
-  at `0.4.0`.
+  `results_plausibility`) and its curated fixtures remain future development;
+  this metadata bump does not implement those MCP tools.
+- Equipment through phase 10c and requested follow-ups are implemented. Integration
+  A–D and their review fixes are complete; remaining equipment E is paused for
+  this release preparation. The work guide and consolidated integration summary
+  record scope, source trace, native evidence and remaining limitations.
+- Current development branch: `prepare_410_release`; release metadata is
+  `0.4.1`, with OpenStudio SDK/CLI still pinned to `3.11.0`.
 - The current foundation is a Python 3.10+ package with an MCP 2.x runtime,
   Codex and Claude Code plugin exports, trusted skills/knowledge, local
   SQLite-backed workflow state, model lifecycle support, asynchronous
@@ -718,7 +717,7 @@ Review/source map and rerun command: `docs/HVAC_MODULARIZATION_WORK.md`, Phase 1
 Evidence: `outputs/oa-phase10/evidence.json`; native SQL/IDFs/logs and final tests:
 `outputs/oa-phase10/final/`; review exports: `outputs/oa-phase10/review-exports/`.
 Environment remains host Python 3.13.7, pinned SDK/CLI 3.11.0, embedded Python
-3.12, EnergyPlus 25.2.0; release metadata stays 0.4.0.
+3.12, EnergyPlus 25.2.0; release metadata at that historical checkpoint was 0.4.0.
 Phase 10a is ready for review. Next is 10b minimum OA/DCV with separate ventilation,
 schedule, occupancy and sizing checks; 10c OA topology/heat recovery follows its
 own checkpoint. The remaining equipment backlog is retained. User review/probe
@@ -1356,3 +1355,27 @@ code, fixtures, ignored native evidence, git index and installed plugins are
 preserved. Documentation-only checks: consolidated-summary links/anchors and
 probe-suite targets pass, the review directory is absent and git diff --check
 passes. No model tests rerun. Ready to resume the next equipment phase.
+
+## Release 0.4.1 / contract 6.0 preparation — October 13, 2026
+
+The user corrected the intended package release from 4.1.0 to 0.4.1. Root and
+standalone packages, package manifest/fallback, both agent cards, all 19 versioned
+skills, evaluation metadata and both uv lockfiles now target 0.4.1. MCP interface
+contract remains exactly "6.0"; OpenStudio SDK/CLI remains pinned to 3.11.0.
+Branch name prepare_410_release is retained. README, release and runtime-contract
+guides use the corrected release. Third-party dependency/schema versions remain.
+
+The prior 155 unique targeted test passes belong to the initial version-number
+draft. Its ignored outputs/release-4.1.0-20261013/ artifacts are historical and
+must not be installed as the corrected release. Fresh correction verification
+and paired exports are recorded below. The deterministic doctor documentation-
+fixture correction remains; no production SDK/docs selection changes were made.
+
+Corrected-release verification: six focused version/export/compatibility tests
+pass, no skips. Both lockfiles pass offline freshness checks (82/222 packages),
+and parsed comparison confirms no third-party dependency changes. Fresh paired
+exports validate and their manifests, MCP environment, SDK bundle, pinned
+installer and doctor helper report 0.4.1 / contract 6.0 with SDK 3.11.0. Current
+artifacts: outputs/release-0.4.1-20261013/ (verification.json, version-tests.log,
+marketplace.log, marketplace/). Full suites were not repeated for the version-
+number correction. No commit, tag, push, installation or publication.

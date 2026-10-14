@@ -241,7 +241,7 @@ Use this table when deciding where a change belongs.
 | --- | --- | --- | --- | --- |
 | `openstudio_ai_mcp/` | MCP server and tool runtime | Model lifecycle, simulation, results, SDK doc, approved measure, runtime state tools | Host-specific plugin layout, markdown-only instructions | Shipped in the package and used by `.mcp.json` |
 | `openstudio_ai_mcp/compatibility.py` | Plugin-to-MCP interface contract | Package/contract metadata and compatibility checks | Host-specific rendering rules or individual skill content | Used by adapters, `doctor`, and MCP startup |
-| `adapters/runtime_helpers.py` | Shared marketplace setup helper rendering | Cross-host `doctor_runtime.py` and `install_runtime.py` content | Claude/Codex-specific plugin layout or reload guidance | Called by both adapters; exports identical helpers except host reload text |
+| `adapters/runtime_helpers.py`, `adapters/mcp_launcher.py` | Shared marketplace launch and setup guidance | Pinned `uv` launch arguments, the inlined launcher, and cross-host setup guidance text | Claude/Codex-specific plugin layout or reload guidance | Called by both adapters; exports identical launch config and guidance except host reload text |
 | `openstudio_ai_mcp/runtime/` | Runtime registry and SQLite-backed state | Durable job/artifact/storage/blackboard persistence code | Source knowledge or skill content | Used by MCP tools at runtime |
 | `openstudio_ai_mcp/tools/` | MCP tool registration | Tool wrappers that expose service behavior | Business logic that belongs in services | Used by MCP server |
 | `openstudio_ai_mcp/simulation/`, `results/`, `sdk_docs/`, `measures/` | Runtime service modules | Deterministic runtime operations | Host adapter behavior | Used by MCP tools |

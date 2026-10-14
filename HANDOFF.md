@@ -21,19 +21,23 @@ and approval model.
 
 ## Current Status
 
-- Release preparation targets `0.4.1` with exact MCP plugin interface contract
-  `6.0`. Package, agent/skill metadata and both lockfiles are coordinated; hosts
-  must refresh the runtime and exported plugin together. Durable engineering-
-  session, finding and checkpoint surfaces remain available.
+- The branch keeps exact MCP plugin interface contract `6.0` from the 0.4.1
+  release; it changes how marketplace plugins launch the runtime, not the MCP
+  tool surface. SDK skills keep main's doctor-verified native OpenStudio CLI
+  execution path (`scripts/doctor.py`, exact OpenStudio `3.11.0`). An earlier
+  `sdk_python` field on `runtime_openstudio_status` was removed in the merge.
 - The diagnostic MVP (`model_inspect`, `sim_diagnose`, and
   `results_plausibility`) and its curated fixtures remain future development;
-  this metadata bump does not implement those MCP tools.
+  they will need a further contract bump when they ship.
 - Equipment through phase 10c and requested follow-ups are implemented. Integration
-  A–D and their review fixes are complete; remaining equipment E is paused for
-  this release preparation. The work guide and consolidated integration summary
-  record scope, source trace, native evidence and remaining limitations.
-- Current development branch: `prepare_410_release`; release metadata is
-  `0.4.1`, with OpenStudio SDK/CLI still pinned to `3.11.0`.
+  A–D and their review fixes are complete; remaining equipment E is paused.
+- Marketplace exports launch the runtime through a pinned `uv` launcher
+  (`adapters/mcp_launcher.py`). The package version is still `0.4.1`, which is
+  already on PyPI. Before exporting the marketplace, bump the package version and
+  publish it to PyPI; the publish workflow refuses an export whose pinned version
+  is not on PyPI or serves a different contract.
+- Current branch: `uvx-marketplace-runtime` (main merged in); the version bump is
+  pending.
 - The current foundation is a Python 3.10+ package with an MCP 2.x runtime,
   Codex and Claude Code plugin exports, trusted skills/knowledge, local
   SQLite-backed workflow state, model lifecycle support, asynchronous

@@ -5,6 +5,8 @@ import sqlite3
 import stat
 from pathlib import Path
 
+import pytest
+
 import cli
 from cli import main
 from openstudio_ai_mcp.runtime.learning_store import LearningStore
@@ -532,11 +534,9 @@ def test_cli_export_claude_marketplace(tmp_path: Path) -> None:
 
     plugin_dir = tmp_path / "openstudio-ai"
     mcp_json = json.loads((plugin_dir / ".mcp.json").read_text(encoding="utf-8"))
-    assert mcp_json["mcpServers"]["openstudio_ai"]["command"] == "openstudio-ai-mcp"
+    assert mcp_json["mcpServers"]["openstudio_ai"]["command"] == "uv"
     assert (plugin_dir / "skills" / "setup-openstudio-ai" / "SKILL.md").exists()
-    assert (
-        plugin_dir / "skills" / "setup-openstudio-ai" / "scripts" / "doctor_runtime.py"
-    ).exists()
+    assert not (plugin_dir / "skills" / "setup-openstudio-ai" / "scripts").exists()
     assert (
         main(["validate-export", str(plugin_dir), "--runtime-mode", "marketplace"]) == 0
     )
@@ -570,7 +570,7 @@ def test_cli_export_paired_marketplace_includes_provenance(tmp_path: Path) -> No
     for plugin in (claude_plugin, codex_plugin):
         config = json.loads((plugin / ".mcp.json").read_text(encoding="utf-8"))
         assert set(config["mcpServers"]) == {"openstudio_ai"}
-        assert config["mcpServers"]["openstudio_ai"]["command"] == "openstudio-ai-mcp"
+        assert config["mcpServers"]["openstudio_ai"]["command"] == "uv"
 
     readme = (tmp_path / "README.md").read_text(encoding="utf-8")
     assert "INSTALL.claude.md" in readme
@@ -616,7 +616,23 @@ def test_cli_validate_export(tmp_path: Path) -> None:
     )
 
     plugin_dir = tmp_path / "plugins" / "openstudio-ai"
-    assert main(["validate-export", str(plugin_dir)]) == 0
+    assert (
+        main(["validate-export", str(plugin_dir), "--runtime-mode", "marketplace"]) == 0
+    )
+    assert (
+        main(
+            [
+                "validate-export",
+                str(plugin_dir),
+                "--runtime-mode",
+                "marketplace",
+                "--strict-runtime-version",
+            ]
+        )
+        == 0
+    )
+    # A marketplace export no longer satisfies the installed-command contract.
+    assert main(["validate-export", str(plugin_dir)]) == 1
 
 
 def test_cli_validate_export_rejects_missing_marketplace_setup(tmp_path: Path) -> None:
@@ -637,9 +653,7 @@ def test_cli_validate_export_rejects_missing_marketplace_setup(tmp_path: Path) -
     )
 
     plugin_dir = tmp_path / "plugins" / "openstudio-ai"
-    (
-        plugin_dir / "skills" / "setup-openstudio-ai" / "scripts" / "doctor_runtime.py"
-    ).unlink()
+    (plugin_dir / "skills" / "doctor-openstudio-ai" / "SKILL.md").unlink()
     assert (
         main(["validate-export", str(plugin_dir), "--runtime-mode", "marketplace"]) == 1
     )
@@ -697,9 +711,10 @@ def test_cli_validate_export_allows_historical_metadata_unless_strict(
     plugin_dir = tmp_path / "plugins" / "openstudio-ai"
     mcp_path = plugin_dir / ".mcp.json"
     mcp_config = json.loads(mcp_path.read_text(encoding="utf-8"))
-    mcp_config["mcpServers"]["openstudio_ai"]["env"][
-        "OPENSTUDIO_AI_PLUGIN_VERSION"
-    ] = "0.0.1"
+    server = mcp_config["mcpServers"]["openstudio_ai"]
+    server["env"]["OPENSTUDIO_AI_PLUGIN_VERSION"] = "0.0.1"
+    from_index = server["args"].index("--from") + 1
+    server["args"][from_index] = "openstudio-ai==0.0.1"
     mcp_path.write_text(json.dumps(mcp_config), encoding="utf-8")
 
     assert (
@@ -716,4 +731,46 @@ def test_cli_validate_export_allows_historical_metadata_unless_strict(
             ]
         )
         == 1
+    )
+
+
+@pytest.mark.parametrize(
+    "launch_args",
+    [
+        ["openstudio-ai-mcp", "--transport", "stdio"],
+        ["--from", "openstudio-ai", "openstudio-ai-mcp", "--transport", "stdio"],
+        "pin-mismatch",
+    ],
+    ids=["unpinned", "unversioned", "pin-differs-from-declared-version"],
+)
+def test_cli_validate_export_rejects_incomplete_marketplace_launch(
+    tmp_path: Path, launch_args
+) -> None:
+    assert (
+        main(
+            [
+                "export",
+                "codex",
+                "--output-dir",
+                str(tmp_path),
+                "--workspace-root",
+                str(Path(".").resolve()),
+                "--runtime-mode",
+                "marketplace",
+            ]
+        )
+        == 0
+    )
+    plugin_dir = tmp_path / "plugins" / "openstudio-ai"
+    mcp_path = plugin_dir / ".mcp.json"
+    mcp_config = json.loads(mcp_path.read_text(encoding="utf-8"))
+    server = mcp_config["mcpServers"]["openstudio_ai"]
+    if launch_args == "pin-mismatch":
+        server["env"]["OPENSTUDIO_AI_PLUGIN_VERSION"] = "0.0.1"
+    else:
+        server["args"] = launch_args
+    mcp_path.write_text(json.dumps(mcp_config), encoding="utf-8")
+
+    assert (
+        main(["validate-export", str(plugin_dir), "--runtime-mode", "marketplace"]) == 1
     )

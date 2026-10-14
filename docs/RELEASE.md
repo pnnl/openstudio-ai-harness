@@ -3,6 +3,11 @@
 This guide describes how to build and publish the `openstudio-ai` Python
 package.
 
+Current release preparation targets **0.4.1** with MCP interface contract **6.0**.
+The OpenStudio Python SDK and bundled modeling scripts remain pinned to **3.11.0**.
+This version update prepares local metadata and exports; publishing packages,
+tags and the generated marketplace repository are separate release steps.
+
 ## Release Prerequisites
 
 1. Confirm the package name is available on PyPI.
@@ -36,10 +41,22 @@ package.
 
 Before building, update the release version consistently in the root and
 `standalone/` `pyproject.toml` files, `harness/package_manifest.yaml`,
-`openstudio_ai_mcp/compatibility.py`, versioned agent/skill metadata, generated
-HVAC skill specifications, and both `uv.lock` files. Regenerate the HVAC
-child skills and confirm that the exported marketplace metadata reports the
-same version.
+`openstudio_ai_mcp/compatibility.py`, versioned agent/skill metadata, evaluation
+metadata, and both `uv.lock` files. Keep independent schema, SDK and third-party
+dependency versions unchanged. Update explicit contract checks in skills and
+tests to match `PLUGIN_CONTRACT_VERSION`. Confirm that both exported marketplace
+packages and their generated installer/doctor metadata report the same release
+and contract. The retired object-level HVAC child-skill generator is not used.
+
+Check both lockfiles without installing dependencies:
+
+```bash
+uv lock --check
+(cd standalone && uv lock --check)
+```
+
+Use `uv lock` in the corresponding project if its lockfile is stale; standalone
+locks must reflect both its own version and the editable root package version.
 
 The build backend is pinned to Hatchling 1.29.0 because it emits Core Metadata
 2.4, which the current Twine validator accepts. Do not loosen that pin until

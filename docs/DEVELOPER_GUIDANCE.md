@@ -529,20 +529,15 @@ Never treat `state/`, `logs/`, `outputs/`, `learning/review_queue/`, or
 
 Parent workflow skills are usually hand-authored in `skills/*.md`.
 
-Generated HVAC child skills are edited through specs and templates:
+Supported VAV creation uses the parent skill and `skills/sdk_scripts/` bundle.
+The nine legacy object-level skills, their generator, specs and template have
+been removed. Edit bundled behavior and its independent validation together;
+register owning resources in `harness/asset_manifest.yaml` for both hosts.
 
-```bash
-.venv/bin/python scripts/generate_hvac_child_skills.py
-.venv/bin/python -m pytest -q tests/test_openstudio_hvac_skill_generation.py
-```
-
-Edit:
-
-- `skills/specs/hvac/*.yaml` for one child skill.
-- `skills/templates/hvac_child_skill.md.j2` for shared child skill structure.
-
-Do not edit generated child skill markdown directly unless the generator is also
-updated or the skill is intentionally removed from generation.
+NLR OpenStudio MCP remains the preferred provider when configured and compatible.
+After provider selection, choose a specific modeling skill before considering
+bespoke SDK code. Generated SDK programming is the fallback for an uncovered
+request, with exact-release checks and scoped validation.
 
 ## Host Python Execution Boundary
 

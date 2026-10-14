@@ -48,8 +48,9 @@ OPENSTUDIO_AI_PLUGIN_VERSION
 OPENSTUDIO_AI_PLUGIN_CONTRACT_VERSION
 ```
 
-The package version identifies the release. The contract version identifies the
-plugin-to-MCP interface and changes only when that interface breaks. A runtime
+Release **0.4.1** declares contract **`6.0`**. The package version identifies the
+release; the contract version identifies the plugin-to-MCP interface baseline.
+Contract strings are compared exactly: `5` and `6` do not match `6.0`. A runtime
 starts when the contract differs, reports a compatibility notice, and continues
 to expose tools that remain compatible. The user should refresh the plugin or
 upgrade the runtime before relying on newly added skill workflows.
@@ -58,10 +59,10 @@ Contract version `2` requires `runtime_openstudio_status`. Contract version `3`
 adds `model_export_geometry_viewer`, required by the standalone geometry-viewer
 skill. Contract version `4` adds the personal-learning tools used by the
 curate-learning workflow. Contract version `5` adds durable engineering-session,
-finding, and checkpoint tools. Contract version `6` adds `sdk_python` to
-`runtime_openstudio_status`, the interpreter that host-side SDK scripts must use.
-The simulation skill uses its preflight as an
-MCP-only workflow and must not fall back to direct OpenStudio, EnergyPlus,
+finding, and checkpoint tools. Contract version `6.0` is the current coordinated
+runtime/plugin baseline for the skill-bound SDK release. The version bump alone
+does not add planned diagnostic MCP tools. The simulation skill uses its preflight
+as an MCP-only workflow and must not fall back to direct OpenStudio, EnergyPlus,
 workflow, or SQL commands when the tool or MCP reconnection is unavailable.
 
 Marketplace doctor helpers run:
@@ -156,11 +157,9 @@ Publish the matching `openstudio-ai` release to PyPI before publishing the
 plugin export, and bump the package version for every release that changes
 runtime behavior or the MCP contract: an export whose pinned version already
 exists on PyPI launches that existing release, not the code it was exported
-from, and `--reinstall` fetches the same release again. Host-side SDK scripts use the interpreter
-reported by `runtime_openstudio_status` (`sdk_python.executable`), which is the
-MCP server's own environment in every mode. `sdk_python.available` is true only
-when a fresh process with that interpreter can `import openstudio`; otherwise
-`sdk_python.error` explains the failure.
+from, and `--reinstall` fetches the same release again. SDK skills run
+scripts through the native OpenStudio CLI verified by their skill-local
+`scripts/doctor.py`, not through the MCP runtime's Python environment.
 
 The marketplace `.mcp.json` inlines a small standard-library launcher
 ([adapters/mcp_launcher.py](../adapters/mcp_launcher.py)) instead of calling

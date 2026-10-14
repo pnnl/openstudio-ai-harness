@@ -45,7 +45,10 @@ def test_openstudio_agent_yaml_loads_as_a_local_agent(monkeypatch) -> None:
     assert set(skill_manager.available_skills()) >= {
         path.stem for path in Path("skills").glob("*.md")
     }
-    assert "surface_azimuth_degrees(surface)" in skill_manager.load("openstudio_sdk_model_editor")
+    sdk_skill = skill_manager.load("openstudio_sdk_model_editor")
+    assert "references/openstudio_sdk_generated_edits.md" in sdk_skill
+    bespoke_guidance = (repo_root / "knowledge/openstudio_sdk_generated_edits.md").read_text()
+    assert "surface_azimuth_degrees(surface)" in bespoke_guidance
     instructions = spec.resolve_instructions()
     assert "## MCP Tool Routing" in instructions
     assert "Use `openstudio_workflow_state`" in instructions

@@ -64,11 +64,16 @@ PY
 EOF
 RUN chmod +x /usr/local/bin/export-plugins && export-plugins /exports/as-is
 
-ARG SIM_VERSION=0.4.1.dev0
-RUN sed -i "0,/^version = \".*\"/s//version = \"${SIM_VERSION}\"/" pyproject.toml \
+# Defaults to the next patch release as a dev build (0.4.1 -> 0.4.2.dev0), so it
+# tracks pyproject without edits. Any exact version absent from PyPI works; avoid
+# local labels such as `0.4.1+sim`, which the as-is `==0.4.1` pin would match.
+ARG SIM_VERSION=""
+RUN set -eu; \
+    sim="${SIM_VERSION:-$(python3 -c 'import re, tomllib; v = tomllib.load(open("pyproject.toml", "rb"))["project"]["version"]; m = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)", v); assert m, f"cannot derive SIM_VERSION from {v!r}; pass --build-arg SIM_VERSION"; print(f"{m[1]}.{m[2]}.{int(m[3]) + 1}.dev0")')}"; \
+    sed -i "0,/^version = \".*\"/s//version = \"${sim}\"/" pyproject.toml \
     && uv build --wheel --out-dir /wheels \
     && export-plugins /exports/release-sim \
-    && test "$(cat /exports/release-sim/plugin-version)" = "${SIM_VERSION}"
+    && test "$(cat /exports/release-sim/plugin-version)" = "${sim}"
 
 # Offline wheelhouse for the simulated release on this architecture and Python.
 RUN python -m pip download --only-binary=:all: --dest /wheelhouse \

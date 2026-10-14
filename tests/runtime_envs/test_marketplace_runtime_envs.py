@@ -14,6 +14,7 @@ the gap is fixed, prompting removal of the marker.
 
 from __future__ import annotations
 
+import json
 import shlex
 from typing import Any
 
@@ -60,16 +61,34 @@ def runtime_env(profile: str) -> Any:
     return pytest.mark.runtime_env(profile)
 
 
-def sdk_python(run_status: dict[str, Any]) -> dict[str, Any]:
-    payload = run_status["runtime_openstudio_status"]
+RUNTIME_PYTHON_PROBE = (
+    "import json, platform, sys, openstudio; print(json.dumps({"
+    "'executable': sys.executable, 'python_version': platform.python_version(), "
+    "'openstudio_sdk_version': str(openstudio.openStudioVersion())}))"
+)
+
+
+def assert_pinned_runtime(
+    env: RuntimeEnv, results: dict[str, Any], export: str = "release-sim"
+) -> None:
+    """The MCP server that answered is the export's exact pinned release."""
+    status = results["runtime_openstudio_status"]
+    assert status.get("ok") is True, status
+    payload = results["runtime_plugin_compatibility"]
     assert payload.get("ok") is True, payload
-    assert "sdk_python" in payload, payload
-    return payload["sdk_python"]
+    compatibility = payload["compatibility"]
+    assert compatibility["ok"] is True, compatibility
+    assert compatibility["runtime_version"] == env.plugin_version(export), compatibility
 
 
-def assert_pinned_sdk_python(info: dict[str, Any]) -> None:
-    assert info["available"] is True, info
-    assert "error" not in info, info
+def runtime_python(env: RuntimeEnv, export: str = "release-sim") -> dict[str, Any]:
+    """Describe the pinned runtime environment's interpreter, as uvx resolves it."""
+    result = env.exec(env.runtime_argv("python", "-c", RUNTIME_PYTHON_PROBE, export=export))
+    assert result.returncode == 0, result.describe()
+    return json.loads(result.stdout.strip().splitlines()[-1])
+
+
+def assert_pinned_python(info: dict[str, Any]) -> None:
     assert info["openstudio_sdk_version"] == PINNED_SDK_VERSION, info
     minor = ".".join(info["python_version"].split(".")[:2])
     assert minor in SUPPORTED_PYTHON_MINORS, info
@@ -116,15 +135,14 @@ def test_claude_and_codex_exports_share_one_pinned_launch(env_pool, export) -> N
 
 
 @runtime_env("uv-only")
-def test_cold_first_launch_starts_mcp_and_reports_sdk_python(env_pool, observe) -> None:
+def test_cold_first_launch_starts_pinned_runtime(env_pool, observe) -> None:
     env = env_pool("uv-only", shared_container=False)
     run = env.run_mcp([STATUS, COMPATIBILITY], timeout=COLD_START_LIMIT_S)
 
     observe("uv-only", cold_initialize_seconds=round(run.initialize_seconds, 1))
     assert run.server_name == "openstudio-ai-mcp"
     assert "runtime_openstudio_status" in run.tool_names
-    assert_pinned_sdk_python(sdk_python(run.results))
-    assert run.results["runtime_plugin_compatibility"]["ok"] is True
+    assert_pinned_runtime(env, run.results)
 
 
 @runtime_env("uv-only")
@@ -141,16 +159,18 @@ def test_cold_first_launch_fits_host_startup_budget(env_pool, observe) -> None:
 
 
 @runtime_env("uv-only")
-def test_reported_sdk_python_runs_openstudio_scripts(env_pool) -> None:
+def test_runtime_environment_saves_models_with_pinned_sdk(env_pool) -> None:
+    """The MCP model tools save with the runtime's own SDK, not a host Python."""
     env = env_pool("uv-only")
-    info = sdk_python(env.run_mcp([STATUS]).results)
+    info = runtime_python(env)
+    assert_pinned_python(info)
     version = save_model_with_sdk(env, info["executable"], f"{HOME}/project/probe.osm")
     assert version.startswith(PINNED_SDK_VERSION)
 
 
 @runtime_env("uv-only")
 def test_host_default_python_cannot_run_sdk_scripts(env_pool) -> None:
-    """The bare box has no python at all: SDK scripts must use sdk_python."""
+    """The bare box has no python at all: only the pinned runtime has the SDK."""
     env = env_pool("uv-only")
     result = env.sh("command -v python3 || command -v python")
     assert result.returncode != 0, result.describe()
@@ -203,23 +223,21 @@ def test_doctor_remediation_commands_are_runnable(env_pool, observe) -> None:
 
 
 @runtime_env("uv-only")
-def test_reinstall_rebuilds_runtime_and_sdk_python_must_be_requeried(
-    env_pool, observe
-) -> None:
+def test_reinstall_rebuilds_runtime_environment(env_pool, observe) -> None:
     env = env_pool("uv-only")
-    before = sdk_python(env.run_mcp([STATUS]).results)["executable"]
+    before = runtime_python(env)["executable"]
 
     rebuild = env.exec(
         env.runtime_argv("openstudio-ai", "install-runtime", reinstall=True)
     )
     assert rebuild.returncode == 0, rebuild.describe()
-    after = sdk_python(env.run_mcp([STATUS]).results)["executable"]
+    after = runtime_python(env)["executable"]
 
     old_still_runs = env.exec([before, "-c", "import openstudio"]).returncode == 0
     observe(
         "uv-only",
-        sdk_python_changed_after_reinstall=before != after,
-        previous_sdk_python_still_runs=old_still_runs,
+        runtime_python_changed_after_reinstall=before != after,
+        previous_runtime_python_still_runs=old_still_runs,
     )
     save_model_with_sdk(env, after, f"{HOME}/project/after-reinstall.osm")
 
@@ -230,34 +248,16 @@ def test_reinstall_rebuilds_runtime_and_sdk_python_must_be_requeried(
 
 
 @runtime_env("uv-only")
-@pytest.mark.xfail(
-    strict=True,
-    reason="Release step: pyproject is still 0.4.0 and openstudio-ai==0.4.0 is "
-    "already on PyPI without sdk_python, so the as-is pin launches the pre-PR "
-    "runtime until the version is bumped and published.",
-)
-def test_as_is_pin_launches_runtime_with_sdk_python(env_pool, observe) -> None:
+def test_as_is_pin_launches_compatible_published_runtime(env_pool, observe) -> None:
+    """The as-is pin is the pyproject version, resolved from public PyPI.
+
+    The contract is unchanged, so an unbumped export still starts a compatible
+    runtime; it runs the published release's code, not this checkout's.
+    """
     env = env_pool("uv-only")
     run = env.run_mcp([STATUS, COMPATIBILITY], export="as-is")
-    observe(
-        "uv-only",
-        as_is_runtime=run.results["runtime_plugin_compatibility"],
-        as_is_status_keys=sorted(run.results["runtime_openstudio_status"]),
-    )
-    sdk_python(run.results)
-
-
-@runtime_env("uv-only")
-def test_as_is_doctor_rejects_runtime_without_sdk_python(env_pool) -> None:
-    env = env_pool("uv-only")
-    run = env.run_mcp([STATUS], export="as-is")
-    has_sdk_python = "sdk_python" in run.results["runtime_openstudio_status"]
-    install = env.exec(
-        env.runtime_argv("openstudio-ai", "install-runtime", export="as-is")
-    )
-    assert install.returncode == 0, install.describe()
-    payload = env.doctor(export="as-is").json()
-    assert has_sdk_python or payload["plugin_ready"] is False
+    observe("uv-only", as_is_runtime=run.results["runtime_plugin_compatibility"])
+    assert_pinned_runtime(env, run.results, export="as-is")
 
 
 # ---------------------------------------------------------------------------
@@ -269,11 +269,11 @@ def test_as_is_doctor_rejects_runtime_without_sdk_python(env_pool) -> None:
 @pytest.mark.parametrize("host", ["claude", "codex"])
 def test_warm_launch_fits_host_startup_budget(env_pool, observe, host) -> None:
     env = env_pool("uv-warm")
-    run = env.run_mcp([STATUS], host=host, timeout=STARTUP_BUDGET_S * 4)
+    run = env.run_mcp([STATUS, COMPATIBILITY], host=host, timeout=STARTUP_BUDGET_S * 4)
     observe(
         "uv-warm", host=host, warm_initialize_seconds=round(run.initialize_seconds, 1)
     )
-    assert_pinned_sdk_python(sdk_python(run.results))
+    assert_pinned_runtime(env, run.results)
     assert run.initialize_seconds < STARTUP_BUDGET_S
 
 
@@ -281,14 +281,16 @@ def test_warm_launch_fits_host_startup_budget(env_pool, observe, host) -> None:
 def test_warm_cache_launches_offline_with_uv_offline(env_pool, observe) -> None:
     env = env_pool("uv-warm", network="none")
     run = env.run_mcp(
-        [STATUS], extra_env={"UV_OFFLINE": "1"}, timeout=STARTUP_BUDGET_S * 4
+        [STATUS, COMPATIBILITY],
+        extra_env={"UV_OFFLINE": "1"},
+        timeout=STARTUP_BUDGET_S * 4,
     )
     observe(
         "uv-warm",
         network="none",
         offline_initialize_seconds=round(run.initialize_seconds, 1),
     )
-    assert_pinned_sdk_python(sdk_python(run.results))
+    assert_pinned_runtime(env, run.results)
     assert run.initialize_seconds < STARTUP_BUDGET_S
 
 
@@ -298,14 +300,14 @@ def test_exported_launch_starts_offline_from_warm_cache(env_pool, observe, host)
     """The launcher runs a cached runtime with `--offline`, so the exported
     launch needs neither network access nor `UV_OFFLINE`."""
     env = env_pool("uv-warm", network="none")
-    run = env.run_mcp([STATUS], host=host, timeout=STARTUP_BUDGET_S * 4)
+    run = env.run_mcp([STATUS, COMPATIBILITY], host=host, timeout=STARTUP_BUDGET_S * 4)
     observe(
         "uv-warm",
         host=host,
         network="none",
         launcher_offline_initialize_seconds=round(run.initialize_seconds, 1),
     )
-    assert_pinned_sdk_python(sdk_python(run.results))
+    assert_pinned_runtime(env, run.results)
     assert run.initialize_seconds < STARTUP_BUDGET_S
 
 
@@ -366,9 +368,10 @@ def test_uvx_reuses_system_python_but_not_its_packages(env_pool) -> None:
     the runtime still gets its own environment: neither the system Python nor the
     project .venv gains `openstudio`."""
     env = env_pool("system-py310")
-    info = sdk_python(env.run_mcp([STATUS]).results)
+    assert_pinned_runtime(env, env.run_mcp([STATUS, COMPATIBILITY]).results)
+    info = runtime_python(env)
 
-    assert_pinned_sdk_python(info)
+    assert_pinned_python(info)
     assert info["python_version"].startswith("3.10."), info
     assert not info["executable"].startswith(f"{HOME}/project/.venv")
     downloaded = env.sh(f"ls {HOME}/.local/share/uv/python")
@@ -404,9 +407,9 @@ def test_setup_bootstraps_uv_with_pipx_and_needs_path_fix(env_pool, observe) -> 
 
     fixed_path = f"{HOME}/.local/bin:/usr/local/bin:/usr/bin:/bin"
     server = env.mcp_server()
-    run = env.run_mcp([STATUS], extra_env={"PATH": fixed_path})
+    run = env.run_mcp([STATUS, COMPATIBILITY], extra_env={"PATH": fixed_path})
     assert server["command"] == "uv"
-    assert_pinned_sdk_python(sdk_python(run.results))
+    assert_pinned_runtime(env, run.results)
 
 
 # ---------------------------------------------------------------------------
@@ -418,12 +421,11 @@ def test_setup_bootstraps_uv_with_pipx_and_needs_path_fix(env_pool, observe) -> 
 def test_uvx_launch_is_isolated_from_legacy_runtime(env_pool) -> None:
     env = env_pool("legacy-pipx")
     run = env.run_mcp([STATUS, COMPATIBILITY])
-    info = sdk_python(run.results)
+    assert_pinned_runtime(env, run.results)
+    info = runtime_python(env)
 
-    assert_pinned_sdk_python(info)
+    assert_pinned_python(info)
     assert "pipx" not in info["executable"]
-    compatibility = run.results["runtime_plugin_compatibility"]
-    assert compatibility["ok"] is True, compatibility
 
 
 @runtime_env("legacy-pipx")
@@ -482,7 +484,7 @@ def test_matching_native_cli_is_core_ready(env_pool) -> None:
 
     status = env.run_mcp([STATUS]).results["runtime_openstudio_status"]
     assert status["available"] is True, status
-    assert_pinned_sdk_python(status["sdk_python"])
+    assert_pinned_python(runtime_python(env))
 
 
 @runtime_env("native-3.11")
@@ -492,7 +494,7 @@ def test_matching_native_cli_is_core_ready(env_pool) -> None:
 def test_sdk_saved_model_loads_in_native_cli(env_pool, observe, profile) -> None:
     env = env_pool(profile)
     executable = _configure_native_cli(env)
-    info = sdk_python(env.run_mcp([STATUS]).results)
+    info = runtime_python(env)
     model_path = f"{HOME}/project/sdk-{profile}.osm"
     save_model_with_sdk(env, info["executable"], model_path)
 
@@ -534,8 +536,7 @@ def test_airgap_wheelhouse_launch(env_pool, observe) -> None:
     assert env.network == "none"
     run = env.run_mcp([STATUS, COMPATIBILITY])
     observe("airgap", initialize_seconds=round(run.initialize_seconds, 1))
-    assert_pinned_sdk_python(sdk_python(run.results))
-    assert run.results["runtime_plugin_compatibility"]["ok"] is True
+    assert_pinned_runtime(env, run.results)
 
 
 @runtime_env("airgap")

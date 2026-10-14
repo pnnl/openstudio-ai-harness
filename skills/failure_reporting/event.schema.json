@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Local unexpected failure event (publication uses an explicit allowlist)",
+  "type": "object",
+  "required": ["operation", "stage", "actual"],
+  "additionalProperties": true,
+  "properties": {
+    "operation": {"type": "string", "maxLength": 120},
+    "stage": {"type": "string", "maxLength": 120},
+    "provider": {"type": "string", "maxLength": 120},
+    "category": {"type": "string", "maxLength": 120},
+    "exception_type": {"type": "string", "maxLength": 120},
+    "expected": {"type": "string", "maxLength": 12000},
+    "actual": {"type": "string", "maxLength": 12000, "description": "Local original error; publication replaces it with a fixed maintained message template."},
+    "error_code": {"type": "string", "description": "Optional maintained error code; unknown codes use a fixed generic message. Raw actual text remains local."},
+    "traceback": {"type": "string", "maxLength": 12000, "description": "Local original traceback; raw text and source lines are never published."},
+    "plugin_frames": {
+      "type": "array", "maxItems": 12,
+      "description": "Optional locations checked against shipped plugin source; no raw traceback is published.",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["file", "function", "line"],
+        "properties": {
+          "file": {"type": "string", "maxLength": 120},
+          "function": {"type": "string", "maxLength": 120},
+          "line": {"type": "integer", "minimum": 1}
+        }
+      }
+    },
+    "command": {"type": "array", "maxItems": 40, "items": {"type": "string"}},
+    "exit_code": {"type": "integer"},
+    "environment": {"type": "object"},
+    "settings": {"type": "object"},
+    "model_context": {"type": "object"},
+    "diagnostic": {"type": "object"},
+    "observations": {"type": "array", "maxItems": 8, "items": {"type": "string"}},
+    "workarounds": {"type": "array", "maxItems": 8, "items": {"type": "string"}},
+    "publication": {"type": "string", "maxLength": 12000},
+    "reproducer": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "synthetic_verified": {"type": "boolean"},
+        "steps": {"type": "array", "maxItems": 10, "items": {"type": "string"}}
+      }
+    },
+    "private_values": {"type": "array", "maxItems": 500, "items": {"type": "string"}},
+    "security_sensitive": {"type": "boolean"},
+    "expected_outcome": {"type": "boolean"}
+  }
+}

@@ -12,7 +12,10 @@ Every image contains two exports:
 - `as-is`: what this checkout would publish today. The pin is the `pyproject`
   version, resolved from public PyPI.
 - `release-sim`: the same source after a simulated release. The version is
-  bumped to `0.4.1.dev0` and its wheel is served through `UV_FIND_LINKS`.
+  bumped to the next patch as a dev build (for example `0.4.1` → `0.4.2.dev0`)
+  and its wheel is served through `UV_FIND_LINKS`. Override it with
+  `--build-arg SIM_VERSION=<version>`; it only has to be an exact version that
+  is not on PyPI.
 
 | Environment | Machine it simulates |
 | --- | --- |

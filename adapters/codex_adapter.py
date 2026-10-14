@@ -19,10 +19,12 @@ from adapters.runtime_helpers import (
 )
 from harness.asset_manifest import (
     reference_exports_for_host,
+    resource_exports_for_host,
     skill_exports_for_host,
     skill_ids_for_host,
     skill_sources_for_host,
 )
+from harness.plugin_sdk import SDK_PACKAGING_GUIDANCE, write_resources
 from harness.registry import discover_harness_assets
 from openstudio_ai_mcp.compatibility import package_version, plugin_mcp_environment
 
@@ -156,7 +158,8 @@ class CodexAdapter(OpenStudioAiHostAdapter):
         (export_root / "INSTALL.md").write_text(
             _render_install_doc(
                 export_root, marketplace_path, plugin_name, runtime_mode
-            ),
+            )
+            + SDK_PACKAGING_GUIDANCE,
             encoding="utf-8",
         )
         _write_plugin_package(plugin_dir, plan, workspace_root, runtime_mode)
@@ -248,6 +251,10 @@ def _planned_export_files(
         export.target
         for export in reference_exports_for_host(workspace_root, plugin_dir, "codex")
     )
+    files.extend(
+        export.target
+        for export in resource_exports_for_host(workspace_root, plugin_dir, "codex")
+    )
     return sorted(files)
 
 
@@ -272,7 +279,9 @@ def _write_plugin_package(
         _render_mcp_config(workspace_root, runtime_mode), encoding="utf-8"
     )
     (plugin_dir / "README.md").write_text(
-        _render_plugin_readme(plan, workspace_root, runtime_mode), encoding="utf-8"
+        _render_plugin_readme(plan, workspace_root, runtime_mode)
+        + SDK_PACKAGING_GUIDANCE,
+        encoding="utf-8",
     )
     (plugin_dir / "CONNECTORS.md").write_text(
         _render_connectors_doc(workspace_root, runtime_mode), encoding="utf-8"
@@ -282,7 +291,9 @@ def _write_plugin_package(
         for skill_name, content in _marketplace_setup_skill_docs().items():
             target_dir = plugin_dir / "skills" / skill_name
             target_dir.mkdir(parents=True, exist_ok=True)
-            (target_dir / "SKILL.md").write_text(content, encoding="utf-8")
+            (target_dir / "SKILL.md").write_text(
+                content + SDK_PACKAGING_GUIDANCE, encoding="utf-8"
+            )
 
     for skill in skill_exports_for_host(workspace_root, plugin_dir, "codex"):
         target_dir = skill.target.parent
@@ -293,6 +304,9 @@ def _write_plugin_package(
         )
 
     _write_skill_references(plugin_dir / "skills", workspace_root)
+    write_resources(
+        resource_exports_for_host(workspace_root, plugin_dir, "codex"), plugin_dir
+    )
 
 
 def _render_plugin_json() -> str:

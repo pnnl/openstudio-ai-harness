@@ -14,7 +14,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Optional LLM-judge metrics for standalone/evals (dual-MCP routing evals).
+# Optional LLM-judge metrics for standalone/evals (interop evals).
 eval = [
     "deepeval>=4.0.0",
 ]

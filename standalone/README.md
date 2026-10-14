@@ -23,6 +23,11 @@ its own conversation ID. This is appropriate for the local demo; it is not a
 multi-user throughput deployment. On graceful Streamlit shutdown, the runtime
 closes the agent and local MCP process.
 
+## Interop evals
+
+To run the openstudio-ai Claude plugin next to your own OpenStudio MCP server in
+Claude Code and score the routing, see [`evals/README.md`](evals/README.md).
+
 ## Docker Compose demo
 
 From the repository root, create `.env` with the model credential required by

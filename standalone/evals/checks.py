@@ -1,6 +1,7 @@
-"""Deterministic scoring of agent tool-call traces for dual-MCP routing evals."""
+"""Host-neutral, deterministic scoring of agent tool-call traces for interop evals."""
 from __future__ import annotations
 
+import re
 from dataclasses import asdict, dataclass
 from fnmatch import fnmatch
 from typing import Any, Iterable, Mapping
@@ -26,7 +27,7 @@ def split_mcp_tool_name(name: str) -> tuple[str | None, str]:
 @dataclass(frozen=True)
 class ToolCall:
     name: str  # bare MCP tool name, server prefix stripped
-    provider: str  # "nlr", "harness", or "agent" (built-ins like load_skill)
+    provider: str  # "harness", "agent" (host built-ins like Skill), or the MCP server name
     arguments: Any = None
 
 
@@ -38,31 +39,6 @@ class CheckResult:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
-
-
-def extract_tool_calls(
-    records: Iterable[Mapping[str, Any]],
-    *,
-    providers: Mapping[str, str],
-) -> list[ToolCall]:
-    """Ordered tool calls from automa-ai telemetry, tagged by provider.
-
-    Uses ``tool.call`` span starts, which are emitted once per executed call.
-    MCP tools carry an ``mcp__<server>__`` prefix; ``providers`` maps each
-    server name to a provider label. Unprefixed tools are agent built-ins.
-    """
-    calls: list[ToolCall] = []
-    for record in records:
-        if record.get("name") != "tool.call" or record.get("type") != "span_start":
-            continue
-        attrs = record.get("attributes") or {}
-        name = attrs.get("tool.name")
-        if not name:
-            continue
-        server, tool = split_mcp_tool_name(name)
-        provider = providers.get(server, server) if server else "agent"
-        calls.append(ToolCall(tool, provider, attrs.get("tool.arguments")))
-    return calls
 
 
 def check_required(calls: list[ToolCall], required: Iterable[Mapping[str, str]]) -> list[CheckResult]:
@@ -98,6 +74,38 @@ def score_case(case: Mapping[str, Any], calls: list[ToolCall]) -> list[CheckResu
         *check_required(calls, case.get("required_tools", [])),
         *check_forbidden(calls, case.get("forbidden_tools", [])),
     ]
+
+
+def _numbers(text: str) -> list[float]:
+    return [float(m.replace(",", "")) for m in re.findall(r"-?\d[\d,]*\.?\d*", text)]
+
+
+def check_expected(expected: Mapping[str, Any] | None, answer: str, files: Iterable[str] = ()) -> list[CheckResult]:
+    """Outcome golden: ``{"metrics": [{"name", "value", "tolerance_pct", "unit_hint"?}], "artifacts": [...]}``.
+
+    A metric passes when a number within ``tolerance_pct`` of ``value`` appears
+    on the same line as ``name`` (case-insensitive) in the final answer.
+    Artifacts are file-name globs that must match one of ``files``.
+    """
+    if not expected:
+        return []
+    results = []
+    for metric in expected.get("metrics", []):
+        name, target, tol = metric["name"], float(metric["value"]), float(metric.get("tolerance_pct", 5))
+        found = [
+            n for line in answer.splitlines() if name.lower() in line.lower() for n in _numbers(line)
+        ]
+        close = [n for n in found if abs(n - target) <= abs(target) * tol / 100]
+        reason = (
+            f"{close[0]} within {tol}% of {target}" if close
+            else f"no value within {tol}% of {target} (saw {found[:5] or 'none'})"
+        )
+        results.append(CheckResult(f"expected:{name}", bool(close), reason))
+    names = list(files)
+    for pattern in expected.get("artifacts", []):
+        hits = [f for f in names if fnmatch(f, pattern)]
+        results.append(CheckResult(f"artifact:{pattern}", bool(hits), f"{len(hits)} match(es)"))
+    return results
 
 
 def deepeval_tool_correctness(

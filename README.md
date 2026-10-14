@@ -138,8 +138,9 @@ ComStock measures are not staged, so NLR tools that depend on them will fail
 natively.
 
 - Claude Code: the project `.mcp.json` runs the script in stdio mode.
-- Evals: run `scripts/start_openstudio_mcp.sh --http 10220` to serve it over
-  streamable HTTP. See `standalone/evals/README.md`.
+- Interop evals: the Claude Code evals start it per session from an `mcpServers`
+  entry. See `standalone/evals/README.md`.
+- `--http PORT` still serves it over streamable HTTP for manual use.
 
 Override locations with `OPENSTUDIO_MCP_ROOT` (default `../openstudio-mcp`) and
 `OPENSTUDIO_MCP_SANDBOX`.

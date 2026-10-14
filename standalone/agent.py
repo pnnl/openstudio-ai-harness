@@ -7,8 +7,6 @@ from dotenv import load_dotenv
 from automa_ai.common.mcp_registry import MCPServerConfig
 from automa_ai.config.agent_spec import (
     InstructionsSpec,
-    MCPConfigSpec,
-    MCPServerSpec,
     YamlAgentSpec,
     load_agent_factory_from_yaml,
 )
@@ -30,13 +28,6 @@ CHAT_BOT_MODEL_BASE_URL = os.getenv("CHAT_BOT_MODEL_BASE_URL") or None
 OPENSTUDIO_MCP_HOST = os.getenv("OPENSTUDIO_MCP_HOST", "127.0.0.1")
 OPENSTUDIO_MCP_PORT = int(os.getenv("OPENSTUDIO_MCP_PORT", "10210"))
 AGENT_SPEC_PATH = base_dir / "openstudio_agent.yaml"
-
-# Optional NLR openstudio-mcp connection (externally started, streamable-http),
-# e.g. via ``scripts/start_openstudio_mcp.sh --http 10220``. Unset by default so
-# the standalone agent never depends on NLR.
-NLR_MCP_SERVER_NAME = "openstudio-mcp"
-NLR_MCP_HOST_ENV = "NLR_OPENSTUDIO_MCP_HOST"
-NLR_MCP_PORT_ENV = "NLR_OPENSTUDIO_MCP_PORT"
 
 # Registry entry whose skills are advertised to the model. automa-ai's
 # load_skill exposes no catalog, unlike Claude Code / Codex, which show every
@@ -100,19 +91,6 @@ def build_openstudio_ai_mcp_config() -> MCPServerConfig:
     )
 
 
-def build_nlr_mcp_server_spec() -> MCPServerSpec | None:
-    """Return the NLR openstudio-mcp connection when its port env var is set."""
-    port = os.getenv(NLR_MCP_PORT_ENV)
-    if not port:
-        return None
-    return MCPServerSpec(
-        name=NLR_MCP_SERVER_NAME,
-        host=os.getenv(NLR_MCP_HOST_ENV, "127.0.0.1"),
-        port=int(port),
-        transport="streamable-http",
-    )
-
-
 def load_openstudio_agent_spec(
     mcp_config: MCPServerConfig | None = None,
     *,
@@ -133,12 +111,6 @@ def load_openstudio_agent_spec(
         server.transport = mcp_config.transport
         server.timeout = mcp_config.timeout
         server.sse_read_timeout = mcp_config.sse_read_timeout
-
-    nlr_server = build_nlr_mcp_server_spec()
-    if nlr_server is not None:
-        if spec.mcp is None:
-            spec.mcp = MCPConfigSpec()
-        spec.mcp.servers[NLR_MCP_SERVER_NAME] = nlr_server
 
     return spec
 

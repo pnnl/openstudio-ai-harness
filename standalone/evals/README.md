@@ -139,6 +139,17 @@ The exit code is 0 only if every session passes.
   from the first existing directory in the entry's `env`), `claude --version`, model,
   runtime mode, arms, and a hash of the cases that ran
 - `summary.json`: every session's checks and tool calls
+- `metrics` (in each session's `result.json`, and printed per session): `turns`,
+  `tool_calls`, `output_tokens`, `cost_usd`, `duration_s`, `api_duration_s` and the
+  cache token counts, read from Claude's final `result` event. Compare `turns`,
+  `tool_calls` and `output_tokens` for agent effort; cost and cache tokens are
+  dominated by the fixed size of the system prompt and tool schemas. Turn counts
+  vary between runs, so use `--repeat` before comparing arms.
+- `report.md`: the same results as readable tables (pass/fail per case and arm, effort,
+  failed checks, tool sequences). Written at the end of every run; regenerate it for
+  any existing run, or all runs, with
+  `uv run --project standalone python -m standalone.evals.report [RUN_DIR ...]`.
+  With `--repeat`, effort numbers are medians.
 - `<arm>/<case_id>[/rep_N]/`: `result.json` (checks, tool calls, final answer),
   `timeline.json` (each call with its result and error flag) and `raw.stream.jsonl`
   (the Claude stream-json)
@@ -175,7 +186,30 @@ Cases are JSON lists in `standalone/evals/cases/` (or `--cases-dir`):
   the `both` arm only. `arms` is optional (default all three).
 - `expected.metrics`: passes when a number within `tolerance_pct` of `value`
   appears on a line of the final answer containing `name`. `expected.artifacts`
-  are file-name globs that must exist in the session sandbox.
+  are file-name globs that must exist in the session sandbox. Metrics read the
+  agent's prose, so prefer `expected.model` or artifacts wherever the outcome is
+  in a file.
+- `expected.model` inspects the `.osm` the agent produced: the newest `.osm` in the
+  session sandbox that is not byte-identical to a staged input (each server saves
+  to its own workspace). The file is kept as `output.osm` next to `result.json`.
+  The check fails if no new model was saved. It parses the OSM text, so it needs
+  no OpenStudio install. Keys, all optional:
+
+  ```json
+  "model": {
+    "version_min": "3.0.0",
+    "counts": {"OS:ThermalZone": 10},
+    "min_counts": {"OS:AirLoopHVAC": 1},
+    "fields": [
+      {"type": "OS:SizingPeriod:DesignDay", "field": "Name", "contains": "International", "match": "all"},
+      {"type": "OS:RunPeriod", "field": "End Month", "equals": "1"}
+    ]
+  }
+  ```
+
+  `field` is the `!- Label` comment of the OSM field (case-insensitive, `{unit}`
+  dropped). `match` is `any` (default) or `all` objects of that type. A prompt that
+  needs this must ask the agent to save the model, so say so in the prompt.
 
 ## Known limitations
 

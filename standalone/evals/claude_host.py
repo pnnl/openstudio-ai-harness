@@ -167,6 +167,31 @@ def run_claude(
     return ClaudeRun(parse_stream_json(proc.stdout), proc.stdout, proc.returncode, proc.stderr)
 
 
+def run_metrics(run: ClaudeRun) -> dict[str, Any]:
+    """Effort metrics from the final ``result`` event (``None`` where Claude did not report them).
+
+    ``cache_creation_tokens`` / ``cache_read_tokens`` mostly reflect the fixed size of
+    the system prompt and tool schemas, not the work done; compare ``turns``,
+    ``tool_calls`` and ``output_tokens`` for effort.
+    """
+    result, usage = run.result, run.result.get("usage") or {}
+    tool_calls = sum(
+        1 for e in run.events if e.get("type") == "assistant"
+        for b in _content_blocks(e) if b.get("type") == "tool_use"
+    )
+    return {
+        "turns": result.get("num_turns"),
+        "tool_calls": tool_calls,
+        "output_tokens": usage.get("output_tokens"),
+        "input_tokens": usage.get("input_tokens"),
+        "cache_creation_tokens": usage.get("cache_creation_input_tokens"),
+        "cache_read_tokens": usage.get("cache_read_input_tokens"),
+        "cost_usd": result.get("total_cost_usd"),
+        "duration_s": round(result["duration_ms"] / 1000, 1) if result.get("duration_ms") is not None else None,
+        "api_duration_s": round(result["duration_api_ms"] / 1000, 1) if result.get("duration_api_ms") is not None else None,
+    }
+
+
 def connected_servers(run: ClaudeRun) -> dict[str, str]:
     """MCP server name -> status from the init event."""
     return {s["name"]: s.get("status", "") for s in run.init.get("mcp_servers", [])}

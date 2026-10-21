@@ -32,12 +32,21 @@ from typing import Any
 
 from dotenv import load_dotenv
 
-from standalone.evals.checks import CheckResult, check_expected, deepeval_tool_correctness, score_case
+from standalone.evals.checks import (
+    CheckResult,
+    check_expected,
+    check_model,
+    deepeval_tool_correctness,
+    find_output_model,
+    score_case,
+)
+from standalone.evals.report import write_report
 from standalone.evals.claude_host import (
     ClaudeRun,
     connected_servers,
     extract_tool_calls,
     run_claude,
+    run_metrics,
     tool_timeline,
 )
 
@@ -169,7 +178,13 @@ def run_session(
             cwd=work, timeout=timeout,
         )
         files = [p.name for p in sandbox.rglob("*") if p.is_file()]
-        record = score_run(case, arm, run, prompt, ref_name, servers, use_deepeval, files)
+        output_model = None
+        if (case.get("expected") or {}).get("model"):
+            originals = {p.read_bytes() for p in inputs.glob("*.osm")}
+            output_model = find_output_model(sandbox, originals)
+            if output_model is not None:  # keep it for calibration; the sandbox is deleted below
+                shutil.copy2(output_model, out_dir / "output.osm")
+        record = score_run(case, arm, run, prompt, ref_name, servers, use_deepeval, files, output_model)
     finally:
         shutil.rmtree(sandbox, ignore_errors=True)
 
@@ -183,6 +198,7 @@ def score_run(
     case: dict[str, Any], arm: str, run: ClaudeRun, prompt: str,
     ref_name: str, servers: dict[str, Any], use_deepeval: bool,
     files: list[str] = (),
+    output_model: Path | None = None,
 ) -> dict[str, Any]:
     # Only the openstudio-ai server gets a label; the server under test keeps its own
     # name (its key in --sut-config), so cases name it directly, e.g. "openstudio-mcp".
@@ -199,6 +215,7 @@ def score_run(
         "ok" if not run.is_error else f"timed_out={run.timed_out} rc={run.returncode} {run.stderr[:200]}",
     ))
     checks += check_expected(case.get("expected"), run.final_text, files)
+    checks += check_model((case.get("expected") or {}).get("model"), output_model)
     if arm == "both":
         checks += score_case(case, calls)
         if use_deepeval and case.get("expected_tools_ordered"):
@@ -215,10 +232,22 @@ def score_run(
         "arm": arm,
         "passed": all(c.passed for c in checks),
         "checks": [c.to_dict() for c in checks],
+        "metrics": run_metrics(run),
         "tool_calls": [{"name": c.name, "provider": c.provider} for c in calls],
         "timeline": tool_timeline(run.events, providers=providers),
         "answer": run.final_text,
     }
+
+
+def format_metrics(m: dict[str, Any]) -> str:
+    def fmt(value: Any, template: str) -> str:
+        return "n/a" if value is None else template.format(value)
+
+    return (
+        f"metrics: turns={fmt(m['turns'], '{}')} tools={m['tool_calls']} "
+        f"out_tokens={fmt(m['output_tokens'], '{:,}')} cost={fmt(m['cost_usd'], '${:.2f}')} "
+        f"time={fmt(m['duration_s'], '{:.0f}s')}"
+    )
 
 
 # ---------------------------------------------------------------- provenance
@@ -319,7 +348,8 @@ def main(argv: list[str] | None = None) -> int:
                     records.append(record)
                     for check in record["checks"]:
                         print(f"  [{'PASS' if check['passed'] else 'FAIL'}] {check['check']}: {check['reason']}")
-                    print("  tools: " + (" -> ".join(f"{c['name']}({c['provider']})" for c in record["tool_calls"]) or "(none)"))
+                    print("  " + format_metrics(record["metrics"]))
+                    print("  tools: " +(" -> ".join(f"{c['name']}({c['provider']})" for c in record["tool_calls"]) or "(none)"))
     finally:
         shutil.rmtree(export_dir, ignore_errors=True)
 
@@ -328,6 +358,7 @@ def main(argv: list[str] | None = None) -> int:
         json.dumps(build_provenance(args, sut_name, sut_entry, cases), indent=2))
     (run_dir / "summary.json").write_text(json.dumps(
         [{k: v for k, v in r.items() if k not in ("timeline", "answer")} for r in records], indent=2))
+    write_report(run_dir)
     passed = sum(r["passed"] for r in records)
     print(f"{passed}/{len(records)} sessions passed. Results: {run_dir}")
     return 0 if records and passed == len(records) else 1

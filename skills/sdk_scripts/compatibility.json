@@ -1,0 +1,5 @@
+{
+  "schema_version": 1,
+  "required_openstudio_version": "3.11.0",
+  "platforms": ["darwin", "linux", "win32"]
+}

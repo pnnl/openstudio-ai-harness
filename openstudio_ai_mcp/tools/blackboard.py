@@ -72,7 +72,7 @@ def register_blackboard_tools(mcp, service) -> None:
 
     @mcp.tool(
         name="blackboard_update_state_patch",
-        description="Deep-merge a state patch into one MCP blackboard workflow.",
+        description="Deep-merge a state patch. Top-level completed_steps and assumptions append unique entries; nested and other lists replace. Initialize a new workflow to reset history.",
     )
     async def blackboard_update_state_patch(
         workflow_id: str,

@@ -13,10 +13,12 @@ from adapters.runtime_helpers import write_runtime_helpers
 from harness.asset_manifest import (
     agent_source_for_host,
     reference_exports_for_host,
+    resource_exports_for_host,
     skill_exports_for_host,
     skill_ids_for_host,
     skill_sources_for_host,
 )
+from harness.plugin_sdk import SDK_PACKAGING_GUIDANCE, write_resources
 from harness.registry import discover_harness_assets
 from openstudio_ai_mcp.compatibility import package_version, plugin_mcp_environment
 
@@ -165,7 +167,8 @@ class ClaudeCodeAdapter(OpenStudioAiHostAdapter):
             encoding="utf-8",
         )
         (marketplace_dir / "INSTALL.md").write_text(
-            _render_install_doc(marketplace_dir, plugin_name, runtime_mode),
+            _render_install_doc(marketplace_dir, plugin_name, runtime_mode)
+            + SDK_PACKAGING_GUIDANCE,
             encoding="utf-8",
         )
         _write_plugin_package(plugin_dir, plan, workspace_root, runtime_mode)
@@ -355,6 +358,10 @@ def _planned_export_files(
         export.target
         for export in reference_exports_for_host(workspace_root, plugin_dir, "claude")
     )
+    files.extend(
+        export.target
+        for export in resource_exports_for_host(workspace_root, plugin_dir, "claude")
+    )
     return sorted(files)
 
 
@@ -488,7 +495,9 @@ def _write_plugin_package(
         encoding="utf-8",
     )
     (plugin_dir / "README.md").write_text(
-        _render_plugin_readme(plan, workspace_root, runtime_mode), encoding="utf-8"
+        _render_plugin_readme(plan, workspace_root, runtime_mode)
+        + SDK_PACKAGING_GUIDANCE,
+        encoding="utf-8",
     )
     (plugin_dir / "CONNECTORS.md").write_text(
         _render_connectors_doc(workspace_root, runtime_mode),
@@ -516,10 +525,12 @@ def _write_plugin_package(
 
     _write_marketplace_setup_skills(plugin_dir / "skills", runtime_mode)
     _write_skill_references(plugin_dir / "skills", workspace_root)
-
     if runtime_mode == "marketplace":
         setup_scripts_dir = plugin_dir / "skills" / "setup-openstudio-ai" / "scripts"
         _write_installer_assets(setup_scripts_dir)
+    write_resources(
+        resource_exports_for_host(workspace_root, plugin_dir, "claude"), plugin_dir
+    )
 
 
 def _render_exported_skill(skill_path: Path, skill_name: str) -> str:
@@ -594,7 +605,9 @@ def _write_marketplace_setup_skills(skills_dir: Path, runtime_mode: str) -> None
     for skill_name, content in _marketplace_setup_skill_docs().items():
         target_dir = skills_dir / skill_name
         target_dir.mkdir(parents=True, exist_ok=True)
-        (target_dir / "SKILL.md").write_text(content, encoding="utf-8")
+        (target_dir / "SKILL.md").write_text(
+            content + SDK_PACKAGING_GUIDANCE, encoding="utf-8"
+        )
 
 
 def _marketplace_setup_skill_docs() -> dict[str, str]:
@@ -609,13 +622,22 @@ def _marketplace_setup_skill_docs() -> dict[str, str]:
                 "1. Explain that OpenStudio AI needs a local runtime command named "
                 "`openstudio-ai-mcp` so the AI assistant can safely run OpenStudio "
                 "tools.\n"
-                "2. Check whether Python is available using `python --version`. If "
-                "that fails, try `python3 --version`.\n"
-                "3. Check whether `openstudio-ai-mcp` is available by running "
-                "`openstudio-ai-mcp --help`.\n"
-                "4. Run `python ${CLAUDE_SKILL_DIR}/scripts/doctor_runtime.py`. If "
-                "`python` is unavailable, try "
-                "`python3 ${CLAUDE_SKILL_DIR}/scripts/doctor_runtime.py`.\n"
+                "2. Resolve Python before checking runtime commands. Check the current "
+                "project's `.venv/bin/python` (or `.venv\\Scripts\\python.exe` on Windows) "
+                "first, then a configured project Python, then `python --version` and "
+                "`python3 --version`. Require Python 3.10 or newer and record whether "
+                "each candidate can import `openstudio`. If both the project virtual "
+                "environment and global Python are usable, select the project virtual "
+                "environment for this setup, even if its OpenStudio package needs "
+                "installation. Report the selected executable. If no "
+                "supported Python exists, explain how to install Python 3.10 or newer "
+                "and stop until it is available. Do not create or install an environment "
+                "during this discovery step.\n"
+                "3. Check whether `openstudio-ai-mcp` is available beside the selected "
+                "interpreter, and run that command's `--help`. A command on `PATH` from "
+                "another Python environment does not count.\n"
+                "4. Run `${CLAUDE_SKILL_DIR}/scripts/doctor_runtime.py` with the "
+                "selected Python interpreter.\n"
                 "5. Treat `core_ready: true` from the doctor as the only successful core "
                 "setup result. If OpenStudio is missing, perform read-only platform discovery, "
                 "show the candidate executable to the user, and after approval run "
@@ -631,11 +653,11 @@ def _marketplace_setup_skill_docs() -> dict[str, str]:
                 "7. If the runtime is missing or the doctor reports `plugin_ready: false`, "
                 "explain in normal energy-modeler language that the installed plugin needs "
                 "a newer runtime interface and ask before running "
-                "`python ${CLAUDE_SKILL_DIR}/scripts/install_runtime.py`.\n"
+                "`scripts/install_runtime.py` with the selected Python interpreter.\n"
                 "8. If installation succeeds but `openstudio-ai-mcp` is still missing, "
                 "diagnose command discovery before editing plugin files. Run "
-                '`python -c "import sys, sysconfig; print(sys.executable); '
-                "print(sysconfig.get_path('scripts'))\"` (or `python3`), then check "
+                '`-c "import sys, sysconfig; print(sys.executable); '
+                "print(sysconfig.get_path('scripts'))\"` with the selected Python, then check "
                 "whether that scripts directory is on the PATH used to launch Claude Code. "
                 "For a marketplace plugin, keep `.mcp.json` set to the portable command "
                 "`openstudio-ai-mcp`; do not replace it with an absolute `.venv/bin` path. "
@@ -644,7 +666,8 @@ def _marketplace_setup_skill_docs() -> dict[str, str]:
                 "9. If this is intentionally a repository checkout with a project virtual "
                 "environment, explain that it is local development: re-export with "
                 "`--runtime-mode local` instead of modifying a marketplace export.\n"
-                "10. When `openstudio-ai` is available, run `openstudio-ai doctor`.\n"
+                "10. When `openstudio-ai` is available beside the selected Python, run "
+                "that command's `doctor`.\n"
                 "11. If installation changed runtime command availability or repaired a "
                 "contract mismatch, tell the user to run `/reload-plugins` or reconnect the "
                 "failed MCP server. Claude Code discovers MCP tools only when it starts the "

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import py_compile
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -42,7 +43,7 @@ def test_rendered_runtime_helpers_are_executable_python(tmp_path: Path) -> None:
     assert 'runtime_cli, "install-runtime"' in installer
     assert "def runtime_command_path(command: str)" in installer
     assert "def runtime_cli_path" in installer
-    assert 'scripts_dir / "Scripts" / f"{command}.exe"' in installer
+    assert 'scripts_dir / f"{command}.exe"' in installer
     assert 'runtime_mcp = runtime_command_path("openstudio-ai-mcp")' in installer
     assert "requires Python 3.10 or newer" in installer
     assert f"openstudio-ai=={package_version()}" in installer
@@ -64,6 +65,38 @@ def test_rendered_installer_includes_only_requested_host_guidance() -> None:
 
     assert "Reload the host plugin." not in without_guidance
     assert 'print("\\nReload the host plugin.")\n    return 0' in with_guidance
+
+
+def test_exported_helpers_keep_project_venv_commands_separate_from_path(
+    tmp_path: Path,
+) -> None:
+    venv = tmp_path / ".venv"
+    scripts = venv / "bin"
+    scripts.mkdir(parents=True)
+    local_cli = scripts / "openstudio-ai"
+    local_cli.touch()
+    selected_python = SimpleNamespace(prefix=str(venv), base_prefix="/machine")
+
+    doctor_namespace = {"__name__": "test_doctor"}
+    exec(render_doctor_runtime_script(), doctor_namespace)
+    doctor_namespace["sys"] = selected_python
+    doctor_namespace["shutil"] = SimpleNamespace(
+        which=lambda command: f"/global/bin/{command}"
+    )
+    assert doctor_namespace["command_status"]("openstudio-ai")["path"] == str(
+        local_cli
+    )
+    assert doctor_namespace["command_status"]("openstudio-ai-mcp")["path"] is None
+
+    installer_namespace = {"__name__": "test_installer"}
+    exec(render_install_runtime_script(), installer_namespace)
+    installer_namespace["sys"] = selected_python
+    installer_namespace["shutil"] = SimpleNamespace(
+        which=lambda command: f"/global/bin/{command}"
+    )
+    assert installer_namespace["runtime_cli_path"]() == str(local_cli)
+    assert installer_namespace["runtime_command_path"]("openstudio-ai-mcp") is None
+    assert installer_namespace["is_pipx_managed_runtime"]() is False
 
 
 @pytest.mark.parametrize("implementation", ["cli", "exported"])

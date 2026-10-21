@@ -1,0 +1,146 @@
+{
+  "title": "In-place plant pump performance/control edit",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "output_model_path"
+  ],
+  "$defs": {
+    "selector": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "handle"
+          ],
+          "properties": {
+            "handle": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      ]
+    }
+  },
+  "properties": {
+    "output_model_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "plant_loop": {
+      "$ref": "#/$defs/selector"
+    },
+    "pump": {
+      "$ref": "#/$defs/selector"
+    },
+    "settings": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "head": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 10000000
+        },
+        "head_units": {
+          "type": "string",
+          "enum": [
+            "Pa",
+            "ftH2O"
+          ]
+        },
+        "motor_efficiency": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "motor_loss_fraction_to_fluid": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "control_type": {
+          "type": "string",
+          "enum": [
+            "Intermittent",
+            "Continuous"
+          ]
+        },
+        "rated_power_w": {
+          "oneOf": [
+            {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            {
+              "type": "string",
+              "enum": [
+                "Autosize"
+              ]
+            }
+          ]
+        },
+        "power_sizing_method": {
+          "type": "string",
+          "enum": [
+            "PowerPerFlow",
+            "PowerPerFlowPerPressure"
+          ]
+        },
+        "electric_power_per_flow": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "shaft_power_per_flow_per_head": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 1000000.0
+        },
+        "part_load_coefficients": {
+          "type": "array",
+          "items": {
+            "type": "number",
+            "minimum": -1000000.0,
+            "maximum": 1000000.0
+          },
+          "minItems": 4,
+          "maxItems": 4
+        }
+      },
+      "if": {
+        "required": [
+          "head_units"
+        ],
+        "properties": {
+          "head_units": {
+            "enum": [
+              "ftH2O"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "head": {
+            "maximum": 3345.5256331296855
+          }
+        }
+      }
+    }
+  }
+}

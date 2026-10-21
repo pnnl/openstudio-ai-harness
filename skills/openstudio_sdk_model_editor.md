@@ -84,6 +84,14 @@ Disallowed uses:
 - For prototype CAV construction, use `openstudio-cav-system-creator`; its parent
   composes shared equipment modules with a reviewed system-specific recipe.
   Confirm the requested CAV topology matches its supported arrangement.
+- Use `openstudio-terminal-editor` for one existing connected single-duct VAV
+  reheat/no-reheat terminal's explicit Constant-method minimum fraction or applicable
+  reheat controls, including terminals in prototype CAV systems. Preserve the
+  terminal/coil, connections, references, schedules and unrequested sizing. Review
+  supply-air versus OA, turndown/EMS overrides and flow/sizing warnings; honor
+  simulation readiness. Reverse/reheat-flow-limit edits require supported water
+  reheat controls. Terminal class/method changes, coil ratings and topology need
+  separate coverage. Do not generate substitute scripts for covered terminal edits.
 - Use `openstudio-economizer-editor` for explicit in-place economizer type,
   lockout and temperature/enthalpy cutoff edits on an existing direct OA controller.
   It preserves ventilation, DCV, schedules, sizing, topology and handles. Review

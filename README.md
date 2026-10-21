@@ -3,10 +3,15 @@
 OpenStudio AI Harness packages a local MCP runtime, host adapters, skills,
 knowledge, and workflow-state tools for AI-assisted building-energy modeling.
 
-Release preparation: **0.4.1**, using MCP plugin/runtime contract **6.0** and
+Current release: **0.4.1**, using MCP plugin/runtime contract **6.0** and
 OpenStudio **3.11.0**. Refresh both the runtime and exported host plugin together;
 contract compatibility requires an exact match. See the
 [release guide](docs/RELEASE.md) for validation and publication steps.
+
+Phase 11a adds in-place zone-terminal airflow/reheat-control editing for review,
+followed by a separate terminal replacement contract. See the
+[resumed equipment sequence](docs/HVAC_MODULARIZATION_WORK.md#resumed-equipment-sequence--october-20-2026)
+for the next checkpoint and remaining equipment families.
 
 ## Current Capabilities
 
@@ -42,6 +47,15 @@ contract compatibility requires an exact match. See the
   source trace, supported arrangements and verification. CAV requires
   an explicit outdoor-air choice and aligns 100% OA operation with coil sizing;
   approved CAV plans must be regenerated after this correction.
+- `openstudio-terminal-editor` edits one connected VAV reheat/no-reheat terminal's
+  Constant-method minimum fraction or applicable reheat controls in place,
+  including terminals in the prototype CAV recipe. It preserves equipment,
+  references, schedules, connections and unrequested sizing; saved checks verify
+  the requested EnergyPlus fields. Plans expose ventilation, turndown/EMS and
+  sizing dependencies. At the pinned engine, fraction-limit edits require the
+  per-area field at Autocalculate; an Autosize reset must be explicitly chosen.
+  Numeric per-area limits are unsupported and retained ignored limits warn.
+  Terminal replacement and coil-rating changes are separate.
 - The independent `openstudio-supply-fan-performance-editor` skill edits explicit
   efficiency/pressure values on a selected air loop's direct constant- or
   variable-volume fan in place. Fan, connection, metadata and reference handles
@@ -204,6 +218,11 @@ python -m playwright install chromium
 
 The production harness supports Python 3.10 or newer. The `dev` extra installs
 its test and release tools.
+
+Publishing runs fast checks and one paired plugin-export smoke test. Full
+pull-request/manual CI retains the slower modeling, simulation, browser and
+packaging checks. See [test suite selections](tests/README.md) for commands and
+timing reports.
 
 Install the runtime package after it is published:
 

@@ -56,6 +56,12 @@ openstudio-ai-codex-export = "adapters.codex_adapter:main"
 requires = ["hatchling==1.29.0"]
 build-backend = "hatchling.build"
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "slow: SDK modeling, native/simulation/browser execution, repeated full exports, archive builds, or large bundled-doc parsing; run in full CI, outside the publishing gate",
+]
+
 [tool.hatch.build.targets.wheel]
 packages = [
     "adapters",

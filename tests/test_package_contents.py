@@ -55,6 +55,16 @@ def test_release_archives_exclude_local_openstudio_fixtures(tmp_path: Path) -> N
     with tarfile.open(sdist) as archive:
         sdist_names = [member.name.partition("/")[2] for member in archive.getmembers()]
 
+    terminal_sources = {
+        "skills/openstudio_terminal_editor.md",
+        "skills/sdk_scripts/edit_terminal.py",
+        "skills/sdk_scripts/common/terminal_edit.py",
+        "skills/sdk_scripts/references/terminal_edit.md",
+        "skills/sdk_scripts/references/terminal_edit.schema.json",
+    }
+    assert terminal_sources <= set(wheel_names)
+    assert terminal_sources <= set(sdist_names)
+
     sdist_blocked_prefixes = (
         "resource/",
         "tests/fixtures/",

@@ -101,6 +101,27 @@ per category, total counts, and a truncation marker. Use `--candidate-filter`
 with a name fragment or read the full report only for the relevant selection.
 `report.py` remains a troubleshooting utility for old logs, not the normal flow.
 
+## Energy code basis
+
+Applies only when the user names a code ("per 90.1-2019", "IECC-compliant",
+"code minimum"). Otherwise skip this section and keep current behavior.
+
+- Load `query-energy-standards` before preparing the configuration JSON. Confirm
+  `standard`, `template` (for example `90.1-2019`), `climate_zone`, and `path`
+  (`prescriptive` or `appendix_g`) with the user instead of assuming them.
+- Resolve, as relevant: fan power or efficiency limits, air economizer
+  requirement and control type, and energy recovery requirement. DX cooling
+  efficiency applies only when the human approved DX (`dx_approved: true`).
+- Write each resolved value into the matching configuration field from the
+  input schema, and record its source, for example
+  `fan.total_efficiency: set to 0.62 from hvac_minimum_requirements_fans, template 90.1-2019`.
+- Convert code metrics (EER, kW/ton, IPLV, fan kW per cfm) to the schema's units
+  before writing them, and record the conversion.
+- If the `building_energy_standards` tools are unavailable or return no matching
+  row, say so and ask the user for the value. Never invent a code value.
+- Hot-water and chilled-water plant equipment efficiency belongs to the
+  plant-loop skill, not this one.
+
 ## Supported inputs and assumptions
 
 ### Review assumptions with the user

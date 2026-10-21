@@ -38,6 +38,14 @@ dev = [
     "playwright>=1.50.0",
     "twine>=5.0.0",
 ]
+standards = [
+    "building-energy-standards-data[mcp]>=0.3.2",
+]
+
+# Local wheel until building-energy-standards-data is published on PyPI.
+# Remove this block afterwards; it only affects uv, not built wheels.
+[tool.uv.sources]
+building-energy-standards-data = { path = "../besd/dist/building_energy_standards_data-0.3.2-py3-none-any.whl" }
 
 [project.urls]
 Homepage = "https://gitlab.pnnl.gov/building-energy-modeling/openstudio-ai-harness"

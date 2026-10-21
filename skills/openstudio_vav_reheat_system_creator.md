@@ -66,7 +66,9 @@ Known values or approved defaults are required before model-editing phases:
 - minimum system airflow ratio;
 - sizing option, usually `Coincident`;
 - economizer control type or approved default;
-- optional return plenum.
+- optional return plenum;
+- optional `energy_code` basis: `standard`, `template` (for example `90.1-2019`),
+  `climate_zone`, and `path` (`prescriptive` or `appendix_g`).
 
 For water coils, require an existing plant-loop name. Do not create hot-water or
 chilled-water plant loops in this parent workflow unless the user starts a
@@ -126,6 +128,29 @@ Clarify before drafting edit scripts when:
 - schedule names/defaults are unresolved;
 - the requested air-loop name already exists;
 - output path would overwrite the input model.
+
+## Energy Code Basis
+
+Applies only when the user names a code ("per 90.1-2019", "IECC-compliant",
+"code minimum") or sets `energy_code` in state. Otherwise skip this section and
+keep current behavior.
+
+- Load `query-energy-standards` during the clarification gate. Confirm
+  `standard`, `template`, `climate_zone`, and `path` with the user instead of
+  assuming them.
+- Resolve, as relevant: DX fallback cooling efficiency, fan power or efficiency
+  limits, air economizer requirement and control type, and energy recovery
+  requirement.
+- Write each resolved value into the state fields the child skills already
+  read, and record its source in `assumptions`, for example
+  `CoilCoolingDXTwoSpeed:Name.cop: set to 3.8 from hvac_minimum_requirements_unitary_air_conditioners, template 90.1-2019`.
+- Convert code metrics (EER, kW/ton, IPLV, fan kW per cfm) to the SDK input
+  before passing them on, and record the conversion.
+- If the `building_energy_standards` tools are unavailable or return no matching
+  row, say so and ask the user for the value. Child skills never query the
+  standards database themselves.
+- Chilled-water and hot-water plants are not created here; plant equipment
+  efficiency belongs to a separate loop-creation task.
 
 ## Standards-Derived Defaults
 

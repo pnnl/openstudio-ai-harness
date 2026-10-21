@@ -2,9 +2,30 @@
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 from openstudio_mcp.compatibility import PLUGIN_CONTRACT_VERSION, package_version
+
+STANDARDS_SERVER_NAME = "building_energy_standards"
+STANDARDS_SERVER_COMMAND = "besd-mcp"
+
+
+def optional_mcp_servers(runtime_mode: str) -> dict[str, dict[str, object]]:
+    """Return optional companion MCP servers available on this machine.
+
+    The building energy standards server ships in the optional ``standards``
+    extra. It is registered only when ``besd-mcp`` is on PATH, and never for
+    marketplace exports, where the command cannot be verified at export time.
+    """
+    if runtime_mode == "marketplace" or not shutil.which(STANDARDS_SERVER_COMMAND):
+        return {}
+    return {
+        STANDARDS_SERVER_NAME: {
+            "command": STANDARDS_SERVER_COMMAND,
+            "args": ["--transport", "stdio"],
+        }
+    }
 
 
 def write_runtime_helpers(
@@ -49,6 +70,8 @@ def main() -> int:
         },
         "openstudio_ai_mcp": command_status("openstudio-ai-mcp"),
         "openstudio_ai": command_status("openstudio-ai"),
+        # Optional: install the `standards` extra for building-code lookups.
+        "besd_mcp_optional": command_status("besd-mcp"),
     }
     print(json.dumps(report, indent=2))
 

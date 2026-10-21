@@ -27,6 +27,7 @@ optional_state:
 - fan.fan_name
 - fan.end_use_subcategory
 - fan.fan_pressure_rise_pa
+- energy_code.template
 - warnings
 sdk_methods:
 - '`FanVariableVolume.new`'
@@ -59,6 +60,10 @@ missing_field_behavior:
 - |
   If the unit is not `Pa` or `inH2O`, ask for a supported unit or an explicit
   conversion.
+- |
+  If a fan efficiency or pressure rise is missing and `energy_code` is set, return the field as missing so the parent can look it up.
+  Never invent a code value in this phase; the parent resolves it with
+  `query-energy-standards`.
 state_patch:
   ok: true
   state_patch:

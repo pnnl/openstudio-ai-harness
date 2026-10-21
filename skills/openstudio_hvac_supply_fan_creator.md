@@ -31,6 +31,7 @@ Do not create schedules, sizing systems, coils, outdoor-air systems, terminals, 
 - `fan.fan_name`
 - `fan.end_use_subcategory`
 - `fan.fan_pressure_rise_pa`
+- `energy_code.template`
 - `warnings`
 
 
@@ -71,6 +72,10 @@ pressure unit, model paths, or air loop.
 
 If the unit is not `Pa` or `inH2O`, ask for a supported unit or an explicit
 conversion.
+
+If a fan efficiency or pressure rise is missing and `energy_code` is set, return the field as missing so the parent can look it up.
+Never invent a code value in this phase; the parent resolves it with
+`query-energy-standards`.
 
 ## State Patch
 

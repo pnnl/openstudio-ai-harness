@@ -34,6 +34,7 @@ Conditional required fields:
 ## Optional State Fields
 
 - `central_cooling.coil_name`
+- `energy_code.template`
 - `warnings`
 
 
@@ -68,6 +69,10 @@ existing chilled-water plant loop should serve the coil.
 
 If DX fallback is requested without approval, ask for explicit approval and
 identify the selected DX class.
+
+If a DX fallback efficiency is missing and `energy_code` is set, return it as missing so the parent can look it up.
+Never invent a code value in this phase; the parent resolves it with
+`query-energy-standards`.
 
 ## State Patch
 

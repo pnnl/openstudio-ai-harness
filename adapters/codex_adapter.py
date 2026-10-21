@@ -9,7 +9,7 @@ from pathlib import Path
 
 from adapters.base import OpenStudioAiHostAdapter
 from adapters.contracts import RUNTIME_MODES, HostAdapterConfig, HostLaunchPlan
-from adapters.runtime_helpers import write_runtime_helpers
+from adapters.runtime_helpers import optional_mcp_servers, write_runtime_helpers
 from harness.asset_manifest import (
     reference_exports_for_host,
     skill_exports_for_host,
@@ -356,7 +356,8 @@ def _render_mcp_config(workspace_root: Path, runtime_mode: str) -> str:
         json.dumps(
             {
                 "mcpServers": {
-                    SERVER_NAME: _mcp_server_config(workspace_root, runtime_mode)
+                    SERVER_NAME: _mcp_server_config(workspace_root, runtime_mode),
+                    **optional_mcp_servers(runtime_mode),
                 }
             },
             indent=2,

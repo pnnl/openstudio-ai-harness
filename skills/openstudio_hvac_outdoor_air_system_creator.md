@@ -35,6 +35,7 @@ Do not create the air loop, schedules, the fan, coils, terminals, simulations, r
 - `outdoor_air_system.controller_name`
 - `outdoor_air_system.oa_system_name`
 - `openstudio_version`
+- `energy_code.template`
 - `warnings`
 
 
@@ -82,6 +83,10 @@ Return missing fields if the air loop, HVAC operation schedule, model paths, or
 required OA control constants are absent.
 
 If the named schedule cannot be found, return candidate schedules.
+
+If the economizer control type is missing and `energy_code` is set, return it as missing so the parent can look it up.
+Never invent a code value in this phase; the parent resolves it with
+`query-energy-standards`.
 
 ## State Patch
 

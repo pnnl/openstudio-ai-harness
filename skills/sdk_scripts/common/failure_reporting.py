@@ -92,6 +92,8 @@ CONFIG_KEYS.update(
 SAFE_WORDS.update({"VAVNoReheat", "ConstantVolumeNoReheat", "None"})
 CONFIG_KEYS.update(
     {
+        "tower",
+        "design_fan_power_w",
         "chiller",
         "reference_cop",
         "boiler",

@@ -178,6 +178,9 @@ resources:
       - hosts: [claude, codex]
         skill: openstudio-chiller-performance-editor
         path: scripts/doctor.py
+      - hosts: [claude, codex]
+        skill: openstudio-tower-performance-editor
+        path: scripts/doctor.py
 
   - source: skills/sdk_scripts/sdk_probe.py
     scope: plugin-sdk
@@ -252,6 +255,9 @@ resources:
         path: scripts/sdk_probe.py
       - hosts: [claude, codex]
         skill: openstudio-chiller-performance-editor
+        path: scripts/sdk_probe.py
+      - hosts: [claude, codex]
+        skill: openstudio-tower-performance-editor
         path: scripts/sdk_probe.py
 
   - source: skills/sdk_scripts/common/version_guard.py
@@ -384,6 +390,9 @@ resources:
         path: scripts/compatibility.json
       - hosts: [claude, codex]
         skill: openstudio-chiller-performance-editor
+        path: scripts/compatibility.json
+      - hosts: [claude, codex]
+        skill: openstudio-tower-performance-editor
         path: scripts/compatibility.json
 
   - source: skills/sdk_scripts/vav_preflight.py
@@ -1676,6 +1685,9 @@ resources:
       - hosts: [claude, codex]
         skill: openstudio-chiller-performance-editor
         path: scripts/prepare_model.py
+      - hosts: [claude, codex]
+        skill: openstudio-tower-performance-editor
+        path: scripts/prepare_model.py
 
   - source: skills/sdk_scripts/schemas/preparation_report.schema.json
     scope: plugin-sdk
@@ -1744,6 +1756,9 @@ resources:
         path: references/preparation_report.schema.json
       - hosts: [claude, codex]
         skill: openstudio-chiller-performance-editor
+        path: references/preparation_report.schema.json
+      - hosts: [claude, codex]
+        skill: openstudio-tower-performance-editor
         path: references/preparation_report.schema.json
 
   - source: skills/sdk_scripts/references/model_preparation.md
@@ -1814,6 +1829,9 @@ resources:
         path: references/model_preparation.md
       - hosts: [claude, codex]
         skill: openstudio-chiller-performance-editor
+        path: references/model_preparation.md
+      - hosts: [claude, codex]
+        skill: openstudio-tower-performance-editor
         path: references/model_preparation.md
 
   - source: skills/sdk_scripts/edit_terminal.py
@@ -1925,7 +1943,38 @@ resources:
         skill: openstudio-chiller-performance-editor
         path: references/chiller_performance.schema.json
 
+  - source: skills/sdk_scripts/edit_tower_performance.py
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-tower-performance-editor
+        path: scripts/edit_tower_performance.py
+
+  - source: skills/sdk_scripts/common/tower_edit.py
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-tower-performance-editor
+        path: scripts/common/tower_edit.py
+
+  - source: skills/sdk_scripts/references/tower_performance.md
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-tower-performance-editor
+        path: references/tower_performance.md
+
+  - source: skills/sdk_scripts/references/tower_performance.schema.json
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-tower-performance-editor
+        path: references/tower_performance.schema.json
+
 skills:
+  - id: openstudio-tower-performance-editor
+    source: skills/openstudio_tower_performance_editor.md
+    hosts: [claude, codex]
   - id: openstudio-chiller-performance-editor
     source: skills/openstudio_chiller_performance_editor.md
     hosts: [claude, codex]

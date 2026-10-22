@@ -36,6 +36,12 @@ simulation workflows, and explain what changed.
   equipment modules with VAV and owns complete assembly/validation; do not invoke
   an agent or publish a model for each individual component. Other CAV topology
   requests need explicit coverage rather than silently substituting this recipe.
+- Use `openstudio-tower-performance-editor` for one existing condenser supply-side
+  CoolingTowerVariableSpeed design fan electrical power edit: explicit total watts
+  or explicit Autosize, retaining other inputs, curves, controls and identity.
+  Review autosized design airflow/airflow-based metrics coupled to fan power,
+  evaporation/make-up water and tower electricity;
+  other tower classes, user-defined thermal models and replacement need coverage.
 - Use `openstudio-chiller-performance-editor` for one existing air- or water-cooled
   ChillerElectricEIR reference-COP edit on a Cooling plant. Preserve curves, sizing
   inputs/flags, condenser connections, controls and identities. Review autosized

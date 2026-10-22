@@ -84,6 +84,12 @@ Disallowed uses:
 - For prototype CAV construction, use `openstudio-cav-system-creator`; its parent
   composes shared equipment modules with a reviewed system-specific recipe.
   Confirm the requested CAV topology matches its supported arrangement.
+- Use `openstudio-tower-performance-editor` for one existing condenser supply-side
+  CoolingTowerVariableSpeed design fan electrical power edit: explicit total watts
+  or explicit Autosize, retaining other inputs, curves, controls and identity.
+  Review autosized design airflow/airflow-based metrics coupled to fan power,
+  evaporation/make-up water and tower electricity;
+  other tower classes, user-defined thermal models and replacement need coverage.
 - Use `openstudio-chiller-performance-editor` for one existing air- or water-cooled
   ChillerElectricEIR reference-COP edit on a Cooling plant. Preserve curves, sizing
   inputs/flags, condenser connections, controls and identities. Review autosized

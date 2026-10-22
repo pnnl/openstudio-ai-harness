@@ -17,6 +17,7 @@ SLOW_MODULES = frozenset(
         "test_cav_system.py",
         "test_boiler_performance.py",
         "test_chiller_performance.py",
+        "test_tower_performance.py",
         "test_terminal_edit.py",
         "test_terminal_replacement.py",
         "test_coil_conversion.py",

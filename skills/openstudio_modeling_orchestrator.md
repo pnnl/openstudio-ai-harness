@@ -35,6 +35,12 @@ task-specific skill before acting; do not recreate its procedure from memory.
   different CAV arrangement before routing; generic prototype controls do not
   imply fixed airflow in every zone or template compliance. VAV/CAV parent scripts
   compose shared equipment functions inside one reviewed model transaction.
+- Use `openstudio-tower-performance-editor` for one existing condenser supply-side
+  CoolingTowerVariableSpeed design fan electrical power edit: explicit total watts
+  or explicit Autosize, retaining other inputs, curves, controls and identity.
+  Review autosized design airflow/airflow-based metrics coupled to fan power,
+  evaporation/make-up water and tower electricity;
+  other tower classes, user-defined thermal models and replacement need coverage.
 - Use `openstudio-chiller-performance-editor` for one existing air- or water-cooled
   ChillerElectricEIR reference-COP edit on a Cooling plant. Preserve curves, sizing
   inputs/flags, condenser connections, controls and identities. Review autosized

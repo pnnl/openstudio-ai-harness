@@ -96,7 +96,7 @@ def test_invalid_cop_rejects_without_output(sdk, tmp_path, cop):
     assert not (tmp_path / "edited.osm").exists()
 
 
-def native_run(o, source, folder, chiller_handle):
+def native_run(o, source, folder, chiller_handle, extra_outputs=()):
     import sqlite3
     import subprocess
     from test_supply_fan_performance import native_cli
@@ -114,6 +114,10 @@ def native_run(o, source, folder, chiller_handle):
     for variable in variables:
         output = o.model.OutputVariable(variable, model)
         output.setKeyValue(chiller.nameString())
+        output.setReportingFrequency("Hourly")
+    for key, variable in extra_outputs:
+        output = o.model.OutputVariable(variable, model)
+        output.setKeyValue(key)
         output.setReportingFrequency("Hourly")
     auxiliary = {}
     condenser = chiller.secondaryPlantLoop()
@@ -170,6 +174,14 @@ def native_run(o, source, folder, chiller_handle):
             "SELECT Description,Value FROM ComponentSizes WHERE lower(CompName)=lower(?)",
             (chiller.nameString(),),
         ).fetchall()
+        extra_data = {}
+        for key, variable in extra_outputs:
+            rows = sql.execute(
+                "SELECT t.EnvironmentPeriodIndex,t.SimulationDays,t.Hour,r.Value FROM ReportData r JOIN ReportDataDictionary d USING(ReportDataDictionaryIndex) JOIN Time t USING(TimeIndex) WHERE d.Name=? AND lower(d.KeyValue)=lower(?) AND t.WarmupFlag=0 ORDER BY t.TimeIndex",
+                (variable, key),
+            ).fetchall()
+            assert rows, (key, variable)
+            extra_data.setdefault(key, {})[variable] = rows
         for name, details in auxiliary.items():
             rows = sql.execute(
                 "SELECT r.Value FROM ReportData r JOIN ReportDataDictionary d USING(ReportDataDictionaryIndex) JOIN Time t USING(TimeIndex) WHERE d.Name=? AND lower(d.KeyValue)=lower(?) AND t.WarmupFlag=0",
@@ -197,6 +209,7 @@ def native_run(o, source, folder, chiller_handle):
         sizes=sizes,
         warnings=err,
         condenser_equipment=auxiliary,
+        extra_outputs=extra_data,
         condenser_auxiliary_electricity_j=sum(
             item["electricity_j"] for item in auxiliary.values()
         ),

@@ -38,6 +38,10 @@ dev = [
     "playwright>=1.50.0",
     "twine>=5.0.0",
 ]
+# Optional LLM-judge metrics for the interop evals in evals/.
+eval = [
+    "deepeval>=4.0.0",
+]
 
 [project.urls]
 Homepage = "https://gitlab.pnnl.gov/building-energy-modeling/openstudio-ai-harness"

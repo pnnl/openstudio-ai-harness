@@ -20,6 +20,10 @@ venv/
 .idea/
 .vscode/
 
+# openstudio-mcp sandbox (local integration / eval use — not committed)
+.openstudio_mcp_sandbox/
+.claude/
+
 # OpenStudio AI runtime state
 .openstudio_mcp_workspace/
 .openstudio_ai_mcp_workspace/

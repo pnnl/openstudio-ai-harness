@@ -3,6 +3,7 @@
   "dockerComposeFile": "../compose.yaml",
   "service": "devcontainer",
   "workspaceFolder": "/workspace/openstudio-ai-harness",
+  "remoteUser": "vscode",
   "overrideCommand": false,
   "postCreateCommand": "uv sync --extra dev --locked && uv run --extra dev python -m playwright install chromium && uv sync --project standalone --locked",
   "customizations": {

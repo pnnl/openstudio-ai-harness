@@ -8,8 +8,9 @@ OpenStudio **3.11.0**. Refresh both the runtime and exported host plugin togethe
 contract compatibility requires an exact match. See the
 [release guide](docs/RELEASE.md) for validation and publication steps.
 
-Phase 11a adds in-place zone-terminal airflow/reheat-control editing for review,
-followed by a separate terminal replacement contract. See the
+Phase 11a terminal editing and the initial 11b no-reheat terminal conversion are
+approved. Phase 12a adds in-place hot-water boiler efficiency/parasitic editing for
+review. Reheat-terminal conversion remains separate. See the
 [resumed equipment sequence](docs/HVAC_MODULARIZATION_WORK.md#resumed-equipment-sequence--october-20-2026)
 for the next checkpoint and remaining equipment families.
 
@@ -47,6 +48,20 @@ for the next checkpoint and remaining equipment families.
   source trace, supported arrangements and verification. CAV requires
   an explicit outdoor-air choice and aligns 100% OA operation with coil sizing;
   approved CAV plans must be regenerated after this correction.
+- `openstudio-boiler-performance-editor` edits one heating-plant hot-water boiler's
+  explicit HHV nominal efficiency and electric/fuel parasitic loads in place.
+  Fuel, capacity/flow, curves, sizing, controls and identities stay unchanged.
+  Plans expose curve/EMS/dispatch dependencies and detect configured curves omitted
+  by translation. See the [12a checkpoint](docs/HVAC_MODULARIZATION_WORK.md#phase-12a-boiler-performance-editor--october-21-2026).
+- `openstudio-terminal-replacer` converts one connected single-duct VAV no-reheat
+  terminal to constant-volume no-reheat, or the reverse. Explicit maximum-flow
+  and VAV minimum-fraction choices accompany retained zone service, boundary
+  nodes, availability and zone/system sizing. The terminal gets a new identity;
+  direct references and unsupported controls block conversion. Review overcooling
+  and ventilation before simulation. Plans identify retained fan classes and VRP
+  sizing dependencies; preserved inputs do not promise unchanged calculated OA.
+  Reheat conversions remain separate. See the
+  [11b checkpoint](docs/HVAC_MODULARIZATION_WORK.md#phase-11b-no-reheat-terminal-replacement--october-21-2026).
 - `openstudio-terminal-editor` edits one connected VAV reheat/no-reheat terminal's
   Constant-method minimum fraction or applicable reheat controls in place,
   including terminals in the prototype CAV recipe. It preserves equipment,

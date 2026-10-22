@@ -168,6 +168,14 @@ resources:
         skill: openstudio-terminal-editor
         path: scripts/doctor.py
 
+      - hosts: [claude, codex]
+        skill: openstudio-terminal-replacer
+        path: scripts/doctor.py
+
+      - hosts: [claude, codex]
+        skill: openstudio-boiler-performance-editor
+        path: scripts/doctor.py
+
   - source: skills/sdk_scripts/sdk_probe.py
     scope: plugin-sdk
     owners:
@@ -230,6 +238,14 @@ resources:
         path: scripts/sdk_probe.py
       - hosts: [claude, codex]
         skill: openstudio-terminal-editor
+        path: scripts/sdk_probe.py
+
+      - hosts: [claude, codex]
+        skill: openstudio-terminal-replacer
+        path: scripts/sdk_probe.py
+
+      - hosts: [claude, codex]
+        skill: openstudio-boiler-performance-editor
         path: scripts/sdk_probe.py
 
   - source: skills/sdk_scripts/common/version_guard.py
@@ -351,6 +367,14 @@ resources:
         path: scripts/compatibility.json
       - hosts: [claude, codex]
         skill: openstudio-terminal-editor
+        path: scripts/compatibility.json
+
+      - hosts: [claude, codex]
+        skill: openstudio-terminal-replacer
+        path: scripts/compatibility.json
+
+      - hosts: [claude, codex]
+        skill: openstudio-boiler-performance-editor
         path: scripts/compatibility.json
 
   - source: skills/sdk_scripts/vav_preflight.py
@@ -1633,6 +1657,14 @@ resources:
         skill: openstudio-terminal-editor
         path: scripts/prepare_model.py
 
+      - hosts: [claude, codex]
+        skill: openstudio-terminal-replacer
+        path: scripts/prepare_model.py
+
+      - hosts: [claude, codex]
+        skill: openstudio-boiler-performance-editor
+        path: scripts/prepare_model.py
+
   - source: skills/sdk_scripts/schemas/preparation_report.schema.json
     scope: plugin-sdk
     owners:
@@ -1689,6 +1721,14 @@ resources:
         path: references/preparation_report.schema.json
       - hosts: [claude, codex]
         skill: openstudio-terminal-editor
+        path: references/preparation_report.schema.json
+
+      - hosts: [claude, codex]
+        skill: openstudio-terminal-replacer
+        path: references/preparation_report.schema.json
+
+      - hosts: [claude, codex]
+        skill: openstudio-boiler-performance-editor
         path: references/preparation_report.schema.json
 
   - source: skills/sdk_scripts/references/model_preparation.md
@@ -1750,6 +1790,14 @@ resources:
         skill: openstudio-terminal-editor
         path: references/model_preparation.md
 
+      - hosts: [claude, codex]
+        skill: openstudio-terminal-replacer
+        path: references/model_preparation.md
+
+      - hosts: [claude, codex]
+        skill: openstudio-boiler-performance-editor
+        path: references/model_preparation.md
+
   - source: skills/sdk_scripts/edit_terminal.py
     scope: plugin-sdk
     owners:
@@ -1775,7 +1823,69 @@ resources:
         skill: openstudio-terminal-editor
         path: references/terminal_edit.schema.json
 
+  - source: skills/sdk_scripts/replace_terminal.py
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-terminal-replacer
+        path: scripts/replace_terminal.py
+
+  - source: skills/sdk_scripts/common/terminal_replacement.py
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-terminal-replacer
+        path: scripts/common/terminal_replacement.py
+
+  - source: skills/sdk_scripts/references/terminal_replacement.md
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-terminal-replacer
+        path: references/terminal_replacement.md
+
+  - source: skills/sdk_scripts/references/terminal_replacement.schema.json
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-terminal-replacer
+        path: references/terminal_replacement.schema.json
+
+  - source: skills/sdk_scripts/edit_boiler_performance.py
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-boiler-performance-editor
+        path: scripts/edit_boiler_performance.py
+
+  - source: skills/sdk_scripts/common/boiler_edit.py
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-boiler-performance-editor
+        path: scripts/common/boiler_edit.py
+
+  - source: skills/sdk_scripts/references/boiler_performance.md
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-boiler-performance-editor
+        path: references/boiler_performance.md
+
+  - source: skills/sdk_scripts/references/boiler_performance.schema.json
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-boiler-performance-editor
+        path: references/boiler_performance.schema.json
+
 skills:
+  - id: openstudio-boiler-performance-editor
+    source: skills/openstudio_boiler_performance_editor.md
+    hosts: [claude, codex]
+  - id: openstudio-terminal-replacer
+    source: skills/openstudio_terminal_replacer.md
+    hosts: [claude, codex]
   - id: openstudio-terminal-editor
     source: skills/openstudio_terminal_editor.md
     hosts: [claude, codex]

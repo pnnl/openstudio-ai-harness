@@ -81,6 +81,23 @@ CONFIG_KEYS = set(
     "supply_temperature_c delta_t_k cooling_type heating_type reheat_type "
     "availability_schedule_name thermostat_schedule minimum_airflow_fraction".split()
 )
+CONFIG_KEYS.update(
+    {
+        "availability_policy",
+        "reheat_policy",
+        "zone_sizing_policy",
+        "maximum_airflow_m3_s",
+    }
+)
+SAFE_WORDS.update({"VAVNoReheat", "ConstantVolumeNoReheat", "None"})
+CONFIG_KEYS.update(
+    {
+        "boiler",
+        "nominal_thermal_efficiency",
+        "on_cycle_parasitic_electric_load_w",
+        "off_cycle_parasitic_fuel_load_w",
+    }
+)
 # Maintained schema field/enum allowlist; regression checks keep it complete.
 CONFIG_KEYS.update(
     [
@@ -885,6 +902,8 @@ def capture_exception(exc, operation, stage, args=None, report=None):
                 "plugin_version", "unknown"
             )
         if args:
+            # Plan/report warnings can contain model-object names. Never copy
+            # them into diagnostics; take only the explicit configuration below.
             for field in ("config", "plan"):
                 path = getattr(args, field, None)
                 if (

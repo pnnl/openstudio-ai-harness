@@ -35,6 +35,19 @@ task-specific skill before acting; do not recreate its procedure from memory.
   different CAV arrangement before routing; generic prototype controls do not
   imply fixed airflow in every zone or template compliance. VAV/CAV parent scripts
   compose shared equipment functions inside one reviewed model transaction.
+- Use `openstudio-boiler-performance-editor` for explicit nominal HHV thermal
+  efficiency or on-cycle electric/off-cycle fuel parasitic-load edits on one
+  existing heating-plant BoilerHotWater. Preserve identity, fuel, capacity/flow,
+  curves, part-load ratios, sizing and plant controls. Review curve/EMS/dispatch
+  dependencies; no inferred sizing reset, fuel conversion or substitute scripts.
+  Steam boilers and replacement require separate coverage.
+- Use `openstudio-terminal-replacer` for one connected single-duct VAV no-reheat
+  ↔ constant-volume no-reheat terminal class change. Require explicit maximum-flow
+  policy, VAV target minimum fraction and preservation/reheat/reference policies.
+  Review new identity, changed airflow behavior, retained zone branch and sizing;
+  this is not a whole-system VAV/CAV conversion. Reheat and unsupported terminal
+  classes need separate coverage. Same-class VAV controls use the terminal editor.
+  Do not draft substitute scripts for covered terminal replacements.
 - Use `openstudio-terminal-editor` for one existing connected single-duct VAV
   reheat/no-reheat terminal's explicit Constant-method minimum fraction or applicable
   reheat controls, including terminals in prototype CAV systems. Preserve the

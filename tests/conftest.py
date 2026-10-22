@@ -15,7 +15,9 @@ TESTS_DIR = Path(__file__).resolve().parent
 SLOW_MODULES = frozenset(
     {
         "test_cav_system.py",
+        "test_boiler_performance.py",
         "test_terminal_edit.py",
+        "test_terminal_replacement.py",
         "test_coil_conversion.py",
         "test_coil_relocation.py",
         "test_economizer.py",

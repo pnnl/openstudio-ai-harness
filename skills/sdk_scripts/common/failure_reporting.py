@@ -92,6 +92,8 @@ CONFIG_KEYS.update(
 SAFE_WORDS.update({"VAVNoReheat", "ConstantVolumeNoReheat", "None"})
 CONFIG_KEYS.update(
     {
+        "chiller",
+        "reference_cop",
         "boiler",
         "nominal_thermal_efficiency",
         "on_cycle_parasitic_electric_load_w",

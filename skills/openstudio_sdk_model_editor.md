@@ -84,6 +84,13 @@ Disallowed uses:
 - For prototype CAV construction, use `openstudio-cav-system-creator`; its parent
   composes shared equipment modules with a reviewed system-specific recipe.
   Confirm the requested CAV topology matches its supported arrangement.
+- Use `openstudio-chiller-performance-editor` for one existing air- or water-cooled
+  ChillerElectricEIR reference-COP edit on a Cooling plant. Preserve curves, sizing
+  inputs/flags, condenser connections, controls and identities. Review autosized
+  condenser pump/tower changes after sizing; chiller electricity is not plant
+  savings. No inferred standards minimum,
+  curve substitution or class conversion. Heat recovery, thermosiphon and other
+  chiller classes need separate coverage.
 - Use `openstudio-boiler-performance-editor` for explicit nominal HHV thermal
   efficiency or on-cycle electric/off-cycle fuel parasitic-load edits on one
   existing heating-plant BoilerHotWater. Preserve identity, fuel, capacity/flow,

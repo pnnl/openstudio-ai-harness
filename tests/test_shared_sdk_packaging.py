@@ -151,8 +151,8 @@ def test_every_public_entrypoint_resolves_after_complete_relocation(plugin, tmp_
         for p in plugin.glob("skills/*/scripts/*.py")
         if "runpy.run_path" in p.read_text()
     ]
-    # Boiler editing adds doctor, probe, preparation and operation launchers.
-    assert len(scripts) == 82
+    # Boiler and chiller skills each expose doctor, probe, preparation and operation.
+    assert len(scripts) == 86
     for script in scripts:
         if script.name == "sdk_probe.py":
             continue  # Probe has no argparse; the separate native case executes it.

@@ -175,6 +175,9 @@ resources:
       - hosts: [claude, codex]
         skill: openstudio-boiler-performance-editor
         path: scripts/doctor.py
+      - hosts: [claude, codex]
+        skill: openstudio-chiller-performance-editor
+        path: scripts/doctor.py
 
   - source: skills/sdk_scripts/sdk_probe.py
     scope: plugin-sdk
@@ -246,6 +249,9 @@ resources:
 
       - hosts: [claude, codex]
         skill: openstudio-boiler-performance-editor
+        path: scripts/sdk_probe.py
+      - hosts: [claude, codex]
+        skill: openstudio-chiller-performance-editor
         path: scripts/sdk_probe.py
 
   - source: skills/sdk_scripts/common/version_guard.py
@@ -375,6 +381,9 @@ resources:
 
       - hosts: [claude, codex]
         skill: openstudio-boiler-performance-editor
+        path: scripts/compatibility.json
+      - hosts: [claude, codex]
+        skill: openstudio-chiller-performance-editor
         path: scripts/compatibility.json
 
   - source: skills/sdk_scripts/vav_preflight.py
@@ -1664,6 +1673,9 @@ resources:
       - hosts: [claude, codex]
         skill: openstudio-boiler-performance-editor
         path: scripts/prepare_model.py
+      - hosts: [claude, codex]
+        skill: openstudio-chiller-performance-editor
+        path: scripts/prepare_model.py
 
   - source: skills/sdk_scripts/schemas/preparation_report.schema.json
     scope: plugin-sdk
@@ -1729,6 +1741,9 @@ resources:
 
       - hosts: [claude, codex]
         skill: openstudio-boiler-performance-editor
+        path: references/preparation_report.schema.json
+      - hosts: [claude, codex]
+        skill: openstudio-chiller-performance-editor
         path: references/preparation_report.schema.json
 
   - source: skills/sdk_scripts/references/model_preparation.md
@@ -1796,6 +1811,9 @@ resources:
 
       - hosts: [claude, codex]
         skill: openstudio-boiler-performance-editor
+        path: references/model_preparation.md
+      - hosts: [claude, codex]
+        skill: openstudio-chiller-performance-editor
         path: references/model_preparation.md
 
   - source: skills/sdk_scripts/edit_terminal.py
@@ -1879,7 +1897,38 @@ resources:
         skill: openstudio-boiler-performance-editor
         path: references/boiler_performance.schema.json
 
+  - source: skills/sdk_scripts/edit_chiller_performance.py
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-chiller-performance-editor
+        path: scripts/edit_chiller_performance.py
+
+  - source: skills/sdk_scripts/common/chiller_edit.py
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-chiller-performance-editor
+        path: scripts/common/chiller_edit.py
+
+  - source: skills/sdk_scripts/references/chiller_performance.md
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-chiller-performance-editor
+        path: references/chiller_performance.md
+
+  - source: skills/sdk_scripts/references/chiller_performance.schema.json
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-chiller-performance-editor
+        path: references/chiller_performance.schema.json
+
 skills:
+  - id: openstudio-chiller-performance-editor
+    source: skills/openstudio_chiller_performance_editor.md
+    hosts: [claude, codex]
   - id: openstudio-boiler-performance-editor
     source: skills/openstudio_boiler_performance_editor.md
     hosts: [claude, codex]

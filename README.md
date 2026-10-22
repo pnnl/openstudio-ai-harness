@@ -9,8 +9,9 @@ contract compatibility requires an exact match. See the
 [release guide](docs/RELEASE.md) for validation and publication steps.
 
 Phase 11a terminal editing and the initial 11b no-reheat terminal conversion are
-approved. Phase 12a adds in-place hot-water boiler efficiency/parasitic editing for
-review. Reheat-terminal conversion remains separate. See the
+approved, as is phase 12a hot-water boiler efficiency/parasitic editing. Phase 12b
+adds in-place electric EIR chiller reference-COP editing for review. Reheat-terminal
+conversion remains separate. See the
 [resumed equipment sequence](docs/HVAC_MODULARIZATION_WORK.md#resumed-equipment-sequence--october-20-2026)
 for the next checkpoint and remaining equipment families.
 
@@ -48,6 +49,12 @@ for the next checkpoint and remaining equipment families.
   source trace, supported arrangements and verification. CAV requires
   an explicit outdoor-air choice and aligns 100% OA operation with coil sizing;
   approved CAV plans must be regenerated after this correction.
+- `openstudio-chiller-performance-editor` edits one air- or water-cooled electric
+  EIR chiller's explicit reference COP in place. Curves, sizing inputs/flags,
+  condenser circuits, controls and identities stay unchanged. Plans flag autosized
+  condenser pumps/towers whose calculated sizes and energy may change. Heat recovery, thermosiphon and other
+  classes need separate coverage. Reference COP is not seasonal or whole-plant
+  efficiency; changed condenser heat can change calculated condenser sizing.
 - `openstudio-boiler-performance-editor` edits one heating-plant hot-water boiler's
   explicit HHV nominal efficiency and electric/fuel parasitic loads in place.
   Fuel, capacity/flow, curves, sizing, controls and identities stay unchanged.

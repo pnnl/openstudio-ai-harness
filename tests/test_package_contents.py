@@ -56,6 +56,11 @@ def test_release_archives_exclude_local_openstudio_fixtures(tmp_path: Path) -> N
         sdist_names = [member.name.partition("/")[2] for member in archive.getmembers()]
 
     terminal_sources = {
+        "skills/openstudio_chiller_performance_editor.md",
+        "skills/sdk_scripts/edit_chiller_performance.py",
+        "skills/sdk_scripts/common/chiller_edit.py",
+        "skills/sdk_scripts/references/chiller_performance.md",
+        "skills/sdk_scripts/references/chiller_performance.schema.json",
         "skills/openstudio_boiler_performance_editor.md",
         "skills/sdk_scripts/edit_boiler_performance.py",
         "skills/sdk_scripts/common/boiler_edit.py",

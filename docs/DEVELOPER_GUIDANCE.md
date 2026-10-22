@@ -261,7 +261,7 @@ Use this table when deciding where a change belongs.
 | `harness/` | Host-agnostic package registry | Manifest and asset discovery logic | Host-specific export decisions | Used by adapters |
 | `adapters/` | Host-specific install/export logic | Claude Code and Codex plugin mapping | Product behavior or trusted modeling logic | Generates plugin folders |
 | `standalone/` | Local AUTOMA-AI agent/UI project | Agent spec, launchers, UI, and AUTOMA-AI tests | Claude/Codex plugin manifests | Python 3.10+ development only |
-| `evals/` | Eval cases and datasets | Regression cases for skills, planning, measures, knowledge | Runtime state or generated logs | Developer only |
+| `evals/` | Interop eval runner and cases | Claude Code evals of the plugin next to another MCP server | Runtime state or generated logs | Developer only |
 | `policy/` | Governance and promotion policies | Review, retention, allowlist, and runtime gate policies | Runtime executable code | Developer only unless referenced by docs |
 | `scripts/` | Build/generation scripts | Skill generation, index generation, repo maintenance scripts | Runtime MCP tool implementations | Some scripts may ship in wheel, but not as plugin UI |
 | `tests/` | Automated tests | Focused unit, adapter, MCP, CLI, and integration tests | Runtime assets | Developer only |

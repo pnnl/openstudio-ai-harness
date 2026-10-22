@@ -1,6 +1,6 @@
 """Interop eval: the exported openstudio-ai plugin vs. any MCP server, in real Claude Code.
 
-    uv run --project standalone python -m standalone.evals.interop \
+    uv run python -m evals.interop \
         --sut-config sut.json [--model <model-id>] [--arms ...] [--cases ID ...] \
         [--cases-dir DIR] [--repeat N] [--run-name NAME]
 
@@ -32,7 +32,7 @@ from typing import Any
 
 from dotenv import load_dotenv
 
-from standalone.evals.checks import (
+from evals.checks import (
     CheckResult,
     check_expected,
     check_model,
@@ -40,8 +40,8 @@ from standalone.evals.checks import (
     find_output_model,
     score_case,
 )
-from standalone.evals.report import write_report
-from standalone.evals.claude_host import (
+from evals.report import write_report
+from evals.claude_host import (
     ClaudeRun,
     connected_servers,
     extract_tool_calls,
@@ -50,7 +50,7 @@ from standalone.evals.claude_host import (
     tool_timeline,
 )
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = Path(__file__).resolve().parents[1]
 BUNDLED_CASES_DIR = Path(__file__).resolve().parent / "cases"
 FIXTURES_DIR = REPO_ROOT / "tests" / "fixtures"
 OUTPUT_ROOT = REPO_ROOT / "outputs" / "evals"
@@ -223,7 +223,7 @@ def score_run(
                 calls, case["expected_tools_ordered"], prompt=prompt, answer=run.final_text
             )
             if de is None:
-                print("deepeval not installed; install the standalone 'eval' extra.", file=sys.stderr)
+                print("deepeval not installed; run 'uv sync --extra eval'.", file=sys.stderr)
             else:
                 checks.append(de)
 

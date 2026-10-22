@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
-from standalone.evals.checks import ToolCall, split_mcp_tool_name
+from evals.checks import ToolCall, split_mcp_tool_name
 
 PLUGIN_AGENT = "openstudio-ai:openstudio-modeler"
 

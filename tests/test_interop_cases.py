@@ -3,7 +3,7 @@ import json
 
 import pytest
 
-from standalone.evals.interop import load_cases, load_sut_entry, substitute
+from evals.interop import load_cases, load_sut_entry, substitute
 
 
 def test_bundled_case_targets_openstudio_mcp() -> None:
@@ -35,7 +35,7 @@ def test_sut_entry_needs_exactly_one_server(tmp_path) -> None:
 
 
 def test_model_comes_from_flag_then_anthropic_model(monkeypatch) -> None:
-    from standalone.evals.interop import resolve_model
+    from evals.interop import resolve_model
 
     monkeypatch.setenv("ANTHROPIC_MODEL", "from-env")
     assert resolve_model("from-flag") == ("from-flag", "--model")
@@ -51,7 +51,7 @@ def test_sandbox_placeholder_is_substituted_everywhere(tmp_path) -> None:
 
 
 def test_expected_metric_within_tolerance_and_artifacts() -> None:
-    from standalone.evals.checks import check_expected
+    from evals.checks import check_expected
 
     answer = "| **Site EUI** | **34.14 kBtu/ft²/yr** |\n| Total | 198.19 GJ |"
     spec = {"metrics": [{"name": "Site EUI", "value": 34.0, "tolerance_pct": 5}], "artifacts": ["*.sql"]}
@@ -94,7 +94,7 @@ OS:SizingPeriod:DesignDay,
 
 
 def test_parse_osm_reads_objects_and_labels() -> None:
-    from standalone.evals.checks import parse_osm
+    from evals.checks import parse_osm
 
     objs = parse_osm(_OSM)
     assert [o.type for o in objs].count("OS:ThermalZone") == 2
@@ -105,7 +105,7 @@ def test_parse_osm_reads_objects_and_labels() -> None:
 
 
 def test_check_model_counts_version_and_fields(tmp_path) -> None:
-    from standalone.evals.checks import check_model
+    from evals.checks import check_model
 
     path = tmp_path / "m.osm"
     path.write_text(_OSM)
@@ -132,7 +132,7 @@ def test_check_model_counts_version_and_fields(tmp_path) -> None:
 
 
 def test_find_output_model_skips_unchanged_inputs(tmp_path) -> None:
-    from standalone.evals.checks import find_output_model
+    from evals.checks import find_output_model
 
     (tmp_path / "inputs").mkdir()
     (tmp_path / "inputs" / "in.osm").write_text("original")
@@ -143,7 +143,7 @@ def test_find_output_model_skips_unchanged_inputs(tmp_path) -> None:
 
 
 def test_report_renders_results_failures_and_collapsed_sequences(tmp_path) -> None:
-    from standalone.evals.report import render_report
+    from evals.report import render_report
 
     def rec(arm, passed, rep=1, calls=(("a", "harness"), ("a", "harness"), ("b", "srv"))):
         return {

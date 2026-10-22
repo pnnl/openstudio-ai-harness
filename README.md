@@ -301,7 +301,7 @@ natively.
 
 - Claude Code: the project `.mcp.json` runs the script in stdio mode.
 - Interop evals: the Claude Code evals start it per session from an `mcpServers`
-  entry. See `standalone/evals/README.md`.
+  entry. See `evals/README.md`.
 - `--http PORT` still serves it over streamable HTTP for manual use.
 
 Override locations with `OPENSTUDIO_MCP_ROOT` (default `../openstudio-mcp`) and

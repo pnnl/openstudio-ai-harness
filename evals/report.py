@@ -1,6 +1,6 @@
 """Render an interop run's ``summary.json`` + ``provenance.json`` as a readable ``report.md``.
 
-    uv run --project standalone python -m standalone.evals.report [RUN_DIR ...]
+    uv run python -m evals.report [RUN_DIR ...]
 
 With no arguments every run under ``outputs/evals/`` that has a ``summary.json`` is
 rendered. The runner also writes ``report.md`` at the end of each run. Nothing is
@@ -16,7 +16,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any, Iterable
 
-OUTPUT_ROOT = Path(__file__).resolve().parents[2] / "outputs" / "evals"
+OUTPUT_ROOT = Path(__file__).resolve().parents[1] / "outputs" / "evals"
 ARM_ORDER = ("harness-only", "sut-only", "both")
 
 

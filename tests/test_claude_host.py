@@ -1,8 +1,8 @@
 """Stream-json extraction tests on a recorded Claude Code session (no LLM, no servers)."""
 from pathlib import Path
 
-from standalone.evals.checks import mcp_tool_name, score_case
-from standalone.evals.claude_host import (
+from evals.checks import mcp_tool_name, score_case
+from evals.claude_host import (
     ClaudeRun,
     connected_servers,
     extract_tool_calls,

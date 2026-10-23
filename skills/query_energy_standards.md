@@ -137,6 +137,22 @@ Confirm with `get_unique_values`, but expect these patterns:
   `150`-`9999`). Find the row
   whose range contains the capacity in the question, and check how the range endpoints are
   treated (inclusive or exclusive) in the annotation or column description.
+- **Empty (`NULL`) fields mean the code defines nothing there.** A `NULL` is not an unknown
+  or missing value and not a `0`; do not guess it, borrow it from another row or edition, or
+  ask the user for it. How to read it depends on the column:
+  - *Threshold, limit or applicability columns* (for example the economizer
+    `minimum_capacity` and `minimum_..._chilled_water_capacity_no_fan_cooling` columns, high-limit
+    shutoff values, allowed-control-type flags): **no requirement** of that kind for the row's
+    conditions. For example, 90.1-2025 climate zone 1A has an empty `minimum_capacity` because no
+    economizer is required there. A column empty for every row of an edition, as the
+    chilled-water capacity columns are for 90.1-2004 to 90.1-2013, means the edition does not
+    define that threshold.
+  - *Alternative efficiency metrics* (COP, EER, kW/ton, IPLV, thermal efficiency, and so on):
+    the code expresses the requirement in another metric. Read the sibling columns; the
+    requirement is "none" only if every metric column in the group is empty.
+  - Anything else: report the value as empty and read the row's `annotation` before
+    concluding anything.
+  A `0` is a stored value, distinct from empty; read it with the row's `annotation`.
 
 ## `run_sql` rules and limits
 

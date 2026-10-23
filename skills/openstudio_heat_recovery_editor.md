@@ -68,3 +68,7 @@ warnings and simulation readiness; carry the OSM and `<stem>/` companion togethe
 Use `openstudio-outdoor-air-connector` for attachment, the economizer/ventilation
 editors for their controller settings, and the selected provider for sizing and
 simulation. Report covered failures without generating a substitute script.
+
+## Energy code values
+
+Applies only when the user asks for code-compliant or code-minimum values or names a standard (for example "per 90.1-2019"); otherwise keep the behavior above. Load `query-energy-standards` to look up the minimum energy recovery effectiveness (`system_requirements_energy_recovery`) and use it for the effectiveness edit the user asked for. Show before/after effectiveness against the code value; do not change an existing exchanger unprompted. Confirm `standard`, `template`, `climate_zone` and `path` with the user instead of assuming them, and record the source of each value used. If the `building_energy_standards` tools are unavailable or return no matching row, say so and ask the user for the value; never invent a code value.

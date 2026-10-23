@@ -88,3 +88,7 @@ Use `openstudio-economizer-editor` for economizer settings. Use `openstudio-outd
 Shared/dedicated OA, ventilation-method redesign and zone/load editing need
 separate coverage. Report covered failures without drafting a
 substitute script. Sizing, simulation and results use the selected provider.
+
+## Energy code values
+
+Applies only when the user asks for code-compliant or code-minimum values or names a standard (for example "per 90.1-2019"); otherwise keep the behavior above. Load `query-energy-standards` to look up ASHRAE 62.1 ventilation rates by space type (`level_3_ventilation_62_1_<year>`) when the user asks for code-based minimum outdoor-air flow. Convert per-person and per-area rates to the flow inputs this skill takes using the model's occupancy and floor area, and record the calculation. Zone OA definitions stay unchanged unless the user asks otherwise. Confirm `standard`, `template`, `climate_zone` and `path` with the user instead of assuming them, and record the source of each value used. If the `building_energy_standards` tools are unavailable or return no matching row, say so and ask the user for the value; never invent a code value.

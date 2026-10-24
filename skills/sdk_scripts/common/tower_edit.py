@@ -11,6 +11,7 @@ from common.input_validation import validate
 from common.model_preservation import fingerprint, snapshot
 from common.temperature_control import translated_workspace, optional_string
 from common.water_coil import original_types
+from common.plant_sizing import sizing_context, require_plant_sizing
 
 POWER_FIELD = "Design Fan Power"
 CURVE_FIELD = "Fan Power Ratio Function of Air Flow Rate Ratio Curve Name"
@@ -146,6 +147,7 @@ def translated_state(model, sdk, tower):
             )
         value = number.get()
     return dict(
+        plant_sizing=sizing_context(model, sdk, workspace),
         settings=dict(design_fan_power_w=value),
         preserved_fields=[
             [obj.iddObject().getField(i).get().name(), optional_string(obj, i)]
@@ -286,6 +288,7 @@ def plan(model, sdk, config):
             "Design tower airflow is autosized from design fan power. Changing power changes reported design/free-convection airflow; recompute airflow-based metrics. The supported thermal models use airflow ratios, so this edit alone does not imply changed cooling, condenser temperatures or chiller/pump energy. In SaturatedExit mode, absolute airflow affects evaporation and make-up water; review water use and tower fan electricity"
         )
     if after["design_fan_power_w"] == "Autosize":
+        require_plant_sizing(planned, translated["plant_sizing"])
         planned["warnings"].append(
             "Explicit Autosize sets design fan power to 0.0105 times water density times water specific heat times tower design water volume flow times condenser-loop design delta T, using sizing-condition fluid properties. A chiller COP change affects this sizing chain when tower design water flow is autosized; with fixed tower water flow and unchanged fluid properties/delta T, it does not change the sized fan power"
         )

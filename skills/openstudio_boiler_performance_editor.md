@@ -1,6 +1,6 @@
 ---
 name: openstudio-boiler-performance-editor
-description: Edit nominal thermal efficiency and on-cycle electric or off-cycle fuel parasitic loads on one existing hot-water boiler in place. Preserve its identity, fuel, capacity, flow, curves, plant connections and controls; steam boilers and replacement need separate coverage.
+description: Edit explicit nominal heating capacity or Autosize, HHV efficiency and electric/fuel parasitic loads on one existing hot-water boiler in place. Preserve identity, fuel, flow policy, curves, plant connections and controls; steam and replacement need separate coverage.
 metadata:
   version: 0.4.1
 ---
@@ -37,7 +37,13 @@ retained positive inputs warn as ignored by the engine. Clear only by an explici
 user-chosen zero, never silently.
 Do not substitute AFUE/combustion/LHV ratings without resolving the basis. Existing
 authorization persists. Missing choices stay unready for discussion. No prototype
-profile, curve inference or capacity/flow Autosize reset is needed or implied.
+profile, curve inference or implicit capacity/flow Autosize reset is applied.
+`nominal_capacity_w` accepts positive useful thermal output watts or explicit
+`Autosize`; leave it out to preserve capacity exactly. Do not infer thermal capacity
+from electrical/fuel input or a percentage without a sized/fixed baseline. Capacity
+Autosize retains the boiler sizing factor and uses plant design flow/ΔT with fluid
+properties at EnergyPlus HWInitConvTemp (60 °C); reported plant capacity can use a
+different property evaluation. Design water flow and its Autosize policy stay intact.
 
 Review before/after values, retained fuel, sizing, normalized curve, part-load
 ratios, flow mode, EMS and other boilers/dispatch. A curve can change effective
@@ -47,7 +53,13 @@ translation; an omitted curve warns and marks simulation unready without a hidde
 control repair. On-cycle electric power scales with PLR; pinned off-cycle fuel
 updates on the active calculation path and carries its last rate while idle,
 including later summer periods. It is metered under Heating / Boiler Parasitic,
-not a constant idle standby load. See the contract before interpreting results.
+not a constant idle standby load. Capacity also changes PLR, retained efficiency-curve
+inputs and parasitic energy. Dispatcher minimum/maximum/optimal loads are capacity
+× retained PLRs, so load can move between sources and a maximum PLR above 1 can
+permit heat above nominal. A nonzero minimum PLR can impose a running output
+floor that rises with capacity and can exceed assigned load. Smaller capacity can cause unmet loads; do not label it
+an efficiency saving or infer proportional pump savings. See the contract before
+interpreting results.
 An existing ignored electric-boiler off-cycle fuel value warns without blocking
 simulation; clearing it is optional. Boiler plans explicitly opt into combining
 operation and companion blockers in `simulation_ready`; this is not a simulation
@@ -66,11 +78,25 @@ fields before publishing a new copy. Store the retained handle, before/after
 values and report/output paths in workflow state. Keep the OSM and `<stem>/`
 companions together; honor `requires_companion_workflow`.
 
-This skill does not change fuel, capacity, design flow, part-load ratios, curves,
-temperature limits, schedules, plant setpoints/sizing, dispatch or topology. Steam
+This skill does not change fuel, design flow, part-load ratios, curves,
+temperature limits, schedules, plant sizing objects, operation-scheme inputs or
+topology. Capacity/Autosize changes occur only when explicitly requested; sizing
+results and actual dispatch can change. Steam
 boilers, heat pumps, district equipment and boiler replacement require separate
 coverage. Use the plant creator for missing plants. Do not write a substitute
 script or broaden the edit for covered work. Unexpected execution failures route
 to `report-openstudio-failure` before recovery, passing any `failure_receipt`;
 expected readiness/input questions and preparation gates do not submit. Keep
 model-specific plan warnings out of public diagnostics.
+
+
+For an explicit Autosize request, review `impact.plant_sizing`: design-day/period
+counts, defaulted/explicit model flag and effective translated plant-sizing flag.
+Without a verified enabled sizing setup and periods, the edit can be saved but is
+not ready to simulate. Configure sizing explicitly or choose justified fixed
+values; this script changes neither sizing controls nor design periods. Some
+fixed-flow cases still size with the flag off; the guard is conservative.
+On multi-boiler loops, Autosize applies the whole plant design load times each
+boiler's own sizing factor, not an inferred share. Review the bounded other-boiler
+capacity/factor list before accepting total installed capacity. The top-level
+nominal capacity is the current value; `capacity_edit` records before/after.

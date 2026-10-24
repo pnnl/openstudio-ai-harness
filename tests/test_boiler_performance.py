@@ -117,7 +117,7 @@ def test_saved_values_identity_references_and_curve(sdk, tmp_path, fuel, curve):
         dict(nominal_thermal_efficiency=float("nan")),
         dict(on_cycle_parasitic_electric_load_w=-1),
         dict(off_cycle_parasitic_fuel_load_w=-1),
-        dict(nominal_capacity_w="Autosize"),
+        dict(nominal_capacity_w=0),
         dict(fuel_type="Electricity"),
         dict(minimum_part_load_ratio=0.2),
         dict(flow_mode="ConstantFlow"),
@@ -477,7 +477,8 @@ def test_csv_companions_relocate_or_reject_changed_resource(
 
 
 @pytest.mark.parametrize("host", ["claude", "codex"])
-def test_native_relocated_exports(sdk, tmp_path, host):
+@pytest.mark.parametrize("capacity", [False, True])
+def test_native_relocated_exports(sdk, tmp_path, host, capacity):
     import shutil
     import subprocess
     from adapters.claude_code_adapter import ClaudeCodeAdapter
@@ -509,7 +510,11 @@ def test_native_relocated_exports(sdk, tmp_path, host):
     skill = copy_plugin_for_skill(skill, tmp_path / "relocated")
     shutil.rmtree(exported)
     cfg = tmp_path / "request.json"
-    cfg.write_text(json.dumps(config(tmp_path)))
+    cfg.write_text(
+        json.dumps(
+            config(tmp_path, **({"nominal_capacity_w": 20000} if capacity else {}))
+        )
+    )
     plan = tmp_path / "reviewed.json"
     repeated = tmp_path / "repeated.json"
     script = skill / "scripts/edit_boiler_performance.py"
@@ -898,3 +903,403 @@ def test_native_parasitic_inputs_and_idle_carryover(sdk, tmp_path, fuel):
             indent=2,
         )
     )
+
+
+@pytest.mark.parametrize("fuel", ["NaturalGas", "Electricity", "Propane"])
+@pytest.mark.parametrize(
+    "before,after", [("Autosize", 20000), (10000, 20000), (10000, "Autosize")]
+)
+def test_explicit_capacity_preserves_identity_other_fields_and_references(
+    sdk, tmp_path, fuel, before, after
+):
+    o = sdk[0]
+    source, model, boiler = fixture(o, tmp_path, fuel, curve=True)
+    if before != "Autosize":
+        boiler.setNominalCapacity(before)
+    cost = o.model.LifeCycleCost.createLifeCycleCost(
+        "Maintenance", boiler, 100, "CostPerEach", "Maintenance", 1, 0
+    ).get()
+    actuator = o.model.EnergyManagementSystemActuator(
+        boiler, "Plant Component Boiler:HotWater", "On/Off Supervisory"
+    )
+    protected = {
+        str(x.handle()): str(x.idfObject())
+        for x in (
+            cost,
+            actuator,
+            boiler.additionalProperties(),
+            boiler.normalizedBoilerEfficiencyCurve().get(),
+        )
+    }
+    before_ratings = boilers.values(boiler)
+    model.save(str(source), True)
+    original = source.read_bytes()
+    cfg = config(tmp_path, nominal_capacity_w=after)
+    report = preflight(source, cfg)
+    assert report["ready"], report
+    assert report == preflight(source, cfg)
+    assert report["plan"]["before_values"]["nominal_capacity_w"] == before
+    assert report["plan"]["impact"]["nominal_capacity_w"] == before
+    result = apply(report, tmp_path)
+    assert result["validation"]["ok"] and result["translation"]["ok"]
+    saved = o.osversion.VersionTranslator().loadModel(result["output_model_path"]).get()
+    current = saved.getBoilerHotWater(boiler.handle()).get()
+    assert boilers.sized(current, "NominalCapacity") == after
+    assert boilers.values(current) == before_ratings
+    assert (
+        current.isDesignWaterFlowRateAutosized()
+        == boiler.isDesignWaterFlowRateAutosized()
+    )
+    for handle, raw in protected.items():
+        assert str(saved.getModelObject(o.toUUID(handle)).get().idfObject()) == raw
+    assert source.read_bytes() == original
+
+
+@pytest.mark.parametrize(
+    "capacity", [0, -1, True, "20000", "autosize", float("nan"), float("inf")]
+)
+def test_invalid_capacity_rejects(sdk, tmp_path, capacity):
+    source, _, _ = fixture(sdk[0], tmp_path)
+    with pytest.raises(ValueError, match="Invalid boiler performance"):
+        preflight(source, config(tmp_path, nominal_capacity_w=capacity))
+    assert not (tmp_path / "edited.osm").exists()
+
+
+@pytest.mark.parametrize("before", [20000, "Autosize"])
+def test_capacity_noop_rejects(sdk, tmp_path, before):
+    source, model, boiler = fixture(sdk[0], tmp_path)
+    if before != "Autosize":
+        boiler.setNominalCapacity(before)
+    model.save(str(source), True)
+    assert not preflight(source, config(tmp_path, nominal_capacity_w=before))["ready"]
+
+
+@pytest.mark.parametrize(
+    "mutation", ["capacity", "efficiency", "flow", "part_load", "curve", "metadata"]
+)
+def test_capacity_patch_does_not_allow_unrequested_side_effects(
+    sdk, tmp_path, mutation
+):
+    o = sdk[0]
+    source, _, _ = fixture(o, tmp_path, curve=True)
+    report = preflight(source, config(tmp_path, nominal_capacity_w=20000))
+
+    def changed(model, sdk, planned):
+        result = boilers.edit(model, sdk, planned)
+        boiler = boilers.boiler_object(
+            model, sdk, planned["resolved_objects"]["boiler"]
+        )
+        if mutation == "capacity":
+            boiler.setNominalCapacity(12345)
+        elif mutation == "efficiency":
+            boiler.setNominalThermalEfficiency(0.7)
+        elif mutation == "flow":
+            boiler.setDesignWaterFlowRate(0.002)
+        elif mutation == "part_load":
+            boiler.setMinimumPartLoadRatio(0.2)
+        elif mutation == "curve":
+            boiler.normalizedBoilerEfficiencyCurve().get().to_CurveQuadratic().get().setCoefficient1Constant(
+                0.5
+            )
+        else:
+            boiler.additionalProperties().setFeature("mutation", True)
+        return result
+
+    with pytest.raises(ValueError):
+        apply(report, tmp_path, changed)
+    assert not (tmp_path / "edited.osm").exists()
+
+
+def test_capacity_and_efficiency_may_be_explicitly_combined(sdk, tmp_path):
+    source, _, _ = fixture(sdk[0], tmp_path)
+    report = preflight(
+        source,
+        config(tmp_path, nominal_capacity_w=20000, nominal_thermal_efficiency=0.9),
+    )
+    assert report["ready"], report
+    assert report["plan"]["after_values"]["nominal_thermal_efficiency"] == 0.9
+    assert apply(report, tmp_path)["validation"]["ok"]
+
+
+@pytest.mark.parametrize("problem", ["missing", "mismatch"])
+def test_capacity_translation_inconsistency_is_normal_plan_error(
+    sdk, tmp_path, monkeypatch, problem
+):
+    source, _, _ = fixture(sdk[0], tmp_path)
+    original = boilers.translated_state
+
+    def changed(*args):
+        if problem == "missing":
+            raise ValueError("Translated boiler performance field is not numeric")
+        result = original(*args)
+        result["settings"]["nominal_capacity_w"] = 1234
+        return result
+
+    monkeypatch.setattr(boilers, "translated_state", changed)
+    report = preflight(source, config(tmp_path, nominal_capacity_w=20000))
+    assert not report["ready"] and report["plan"]["errors"]
+
+
+@pytest.mark.parametrize("curve", [False, True])
+def test_native_capacity_changes_plr_parasitics_and_curve_use(sdk, tmp_path, curve):
+    from test_supply_fan_performance import native_cli
+
+    native_cli()
+    o = sdk[0]
+    source, model, boiler = parasitic_fixture(o, tmp_path, "NaturalGas")
+    boiler.setOnCycleParasiticElectricLoad(100)
+    boiler.setOffCycleParasiticFuelLoad(15)
+    if curve:
+        c = o.model.CurveQuadratic(model)
+        c.setCoefficient1Constant(0.85)
+        c.setCoefficient2x(0.15)
+        c.setCoefficient3xPOW2(0)
+        c.setMinimumValueofx(0)
+        c.setMaximumValueofx(1.2)
+        boiler.setNormalizedBoilerEfficiencyCurve(c)
+        boiler.setEfficiencyCurveTemperatureEvaluationVariable("LeavingBoiler")
+    model.save(str(source), True)
+    original = source.read_bytes()
+    report = preflight(source, config(tmp_path, nominal_capacity_w=20000))
+    assert report["ready"] and report["plan"]["simulation_ready"], report
+    result = apply(report, tmp_path)
+    extra = [
+        "Boiler Ancillary Electricity Energy",
+        "Boiler Ancillary NaturalGas Energy",
+        "Boiler Heating Rate",
+    ]
+    before = native_run(o, source, tmp_path / "before_run", str(boiler.handle()), extra)
+    after = native_run(
+        o,
+        Path(result["output_model_path"]),
+        tmp_path / "after_run",
+        str(boiler.handle()),
+        extra,
+    )
+    assert before["hours"] == after["hours"] == 72
+    assert after["heating_j"] == pytest.approx(before["heating_j"], rel=1e-6)
+    assert after["plr_range"][1] == pytest.approx(before["plr_range"][1] / 2, rel=1e-6)
+    if curve:
+        assert after["fuel_j"] > before["fuel_j"]
+    else:
+        assert after["fuel_j"] == pytest.approx(before["fuel_j"], rel=1e-6)
+    totals = []
+    for name in ("before_run", "after_run"):
+        rows = json.loads((tmp_path / name / "hourly.json").read_text())
+        totals.append({key: sum(row[3] for row in rows[key]) for key in extra[:2]})
+    assert totals[1][extra[0]] == pytest.approx(totals[0][extra[0]] / 2, rel=1e-6)
+    assert totals[1][extra[1]] > totals[0][extra[1]]
+    assert source.read_bytes() == original
+    (tmp_path / "capacity_native.json").write_text(
+        json.dumps(
+            dict(
+                curve=curve,
+                before=before,
+                after=after,
+                ancillary_before=totals[0],
+                ancillary_after=totals[1],
+                validation=result["validation"],
+                translation=result["translation"],
+                source_unchanged=True,
+            ),
+            indent=2,
+        )
+    )
+
+
+def test_native_capacity_autosize_retains_flow_and_sizing_factor(sdk, tmp_path):
+    import sqlite3
+    from test_supply_fan_performance import native_cli
+
+    native_cli()
+    o = sdk[0]
+    source, model, boiler = parasitic_fixture(o, tmp_path, "NaturalGas")
+    boiler.setNominalCapacity(1e6)
+    boiler.setSizingFactor(1.5)
+    model.getSimulationControl().setDoPlantSizingCalculation(True)
+    model.save(str(source), True)
+    report = preflight(source, config(tmp_path, nominal_capacity_w="Autosize"))
+    assert report["ready"] and report["plan"]["simulation_ready"], report
+    result = apply(report, tmp_path)
+    before = native_run(o, source, tmp_path / "before_run", str(boiler.handle()))
+    after = native_run(
+        o,
+        Path(result["output_model_path"]),
+        tmp_path / "after_run",
+        str(boiler.handle()),
+    )
+    sizes = dict(after["sizes"])
+    assert sizes["Design Size Nominal Capacity"] == pytest.approx(
+        dict(before["sizes"])["Design Size Nominal Capacity"]
+    )
+    with sqlite3.connect(tmp_path / "after_run/run/eplusout.sql") as sql:
+        plant_capacity = sql.execute(
+            "SELECT Value FROM ComponentSizes WHERE CompType='PlantLoop' AND Description='Design Capacity'"
+        ).fetchone()[0]
+    assert sizes["Design Size Nominal Capacity"] == pytest.approx(68578.2, rel=1e-9)
+    # Boiler fluid properties use HWInitConvTemp; the plant report uses a
+    # different property evaluation, so verify the retained factor independently.
+    reference = tmp_path / "reference-factor-one.osm"
+    boiler.autosizeNominalCapacity()
+    boiler.setSizingFactor(1)
+    model.save(str(reference), True)
+    factor_one = native_run(
+        o, reference, tmp_path / "factor_one_run", str(boiler.handle())
+    )
+    assert sizes["Design Size Nominal Capacity"] == pytest.approx(
+        dict(factor_one["sizes"])["Design Size Nominal Capacity"] * 1.5, rel=1e-9
+    )
+    saved = o.osversion.VersionTranslator().loadModel(result["output_model_path"]).get()
+    current = saved.getBoilerHotWater(boiler.handle()).get()
+    assert current.isNominalCapacityAutosized()
+    assert current.designWaterFlowRate().get() == 0.001
+    assert current.sizingFactor() == 1.5
+    assert after["heating_j"] == pytest.approx(before["heating_j"], rel=1e-6)
+    (tmp_path / "capacity_native.json").write_text(
+        json.dumps(
+            dict(
+                before=before,
+                after=after,
+                plant_design_capacity_w=plant_capacity,
+                factor_one_reference=factor_one,
+                sizing_factor=1.5,
+                validation=result["validation"],
+                translation=result["translation"],
+            ),
+            indent=2,
+        )
+    )
+
+
+def test_native_capacity_limit_includes_retained_maximum_plr(sdk, tmp_path):
+    from test_supply_fan_performance import native_cli
+
+    native_cli()
+    o = sdk[0]
+    source, model, boiler = parasitic_fixture(o, tmp_path, "NaturalGas")
+    boiler.setMaximumPartLoadRatio(1.2)
+    model.save(str(source), True)
+    report = preflight(source, config(tmp_path, nominal_capacity_w=4000))
+    assert report["ready"] and report["plan"]["simulation_ready"], report
+    assert (
+        report["plan"]["impact"]["capacity_edit"]["dispatch_load_limits_w"]["maximum"]
+        == 4800
+    )
+    result = apply(report, tmp_path)
+    extra = ["Boiler Heating Rate"]
+    before = native_run(o, source, tmp_path / "before_run", str(boiler.handle()), extra)
+    after = native_run(
+        o,
+        Path(result["output_model_path"]),
+        tmp_path / "after_run",
+        str(boiler.handle()),
+        extra,
+    )
+    rows = json.loads((tmp_path / "after_run/hourly.json").read_text())
+    assert max(x[3] for x in rows[extra[0]]) == pytest.approx(4800, rel=1e-6)
+    assert after["heating_j"] < before["heating_j"]
+    (tmp_path / "capacity_native.json").write_text(
+        json.dumps(
+            dict(
+                before=before,
+                after=after,
+                retained_maximum_plr=1.2,
+                maximum_heating_w=4800,
+                validation=result["validation"],
+                translation=result["translation"],
+            ),
+            indent=2,
+        )
+    )
+
+
+def test_native_capacity_edit_redistributes_to_retained_backup(sdk, tmp_path):
+    import sqlite3
+    from test_supply_fan_performance import native_cli
+
+    native_cli()
+    o = sdk[0]
+    source, model, boiler = parasitic_fixture(o, tmp_path, "NaturalGas")
+    loop = boiler.plantLoop().get()
+    backup = o.model.BoilerHotWater(model)
+    backup.setName("Retained Backup")
+    backup.setNominalCapacity(10000)
+    backup.setNominalThermalEfficiency(0.8)
+    backup.setDesignWaterFlowRate(0.001)
+    backup.setBoilerFlowMode("LeavingSetpointModulated")
+    backup.setMinimumPartLoadRatio(0)
+    backup.setMaximumPartLoadRatio(1)
+    assert loop.addSupplyBranchForComponent(backup)
+    operation = o.model.PlantEquipmentOperationHeatingLoad(model)
+    assert operation.addEquipment(boiler) and operation.addEquipment(backup)
+    assert loop.setPlantEquipmentOperationHeatingLoad(operation)
+    assert loop.setLoadDistributionScheme("SequentialLoad")
+    for variable in ["Boiler Heating Energy", "Boiler Heating Rate"]:
+        output = o.model.OutputVariable(variable, model)
+        output.setKeyValue(backup.nameString())
+        output.setReportingFrequency("Hourly")
+    model.save(str(source), True)
+    original = source.read_bytes()
+    report = preflight(source, config(tmp_path, nominal_capacity_w=2000))
+    assert report["ready"] and report["plan"]["simulation_ready"], report
+    result = apply(report, tmp_path)
+    before = native_run(
+        o,
+        source,
+        tmp_path / "before_run",
+        str(boiler.handle()),
+        ["Boiler Heating Rate"],
+    )
+    after = native_run(
+        o,
+        Path(result["output_model_path"]),
+        tmp_path / "after_run",
+        str(boiler.handle()),
+        ["Boiler Heating Rate"],
+    )
+    secondary = []
+    for folder in ("before_run", "after_run"):
+        with sqlite3.connect(tmp_path / folder / "run/eplusout.sql") as sql:
+            rows = sql.execute(
+                "SELECT r.Value FROM ReportData r JOIN ReportDataDictionary d USING(ReportDataDictionaryIndex) JOIN Time t USING(TimeIndex) WHERE d.Name='Boiler Heating Energy' AND lower(d.KeyValue)=lower(?) AND t.WarmupFlag=0",
+                (backup.nameString(),),
+            ).fetchall()
+            assert rows
+            secondary.append(sum(x[0] for x in rows))
+    assert secondary[0] == 0 and secondary[1] > 1e7
+    assert after["heating_j"] < before["heating_j"]
+    assert after["heating_j"] + secondary[1] == pytest.approx(
+        before["heating_j"], rel=0.001
+    )
+    after_hourly = json.loads((tmp_path / "after_run/hourly.json").read_text())
+    assert max(x[3] for x in after_hourly["Boiler Heating Rate"]) == pytest.approx(2000)
+    assert source.read_bytes() == original
+    (tmp_path / "capacity_native.json").write_text(
+        json.dumps(
+            dict(
+                before=before,
+                after=after,
+                backup_energy_j=secondary,
+                validation=result["validation"],
+                translation=result["translation"],
+                source_unchanged=True,
+            ),
+            indent=2,
+        )
+    )
+
+
+def test_capacity_review_exposes_retained_minimum_and_maximum_output(sdk, tmp_path):
+    source, model, boiler = fixture(sdk[0], tmp_path)
+    boiler.setNominalCapacity(10000)
+    boiler.setMinimumPartLoadRatio(0.25)
+    boiler.setMaximumPartLoadRatio(1.2)
+    boiler.setOptimumPartLoadRatio(0.8)
+    model.save(str(source), True)
+    report = preflight(source, config(tmp_path, nominal_capacity_w=20000))
+    assert report["ready"], report
+    assert report["plan"]["impact"]["capacity_edit"]["dispatch_load_limits_w"] == dict(
+        minimum=5000, maximum=24000, optimal=16000
+    )
+    assert "Increasing capacity raises that floor" in " ".join(report["warnings"])
+    assert apply(report, tmp_path)["validation"]["ok"]

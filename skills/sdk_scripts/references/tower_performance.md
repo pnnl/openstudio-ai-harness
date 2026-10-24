@@ -69,3 +69,21 @@ only accepts explicit watts/Autosize, without selecting a standard or motor.
 those policies are preserved, not applied by this rating editor. See the pinned
 [EnergyPlus 25.2 variable-speed tower reference](https://bigladdersoftware.com/epx/docs/25-2/input-output-reference/group-condenser-equipment.html#coolingtowervariablespeed)
 and the work guide for native fixed/autosized-airflow comparisons and limitations.
+
+
+## Explicit Autosize readiness (F2)
+
+For an explicit Autosize request, shared `common/plant_sizing.py` reports design-day
+and sizing-period counts, whether the model flag is defaulted, its explicit value
+if any, and the actual translated `SimulationControl` plant-sizing flag. It reads
+the existing translation rather than translating twice or materializing a missing
+model control. Configure sizing periods and plant sizing before simulation.
+Missing periods, off or unverified effective sizing leave the edit ready but mark
+`simulation_ready: false`; no model controls or design days are changed.
+
+This is a conservative readiness policy, not a claim that EnergyPlus always fails
+or returns zero with sizing off. Native fixed-flow cases can calculate positive
+sizes without a plant-sizing run. With sizing requested but no design periods,
+the tested models fail before simulation. This check covers the explicit Autosize
+setting in this skill, not every inherited Autosize field elsewhere in the model;
+true remains absence of identified blockers, not whole-model certification.

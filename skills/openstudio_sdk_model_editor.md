@@ -84,6 +84,11 @@ Disallowed uses:
 - For prototype CAV construction, use `openstudio-cav-system-creator`; its parent
   composes shared equipment modules with a reviewed system-specific recipe.
   Confirm the requested CAV topology matches its supported arrangement.
+- Use `openstudio-district-capacity-editor` for an existing supply-side
+  DistrictHeatingWater or DistrictCooling nominal thermal capacity: explicit watts
+  or Autosize, preserving schedule, connections and identity. Review the retained
+  capacity-fraction schedule; a capacity limit is not an efficiency saving. Steam,
+  schedule changes and district production/loss modeling require separate coverage.
 - Use `openstudio-tower-performance-editor` for one existing condenser supply-side
   CoolingTowerVariableSpeed design fan electrical power edit: explicit total watts
   or explicit Autosize, retaining other inputs, curves, controls and identity.
@@ -97,12 +102,12 @@ Disallowed uses:
   savings. No inferred standards minimum,
   curve substitution or class conversion. Heat recovery, thermosiphon and other
   chiller classes need separate coverage.
-- Use `openstudio-boiler-performance-editor` for explicit nominal HHV thermal
-  efficiency or on-cycle electric/off-cycle fuel parasitic-load edits on one
-  existing heating-plant BoilerHotWater. Preserve identity, fuel, capacity/flow,
-  curves, part-load ratios, sizing and plant controls. Review curve/EMS/dispatch
-  dependencies; no inferred sizing reset, fuel conversion or substitute scripts.
-  Steam boilers and replacement require separate coverage.
+- Use `openstudio-boiler-performance-editor` for explicit nominal thermal capacity
+  or capacity Autosize, HHV efficiency and on-cycle electric/off-cycle fuel parasitics
+  on a heating-plant BoilerHotWater. Retain identity, fuel, design-flow policy,
+  curves, PLRs, sizing factor and controls. Capacity changes can alter dispatch,
+  PLR/curve/parasitic energy or unmet loads; no inferred matching flow or savings.
+  Steam boilers, fuel conversion and replacement require separate coverage.
 - Use `openstudio-terminal-replacer` for one connected single-duct VAV no-reheat
   ↔ constant-volume no-reheat terminal class change. Require explicit maximum-flow
   policy, VAV target minimum fraction and preservation/reheat/reference policies.

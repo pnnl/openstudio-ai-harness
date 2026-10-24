@@ -1,4 +1,4 @@
-"""In-place hot-water boiler efficiency/parasitic edits with exact preservation."""
+"""In-place hot-water boiler performance/capacity edits with exact preservation."""
 
 import json
 import math
@@ -11,9 +11,11 @@ from common.input_validation import validate
 from common.model_preservation import fingerprint, snapshot
 from common.temperature_control import translated_workspace, optional_string
 from common.water_coil import original_types
+from common.plant_sizing import sizing_context, require_plant_sizing
 
 # Configuration key -> SDK suffix / IDD field. No prototype defaults or resets.
 FIELDS = {
+    "nominal_capacity_w": ("NominalCapacity", "Nominal Capacity"),
     "nominal_thermal_efficiency": (
         "NominalThermalEfficiency",
         "Nominal Thermal Efficiency",
@@ -72,11 +74,17 @@ def boiler_object(model, sdk, reference):
     return boiler.get()
 
 
-def values(boiler):
-    return {
+def values(boiler, include_capacity=False):
+    # Keep existing rating-only report fields; capacity is checked raw/translated
+    # exactly unless explicitly requested, then included as numeric or Autosize.
+    result = {
         key: getattr(boiler, suffix[0].lower() + suffix[1:])()
         for key, (suffix, _) in FIELDS.items()
+        if key != "nominal_capacity_w"
     }
+    if include_capacity:
+        result["nominal_capacity_w"] = sized(boiler, "NominalCapacity")
+    return result
 
 
 def sized(boiler, suffix):
@@ -99,7 +107,7 @@ def signature(boiler, patch):
     return fingerprint(boiler, ignored=[FIELDS[key][1] for key in patch])
 
 
-def translated_state(model, sdk, boiler):
+def translated_state(model, sdk, boiler, include_capacity=False):
     workspace = translated_workspace(model, sdk, "Cannot verify translated boiler")
     objects = [
         x
@@ -110,29 +118,48 @@ def translated_state(model, sdk, boiler):
         raise ValueError("Cannot identify one translated hot-water boiler")
     obj = objects[0]
     settings = {}
-    for key, (_, name) in FIELDS.items():
+    active = {
+        key: field
+        for key, field in FIELDS.items()
+        if include_capacity or key != "nominal_capacity_w"
+    }
+    for key, (_, name) in active.items():
         index = obj.iddObject().getFieldIndex(name)
         if not index.is_initialized():
             raise ValueError(
                 "Translated boiler is missing a required performance field"
             )
+        if (
+            key == "nominal_capacity_w"
+            and optional_string(obj, index.get()).lower() == "autosize"
+        ):
+            settings[key] = "Autosize"
+            continue
         value = obj.getDouble(index.get())
         if not value.is_initialized():
             raise ValueError("Translated boiler performance field is not numeric")
         settings[key] = value.get()
-    names = {name for _, name in FIELDS.values()}
+    names = {name for _, name in active.values()}
     preserved = [
         [obj.iddObject().getField(i).get().name(), optional_string(obj, i)]
         for i in range(obj.numFields())
         if obj.iddObject().getField(i).get().name() not in names
     ]
-    return dict(settings=settings, preserved_fields=preserved)
+    return dict(
+        settings=settings,
+        preserved_fields=preserved,
+        plant_sizing=sizing_context(model, sdk, workspace),
+    )
 
 
 def matches(actual, expected):
     return actual.keys() == expected.keys() and all(
-        type(actual[key]) in (int, float)
-        and math.isclose(actual[key], value, rel_tol=1e-9, abs_tol=1e-9)
+        (
+            actual[key] == value
+            if isinstance(value, str)
+            else type(actual[key]) in (int, float)
+            and math.isclose(actual[key], value, rel_tol=1e-9, abs_tol=1e-9)
+        )
         for key, value in expected.items()
     )
 
@@ -188,7 +215,14 @@ def plan(model, sdk, config):
         or boiler.plantLoop().get().handle() != loop.handle()
     ):
         raise ValueError("Selected boiler plant ownership differs")
-    patch, before = dict(config["settings"]), values(boiler)
+    patch = dict(config["settings"])
+    capacity_requested = "nominal_capacity_w" in patch
+    before = values(boiler, capacity_requested)
+    if capacity_requested and before["nominal_capacity_w"] is None:
+        planned["errors"].append(
+            "Source boiler nominal capacity is unset; diagnose the incomplete source model before editing"
+        )
+        return planned
     after = dict(before, **patch)
     electric = boiler.fuelType() == "Electricity"
     ignored_before = electric and before["off_cycle_parasitic_fuel_load_w"] > 0
@@ -220,9 +254,16 @@ def plan(model, sdk, config):
         component = actuator.actuatedComponent()
         if component.is_initialized() and component.get().handle() == boiler.handle():
             ems.append(ref(actuator))
-    source_translation = translated_state(model, sdk, boiler)
+    try:
+        source_translation = translated_state(model, sdk, boiler, capacity_requested)
+    except ValueError as exc:
+        planned["errors"].append(str(exc))
+        return planned
     if not matches(source_translation["settings"], before):
-        raise ValueError("Source boiler settings disagree with EnergyPlus translation")
+        planned["errors"].append(
+            "Source boiler settings disagree with EnergyPlus translation; diagnose the source model"
+        )
+        return planned
     curve_translated = (
         dict(source_translation["preserved_fields"]).get(
             "Normalized Boiler Efficiency Curve Name"
@@ -280,7 +321,11 @@ def plan(model, sdk, config):
             ems_actuators=sorted(ems, key=lambda x: x["handle"])[:8],
             supply_boiler_count=len(loop_ref["boilers"]),
             identities="Boiler, metadata, incoming references, water nodes and connections retained in place",
-            sizing_policy="Preserve capacity, flow, sizing factor, part-load ratios, plant sizing, dispatch and controls; no autosizing reset",
+            sizing_policy=(
+                "Change only explicitly requested capacity/Autosize and performance fields; retain flow policy, sizing factor, PLRs, plant sizing, operation-scheme inputs and controls"
+                if capacity_requested
+                else "Preserve capacity, flow, sizing factor, part-load ratios, plant sizing, dispatch and controls; no autosizing reset"
+            ),
         ),
     )
     planned["warnings"].extend(
@@ -289,6 +334,73 @@ def plan(model, sdk, config):
             "On-cycle parasitic electricity and off-cycle parasitic fuel are separate consumption inputs, not useful water heating; runtime/cycling and retained controls determine their energy use.",
         ]
     )
+    if capacity_requested:
+        capacity = after["nominal_capacity_w"]
+        planned["impact"]["capacity_edit"] = dict(
+            before_w=before["nominal_capacity_w"],
+            after_w=capacity,
+            load_distribution_scheme=loop.loadDistributionScheme(),
+            dispatch_load_limits_w={
+                key: (
+                    capacity * fraction
+                    if isinstance(capacity, (int, float))
+                    else "Requires sizing"
+                )
+                for key, fraction in (
+                    ("minimum", boiler.minimumPartLoadRatio()),
+                    ("maximum", boiler.maximumPartLoadRatio()),
+                    ("optimal", boiler.optimumPartLoadRatio()),
+                )
+            },
+            flow_sizing_policy_retained=True,
+        )
+        planned["warnings"].append(
+            "Nominal boiler capacity is useful thermal output watts, not fuel input or an efficiency rating. Load-based dispatch uses capacity times retained minimum/maximum/optimum PLRs; changing capacity can redistribute load to other equipment. Maximum PLR above 1 permits output above nominal. Smaller capacity can cause unmet loads, not efficiency savings"
+        )
+        planned["warnings"].append(
+            "Capacity changes operating PLR and can change load control, normalized efficiency-curve evaluation and both parasitic energy uses even though those inputs are retained. Fuel and pump savings are not proportional to capacity; verify heating delivered, fuel, parasitics and unmet loads"
+        )
+        planned["warnings"].append(
+            "Boiler design water flow and its sizing policy are retained. EnergyPlus sizes flow from plant design flow times retained sizing factor, not from this fixed capacity; no matching flow or plant redesign is inferred"
+        )
+        if boiler.minimumPartLoadRatio() > 0:
+            planned["warnings"].append(
+                "Retained minimum PLR imposes an absolute output floor while running in locked-flow calculation. Increasing capacity raises that floor and can make heat exceed assigned load; review low-load operation and outlet temperatures"
+            )
+        if capacity == "Autosize":
+            require_plant_sizing(planned, source_translation["plant_sizing"])
+            other_boilers = []
+            for item in loop_ref["boilers"]:
+                if item["handle"] == str(boiler.handle()):
+                    continue
+                other = model.getBoilerHotWater(sdk.toUUID(item["handle"]))
+                other_boilers.append(
+                    dict(
+                        item,
+                        nominal_capacity_w=(
+                            sized(other.get(), "NominalCapacity")
+                            if other.is_initialized()
+                            else None
+                        ),
+                        sizing_factor=(
+                            other.get().sizingFactor()
+                            if other.is_initialized()
+                            else None
+                        ),
+                    )
+                )
+            planned["impact"]["capacity_edit"].update(
+                other_boiler_count=len(other_boilers),
+                other_boilers=other_boilers[:8],
+                omitted_other_boiler_count=max(0, len(other_boilers) - 8),
+            )
+            if other_boilers:
+                planned["warnings"].append(
+                    "Multiple boilers share this loop: each autosized boiler is sized to the whole plant design load times its own sizing factor, not an automatically divided share. Review all boiler capacities and sizing factors; factors of 1 on multiple boilers can multiply total installed capacity. No sharing factors are inferred or changed"
+                )
+            planned["warnings"].append(
+                "Explicit capacity Autosize uses plant design volume flow times fluid density times specific heat evaluated at EnergyPlus HWInitConvTemp times plant design delta T times the retained boiler sizing factor. It does not restore a prior sized result or guarantee unchanged operation"
+            )
     if not electric and after["off_cycle_parasitic_fuel_load_w"] > 0:
         planned["warnings"].append(
             "EnergyPlus 25.2 updates ancillary fuel as the configured off-cycle load times (1 - PLR) in the active boiler calculation, and retains the last rate while idle, including later summer periods. It is metered under Heating / Boiler Parasitic; do not interpret this input as a constant idle standby load"
@@ -312,7 +424,9 @@ def plan(model, sdk, config):
         )
     if len(loop_ref["boilers"]) > 1:
         planned["warnings"].append(
-            "Other boilers and plant dispatch remain unchanged; the selected boiler may not carry the full plant load or run at all"
+            "Other boilers and dispatch inputs remain unchanged; capacity edits can change load allocation and the selected boiler may not carry the full plant load or run at all"
+            if capacity_requested
+            else "Other boilers and plant dispatch remain unchanged; the selected boiler may not carry the full plant load or run at all"
         )
     pumps = [
         x
@@ -329,16 +443,25 @@ def plan(model, sdk, config):
 
 def edit(model, sdk, planned):
     boiler = boiler_object(model, sdk, planned["resolved_objects"]["boiler"])
-    before = values(boiler)
+    patch = planned["parameters"]["settings"]
+    before = values(boiler, "nominal_capacity_w" in patch)
     for key, value in planned["parameters"]["settings"].items():
-        call(boiler, "set" + FIELDS[key][0], value)
-    return dict(boiler=ref(boiler), before=before, after=values(boiler))
+        if key == "nominal_capacity_w" and value == "Autosize":
+            call(boiler, "autosizeNominalCapacity")
+        else:
+            call(boiler, "set" + FIELDS[key][0], value)
+    return dict(
+        boiler=ref(boiler),
+        before=before,
+        after=values(boiler, "nominal_capacity_w" in patch),
+    )
 
 
 def validate_model(model, sdk, planned, result):
     r = planned["resolved_objects"]
     boiler = boiler_object(model, sdk, r["boiler"])
     loop = model.getPlantLoop(sdk.toUUID(r["plant_loop"]["handle"])).get()
+    capacity_requested = "nominal_capacity_w" in planned["parameters"]["settings"]
     checks = {
         "Boiler identity/name/class changed": ref(boiler)
         == r["boiler"]
@@ -347,7 +470,9 @@ def validate_model(model, sdk, planned, result):
             result["before"], planned["before_values"]
         )
         and matches(result["after"], planned["after_values"]),
-        "Saved boiler values differ": matches(values(boiler), planned["after_values"]),
+        "Saved boiler values differ": matches(
+            values(boiler, capacity_requested), planned["after_values"]
+        ),
         "Unrequested boiler fields changed": signature(
             boiler, planned["parameters"]["settings"]
         )
@@ -366,7 +491,7 @@ def validate_model(model, sdk, planned, result):
         ),
     }
     if all(checks.values()):
-        translated = translated_state(model, sdk, boiler)
+        translated = translated_state(model, sdk, boiler, capacity_requested)
         checks["Translated boiler settings differ"] = matches(
             translated["settings"], planned["after_values"]
         )

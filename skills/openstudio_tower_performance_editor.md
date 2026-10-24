@@ -65,3 +65,11 @@ failures before recovery, honoring the user's reporting preference; exclude priv
 models and plan warnings. Source translation inconsistencies are ordinary unready
 plan errors. Single-/two-speed towers, user-defined thermal models, curve/thermal/
 control edits and replacement need their own contracts.
+
+
+For an explicit Autosize request, review `impact.plant_sizing`: design-day/period
+counts, defaulted/explicit model flag and effective translated plant-sizing flag.
+Without a verified enabled sizing setup and periods, the edit can be saved but is
+not ready to simulate. Configure sizing explicitly or choose justified fixed
+values; this script changes neither sizing controls nor design periods. Some
+fixed-flow cases still size with the flag off; the guard is conservative.

@@ -18,6 +18,7 @@ from common.diagnostics import failure_report, mismatch
 TRANSACTION_ENTRYPOINTS = [
     "edit_boiler_performance.py",
     "edit_chiller_performance.py",
+    "edit_district_capacity.py",
     "edit_tower_performance.py",
     "edit_terminal.py",
     "replace_terminal.py",

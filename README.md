@@ -11,7 +11,9 @@ contract compatibility requires an exact match. See the
 Phase 11a terminal editing and the initial 11b no-reheat terminal conversion are
 approved, as is phase 12a hot-water boiler efficiency/parasitic editing. Phase 12b
 chiller reference-COP editing is approved, including the condenser-sizing follow-up.
-Phase 12c adds in-place variable-speed cooling-tower fan-power editing for review.
+Phase 12c variable-speed cooling-tower fan-power editing is approved, including
+the airflow/water-use follow-up. Phase 12d district water-source capacity and E1–E3
+are approved. Phase 12e extends the boiler editor with explicit nominal capacity or Autosize for review.
 Reheat-terminal conversion remains separate. See the
 [resumed equipment sequence](docs/HVAC_MODULARIZATION_WORK.md#resumed-equipment-sequence--october-20-2026)
 for the next checkpoint and remaining equipment families.
@@ -50,6 +52,12 @@ for the next checkpoint and remaining equipment families.
   source trace, supported arrangements and verification. CAV requires
   an explicit outdoor-air choice and aligns 100% OA operation with coil sizing;
   approved CAV plans must be regenerated after this correction.
+- `openstudio-district-capacity-editor` edits one existing supply-side
+  DistrictHeatingWater or DistrictCooling nominal thermal watts or explicit Autosize
+  in place. Retain schedule, connections, controls and identity. Plans expose the
+  retained capacity-fraction schedule, dispatch sharing, loop conditions and
+  temperature protection (including at fraction 0). Capacity changes are not
+  COP/efficiency or proportional pump-flow savings. Steam needs separate coverage.
 - `openstudio-tower-performance-editor` edits one condenser-loop variable-speed
   cooling tower's total design fan electrical watts or explicit fan-power Autosize
   in place. Curves, controls, water connections and other inputs stay unchanged;
@@ -63,10 +71,18 @@ for the next checkpoint and remaining equipment families.
   classes need separate coverage. Reference COP is not seasonal or whole-plant
   efficiency; changed condenser heat can change calculated condenser sizing.
 - `openstudio-boiler-performance-editor` edits one heating-plant hot-water boiler's
-  explicit HHV nominal efficiency and electric/fuel parasitic loads in place.
-  Fuel, capacity/flow, curves, sizing, controls and identities stay unchanged.
+  explicit nominal thermal capacity/Autosize, HHV efficiency and electric/fuel
+  parasitics in place. Fuel, flow sizing policy, curves, sizing factor, controls and
+  identities stay unchanged; unrequested capacity stays exact. Capacity affects
+  dispatch, PLR, curve/parasitic energy and possibly unmet loads, not just a limit.
   Plans expose curve/EMS/dispatch dependencies and detect configured curves omitted
   by translation. See the [12a checkpoint](docs/HVAC_MODULARIZATION_WORK.md#phase-12a-boiler-performance-editor--october-21-2026).
+- Explicit Autosize in boiler, tower and district editors reports design-day/period
+  counts and the effective translated plant-sizing flag. Missing/off/unverified
+  sizing keeps the edit available but marks simulation unready. This is conservative:
+  some fixed-flow cases still size without a plant-sizing run. Multi-boiler Autosize
+  exposes other capacities/factors and warns that each boiler receives the whole
+  design load times its own factor, rather than an automatic share.
 - `openstudio-terminal-replacer` converts one connected single-duct VAV no-reheat
   terminal to constant-volume no-reheat, or the reverse. Explicit maximum-flow
   and VAV minimum-fraction choices accompany retained zone service, boundary
@@ -188,7 +204,7 @@ for the next checkpoint and remaining equipment families.
 - Skill resource export for both hosts, with one plugin-local `sdk/` library
   and fixed launchers in owning skills. Install or move the complete plugin;
   no separate shared package is required. Export records size evidence and
-  enforces a 1 MiB SDK-resource budget. See the [packaging contract and review commands](docs/SDK_INTEGRATION_SUMMARY.md#b--shared-sdk-packaging).
+  enforces a 1,114,112-byte (1 MiB + 64 KiB) SDK-resource budget. See the [packaging contract and review commands](docs/SDK_INTEGRATION_SUMMARY.md#b--shared-sdk-packaging).
   This package pins OpenStudio 3.11.0 consistently in its dependency,
   lock metadata and exported compatibility contract. SDK skills include a
   grouped assumption review with editable inputs and visible fixed controls;

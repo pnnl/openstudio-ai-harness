@@ -1,5 +1,5 @@
 {
-  "title": "In-place hot-water boiler efficiency and parasitic loads",
+  "title": "In-place hot-water boiler performance and nominal capacity",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -66,6 +66,21 @@
           "type": "number",
           "minimum": 0,
           "description": "Nonnegative configured watts. Electric boilers require zero. EnergyPlus 25.2 updates this times (1 - PLR) in active calculation and carries the last rate while idle; this is not a constant idle standby load."
+        },
+        "nominal_capacity_w": {
+          "oneOf": [
+            {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            {
+              "type": "string",
+              "enum": [
+                "Autosize"
+              ]
+            }
+          ],
+          "description": "Positive useful thermal output watts or explicit Autosize; retained PLRs affect dispatch/output limits. Flow and sizing factor are preserved."
         }
       }
     }

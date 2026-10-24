@@ -56,6 +56,12 @@ def test_release_archives_exclude_local_openstudio_fixtures(tmp_path: Path) -> N
         sdist_names = [member.name.partition("/")[2] for member in archive.getmembers()]
 
     terminal_sources = {
+        "skills/sdk_scripts/common/plant_sizing.py",
+        "skills/openstudio_district_capacity_editor.md",
+        "skills/sdk_scripts/edit_district_capacity.py",
+        "skills/sdk_scripts/common/district_edit.py",
+        "skills/sdk_scripts/references/district_capacity.md",
+        "skills/sdk_scripts/references/district_capacity.schema.json",
         "skills/openstudio_tower_performance_editor.md",
         "skills/sdk_scripts/edit_tower_performance.py",
         "skills/sdk_scripts/common/tower_edit.py",

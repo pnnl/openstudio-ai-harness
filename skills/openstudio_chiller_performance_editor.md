@@ -1,6 +1,6 @@
 ---
 name: openstudio-chiller-performance-editor
-description: Edit explicit reference COP or cooling capacity (watts or Autosize) on one existing air- or water-cooled ChillerElectricEIR in place, preserving curves, unrequested sizing inputs, water circuits, controls and identities. Use for reference-rating changes; other chiller classes, heat recovery, thermosiphon and replacement need separate coverage.
+description: Edit explicit reference COP, cooling capacity (watts/Autosize) or part-load/unloading limits on one existing air- or water-cooled ChillerElectricEIR in place, preserving curves, unrequested sizing inputs, water circuits, controls and identities. Use for reference-rating changes; other chiller classes, heat recovery, thermosiphon and replacement need separate coverage.
 metadata:
   version: 0.4.1
 ---
@@ -57,6 +57,14 @@ and sizing-period count; a missing/unverified setup marks simulation unready whi
 allowing the reviewed input edit. Configure sizing separately. A capacity change
 can resize autosized condenser equipment; retained flow inputs are not a promise
 of unchanged sized flows or operating energy.
+
+For part-load edits, require explicit minimum/maximum/optimum PLRs or
+`minimum_unloading_ratio`: minimum ≤ optimum ≤ maximum and minimum ≤ unloading
+≤ maximum; optimum/maximum > 0. Change companion limits only when requested.
+Minimum PLR sets cycling; unloading sets the false-loading floor while on.
+Review `impact.part_load_edit`, delivered cooling, cycling, false-load heat,
+compressor/condenser-fan energy and unmet cooling. Optimum is a dispatch hint,
+not an efficiency curve. Curves, flows and unrequested values stay unchanged.
 
 COP below 2 or above 10 produces a non-blocking plausibility warning. Confirm units:
 COP = 3.517 / (kW per ton), or COP = EER / 3.412. The script retains the explicit

@@ -51,11 +51,13 @@ simulation workflows, and explain what changed.
   evaporation/make-up water and tower electricity;
   other tower classes, user-defined thermal models and replacement need coverage.
 - Use `openstudio-chiller-performance-editor` for one existing air- or water-cooled
-  ChillerElectricEIR reference COP or cooling capacity (watts/Autosize) edit on a
+  ChillerElectricEIR reference COP, cooling capacity (watts/Autosize) or explicit
+  part-load/unloading edit on a
   Cooling plant. Preserve curves, unrequested sizing/flow inputs, condenser
   connections, controls and identities. Review effective plant-sizing readiness
   for explicit Autosize and its retained evaporator-flow/factor sizing basis;
-  capacity edits also change dispatch and part-load operation. Review autosized
+  require minimum ≤ optimum ≤ maximum and minimum ≤ unloading ≤ maximum,
+  with optimum/maximum > 0; cycling and false loading affect energy. Review autosized
   condenser pump/tower changes after sizing; chiller electricity is not plant
   savings. No inferred standards minimum,
   curve substitution or class conversion. Heat recovery, thermosiphon and other

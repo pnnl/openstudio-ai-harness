@@ -14,8 +14,9 @@ chiller reference-COP editing is approved, including the condenser-sizing follow
 Phase 12c variable-speed cooling-tower fan-power editing is approved, including
 the airflow/water-use follow-up. Phase 12d district water-source capacity and E1–E3
 are approved. Phase 12e boiler nominal capacity and F1–F3 are approved.
-Phase 12f/G1–G3 and phase 12g tower low-load controls/H1 are approved. Phase 12h
-extends the boiler editor with explicit part-load limits for review.
+Phases 12a–12h and their review fixes are approved. Phase 12 plant-performance
+implementation is complete with final chiller part-load/unloading coverage (12i),
+awaiting final review. See [phase 12 closeout](docs/PHASE12_SUMMARY.md).
 Reheat-terminal conversion remains separate. See the
 [resumed equipment sequence](docs/HVAC_MODULARIZATION_WORK.md#resumed-equipment-sequence--october-20-2026)
 for the next checkpoint and remaining equipment families.
@@ -68,7 +69,8 @@ for the next checkpoint and remaining equipment families.
   behavior from low-load controls and reports pump/chiller energy alongside fan
   electricity; fan-off does not mean pump-off or guaranteed whole-plant savings.
 - `openstudio-chiller-performance-editor` edits one air- or water-cooled electric
-  EIR chiller's explicit reference COP or cooling capacity (watts/Autosize) in
+  EIR chiller's explicit COP, cooling capacity (watts/Autosize), part-load or
+  unloading limits in
   place. Curves, unrequested sizing/flow inputs, condenser circuits, controls and
   identities stay unchanged. Capacity affects PLR, dispatch and delivered cooling;
   plans report reference dispatch limits and flag separate condenser fan power

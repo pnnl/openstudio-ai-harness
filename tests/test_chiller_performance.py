@@ -631,7 +631,7 @@ def test_csv_companions_relocate_or_reject_changed_resource(
 
 
 @pytest.mark.parametrize("host", ["claude", "codex"])
-@pytest.mark.parametrize("capacity", [False, True])
+@pytest.mark.parametrize("capacity", [False, True, "part_load"])
 def test_native_relocated_exports(sdk, tmp_path, host, capacity):
     import shutil
     import subprocess
@@ -667,7 +667,11 @@ def test_native_relocated_exports(sdk, tmp_path, host, capacity):
     shutil.rmtree(exported)
     cfg = tmp_path / "request.json"
     request = config(tmp_path)
-    if capacity:
+    if capacity == "part_load":
+        request["settings"] = dict(
+            minimum_part_load_ratio=0.1, minimum_unloading_ratio=0.3
+        )
+    elif capacity:
         request["settings"] = dict(reference_capacity_w=60000)
     cfg.write_text(json.dumps(request))
     plan = tmp_path / "reviewed.json"
@@ -1378,3 +1382,352 @@ def test_native_condenser_fan_scales_with_capacity_at_equal_cooling(sdk, tmp_pat
             indent=2,
         )
     )
+
+
+@pytest.mark.parametrize("kind", ["AirCooled", "WaterCooled"])
+@pytest.mark.parametrize(
+    "settings",
+    [
+        {"minimum_part_load_ratio": 0.1},
+        {"minimum_unloading_ratio": 0.3},
+        {"optimum_part_load_ratio": 0.7},
+        {"maximum_part_load_ratio": 0.5, "optimum_part_load_ratio": 0.4},
+        {
+            "minimum_part_load_ratio": 0.3,
+            "minimum_unloading_ratio": 0.3,
+            "reference_capacity_w": 100000,
+        },
+    ],
+)
+def test_part_load_settings_preserve_graph(sdk, tmp_path, kind, settings):
+    o = sdk[0]
+    source, model, chiller = fixture(o, tmp_path, kind)
+    original = source.read_bytes()
+    cfg = config(tmp_path)
+    cfg["settings"] = settings
+    report = preflight(source, cfg)
+    assert report["ready"], report
+    assert report == preflight(source, cfg)
+    impact = report["plan"]["impact"]["part_load_edit"]
+    assert impact["dispatch_limits_exclude_temperature_curve"]
+    if "reference_capacity_w" in settings:
+        assert impact["dispatch_load_limits_after_w"] == {
+            "minimum": 30000,
+            "maximum": 100000,
+            "optimal": 100000,
+        }
+        assert (
+            report["plan"]["impact"]["capacity_edit"]["dispatch_load_limits_w"]
+            == impact["dispatch_load_limits_after_w"]
+        )
+    result = apply(report, tmp_path)
+    assert result["validation"]["ok"] and result["translation"]["ok"]
+    saved = o.osversion.VersionTranslator().loadModel(result["output_model_path"]).get()
+    current = saved.getChillerElectricEIR(chiller.handle()).get()
+    assert chillers.signature(current, settings) == chillers.signature(
+        chiller, settings
+    )
+    for key, value in settings.items():
+        assert (
+            chillers.values(current, "reference_capacity_w" in settings, settings)[key]
+            == value
+        )
+    assert chillers.connections(current) == chillers.connections(chiller)
+    assert source.read_bytes() == original
+
+
+@pytest.mark.parametrize(
+    "settings",
+    [
+        {"minimum_part_load_ratio": 0.5},
+        {"maximum_part_load_ratio": 0.1},
+        {"minimum_unloading_ratio": 0},
+        {"optimum_part_load_ratio": 1.5},
+        {"minimum_part_load_ratio": 0.4, "minimum_unloading_ratio": 0.3},
+    ],
+)
+def test_inconsistent_part_load_choices_stay_unready(sdk, tmp_path, settings):
+    source, _, _ = fixture(sdk[0], tmp_path)
+    cfg = config(tmp_path)
+    cfg["settings"] = settings
+    report = preflight(source, cfg)
+    assert not report["ready"] and "companion changes explicitly" in " ".join(
+        report["plan"]["errors"]
+    )
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("minimum_part_load_ratio", -0.1),
+        ("maximum_part_load_ratio", 0),
+        ("optimum_part_load_ratio", 0),
+        ("minimum_unloading_ratio", True),
+        ("minimum_part_load_ratio", "Autosize"),
+        ("minimum_unloading_ratio", float("nan")),
+    ],
+)
+def test_invalid_part_load_settings(sdk, tmp_path, field, value):
+    source, _, _ = fixture(sdk[0], tmp_path)
+    cfg = config(tmp_path)
+    cfg["settings"] = {field: value}
+    with pytest.raises(ValueError, match="Invalid chiller performance"):
+        preflight(source, cfg)
+
+
+@pytest.mark.parametrize("field", list(chillers.PLR_FIELDS))
+def test_part_load_noop(sdk, tmp_path, field):
+    source, _, chiller = fixture(sdk[0], tmp_path)
+    cfg = config(tmp_path)
+    cfg["settings"] = {field: chillers.part_load_values(chiller, {})[field]}
+    assert not preflight(source, cfg)["ready"]
+
+
+@pytest.mark.parametrize(
+    "mode", ["stale", "tampered", "unrequested", "requested", "other_control", "curve"]
+)
+def test_part_load_exact_protections(sdk, tmp_path, mode):
+    source, _, _ = fixture(sdk[0], tmp_path)
+    cfg = config(tmp_path)
+    cfg["settings"] = dict(minimum_unloading_ratio=0.3)
+    report = preflight(source, cfg)
+    if mode == "stale":
+        source.write_bytes(source.read_bytes() + b"\n! changed\n")
+    if mode == "tampered":
+        report["plan"]["parameters"]["settings"]["minimum_unloading_ratio"] = 0.4
+
+    def altered(model, o, plan):
+        result = chillers.edit(model, o, plan)
+        obj = chillers.chiller_object(model, o, plan["resolved_objects"]["chiller"])
+        if mode == "unrequested":
+            obj.setReferenceCOP(8)
+        elif mode == "other_control":
+            obj.setMinimumPartLoadRatio(0)
+        elif mode == "curve":
+            obj.coolingCapacityFunctionOfTemperature().setName("Changed Curve")
+        else:
+            obj.setMinimumUnloadingRatio(0.4)
+        return result
+
+    with pytest.raises(ValueError):
+        apply(
+            report,
+            tmp_path,
+            (
+                altered
+                if mode in ("unrequested", "requested", "other_control", "curve")
+                else None
+            ),
+        )
+    assert not (tmp_path / "edited.osm").exists()
+
+
+def part_load_fixture(o, folder):
+    source, model, chiller = fixture(o, folder)
+    loop = chiller.plantLoop().get()
+    chiller.setReferenceCapacity(100000)
+    chiller.setReferenceCOP(4)
+    chiller.setReferenceChilledWaterFlowRate(0.001)
+    chiller.setChillerFlowMode("ConstantFlow")
+    chiller.setMinimumPartLoadRatio(0.1)
+    chiller.setMinimumUnloadingRatio(0.2)
+    chiller.setMaximumPartLoadRatio(1)
+    chiller.setOptimumPartLoadRatio(1)
+    for setter in [
+        "setCoolingCapacityFunctionOfTemperature",
+        "setElectricInputToCoolingOutputRatioFunctionOfTemperature",
+    ]:
+        curve = o.model.CurveBiquadratic(model)
+        curve.setCoefficient1Constant(1)
+        curve.setMinimumValueofx(-100)
+        curve.setMaximumValueofx(100)
+        curve.setMinimumValueofy(-100)
+        curve.setMaximumValueofy(100)
+        assert getattr(chiller, setter)(curve)
+    curve = o.model.CurveQuadratic(model)
+    curve.setCoefficient1Constant(0)
+    curve.setCoefficient2x(1)
+    curve.setCoefficient3xPOW2(0)
+    curve.setMinimumValueofx(0)
+    curve.setMaximumValueofx(2)
+    assert chiller.setElectricInputToCoolingOutputRatioFunctionOfPLR(curve)
+    loop.setMaximumLoopFlowRate(0.001)
+    loop.setPlantLoopVolume(0.1)
+    loop.setLoadDistributionScheme("SequentialLoad")
+    for pump in model.getPumpVariableSpeeds():
+        pump.setRatedFlowRate(0.001)
+        pump.setRatedPowerConsumption(100)
+        pump.setRatedPumpHead(50000)
+    loads = o.model.ScheduleConstant(model)
+    loads.setValue(-5000)
+    flows = o.model.ScheduleConstant(model)
+    flows.setValue(1)
+    profile = o.model.LoadProfilePlant(model)
+    profile.setLoadSchedule(loads)
+    profile.setFlowRateFractionSchedule(flows)
+    profile.setPeakFlowRate(0.001)
+    assert loop.addDemandBranchForComponent(profile)
+    sp = (
+        loop.supplyOutletNode()
+        .setpointManagers()[0]
+        .to_SetpointManagerScheduled()
+        .get()
+        .schedule()
+        .to_ScheduleConstant()
+        .get()
+        .value()
+    )
+    reservoir = o.model.PlantComponentTemperatureSource(model)
+    reservoir.setTemperatureSpecificationType("Constant")
+    reservoir.setSourceTemperature(sp + 5000 / (1000 * 4180 * 0.001))
+    reservoir.setDesignVolumeFlowRate(0.001)
+    assert reservoir.addToNode(loop.demandOutletNode())
+    for i in range(3):
+        day = o.model.DesignDay(model)
+        day.setName(f"Cooling Day {i}")
+        day.setDayType("SummerDesignDay")
+        day.setMonth(7)
+        day.setDayOfMonth(20 + i)
+        day.setMaximumDryBulbTemperature(30)
+        day.setDailyDryBulbTemperatureRange(0)
+        day.setHumidityConditionType("Wetbulb")
+        day.setWetBulbOrDewPointAtMaximumDryBulb(20)
+        day.setBarometricPressure(101325)
+        day.setSolarModelIndicator("ASHRAEClearSky")
+        day.setSkyClearness(1)
+    control = model.getSimulationControl()
+    control.setDoZoneSizingCalculation(False)
+    control.setDoSystemSizingCalculation(False)
+    control.setDoPlantSizingCalculation(False)
+    control.setRunSimulationforSizingPeriods(True)
+    control.setRunSimulationforWeatherFileRunPeriods(False)
+    weather = Path(__file__).parent / "fixtures/USA_FL_Tampa.Intl.AP.722110_TMY3.epw"
+    o.model.WeatherFile.setWeatherFile(model, o.EpwFile(str(weather.resolve())))
+    assert model.save(str(source), True)
+    return source, model, chiller
+
+
+@pytest.mark.parametrize("mode", ["cycling", "unloading", "maximum", "optimum"])
+def test_native_part_load_controls(sdk, tmp_path, mode):
+    from test_supply_fan_performance import native_cli
+
+    native_cli()
+    o = sdk[0]
+    source, model, chiller = part_load_fixture(o, tmp_path)
+    settings = {
+        "cycling": dict(minimum_part_load_ratio=0.2),
+        "unloading": dict(minimum_unloading_ratio=0.3),
+        "maximum": dict(
+            minimum_part_load_ratio=0.01,
+            minimum_unloading_ratio=0.03,
+            maximum_part_load_ratio=0.03,
+            optimum_part_load_ratio=0.03,
+        ),
+        "optimum": dict(optimum_part_load_ratio=0.7),
+    }[mode]
+    cfg = config(tmp_path)
+    cfg["settings"] = settings
+    report = preflight(source, cfg)
+    assert report["ready"] and report["plan"]["simulation_ready"], report
+    original = source.read_bytes()
+    result = apply(report, tmp_path)
+    before = native_run(o, source, tmp_path / "before_run", str(chiller.handle()))
+    after = native_run(
+        o,
+        Path(result["output_model_path"]),
+        tmp_path / "after_run",
+        str(chiller.handle()),
+    )
+    assert before["hours"] == after["hours"] == 72
+    if mode == "cycling":
+        assert after["cycling_range"][1] < before["cycling_range"][0]
+        assert after["false_load_j"] < before["false_load_j"]
+    elif mode == "unloading":
+        assert after["false_load_j"] > before["false_load_j"]
+    elif mode == "maximum":
+        assert after["cooling_j"] < before["cooling_j"]
+        assert after["plr_range"][1] == pytest.approx(0.03)
+        assert after["outlet_range_c"][0] > before["outlet_range_c"][1]
+    else:
+        assert after["cooling_j"] == pytest.approx(before["cooling_j"], rel=1e-6)
+        assert after["electricity_j"] == pytest.approx(
+            before["electricity_j"], rel=1e-6
+        )
+    assert source.read_bytes() == original
+    (tmp_path / "part_load_native.json").write_text(
+        json.dumps(
+            dict(
+                mode=mode,
+                settings=settings,
+                before=before,
+                after=after,
+                validation=result["validation"],
+                translation=result["translation"],
+                source_unchanged=True,
+            ),
+            indent=2,
+        )
+    )
+
+
+@pytest.mark.parametrize("field", list(chillers.PLR_FIELDS))
+@pytest.mark.parametrize("problem", ["mismatch", "malformed"])
+def test_part_load_translation_errors_are_normal(
+    sdk, tmp_path, monkeypatch, field, problem
+):
+    source, _, _ = fixture(sdk[0], tmp_path)
+    original = source.read_bytes()
+    translate = chillers.translated_workspace
+
+    def altered(model, o, label):
+        workspace = translate(model, o, label)
+        obj = workspace.getObjectsByType(o.IddObjectType("Chiller_Electric_EIR"))[0]
+        index = obj.iddObject().getFieldIndex(chillers.PLR_FIELDS[field][1]).get()
+        assert (
+            obj.setString(index, "not-a-number")
+            if problem == "malformed"
+            else obj.setDouble(index, 0.345)
+        )
+        return workspace
+
+    monkeypatch.setattr(chillers, "translated_workspace", altered)
+    captured = []
+    monkeypatch.setattr(
+        tx, "capture_exception", lambda *args, **kwargs: captured.append(args) or {}
+    )
+    cfg = config(tmp_path)
+    cfg["settings"] = dict(
+        minimum_part_load_ratio=0.1,
+        minimum_unloading_ratio=0.3,
+        optimum_part_load_ratio=0.8,
+        maximum_part_load_ratio=0.9,
+    )
+    config_path = tmp_path / "request.json"
+    config_path.write_text(json.dumps(cfg))
+    report_path = tmp_path / "blocked.json"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "edit_chiller_performance.py",
+            "--input",
+            str(source),
+            "--config",
+            str(config_path),
+            "--report",
+            str(report_path),
+        ],
+    )
+    assert (
+        tx.cli(
+            OPERATION,
+            chillers.plan,
+            chillers.edit,
+            chillers.validate_model,
+            chillers.inventory,
+        )
+        == 2
+    )
+    report = json.loads(report_path.read_text())
+    assert not report["ready"] and report["plan"]["errors"] and not captured
+    assert source.read_bytes() == original and not (tmp_path / "edited.osm").exists()

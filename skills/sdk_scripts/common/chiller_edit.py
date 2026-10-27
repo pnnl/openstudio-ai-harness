@@ -13,6 +13,35 @@ from common.temperature_control import translated_workspace, optional_string
 from common.water_coil import original_types
 from common.plant_sizing import sizing_context, require_plant_sizing
 
+PLR_FIELDS = {
+    "minimum_part_load_ratio": ("MinimumPartLoadRatio", "Minimum Part Load Ratio"),
+    "maximum_part_load_ratio": ("MaximumPartLoadRatio", "Maximum Part Load Ratio"),
+    "optimum_part_load_ratio": ("OptimumPartLoadRatio", "Optimum Part Load Ratio"),
+    "minimum_unloading_ratio": ("MinimumUnloadingRatio", "Minimum Unloading Ratio"),
+}
+
+
+def part_load_values(chiller, patch):
+    return {
+        key: patch.get(key, getattr(chiller, suffix[0].lower() + suffix[1:])())
+        for key, (suffix, _) in PLR_FIELDS.items()
+    }
+
+
+def dispatch_limits(capacity, ratios):
+    return {
+        label: (
+            capacity * ratios[key]
+            if isinstance(capacity, (int, float))
+            else "Requires sizing"
+        )
+        for label, key in (
+            ("minimum", "minimum_part_load_ratio"),
+            ("maximum", "maximum_part_load_ratio"),
+            ("optimal", "optimum_part_load_ratio"),
+        )
+    }
+
 
 def ref(obj):
     return dict(
@@ -64,10 +93,17 @@ def chiller_object(model, sdk, reference):
     return optional.get()
 
 
-def values(chiller, include_capacity=False):
+def values(chiller, include_capacity=False, patch=None):
     result = dict(reference_cop=chiller.referenceCOP())
     if include_capacity:
         result["reference_capacity_w"] = sized(chiller, "ReferenceCapacity")
+    result.update(
+        {
+            key: part_load_values(chiller, {})[key]
+            for key in (patch or {})
+            if key in PLR_FIELDS
+        }
+    )
     return result
 
 
@@ -87,6 +123,7 @@ def signature(chiller, patch=None):
     fields = dict(
         reference_cop="Reference COP", reference_capacity_w="Reference Capacity"
     )
+    fields.update({key: field for key, (_, field) in PLR_FIELDS.items()})
     return fingerprint(
         chiller, ignored=[fields[key] for key in (patch or {"reference_cop": None})]
     )
@@ -115,7 +152,7 @@ def connections(chiller):
     return result
 
 
-def translated_state(model, sdk, chiller, include_capacity=False):
+def translated_state(model, sdk, chiller, include_capacity=False, patch=None):
     workspace = translated_workspace(model, sdk, "Cannot verify translated chiller")
     objects = [
         obj
@@ -152,6 +189,17 @@ def translated_state(model, sdk, chiller, include_capacity=False):
                 )
             settings["reference_capacity_w"] = numeric.get()
         excluded.append(capacity_index.get())
+    for key in patch or {}:
+        if key not in PLR_FIELDS:
+            continue
+        index = obj.iddObject().getFieldIndex(PLR_FIELDS[key][1])
+        if not index.is_initialized():
+            raise ValueError("Translated chiller is missing a required part-load field")
+        value = obj.getDouble(index.get())
+        if not value.is_initialized() or not math.isfinite(value.get()):
+            raise ValueError("Translated chiller part-load field is not numeric")
+        settings[key] = value.get()
+        excluded.append(index.get())
     return dict(
         settings=settings,
         plant_sizing=sizing_context(model, sdk, workspace),
@@ -264,8 +312,24 @@ def plan(model, sdk, config):
         raise ValueError("Selected chiller chilled-water plant ownership differs")
     patch = dict(config["settings"])
     include_capacity = "reference_capacity_w" in patch
-    before = values(chiller, include_capacity)
+    before = values(chiller, include_capacity, patch)
     after = dict(before, **patch)
+    plr_requested = bool(set(patch) & set(PLR_FIELDS))
+    ratios = part_load_values(chiller, patch)
+    minimum, maximum = (
+        ratios["minimum_part_load_ratio"],
+        ratios["maximum_part_load_ratio"],
+    )
+    if plr_requested and not (
+        0 <= minimum <= ratios["optimum_part_load_ratio"] <= maximum
+        and minimum <= ratios["minimum_unloading_ratio"] <= maximum
+        and maximum > 0
+        and ratios["optimum_part_load_ratio"] > 0
+    ):
+        planned["errors"].append(
+            "Part-load choices require 0 <= minimum <= optimum <= maximum and minimum <= unloading <= maximum, with optimum/maximum > 0; request companion changes explicitly"
+        )
+        return planned
     if include_capacity and before["reference_capacity_w"] is None:
         planned["errors"].append(
             "Source chiller reference capacity is missing; diagnose before editing"
@@ -278,16 +342,18 @@ def plan(model, sdk, config):
             "Requested reference COP is outside the typical review range 2–10. Confirm units and rating conditions: COP = 3.517 / (kW per ton); COP = EER / 3.412. This is a non-blocking plausibility warning, not a standards limit; the explicit COP is retained without conversion"
         )
     if matches(before, after):
-        planned["errors"].append("Edit must change reference COP or capacity")
+        planned["errors"].append("Edit must change chiller settings")
         return planned
     try:
-        translated = translated_state(model, sdk, chiller, include_capacity)
+        translated = translated_state(model, sdk, chiller, include_capacity, patch)
     except ValueError as exc:
         planned["errors"].append(str(exc))
         return planned
     if not matches(translated["settings"], before):
         planned["errors"].append(
-            "Source chiller COP disagrees with EnergyPlus translation or reference capacity differs; diagnose the source model before editing"
+            "Source chiller requested part-load settings disagree with EnergyPlus translation; diagnose the source model"
+            if plr_requested
+            else "Source chiller COP disagrees with EnergyPlus translation or reference capacity differs; diagnose the source model before editing"
         )
         return planned
     condenser = chiller.secondaryPlantLoop()
@@ -376,7 +442,7 @@ def plan(model, sdk, config):
             ems_actuator_count=len(ems),
             ems_actuators=sorted(ems, key=lambda x: x["handle"])[:8],
             supply_chiller_count=len(loop_ref["chillers"]),
-            preservation_policy="Retain chiller, curves, flow sizing, all water circuits, plant controls, dispatch, references and identities; only explicitly requested reference ratings change",
+            preservation_policy="Retain chiller, curves, flow sizing, all water circuits, plant controls, dispatch, references and identities; only explicitly requested reference ratings or part-load controls change",
         ),
     )
     if include_capacity:
@@ -410,9 +476,9 @@ def plan(model, sdk, config):
                     else "Requires sizing"
                 )
                 for key, fraction in (
-                    ("minimum", chiller.minimumPartLoadRatio()),
-                    ("maximum", chiller.maximumPartLoadRatio()),
-                    ("optimal", chiller.optimumPartLoadRatio()),
+                    ("minimum", ratios["minimum_part_load_ratio"]),
+                    ("maximum", ratios["maximum_part_load_ratio"]),
+                    ("optimal", ratios["optimum_part_load_ratio"]),
                 )
             },
             dispatch_limits_exclude_temperature_curve=True,
@@ -456,6 +522,27 @@ def plan(model, sdk, config):
                 planned["warnings"].append(
                     "With fixed evaporator flow, reference-capacity Autosize uses that retained flow and plant design delta-T; the sizing factor is not applied again. Review fixed flow and other chillers; capacity is not automatically divided among units"
                 )
+    if plr_requested:
+        current_capacity = sized(chiller, "ReferenceCapacity")
+        planned["impact"]["part_load_edit"] = dict(
+            before=part_load_values(chiller, {}),
+            after=ratios,
+            load_distribution_scheme=loop.loadDistributionScheme(),
+            dispatch_load_limits_before_w=dispatch_limits(
+                current_capacity, part_load_values(chiller, {})
+            ),
+            dispatch_load_limits_after_w=dispatch_limits(
+                after.get("reference_capacity_w", current_capacity), ratios
+            ),
+            dispatch_limits_exclude_temperature_curve=True,
+        )
+        planned["warnings"].append(
+            "Minimum PLR controls cycling below the load ratio; minimum unloading sets the false-loading floor while on. Reported Chiller Part Load Ratio includes that unloading floor and is not necessarily delivered cooling divided by capacity. Optimum is a dispatch hint, not an efficiency curve or commanded operating ratio. Limits change cycling, false-load heat, compressor and condenser fan energy; maximum can cause unmet cooling. Review delivered cooling, cycling/false loading and plant energy before claiming savings; curves, flows and dispatch inputs are unchanged"
+        )
+        if maximum > 1:
+            planned["warnings"].append(
+                "Effective maximum PLR exceeds 1 and can allow above-reference cooling; confirm equipment capability and retained curve validity"
+            )
     planned["warnings"].append(
         "Reference COP is cooling watts per electric watt at the retained reference conditions, not IPLV, seasonal or whole-plant COP. Retained temperature/part-load curves, cycling, condenser conditions and auxiliaries determine operating energy; this edit does not certify the curve envelope or savings"
     )
@@ -523,7 +610,7 @@ def edit(model, sdk, planned):
     chiller = chiller_object(model, sdk, planned["resolved_objects"]["chiller"])
     patch = planned["parameters"]["settings"]
     include_capacity = "reference_capacity_w" in patch
-    before = values(chiller, include_capacity)
+    before = values(chiller, include_capacity, patch)
     if "reference_cop" in patch:
         call(chiller, "setReferenceCOP", patch["reference_cop"])
     if include_capacity:
@@ -531,8 +618,13 @@ def edit(model, sdk, planned):
             chiller.autosizeReferenceCapacity()
         else:
             call(chiller, "setReferenceCapacity", patch["reference_capacity_w"])
+    for key, value in patch.items():
+        if key in PLR_FIELDS:
+            call(chiller, "set" + PLR_FIELDS[key][0], value)
     return dict(
-        chiller=ref(chiller), before=before, after=values(chiller, include_capacity)
+        chiller=ref(chiller),
+        before=before,
+        after=values(chiller, include_capacity, patch),
     )
 
 
@@ -552,7 +644,7 @@ def validate_model(model, sdk, planned, result):
         )
         and matches(result["after"], planned["after_values"]),
         "Saved chiller ratings differ": matches(
-            values(chiller, include_capacity), planned["after_values"]
+            values(chiller, include_capacity, patch), planned["after_values"]
         ),
         "Unrequested chiller fields changed": signature(chiller, patch)
         == planned["preserved_chiller"],
@@ -567,7 +659,7 @@ def validate_model(model, sdk, planned, result):
         ),
     }
     if all(checks.values()):
-        translated = translated_state(model, sdk, chiller, include_capacity)
+        translated = translated_state(model, sdk, chiller, include_capacity, patch)
         checks["Translated chiller ratings differ"] = matches(
             translated["settings"], planned["after_values"]
         )

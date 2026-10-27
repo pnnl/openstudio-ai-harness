@@ -68,6 +68,26 @@
             }
           ],
           "description": "Explicit reference cooling capacity in thermal watts, or Autosize using retained plant sizing and chiller sizing factor. No flow or sizing-factor changes are inferred."
+        },
+        "minimum_part_load_ratio": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Explicit ratio; require minimum <= optimum <= maximum and minimum <= unloading <= maximum. No companion reset or Autosize."
+        },
+        "maximum_part_load_ratio": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Explicit ratio; require minimum <= optimum <= maximum and minimum <= unloading <= maximum. No companion reset or Autosize."
+        },
+        "optimum_part_load_ratio": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Explicit ratio; require minimum <= optimum <= maximum and minimum <= unloading <= maximum. No companion reset or Autosize."
+        },
+        "minimum_unloading_ratio": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Explicit ratio; require minimum <= optimum <= maximum and minimum <= unloading <= maximum. No companion reset or Autosize."
         }
       }
     },

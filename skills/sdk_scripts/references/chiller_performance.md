@@ -1,141 +1,137 @@
-# Electric EIR chiller reference-rating contract
+# Electric EIR chiller performance contract
 
-One existing `ChillerElectricEIR` on the supply side of a plant typed `Cooling`.
-AirCooled and WaterCooled are supported. A connected heat-recovery plant,
-thermosiphon curve, EvaporativelyCooled or another chiller class needs separate
-coverage. Inventory flags the same scope that preflight enforces. A rating-only
-edit may proceed on an incomplete existing plant with warnings and false simulation
-readiness; no pump, setpoint or heat-rejection source is added implicitly.
+Edit one supply-side `ChillerElectricEIR` on a Cooling plant: AirCooled or
+WaterCooled, without connected heat recovery or a thermosiphon curve. Other
+classes/condenser types, curve substitution, topology/class conversion and plant
+repairs need separate coverage. Inventory and preflight enforce the same scope.
+
+## Explicit inputs
 
 ```json
 {
   "output_model_path": "/work/edited.osm",
   "plant_loop": {"name": "CHW"},
   "chiller": {"name": "Selected Chiller"},
-  "settings": {"reference_cop": 5.0}
+  "settings": {"reference_cop": 5.0, "reference_capacity_w": 100000}
 }
 ```
 
-This number is an example, not a recommended default. Selectors accept exactly one
-name or handle; a missing selector/settings stays unready. COP must be finite and
-strictly positive. Values below 2 or above 10 warn without blocking or converting
-input: COP = 3.517 / (kW per ton), COP = EER / 3.412. These are plausibility review
-thresholds, not schema limits or a standard; validate the user's rating basis. A
-no-op is rejected. Unrequested capacity, reference temperatures/flows, curves, PLRs,
-unloading, condenser type, fan/basin heater, heat rejection fraction, sizing factor,
-flow controls, end-use label, schedules and plant dispatch are not editable here.
+Numbers are examples, not defaults. Selectors use a unique name or handle.
+Settings can contain one or more supported fields. Missing/empty choices remain
+unready; invalid values and combined no-ops reject. No inferred standards values,
+matching flow, sizing factor, companion limit or curve changes.
 
-`setReferenceCOP`, `setReferenceCapacity` or `autosizeReferenceCapacity` updates the existing object only for explicitly requested fields. Its handle/name, metadata, EMS,
-cost/output references, curves and all water boundaries stay intact. A protected
-snapshot covers every other model object, including both plant graphs. The chiller's
-raw fingerprint excludes only the explicitly requested reference-rating fields. Saved checks compare the requested
-value with tight numeric serialization tolerance and preserve all other fields.
-Independent EnergyPlus translation must retain the three curve references and
-match the reviewed ratings while preserving every other translated chiller field. A source COP
-translation mismatch or missing translated curve returns a normal unready plan
-with a fixed error message; these model-state problems do not invoke automatic
-unexpected-failure reporting. Fresh-report,
-source/resource hashes, object types/handles and snapshot checks remain exact.
-Apply publishes a new OSM plus `<stem>/` companions without overwriting the source.
+- `reference_cop`: finite positive cooling W/electric W at retained reference
+  conditions, excluding any separately modeled condenser fan. Not IPLV, seasonal
+  or whole-plant COP. Below2 or above10 warns without blocking/converting:
+  COP=3.517/(kW per ton), COP=EER/3.412. Confirm rating basis and units.
+- `reference_capacity_w`: finite positive cooling thermal W or exactly `Autosize`.
+  Fixed watts are not multiplied by the sizing factor. Unrequested capacity and
+  all water-flow inputs/Autosize flags stay exact.
+- `minimum_part_load_ratio`, `minimum_unloading_ratio`: finite numbers ≥0.
+  `maximum_part_load_ratio`, `optimum_part_load_ratio`: finite numbers >0.
+  Effective requested+preserved values must satisfy minimum≤optimum≤maximum and
+  minimum≤unloading≤maximum. Inconsistent choices remain unready, requiring
+  explicit companion changes. Ratios do not accept Autosize. Maximum>1 warns
+  about equipment capability and curve validity; no arbitrary maximum1 clipping.
 
-The plan records before/after COP, reference temperatures/capacity/flows and sizing
-flags, curves, condenser context, other supply chillers and bounded EMS references.
-Water-cooled
-impact includes `condenser_sizing.reference_condenser_flow_autosized` and
-`autosized_equipment`, each with identity/type and its Autosize/Autocalculate fields.
-The latter lists supply-side condenser pumps, headered pumps and cooling towers.
-An autosized selected-chiller condenser flow triggers a specific resizing warning;
-autosized condenser pump/tower fields also warn when the selected flow is fixed.
-`simulation_readiness_scope: operation_and_companions` explicitly opts into combined
-readiness; it does not change other operations' flags. Missing known plant controls,
-water-cooled heat rejection or companions marks simulation unready while permitting
-the edit. True means no identified blocker, not that the entire plant was audited.
+## In-place preservation and reporting
 
-Reference COP is not IPLV or seasonal/whole-plant COP. The three retained curves
-modify capacity and EIR; part-load/cycling and condenser conditions affect operating
-power. Pumps, towers and condenser fans can contribute additional electric use.
-When condenser fan power ratio is positive, reference COP must exclude that
-separately modeled fan power; inspect the retained ratio before accepting a rating.
-On a water-cooled plant, changing compressor electricity also changes condenser
-heat rejection and may change autosized condenser flow, pump and tower sizes and
-energy, even though all sizing inputs/flags are preserved. Compare plant energy
-including pumps/towers; a compressor electricity reduction is not plant savings.
-No savings guarantee or curve-envelope
-certification is made. Retained EMS and dispatch may prevent the chiller from
-running. Simulation remains a separate workflow.
+Only selected setters act on the existing chiller. Identity/name, metadata,
+EMS/cost/output references, curves, all circuit boundaries, reference conditions,
+condenser mode/fan ratio, heat rejection fraction, sizing factor, controls and
+unrequested ratings/PLRs remain protected. Only requested fields leave the raw
+fingerprint; every other object stays in the exact snapshot. Requested numerical
+saved values use tight serialization tolerance; source/resource hashes,
+reviewed/fresh equality, types/handles, all other raw fields and translated fields
+remain exact. Independent translation checks requested ratings/controls and all
+three curve references. Missing/malformed/mismatched translated source settings
+return normal unready errors, not unexpected-failure capture. Apply checks saved
+translation before publishing a new OSM and `<stem>/` companions; source untouched.
 
-Local standards trace: `Prototype.hvac_systems.rb:385–423` creates electric EIR
-chillers, sets reference COP separately from PLRs, sizing and condenser connections.
-`Standards.ChillerElectricEIR.rb:209–302` can select standards-specific curves and
-COP together. This editor implements an explicit rating change, not that whole
-standards recipe: it does not select minimum efficiency or substitute curves.
-Pinned [EnergyPlus 25.2 inputs](https://bigladdersoftware.com/epx/docs/25-2/input-output-reference/group-plant-equipment.html#chillerelectriceir)
-and [engine source](https://github.com/NatLabRockies/EnergyPlus/blob/v25.2.0/src/EnergyPlus/ChillerElectricEIR.cc)
-are the reference for operating behavior. Native tests compare cooling, chiller
-electricity, condenser heat and sizing for unchanged curves/controls; see the work
-guide for actual evidence and its limits.
+Legacy COP-only reports retain their shape. Requested capacity/PLRs join before/
+after values; `parameters.settings` contains only the request. Impact records source
+capacity/flows/reference conditions, curves, PLRs, condenser context and bounded
+EMS. `reference_capacity_w` at the impact top level always means source capacity.
 
-## Reference-capacity extension (12f)
+Capacity requests add `capacity_edit`: before/after W, Autosize flow basis, other
+chiller count, up to8 other supply chillers' capacities/factors and omitted count.
+Unsupported contextual classes have null capacity/factor and remain uneditable.
+`dispatch_load_limits_w` gives proposed reference capacity×minimum/maximum/optimal
+PLR, or `Requires sizing`. Distribution scheme and
+`dispatch_limits_exclude_temperature_curve: true` identify these as reference
+limits, not actual temperature-modified available cooling.
 
-`settings` accepts one or both `reference_cop` and `reference_capacity_w`.
-For a capacity-only edit, for example `{"reference_capacity_w": 100000}`, COP
-remains unchanged. Capacity is strictly positive finite cooling thermal W, or the
-exact string `"Autosize"`. This example is not a recommendation. Empty settings
-stay unready, unknown fields and invalid values reject, and a combined no-op
-rejects. Fixed watts are not multiplied by the retained sizing factor.
+PLR requests add `part_load_edit`: all ratios before/after, retained distribution
+scheme, before/after reference dispatch limits and the same curve-exclusion flag.
+Combined capacity requests use proposed capacity and proposed PLRs consistently
+in both impact blocks. An inherited Autosize capacity does not imply a new sizing
+audit, fixed value or restored prior sized result.
 
-`impact.reference_capacity_w` always describes the source. `capacity_edit` holds
-`before_w`, `after_w`, other-chiller count, up to eight other supply chillers with
-capacity/factor, and omitted count. Unsupported chiller classes have null capacity
-and factor in this contextual list; they remain uneditable. Existing curves, PLRs,
-minimum unloading, sizing factor, water-flow inputs/Autosize flags, circuits and
-controls stay unchanged. EMS and name/handle references are retained.
+## Capacity, sizing and energy interpretation
 
-EnergyPlus dispatch limits use reference capacity times minimum/maximum/optimum
-PLR. Actual available capacity additionally depends on the temperature curve;
-capacity edits change operating PLR, cycling/unloading and false loading. Small
-capacity can cause unmet cooling; large capacity can alter efficiency. No energy
-saving or adequacy guarantee is made. Autosized evaporator flow uses plant design
-flow times sizing factor; it is not derived from the edited fixed capacity.
-Autosized water-cooled condenser flow uses reference capacity, reference COP and
-the actual compressor heat rejection fraction, so pumps and towers can resize.
-Retained input fields do not guarantee retained sizing results.
+Reference capacity and COP are ratings. Temperature/EIR/part-load curves, cycling,
+unloading, condenser conditions, EMS and dispatch determine operation. Smaller
+capacity/maximum PLR can cause unmet cooling; larger capacity can change PLR,
+false loading and electricity. Preserved dispatch inputs do not imply unchanged
+allocation. No curve-envelope, adequacy or savings certification.
 
-With evaporator flow autosized, each autosized EIR chiller uses the entire plant
-design flow times its sizing factor and plant design delta-T. With fixed evaporator
-flow, that fixed flow and plant design delta-T are the basis; the factor is not
-applied again. Neither path automatically divides capacity among units. Review
-other units and dispatch before requesting Autosize. Explicit Autosize adds
-`impact.plant_sizing`: design-day and sizing-period counts, default/requested
-plant-sizing flag, translated effective flag and verification status. Missing
-periods or off/unverified plant sizing conservatively marks `simulation_ready`
-false but does not block applying the reviewed input change or silently add days
-or turn sizing on. This is not a claim that every such model fails; some fixed-flow
-cases can size without a plant-sizing run. COP-only and fixed-capacity edits do
-not introduce a whole-model sizing audit. All exact transaction protections remain.
+With evaporator flow Autosize, each autosized EIR chiller uses whole-plant design
+flow×its own sizing factor, plant design delta-T and fluid properties; capacity is
+not divided automatically among units. With fixed evaporator flow, that flow and
+plant delta-T determine capacity without applying the factor again. Autosized
+evaporator flow is not derived from edited fixed capacity.
 
+Explicit capacity Autosize adds `impact.plant_sizing`: design-day/period counts,
+defaulted/requested model flag, effective translated plant-sizing flag and its
+verification status. Missing periods or off/unverified sizing conservatively
+makes simulation unready while allowing the input edit. No day/control changes.
+Some fixed-flow cases can still size with the flag off; this is not a guaranteed
+failure claim. Fixed-capacity/COP/PLR edits do not introduce whole-model sizing
+audits. Review other units and the recorded flow basis before choosing Autosize.
 
-### Capacity review details (G1–G3)
+Water-cooled condenser flow Autosize uses capacity×(1+compressor heat rejection
+fraction/COP)/(condenser design delta-T×rho×Cp), with the actual retained fraction.
+`condenser_sizing` records flow-Autosize and supply pump/headered-pump/tower fields
+using Autosize/Autocalculate. Pumps/towers can resize even with unchanged input
+flags; equipment fields also warn when selected condenser flow is fixed. Compare
+plant energy including pumps/towers; compressor savings are not plant savings.
 
-`capacity_edit.dispatch_load_limits_w` reports proposed `minimum`, `maximum`,
-`optimal`: reference capacity times the retained respective PLRs. Autosize yields
-`"Requires sizing"` for each. `load_distribution_scheme` records the retained
-scheme. `dispatch_limits_exclude_temperature_curve: true` distinguishes these
-reference dispatch limits from actual available capacity after temperature-curve
-modification; they are not guaranteed delivered cooling.
+Positive condenser fan ratio adds a capacity-edit warning and
+`capacity_edit.condenser_fan`: ratio plus before/after full-cycling W=reference
+capacity×ratio, or `Requires sizing`. Runtime multiplies by cycling fraction when
+operating with positive capacity-curve modifier. This separate calculation applies
+to every condenser type, including WaterCooled; it excludes external tower fans.
+At full cycling, capacity scales fan power even at equal cooling. Zero ratio adds
+no fan block/warning. Compare `Chiller Condenser Fan Electricity Energy` separately.
+PLR edits can change that fan's runtime energy without changing rated capacity.
 
-When the retained condenser fan power ratio is positive, capacity requests warn
-and add `capacity_edit.condenser_fan`: `power_ratio`, `before_full_cycling_w` and
-`after_full_cycling_w`. Each watt value is reference capacity × ratio, or
-`"Requires sizing"` for Autosize. Runtime power multiplies that value by cycling
-fraction while operating with a positive capacity-curve modifier. Above minimum
-PLR, cycling fraction is 1, so changing capacity changes fan power even at the
-same delivered cooling. Below minimum PLR, cycling fraction matters too. EnergyPlus
-applies this separate condenser-fan calculation for every condenser type, including
-WaterCooled; it is distinct from external cooling-tower fan power and compressor
-power. Zero ratio adds no fan warning or fan impact block. Compare the dedicated
-`Chiller Condenser Fan Electricity Energy` output when evaluating energy.
+## Cycling and unloading
 
-A malformed/empty/non-finite translated capacity produces a fixed descriptive
-unready plan error, not an unexpected failure capture. The explicit Autosize token
-is still supported. Apply's saved-value/translation checks remain strict.
+Below minimum PLR the engine cycles on/off. Minimum unloading then sets the
+on-cycle PLR floor; false-load heat is available capacity×reported PLR×cycling
+fraction minus useful evaporator cooling, clamped at zero. Thus reported Chiller
+Part Load Ratio can include unloading and need not equal delivered cooling /
+available capacity. Optimum is a dispatch hint, not an EIR curve or commanded
+operating point. Review useful cooling, cycling, false-load energy, compressor,
+condenser fan, pump/tower energy and unmet loads, not ratios alone.
+
+## Readiness and references
+
+`simulation_readiness_scope: operation_and_companions` explicitly combines known
+operation and companion blockers; other operations' flags are unchanged. Missing
+known pumps/outlet setpoints, water-cooled heat rejection or companions marks
+simulation unready while permitting a reviewed input edit. True is no identified
+blocker, not a complete audit or simulation guarantee. Run preparation when gated,
+retain model/report lineage, and simulate separately through the selected provider.
+
+Standards: `Prototype.hvac_systems.rb:385–423` creates EIR chillers and separately
+sets COP/PLRs/sizing/condenser connections; `Standards.ChillerElectricEIR.rb:209–302`
+can choose curves and COP together. This editor applies neither standards recipe.
+Pinned [EnergyPlus25.2 source](https://github.com/NatLabRockies/EnergyPlus/blob/v25.2.0/src/EnergyPlus/ChillerElectricEIR.cc)
+validates relationships, returns reference dispatch products, and applies cycling
+and unloading at runtime. See the work guide for native evidence and limitations.
+Controlled 12i tests use explicit fixed-return 5kW demand and flat temperature/
+linear EIR fixture curves to isolate behavior; those are not recommendations or
+curve changes performed by this editor. All native results are design-day evidence,
+not annual savings or an exhaustive multi-unit dispatch test.

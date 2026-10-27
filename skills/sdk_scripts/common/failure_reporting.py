@@ -106,6 +106,7 @@ CONFIG_KEYS.update(
         "minimum_part_load_ratio",
         "maximum_part_load_ratio",
         "optimum_part_load_ratio",
+        "minimum_unloading_ratio",
         "on_cycle_parasitic_electric_load_w",
         "off_cycle_parasitic_fuel_load_w",
     }

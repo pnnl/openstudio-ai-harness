@@ -518,7 +518,9 @@ def test_metadata_references_and_other_tower_preserved(sdk, tmp_path):
         assert str(saved.getModelObject(o.toUUID(handle)).get().idfObject()) == raw
 
 
-@pytest.mark.parametrize("problem", ["power", "curve", "unset"])
+@pytest.mark.parametrize(
+    "problem", ["power", "curve", "unset", "control_mismatch", "control_text"]
+)
 def test_source_translation_inconsistencies_return_unready_without_capture(
     sdk, tmp_path, monkeypatch, problem
 ):
@@ -542,12 +544,18 @@ def test_source_translation_inconsistencies_return_unready_without_capture(
         index = (
             obj.iddObject()
             .getFieldIndex(
-                towers.POWER_FIELD if problem == "power" else towers.CURVE_FIELD
+                "Minimum Air Flow Rate Ratio"
+                if problem.startswith("control_")
+                else towers.POWER_FIELD if problem == "power" else towers.CURVE_FIELD
             )
             .get()
         )
         if problem == "power":
             assert obj.setDouble(index, 999)
+        elif problem == "control_mismatch":
+            assert obj.setDouble(index, 0.45)
+        elif problem == "control_text":
+            assert obj.setString(index, "not-a-number")
         else:
             assert obj.setString(index, "")
         return workspace
@@ -558,7 +566,10 @@ def test_source_translation_inconsistencies_return_unready_without_capture(
         tx, "capture_exception", lambda *a, **kw: captured.append(a) or {}
     )
     cfg = tmp_path / "config.json"
-    cfg.write_text(json.dumps(config(tmp_path)))
+    request = config(tmp_path)
+    if problem.startswith("control_"):
+        request["settings"] = dict(minimum_air_flow_ratio=0.4)
+    cfg.write_text(json.dumps(request))
     output = tmp_path / "blocked.json"
     monkeypatch.setattr(
         sys,
@@ -634,7 +645,8 @@ def test_csv_companions_relocate_or_reject_changed_resource(
 
 
 @pytest.mark.parametrize("host", ["claude", "codex"])
-def test_native_relocated_exports(sdk, tmp_path, host):
+@pytest.mark.parametrize("controls", [False, True])
+def test_native_relocated_exports(sdk, tmp_path, host, controls):
     import shutil
     import subprocess
     from adapters.claude_code_adapter import ClaudeCodeAdapter
@@ -644,7 +656,12 @@ def test_native_relocated_exports(sdk, tmp_path, host):
     from test_supply_fan_performance import native_cli
 
     exe = str(native_cli())
-    source, _, _ = fixture(sdk[0], tmp_path)
+    source, model, tower = fixture(sdk[0], tmp_path)
+    if controls:
+        for key in towers.CONTROL_DEFAULTS:
+            index = tower.iddObject().getFieldIndex(towers.FIELDS[key][1]).get()
+            assert tower.setString(index, "")
+        assert model.save(str(source), True)
     original = source.read_bytes()
     adapter = (ClaudeCodeAdapter if host == "claude" else CodexAdapter)(
         HostAdapterConfig(
@@ -666,7 +683,12 @@ def test_native_relocated_exports(sdk, tmp_path, host):
     skill = copy_plugin_for_skill(skill, tmp_path / "relocated")
     shutil.rmtree(exported)
     cfg = tmp_path / "request.json"
-    cfg.write_text(json.dumps(config(tmp_path)))
+    request = config(tmp_path)
+    if controls:
+        request["settings"] = dict(
+            minimum_air_flow_ratio=0.4, free_convection_capacity_fraction=0.15
+        )
+    cfg.write_text(json.dumps(request))
     plan = tmp_path / "reviewed.json"
     repeated = tmp_path / "repeated.json"
     script = skill / "scripts/edit_tower_performance.py"
@@ -685,6 +707,319 @@ def test_native_relocated_exports(sdk, tmp_path, host):
         )
         assert run.returncode == 0, run.stdout + run.stderr
     assert json.loads(plan.read_text()) == json.loads(repeated.read_text())
+    if controls:
+        assert (
+            json.loads(plan.read_text())["plan"]["source_control_defaults"]
+            == towers.CONTROL_DEFAULTS
+        )
     result = json.loads((tmp_path / "applied.json").read_text())
     assert result["validation"]["ok"] and result["translation"]["ok"]
     assert source.read_bytes() == original
+
+
+@pytest.mark.parametrize("model_type", ["CoolToolsCrossFlow", "YorkCalc"])
+@pytest.mark.parametrize(
+    "settings",
+    [
+        {"minimum_air_flow_ratio": 0.5},
+        {"free_convection_capacity_fraction": 0},
+        {"free_convection_capacity_fraction": 0.2},
+        {"minimum_air_flow_ratio": 0.3, "free_convection_capacity_fraction": 0.15},
+        {"minimum_air_flow_ratio": 0.3, "design_fan_power_w": 600},
+    ],
+)
+def test_low_load_controls_preserve_identity_and_unrequested_fields(
+    sdk, tmp_path, model_type, settings
+):
+    o = sdk[0]
+    source, model, tower = fixture(
+        o,
+        tmp_path,
+        model_type,
+        "Autosize" if "design_fan_power_w" not in settings else 400,
+    )
+    original = source.read_bytes()
+    cfg = config(tmp_path)
+    cfg["settings"] = settings
+    report = preflight(source, cfg)
+    assert report["ready"], report
+    assert report == preflight(source, cfg)
+    planned = report["plan"]
+    assert planned["parameters"]["settings"] == settings
+    assert "plant_sizing" not in planned["impact"]
+    assert "Low-load settings change actual thermal operation" in " ".join(
+        report["warnings"]
+    )
+    expected = towers.values(tower, settings)
+    expected.update(settings)
+    result = apply(report, tmp_path)
+    assert result["validation"]["ok"] and result["translation"]["ok"]
+    saved = o.osversion.VersionTranslator().loadModel(result["output_model_path"]).get()
+    current = saved.getCoolingTowerVariableSpeed(tower.handle()).get()
+    assert towers.values(current, settings) == expected
+    assert towers.signature(current, settings) == towers.signature(tower, settings)
+    assert towers.ports(current) == towers.ports(tower)
+    assert source.read_bytes() == original
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("minimum_air_flow_ratio", 0.199),
+        ("minimum_air_flow_ratio", 0.501),
+        ("free_convection_capacity_fraction", -0.001),
+        ("free_convection_capacity_fraction", 0.201),
+        ("minimum_air_flow_ratio", "Autosize"),
+        ("free_convection_capacity_fraction", True),
+        ("minimum_air_flow_ratio", float("nan")),
+        ("free_convection_capacity_fraction", float("inf")),
+    ],
+)
+def test_invalid_low_load_controls_reject(sdk, tmp_path, field, value):
+    source, _, _ = fixture(sdk[0], tmp_path)
+    cfg = config(tmp_path)
+    cfg["settings"] = {field: value}
+    with pytest.raises(ValueError, match="Invalid cooling tower performance"):
+        preflight(source, cfg)
+    assert not (tmp_path / "edited.osm").exists()
+
+
+@pytest.mark.parametrize(
+    "field", ["minimum_air_flow_ratio", "free_convection_capacity_fraction"]
+)
+def test_low_load_noop_and_empty_choices(sdk, tmp_path, field):
+    source, _, tower = fixture(sdk[0], tmp_path)
+    cfg = config(tmp_path)
+    cfg["settings"] = {field: towers.values(tower, {field: None})[field]}
+    assert not preflight(source, cfg)["ready"]
+    cfg["settings"] = {}
+    report = preflight(source, cfg)
+    assert not report["ready"] and "settings" in report["plan"]["missing_inputs"]
+
+
+@pytest.mark.parametrize(
+    "mutation", ["power", "other_control", "design_approach", "curve", "requested"]
+)
+def test_low_load_unrequested_edits_do_not_publish(sdk, tmp_path, mutation):
+    source, _, _ = fixture(sdk[0], tmp_path)
+    cfg = config(tmp_path)
+    cfg["settings"] = {"minimum_air_flow_ratio": 0.4}
+    report = preflight(source, cfg)
+
+    def altered(model, o, planned):
+        result = towers.edit(model, o, planned)
+        tower = towers.tower_object(model, o, planned["resolved_objects"]["tower"])
+        if mutation == "power":
+            tower.setDesignFanPower(900)
+        elif mutation == "other_control":
+            tower.setFractionofTowerCapacityinFreeConvectionRegime(0.2)
+        elif mutation == "design_approach":
+            tower.setDesignApproachTemperature(5)
+        elif mutation == "requested":
+            tower.setMinimumAirFlowRateRatio(0.45)
+        else:
+            tower.fanPowerRatioFunctionofAirFlowRateRatioCurve().get().setName(
+                "Changed Curve"
+            )
+        return result
+
+    with pytest.raises(ValueError):
+        apply(report, tmp_path, altered)
+    assert not (tmp_path / "edited.osm").exists()
+
+
+@pytest.mark.parametrize("model_type", ["CoolToolsCrossFlow", "YorkCalc"])
+@pytest.mark.parametrize(
+    "field,target",
+    [("minimum_air_flow_ratio", 0.5), ("free_convection_capacity_fraction", 0.2)],
+)
+def test_native_low_load_controls(sdk, tmp_path, model_type, field, target):
+    from test_chiller_performance import native_run
+    from test_supply_fan_performance import native_cli
+
+    native_cli()
+    o = sdk[0]
+    source, model, tower, chiller, seed, seed_bytes = native_fixture(
+        o, tmp_path, False, model_type
+    )
+    if field == "free_convection_capacity_fraction":
+        tower.setFractionofTowerCapacityinFreeConvectionRegime(0)
+        # Isolate a small condenser load so upstream chiller dispatch cannot mask fan-off cooling.
+        condenser = tower.plantLoop().get()
+        assert condenser.removeDemandBranchWithComponent(chiller)
+        assert chiller.setCondenserType("AirCooled")
+        chiller.autosizeReferenceCondenserFluidFlowRate()
+        loads = o.model.ScheduleConstant(model)
+        loads.setValue(-1000)
+        flows = o.model.ScheduleConstant(model)
+        flows.setValue(1)
+        load = o.model.LoadProfilePlant(model)
+        assert load.setLoadSchedule(loads)
+        assert load.setPeakFlowRate(0.005)
+        assert load.setFlowRateFractionSchedule(flows)
+        assert condenser.addDemandBranchForComponent(load)
+    assert model.save(str(source), True)
+    original = source.read_bytes()
+    cfg = config(tmp_path)
+    cfg.update(
+        plant_loop=dict(name="Native Condenser"),
+        tower=dict(name="Native Tower"),
+        settings={field: target},
+    )
+    report = preflight(source, cfg)
+    assert report["ready"] and report["plan"]["simulation_ready"], report
+    result = apply(report, tmp_path)
+    variables = [
+        "Cooling Tower Fan Part Load Ratio",
+        "Cooling Tower Air Flow Rate Ratio",
+        "Cooling Tower Heat Transfer Rate",
+        "Cooling Tower Outlet Temperature",
+        "Cooling Tower Make Up Water Volume",
+        "Cooling Tower Fan Electricity Energy",
+    ]
+    pump = next(
+        obj
+        for obj in tower.plantLoop().get().supplyComponents()
+        if obj.iddObjectType().valueName().startswith(("OS_Pump_", "OS_HeaderedPumps_"))
+    )
+    extra = [(tower.nameString(), name) for name in variables] + [
+        (pump.nameString(), "Pump Electricity Energy"),
+        (pump.nameString(), "Pump Electricity Rate"),
+    ]
+    before = native_run(
+        o, source, tmp_path / "before_run", str(chiller.handle()), extra
+    )
+    after = native_run(
+        o,
+        Path(result["output_model_path"]),
+        tmp_path / "after_run",
+        str(chiller.handle()),
+        extra,
+    )
+    assert before["hours"] == after["hours"] == 72
+    assert before["cooling_j"] > 1e8 and after["cooling_j"] > 1e8
+    metrics = {}
+    for stage, observed in [("before", before), ("after", after)]:
+        data = observed["extra_outputs"][tower.nameString()]
+        cycling = [row[3] for row in data[variables[0]]]
+        heat = [row[3] for row in data[variables[2]]]
+        metrics[stage] = dict(
+            fan_energy_j=sum(row[3] for row in data[variables[5]]),
+            cycling_hours=sum(1 for value in cycling if 1e-6 < value < 1 - 1e-6),
+            fan_off_with_heat_hours=sum(
+                1 for ratio, watts in zip(cycling, heat) if ratio < 1e-6 and watts > 1
+            ),
+            make_up_water_m3=sum(row[3] for row in data[variables[4]]),
+            condenser_pump_energy_j=sum(
+                row[3]
+                for row in observed["extra_outputs"][pump.nameString()][
+                    "Pump Electricity Energy"
+                ]
+            ),
+        )
+    assert metrics["after"]["fan_energy_j"] != pytest.approx(
+        metrics["before"]["fan_energy_j"], rel=1e-4
+    )
+    if field == "minimum_air_flow_ratio":
+        assert metrics["after"]["cycling_hours"] > metrics["before"]["cycling_hours"]
+    else:
+        assert (
+            metrics["after"]["fan_off_with_heat_hours"]
+            > metrics["before"]["fan_off_with_heat_hours"]
+        )
+    assert metrics["after"]["condenser_pump_energy_j"] > 0
+    assert source.read_bytes() == original and seed.read_bytes() == seed_bytes
+    (tmp_path / "native_controls_evidence.json").write_text(
+        json.dumps(
+            dict(
+                model_type=model_type,
+                field=field,
+                target=target,
+                before=before,
+                after=after,
+                metrics=metrics,
+                validation=result["validation"],
+                translation=result["translation"],
+                source_unchanged=True,
+            ),
+            indent=2,
+        )
+    )
+
+
+@pytest.mark.parametrize("mode", ["stale", "tampered"])
+def test_low_load_exact_source_and_plan_checks(sdk, tmp_path, mode):
+    source, _, _ = fixture(sdk[0], tmp_path)
+    cfg = config(tmp_path)
+    cfg["settings"] = dict(minimum_air_flow_ratio=0.4)
+    report = preflight(source, cfg)
+    if mode == "stale":
+        source.write_bytes(source.read_bytes() + b"\n! changed\n")
+    else:
+        report["plan"]["parameters"]["settings"]["minimum_air_flow_ratio"] = 0.5
+    with pytest.raises(ValueError):
+        apply(report, tmp_path)
+    assert not (tmp_path / "edited.osm").exists()
+
+
+@pytest.mark.parametrize("model_type", ["CoolToolsCrossFlow", "YorkCalc"])
+@pytest.mark.parametrize(
+    "field,target",
+    [("minimum_air_flow_ratio", 0.4), ("free_convection_capacity_fraction", 0.15)],
+)
+def test_blank_controls_use_pinned_engine_defaults_without_materializing_others(
+    sdk, tmp_path, model_type, field, target
+):
+    o = sdk[0]
+    source, model, tower = fixture(o, tmp_path, model_type)
+    for key in towers.CONTROL_DEFAULTS:
+        index = tower.iddObject().getFieldIndex(towers.FIELDS[key][1]).get()
+        assert tower.setString(index, "")
+        assert towers.blank_control(tower, key)
+        suffix = towers.FIELDS[key][0]
+        assert not getattr(tower, suffix[0].lower() + suffix[1:])().is_initialized()
+    assert model.save(str(source), True)
+    original = source.read_bytes()
+    cfg = config(tmp_path)
+    cfg["settings"] = {field: target}
+    report = preflight(source, cfg)
+    assert report["ready"], report
+    assert report == preflight(source, cfg)
+    plan = report["plan"]
+    expected = towers.CONTROL_DEFAULTS[field]
+    assert plan["before_values"][field] == expected
+    assert plan["source_control_defaults"] == {field: expected}
+    idf = o.IdfObject(o.IddObjectType("CoolingTower_VariableSpeed"))
+    index = idf.iddObject().getFieldIndex(towers.FIELDS[field][1]).get()
+    assert idf.getDouble(index, True).get() == expected
+    assert plan["impact"]["minimum_air_flow_ratio"] == 0.2
+    assert plan["impact"]["free_convection_capacity_fraction"] == 0.125
+    result = apply(report, tmp_path)
+    assert result["validation"]["ok"] and result["translation"]["ok"]
+    saved = o.osversion.VersionTranslator().loadModel(result["output_model_path"]).get()
+    current = saved.getCoolingTowerVariableSpeed(tower.handle()).get()
+    assert towers.control_value(current, field) == target
+    other = next(key for key in towers.CONTROL_DEFAULTS if key != field)
+    assert towers.blank_control(current, other)
+    assert towers.signature(current, {field: target}) == towers.signature(
+        tower, {field: target}
+    )
+    assert source.read_bytes() == original
+
+
+@pytest.mark.parametrize("field", list(towers.CONTROL_DEFAULTS))
+def test_blank_default_equivalent_request_stays_noop(sdk, tmp_path, field):
+    source, model, tower = fixture(sdk[0], tmp_path)
+    index = tower.iddObject().getFieldIndex(towers.FIELDS[field][1]).get()
+    assert tower.setString(index, "")
+    assert model.save(str(source), True)
+    original = source.read_bytes()
+    cfg = config(tmp_path)
+    cfg["settings"] = {field: towers.CONTROL_DEFAULTS[field]}
+    report = preflight(source, cfg)
+    assert not report["ready"]
+    assert report["plan"]["source_control_defaults"] == {
+        field: towers.CONTROL_DEFAULTS[field]
+    }
+    assert "must change" in " ".join(report["plan"]["errors"])
+    assert not (tmp_path / "edited.osm").exists() and source.read_bytes() == original

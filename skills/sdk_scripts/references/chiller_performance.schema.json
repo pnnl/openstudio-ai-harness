@@ -1,5 +1,5 @@
 {
-  "title": "In-place electric EIR chiller reference COP",
+  "title": "In-place electric EIR chiller reference ratings",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -48,14 +48,26 @@
     "settings": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "reference_cop"
-      ],
       "properties": {
         "reference_cop": {
           "type": "number",
           "exclusiveMinimum": 0,
           "description": "Explicit reference cooling watts per electric watt at the retained reference conditions; not IPLV or seasonal COP. Values below 2 or above 10 trigger a non-blocking unit/rating plausibility warning; explicit inputs are not converted."
+        },
+        "reference_capacity_w": {
+          "oneOf": [
+            {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            {
+              "type": "string",
+              "enum": [
+                "Autosize"
+              ]
+            }
+          ],
+          "description": "Explicit reference cooling capacity in thermal watts, or Autosize using retained plant sizing and chiller sizing factor. No flow or sizing-factor changes are inferred."
         }
       }
     },

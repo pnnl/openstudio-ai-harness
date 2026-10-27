@@ -1,4 +1,4 @@
-"""Inventory, preflight and apply reviewed variable-speed tower fan-power edits."""
+"""Inventory, preflight and apply reviewed variable-speed tower performance edits."""
 
 from pathlib import Path
 import sys

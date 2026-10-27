@@ -41,22 +41,31 @@ task-specific skill before acting; do not recreate its procedure from memory.
   capacity-fraction schedule; a capacity limit is not an efficiency saving. Steam,
   schedule changes and district production/loss modeling require separate coverage.
 - Use `openstudio-tower-performance-editor` for one existing condenser supply-side
-  CoolingTowerVariableSpeed design fan electrical power edit: explicit total watts
-  or explicit Autosize, retaining other inputs, curves, controls and identity.
+  CoolingTowerVariableSpeed design fan electrical power (watts/Autosize), minimum
+  airflow ratio or free-convection fraction edits. Require explicit performance
+  choices; retain design conditions, unrequested inputs, curves and identity.
+  Low-load controls affect fan cycling/fan-off heat rejection and coupled energy;
+  fan-off does not mean pumps off or guaranteed savings.
   Review autosized design airflow/airflow-based metrics coupled to fan power,
   evaporation/make-up water and tower electricity;
   other tower classes, user-defined thermal models and replacement need coverage.
 - Use `openstudio-chiller-performance-editor` for one existing air- or water-cooled
-  ChillerElectricEIR reference-COP edit on a Cooling plant. Preserve curves, sizing
-  inputs/flags, condenser connections, controls and identities. Review autosized
+  ChillerElectricEIR reference COP or cooling capacity (watts/Autosize) edit on a
+  Cooling plant. Preserve curves, unrequested sizing/flow inputs, condenser
+  connections, controls and identities. Review effective plant-sizing readiness
+  for explicit Autosize and its retained evaporator-flow/factor sizing basis;
+  capacity edits also change dispatch and part-load operation. Review autosized
   condenser pump/tower changes after sizing; chiller electricity is not plant
   savings. No inferred standards minimum,
   curve substitution or class conversion. Heat recovery, thermosiphon and other
   chiller classes need separate coverage.
 - Use `openstudio-boiler-performance-editor` for explicit nominal thermal capacity
-  or capacity Autosize, HHV efficiency and on-cycle electric/off-cycle fuel parasitics
+  or capacity Autosize, minimum/maximum/optimum PLRs, HHV efficiency and
+  on-cycle electric/off-cycle fuel parasitics
   on a heating-plant BoilerHotWater. Retain identity, fuel, design-flow policy,
-  curves, PLRs, sizing factor and controls. Capacity changes can alter dispatch,
+  curves, unrequested PLRs, sizing factor and controls. Explicit PLR choices must
+  satisfy minimum ≤ optimum ≤ maximum, maximum > 0; minimum can force
+  overproduction, and optimum is a dispatch hint. Capacity/PLR changes alter dispatch,
   PLR/curve/parasitic energy or unmet loads; no inferred matching flow or savings.
   Steam boilers, fuel conversion and replacement require separate coverage.
 - Use `openstudio-terminal-replacer` for one connected single-duct VAV no-reheat

@@ -1,4 +1,4 @@
-"""Reviewed in-place variable-speed tower design fan power edits."""
+"""Reviewed in-place variable-speed tower fan power and low-load control edits."""
 
 import json
 import math
@@ -16,6 +16,36 @@ from common.plant_sizing import sizing_context, require_plant_sizing
 POWER_FIELD = "Design Fan Power"
 CURVE_FIELD = "Fan Power Ratio Function of Air Flow Rate Ratio Curve Name"
 MODELS = ("CoolToolsCrossFlow", "YorkCalc")
+FIELDS = {
+    "design_fan_power_w": ("DesignFanPower", POWER_FIELD),
+    "minimum_air_flow_ratio": (
+        "MinimumAirFlowRateRatio",
+        "Minimum Air Flow Rate Ratio",
+    ),
+    "free_convection_capacity_fraction": (
+        "FractionofTowerCapacityinFreeConvectionRegime",
+        "Fraction of Tower Capacity in Free Convection Regime",
+    ),
+}
+
+# Pinned EnergyPlus 25.2 IDD defaults; OpenStudio's optional getters omit these.
+CONTROL_DEFAULTS = {
+    "minimum_air_flow_ratio": 0.2,
+    "free_convection_capacity_fraction": 0.125,
+}
+
+
+def blank_control(tower, key):
+    index = tower.iddObject().getFieldIndex(FIELDS[key][1]).get()
+    raw = tower.getString(index)
+    return not raw.is_initialized() or not raw.get().strip()
+
+
+def control_value(tower, key):
+    if blank_control(tower, key):
+        return CONTROL_DEFAULTS[key]
+    suffix = FIELDS[key][0]
+    return optional_value(getattr(tower, suffix[0].lower() + suffix[1:])())
 
 
 def ref(obj):
@@ -85,8 +115,12 @@ def sized(tower, suffix):
     return optional.get() if optional.is_initialized() else None
 
 
-def values(tower):
-    return dict(design_fan_power_w=sized(tower, "DesignFanPower"))
+def values(tower, patch=None):
+    result = dict(design_fan_power_w=sized(tower, "DesignFanPower"))
+    for key in patch or {}:
+        if key != "design_fan_power_w":
+            result[key] = control_value(tower, key)
+    return result
 
 
 def matches(actual, expected):
@@ -115,11 +149,14 @@ def ports(tower):
     return result
 
 
-def signature(tower):
-    return fingerprint(tower, ignored=[POWER_FIELD])
+def signature(tower, patch=None):
+    return fingerprint(
+        tower,
+        ignored=[FIELDS[key][1] for key in (patch or {"design_fan_power_w": None})],
+    )
 
 
-def translated_state(model, sdk, tower):
+def translated_state(model, sdk, tower, patch=None):
     workspace = translated_workspace(
         model, sdk, "Cannot verify translated cooling tower"
     )
@@ -133,26 +170,37 @@ def translated_state(model, sdk, tower):
     if len(objects) != 1:
         raise ValueError("Cannot identify one translated variable-speed cooling tower")
     obj = objects[0]
-    index = obj.iddObject().getFieldIndex(POWER_FIELD)
-    if not index.is_initialized():
-        raise ValueError("Translated cooling tower is missing design fan power")
-    raw = optional_string(obj, index.get())
-    if raw.lower() == "autosize":
-        value = "Autosize"
-    else:
-        number = obj.getDouble(index.get())
-        if not number.is_initialized():
+    active = {"design_fan_power_w": FIELDS["design_fan_power_w"]}
+    active.update({key: FIELDS[key] for key in (patch or {})})
+    settings, excluded = {}, []
+    for key, (_, field) in active.items():
+        index = obj.iddObject().getFieldIndex(field)
+        if not index.is_initialized():
             raise ValueError(
-                "Translated tower fan power is neither numeric nor Autosize"
+                "Translated cooling tower is missing a required performance field"
             )
-        value = number.get()
+        excluded.append(index.get())
+        raw = optional_string(obj, index.get())
+        if key == "design_fan_power_w" and raw.lower() == "autosize":
+            settings[key] = "Autosize"
+        else:
+            # Resolve a genuinely blank control using the pinned EnergyPlus IDD,
+            # while malformed nonblank values must still reject.
+            number = obj.getDouble(
+                index.get(), key in CONTROL_DEFAULTS and not raw.strip()
+            )
+            if not number.is_initialized() or not math.isfinite(number.get()):
+                raise ValueError(
+                    "Translated cooling tower performance field is not numeric"
+                )
+            settings[key] = number.get()
     return dict(
         plant_sizing=sizing_context(model, sdk, workspace),
-        settings=dict(design_fan_power_w=value),
+        settings=settings,
         preserved_fields=[
             [obj.iddObject().getField(i).get().name(), optional_string(obj, i)]
             for i in range(obj.numFields())
-            if i != index.get()
+            if i not in excluded
         ],
     )
 
@@ -206,7 +254,19 @@ def plan(model, sdk, config):
         or tower.plantLoop().get().handle() != loop.handle()
     ):
         raise ValueError("Selected cooling tower plant ownership differs")
-    before, after = values(tower), dict(config["settings"])
+    patch = dict(config["settings"])
+    before = values(tower, patch)
+    defaulted = {
+        key: CONTROL_DEFAULTS[key]
+        for key in patch
+        if key in CONTROL_DEFAULTS and blank_control(tower, key)
+    }
+    if defaulted:
+        planned["source_control_defaults"] = defaulted
+        planned["warnings"].append(
+            "Blank requested controls use the pinned EnergyPlus 25.2 IDD defaults shown in source_control_defaults. Unrequested blank fields remain blank; only explicit requested edits write values"
+        )
+    after = dict(before, **patch)
     if before["design_fan_power_w"] is None:
         planned["errors"].append(
             "Source tower design fan power is unset; diagnose the incomplete source model before editing"
@@ -214,13 +274,22 @@ def plan(model, sdk, config):
         return planned
     if matches(before, after):
         planned["errors"].append(
-            "Edit must change design fan power or its sizing policy"
+            "Edit must change tower fan power, sizing policy or low-load controls"
         )
         return planned
-    translated = translated_state(model, sdk, tower)
+    if any(value is None for value in before.values()):
+        planned["errors"].append(
+            "Source tower requested control is unset; diagnose before editing"
+        )
+        return planned
+    try:
+        translated = translated_state(model, sdk, tower, patch)
+    except ValueError as exc:
+        planned["errors"].append(str(exc))
+        return planned
     if not matches(translated["settings"], before):
         planned["errors"].append(
-            "Source tower fan power disagrees with EnergyPlus translation; diagnose the source model before editing"
+            "Source tower fan power disagrees with EnergyPlus translation or requested control differs; diagnose the source model before editing"
         )
         return planned
     curve = tower.fanPowerRatioFunctionofAirFlowRateRatioCurve()
@@ -243,13 +312,13 @@ def plan(model, sdk, config):
     planned.update(
         ready=True,
         simulation_ready=True,
-        parameters=dict(output_model_path=config["output_model_path"], settings=after),
+        parameters=dict(output_model_path=config["output_model_path"], settings=patch),
         resolved_objects=dict(
             plant_loop=ref(loop), tower=ref(tower), ports=ports(tower)
         ),
         before_values=before,
         after_values=after,
-        preserved_tower=signature(tower),
+        preserved_tower=signature(tower, patch),
         before_objects=original_types(model),
         protection=protection,
         protected_objects=protected,
@@ -264,9 +333,9 @@ def plan(model, sdk, config):
             autosized_airflow_depends_on_fan_power=tower.isDesignAirFlowRateAutosized(),
             thermal_model=effective_model_type(tower),
             fan_curve=ref(curve) if curve else None,
-            minimum_air_flow_ratio=optional_value(tower.minimumAirFlowRateRatio()),
-            free_convection_capacity_fraction=optional_value(
-                tower.fractionofTowerCapacityinFreeConvectionRegime()
+            minimum_air_flow_ratio=control_value(tower, "minimum_air_flow_ratio"),
+            free_convection_capacity_fraction=control_value(
+                tower, "free_convection_capacity_fraction"
             ),
             design_wet_bulb_c=optional_value(tower.designInletAirWetBulbTemperature()),
             design_approach_k=optional_value(tower.designApproachTemperature()),
@@ -277,21 +346,41 @@ def plan(model, sdk, config):
             supply_tower_count=len(loop_ref["towers"]),
             ems_actuator_count=len(ems),
             ems_actuators=sorted(ems, key=lambda x: x["handle"])[:8],
-            preservation_policy="Retain tower identity, graph, curves, thermal/control and sizing inputs; only design fan power and its explicit Autosize flag change",
+            preservation_policy="Retain tower identity, graph, curves, design conditions, flows, staging and unrequested inputs; only explicitly requested fan power or low-load controls change",
         ),
     )
     planned["warnings"].append(
-        "Design fan power is total electrical watts for the complete tower at design airflow, not per-cell watts, motor horsepower or whole-plant efficiency. Retained fan curve, staging, free convection and controls determine runtime power; compare pumps and chillers separately"
+        "Design fan power is total electrical watts for the complete tower at design airflow, not per-cell watts, motor horsepower or whole-plant efficiency. Fan curve, staging, free convection and controls determine runtime power; compare pumps and chillers separately"
     )
-    if tower.isDesignAirFlowRateAutosized():
+    if "design_fan_power_w" in patch and tower.isDesignAirFlowRateAutosized():
         planned["warnings"].append(
             "Design tower airflow is autosized from design fan power. Changing power changes reported design/free-convection airflow; recompute airflow-based metrics. The supported thermal models use airflow ratios, so this edit alone does not imply changed cooling, condenser temperatures or chiller/pump energy. In SaturatedExit mode, absolute airflow affects evaporation and make-up water; review water use and tower fan electricity"
         )
-    if after["design_fan_power_w"] == "Autosize":
+    if patch.get("design_fan_power_w") == "Autosize":
         require_plant_sizing(planned, translated["plant_sizing"])
         planned["warnings"].append(
             "Explicit Autosize sets design fan power to 0.0105 times water density times water specific heat times tower design water volume flow times condenser-loop design delta T, using sizing-condition fluid properties. A chiller COP change affects this sizing chain when tower design water flow is autosized; with fixed tower water flow and unchanged fluid properties/delta T, it does not change the sized fan power"
         )
+    controls = set(patch) - {"design_fan_power_w"}
+    if controls:
+        planned["impact"]["low_load_controls"] = dict(
+            before={key: before[key] for key in sorted(controls)},
+            after={key: after[key] for key in sorted(controls)},
+            minimum_air_flow_ratio_limits=[0.2, 0.5],
+            free_convection_capacity_fraction_limits=[0, 0.2],
+            fan_curve_policy="Retain configured curve or implicit cubic; no fan-power floor is inferred",
+        )
+        planned["warnings"].append(
+            "Low-load settings change actual thermal operation and fan electricity, not just rated fan watts. Minimum airflow ratio is the fan-on modulation floor; below it EnergyPlus cycles the fan to meet the water setpoint, so reported average airflow can be lower. Free-convection fraction estimates fan-off heat rejection at current conditions, not guaranteed annual free cooling or a fan speed. It does not switch off the condenser pump; verify cooling delivered, fan cycling, chiller/pump energy and make-up water before claiming savings"
+        )
+        if "minimum_air_flow_ratio" in controls:
+            planned["warnings"].append(
+                "Changing minimum airflow can shift cycling and minimum-speed fan power through the retained curve. EnergyPlus also derives reported free-convection design airflow from minimum airflow ratio times design airflow; sizing inputs remain unchanged"
+            )
+        if "free_convection_capacity_fraction" in controls:
+            planned["warnings"].append(
+                "The free-convection fraction is a manufacturer/performance assumption; do not infer it from a desired savings percentage. Zero removes the modeled fan-off heat-rejection contribution, while higher fractions can extend fan-off operation and can overcool water below setpoint. Runtime free-convection airflow ratio reporting uses this fraction; design free-convection airflow instead uses minimum airflow ratio"
+            )
     if ems:
         planned["warnings"].append(
             "Retained tower EMS can override operation; verify results before claiming energy savings"
@@ -306,7 +395,7 @@ def plan(model, sdk, config):
     )
     if not has_pump or not loop.supplyOutletNode().setpointManagers():
         planned["warnings"].append(
-            "Existing condenser plant lacks an identified supply pump or outlet setpoint manager; a fan-power edit does not repair flow or temperature controls"
+            "Existing condenser plant lacks an identified supply pump or outlet setpoint manager; a tower performance edit does not repair flow or temperature controls"
         )
         planned["simulation_ready"] = False
     return planned
@@ -314,17 +403,20 @@ def plan(model, sdk, config):
 
 def edit(model, sdk, planned):
     tower = tower_object(model, sdk, planned["resolved_objects"]["tower"])
-    before = values(tower)
-    value = planned["after_values"]["design_fan_power_w"]
-    if value == "Autosize":
-        call(tower, "autosizeDesignFanPower")
-    else:
-        call(tower, "setDesignFanPower", value)
-    return dict(tower=ref(tower), before=before, after=values(tower))
+    patch = planned["parameters"]["settings"]
+    before = values(tower, patch)
+    for key, value in patch.items():
+        suffix = FIELDS[key][0]
+        if key == "design_fan_power_w" and value == "Autosize":
+            call(tower, "autosizeDesignFanPower")
+        else:
+            call(tower, "set" + suffix, value)
+    return dict(tower=ref(tower), before=before, after=values(tower, patch))
 
 
 def validate_model(model, sdk, planned, result):
     r = planned["resolved_objects"]
+    patch = planned["parameters"]["settings"]
     tower = tower_object(model, sdk, r["tower"])
     checks = {
         "Tower identity/name/class changed": ref(tower)
@@ -334,10 +426,10 @@ def validate_model(model, sdk, planned, result):
             result["before"], planned["before_values"]
         )
         and matches(result["after"], planned["after_values"]),
-        "Saved tower power or sizing flag differs": matches(
-            values(tower), planned["after_values"]
+        "Saved tower settings differ": matches(
+            values(tower, patch), planned["after_values"]
         ),
-        "Unrequested tower fields changed": signature(tower)
+        "Unrequested tower fields changed": signature(tower, patch)
         == planned["preserved_tower"],
         "Tower boundary nodes changed": ports(tower) == r["ports"],
         "Tower plant ownership changed": tower.plantLoop().is_initialized()
@@ -349,8 +441,8 @@ def validate_model(model, sdk, planned, result):
         ),
     }
     if all(checks.values()):
-        translated = translated_state(model, sdk, tower)
-        checks["Translated tower fan power differs"] = matches(
+        translated = translated_state(model, sdk, tower, patch)
+        checks["Translated tower settings differ"] = matches(
             translated["settings"], planned["after_values"]
         )
         checks["Unrequested translated tower fields changed"] = (

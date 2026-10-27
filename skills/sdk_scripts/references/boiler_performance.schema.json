@@ -81,6 +81,21 @@
             }
           ],
           "description": "Positive useful thermal output watts or explicit Autosize; retained PLRs affect dispatch/output limits. Flow and sizing factor are preserved."
+        },
+        "minimum_part_load_ratio": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Explicit ratio; combined effective settings must satisfy minimum <= optimum <= maximum. Values above 1 are not clipped; maximum above 1 requires equipment/curve review."
+        },
+        "maximum_part_load_ratio": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Explicit ratio; combined effective settings must satisfy minimum <= optimum <= maximum. Values above 1 are not clipped; maximum above 1 requires equipment/curve review."
+        },
+        "optimum_part_load_ratio": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Explicit ratio; combined effective settings must satisfy minimum <= optimum <= maximum. Values above 1 are not clipped; maximum above 1 requires equipment/curve review."
         }
       }
     }

@@ -19,11 +19,25 @@ from test_district_capacity import (
 )
 
 sys.path.insert(0, str(SCRIPTS))
-from common import boiler_edit, tower_edit, district_edit, model_transaction as tx
+from common import (
+    boiler_edit,
+    tower_edit,
+    district_edit,
+    chiller_edit,
+    model_transaction as tx,
+)
 from common.plant_sizing import sizing_context
 
 
 def operation(o, folder, kind):
+    if kind == "chiller":
+        from test_chiller_performance import fixture, config
+
+        source, model, obj = fixture(o, folder)
+        obj.setReferenceCapacity(10000)
+        cfg = config(folder)
+        cfg["settings"] = dict(reference_capacity_w="Autosize")
+        return source, model, obj, chiller_edit, "edit_chiller_performance", cfg
     if kind == "boiler":
         source, model, obj = boiler_fixture(o, folder)
         obj.setNominalCapacity(10000)
@@ -56,7 +70,7 @@ def operation(o, folder, kind):
     )
 
 
-@pytest.mark.parametrize("kind", ["boiler", "tower", "district"])
+@pytest.mark.parametrize("kind", ["boiler", "tower", "district", "chiller"])
 @pytest.mark.parametrize(
     "days,flag,effective,ready",
     [

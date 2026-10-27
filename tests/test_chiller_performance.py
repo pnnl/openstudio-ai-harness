@@ -110,6 +110,8 @@ def native_run(o, source, folder, chiller_handle, extra_outputs=()):
         "Chiller Part Load Ratio",
         "Chiller Evaporator Outlet Temperature",
         "Chiller Condenser Heat Transfer Energy",
+        "Chiller Cycling Ratio",
+        "Chiller False Load Heat Transfer Energy",
     ]
     for variable in variables:
         output = o.model.OutputVariable(variable, model)
@@ -206,6 +208,11 @@ def native_run(o, source, folder, chiller_handle, extra_outputs=()):
             max(x[3] for x in data[variables[3]]),
         ],
         condenser_heat_j=sum(x[3] for x in data[variables[4]]),
+        cycling_range=[
+            min(x[3] for x in data[variables[5]]),
+            max(x[3] for x in data[variables[5]]),
+        ],
+        false_load_j=sum(x[3] for x in data[variables[6]]),
         sizes=sizes,
         warnings=err,
         condenser_equipment=auxiliary,
@@ -233,81 +240,10 @@ def native_run(o, source, folder, chiller_handle, extra_outputs=()):
 def test_native_cop_edit_cooling_electricity_and_sizing(
     sdk, tmp_path, kind, autosized_condenser, rejection_fraction
 ):
-    from vav_fixture import prepare_vav_fixture
-    from test_supply_fan_performance import native_cli
-    from common import vav_create, vav_plan
-
-    native_cli()
+    source, model, chiller, original_fixture, original_bytes = native_fixture(
+        sdk, tmp_path, kind, autosized_condenser, rejection_fraction
+    )
     o = sdk[0]
-    unserved, cfg, original_fixture, original_bytes = prepare_vav_fixture(
-        o, tmp_path, True
-    )
-    model = o.osversion.VersionTranslator().loadModel(str(unserved)).get()
-    from common.hvac_inventory import inventory as model_inventory
-
-    planned = vav_plan.plan(cfg, model_inventory(model), unserved)
-    assert planned["ready"], planned
-    vav_create.create(model, o, planned)
-    loop = model.getPlantLoopByName("Fixture CHW").get()
-    model.getDistrictCoolings()[0].remove()
-    chiller = o.model.ChillerElectricEIR(model)
-    chiller.setName("Native Chiller")
-    chiller.setReferenceCOP(4)
-    assert chiller.setFractionofCompressorElectricConsumptionRejectedbyCondenser(
-        rejection_fraction
-    )
-    if kind == "AirCooled":
-        assert chiller.setCondenserType(kind)
-    chiller.setReferenceLeavingChilledWaterTemperature(6.666667)
-    chiller.setChillerFlowMode("LeavingSetpointModulated")
-    chiller.autosizeReferenceCapacity()
-    chiller.autosizeReferenceChilledWaterFlowRate()
-    assert loop.addSupplyBranchForComponent(chiller)
-    supply_temperature = o.model.ScheduleConstant(model)
-    supply_temperature.setValue(6.666667)
-    assert o.model.SetpointManagerScheduled(model, supply_temperature).addToNode(
-        chiller.supplyOutletModelObject().get().to_Node().get()
-    )
-    if kind == "WaterCooled":
-        condenser = o.model.PlantLoop(model)
-        condenser.setName("Native Condenser")
-        condenser.sizingPlant().setLoopType("Condenser")
-        condenser.sizingPlant().setDesignLoopExitTemperature(29)
-        condenser.sizingPlant().setLoopDesignTemperatureDifference(5)
-        pump = o.model.PumpVariableSpeed(model)
-        assert pump.addToNode(condenser.supplyInletNode())
-        if autosized_condenser:
-            source = o.model.CoolingTowerVariableSpeed(model)
-            source.setDesignRangeTemperature(5)
-            source.setDesignApproachTemperature(3.4)
-        else:
-            source = o.model.CoolingTowerSingleSpeed(model)
-            assert source.setPerformanceInputMethod(
-                "UFactorTimesAreaAndDesignWaterFlowRate"
-            )
-            source.setUFactorTimesAreaValueatDesignAirFlowRate(10000)
-            source.setUFactorTimesAreaValueatFreeConvectionAirFlowRate(0)
-            source.setDesignWaterFlowRate(0.005)
-            source.setDesignAirFlowRate(10)
-            source.setFanPoweratDesignAirFlowRate(500)
-        assert condenser.addSupplyBranchForComponent(source)
-        assert condenser.addDemandBranchForComponent(chiller)
-        for side in ("Supply", "Demand"):
-            assert getattr(condenser, "add" + side + "BranchForComponent")(
-                o.model.PipeAdiabatic(model)
-            )
-        schedule = o.model.ScheduleConstant(model)
-        schedule.setValue(29)
-        assert o.model.SetpointManagerScheduled(model, schedule).addToNode(
-            condenser.supplyOutletNode()
-        )
-        assert chiller.setCondenserType("WaterCooled")
-        if autosized_condenser:
-            chiller.autosizeReferenceCondenserFluidFlowRate()
-        else:
-            chiller.setReferenceCondenserFluidFlowRate(0.005)
-    source = tmp_path / "before.osm"
-    assert model.save(str(source), True)
     original = source.read_bytes()
     request = config(tmp_path)
     request.update(
@@ -695,7 +631,8 @@ def test_csv_companions_relocate_or_reject_changed_resource(
 
 
 @pytest.mark.parametrize("host", ["claude", "codex"])
-def test_native_relocated_exports(sdk, tmp_path, host):
+@pytest.mark.parametrize("capacity", [False, True])
+def test_native_relocated_exports(sdk, tmp_path, host, capacity):
     import shutil
     import subprocess
     from adapters.claude_code_adapter import ClaudeCodeAdapter
@@ -729,7 +666,10 @@ def test_native_relocated_exports(sdk, tmp_path, host):
     skill = copy_plugin_for_skill(skill, tmp_path / "relocated")
     shutil.rmtree(exported)
     cfg = tmp_path / "request.json"
-    cfg.write_text(json.dumps(config(tmp_path)))
+    request = config(tmp_path)
+    if capacity:
+        request["settings"] = dict(reference_capacity_w=60000)
+    cfg.write_text(json.dumps(request))
     plan = tmp_path / "reviewed.json"
     repeated = tmp_path / "repeated.json"
     script = skill / "scripts/edit_chiller_performance.py"
@@ -826,7 +766,16 @@ def test_condenser_autosizing_impact_identifies_pump_and_tower(sdk, tmp_path, mo
 
 
 @pytest.mark.parametrize(
-    "problem", ["cop", "capacity_curve", "eir_temperature_curve", "eir_plr_curve"]
+    "problem",
+    [
+        "cop",
+        "capacity",
+        "capacity_text",
+        "capacity_empty",
+        "capacity_curve",
+        "eir_temperature_curve",
+        "eir_plr_curve",
+    ],
 )
 def test_source_translation_problems_are_plan_errors_without_failure_capture(
     sdk, tmp_path, monkeypatch, problem
@@ -841,13 +790,18 @@ def test_source_translation_problems_are_plan_errors_without_failure_capture(
         obj = workspace.getObjectsByType(sdk.IddObjectType("Chiller_Electric_EIR"))[0]
         field = {
             "cop": "Reference COP",
+            "capacity": "Reference Capacity",
+            "capacity_text": "Reference Capacity",
+            "capacity_empty": "Reference Capacity",
             "capacity_curve": "Cooling Capacity Function of Temperature Curve Name",
             "eir_temperature_curve": "Electric Input to Cooling Output Ratio Function of Temperature Curve Name",
             "eir_plr_curve": "Electric Input to Cooling Output Ratio Function of Part Load Ratio Curve Name",
         }[problem]
         index = obj.iddObject().getFieldIndex(field).get()
-        if problem == "cop":
+        if problem in ("cop", "capacity"):
             assert obj.setDouble(index, 8)
+        elif problem == "capacity_text":
+            assert obj.setString(index, "not-a-number")
         else:
             assert obj.setString(index, "")
         return workspace
@@ -858,7 +812,10 @@ def test_source_translation_problems_are_plan_errors_without_failure_capture(
         tx, "capture_exception", lambda *args, **kwargs: captured.append(args) or {}
     )
     cfg = tmp_path / "request.json"
-    cfg.write_text(json.dumps(config(tmp_path)))
+    request = config(tmp_path)
+    if problem in ("capacity", "capacity_text", "capacity_empty"):
+        request["settings"] = dict(reference_capacity_w=60000)
+    cfg.write_text(json.dumps(request))
     output = tmp_path / "blocked.json"
     monkeypatch.setattr(
         sys,
@@ -889,9 +846,16 @@ def test_source_translation_problems_are_plan_errors_without_failure_capture(
         and not report["ready"]
         and not report["plan"]["simulation_ready"]
     )
-    assert (
-        "COP disagrees" if problem == "cop" else "curves do not survive"
-    ) in " ".join(report["plan"]["errors"])
+    expected = (
+        "Reference Capacity is not"
+        if problem in ("capacity_text", "capacity_empty")
+        else (
+            "COP disagrees"
+            if problem in ("cop", "capacity")
+            else "curves do not survive"
+        )
+    )
+    assert expected in " ".join(report["plan"]["errors"])
     assert captured == []
     assert source.read_bytes() == original
     assert not (tmp_path / "edited.osm").exists()
@@ -927,3 +891,490 @@ def test_defaulted_pump_autosizing_is_listed(sdk, tmp_path, pump_class):
         index = pump.iddObject().getFieldIndex("Rated Flow Rate").get()
         assert pump.getString(index).get() == ""
         assert pump.isRatedFlowRateAutosized()
+
+
+def native_fixture(
+    sdk, tmp_path, kind="AirCooled", autosized_condenser=False, rejection_fraction=0.8
+):
+    from vav_fixture import prepare_vav_fixture
+    from test_supply_fan_performance import native_cli
+    from common import vav_create, vav_plan
+
+    native_cli()
+    o = sdk[0]
+    unserved, cfg, original_fixture, original_bytes = prepare_vav_fixture(
+        o, tmp_path, True
+    )
+    model = o.osversion.VersionTranslator().loadModel(str(unserved)).get()
+    from common.hvac_inventory import inventory as model_inventory
+
+    planned = vav_plan.plan(cfg, model_inventory(model), unserved)
+    assert planned["ready"], planned
+    vav_create.create(model, o, planned)
+    loop = model.getPlantLoopByName("Fixture CHW").get()
+    model.getDistrictCoolings()[0].remove()
+    chiller = o.model.ChillerElectricEIR(model)
+    chiller.setName("Native Chiller")
+    chiller.setReferenceCOP(4)
+    assert chiller.setFractionofCompressorElectricConsumptionRejectedbyCondenser(
+        rejection_fraction
+    )
+    if kind == "AirCooled":
+        assert chiller.setCondenserType(kind)
+    chiller.setReferenceLeavingChilledWaterTemperature(6.666667)
+    chiller.setChillerFlowMode("LeavingSetpointModulated")
+    chiller.autosizeReferenceCapacity()
+    chiller.autosizeReferenceChilledWaterFlowRate()
+    assert loop.addSupplyBranchForComponent(chiller)
+    supply_temperature = o.model.ScheduleConstant(model)
+    supply_temperature.setValue(6.666667)
+    assert o.model.SetpointManagerScheduled(model, supply_temperature).addToNode(
+        chiller.supplyOutletModelObject().get().to_Node().get()
+    )
+    if kind == "WaterCooled":
+        condenser = o.model.PlantLoop(model)
+        condenser.setName("Native Condenser")
+        condenser.sizingPlant().setLoopType("Condenser")
+        condenser.sizingPlant().setDesignLoopExitTemperature(29)
+        condenser.sizingPlant().setLoopDesignTemperatureDifference(5)
+        pump = o.model.PumpVariableSpeed(model)
+        assert pump.addToNode(condenser.supplyInletNode())
+        if autosized_condenser:
+            source = o.model.CoolingTowerVariableSpeed(model)
+            source.setDesignRangeTemperature(5)
+            source.setDesignApproachTemperature(3.4)
+        else:
+            source = o.model.CoolingTowerSingleSpeed(model)
+            assert source.setPerformanceInputMethod(
+                "UFactorTimesAreaAndDesignWaterFlowRate"
+            )
+            source.setUFactorTimesAreaValueatDesignAirFlowRate(10000)
+            source.setUFactorTimesAreaValueatFreeConvectionAirFlowRate(0)
+            source.setDesignWaterFlowRate(0.005)
+            source.setDesignAirFlowRate(10)
+            source.setFanPoweratDesignAirFlowRate(500)
+        assert condenser.addSupplyBranchForComponent(source)
+        assert condenser.addDemandBranchForComponent(chiller)
+        for side in ("Supply", "Demand"):
+            assert getattr(condenser, "add" + side + "BranchForComponent")(
+                o.model.PipeAdiabatic(model)
+            )
+        schedule = o.model.ScheduleConstant(model)
+        schedule.setValue(29)
+        assert o.model.SetpointManagerScheduled(model, schedule).addToNode(
+            condenser.supplyOutletNode()
+        )
+        assert chiller.setCondenserType("WaterCooled")
+        if autosized_condenser:
+            chiller.autosizeReferenceCondenserFluidFlowRate()
+        else:
+            chiller.setReferenceCondenserFluidFlowRate(0.005)
+    source = tmp_path / "before.osm"
+    assert model.save(str(source), True)
+    return source, model, chiller, original_fixture, original_bytes
+
+
+@pytest.mark.parametrize("kind", ["AirCooled", "WaterCooled"])
+@pytest.mark.parametrize("capacity", [60000, "Autosize"])
+@pytest.mark.parametrize("with_cop", [False, True])
+def test_reference_capacity_edit_preserves_graph(
+    sdk, tmp_path, kind, capacity, with_cop
+):
+    o = sdk[0]
+    source, model, chiller = fixture(o, tmp_path, kind)
+    chiller.setReferenceCapacity(100000)
+    model.save(str(source), True)
+    original = source.read_bytes()
+    cfg = config(tmp_path)
+    cfg["settings"] = dict(reference_capacity_w=capacity)
+    if with_cop:
+        cfg["settings"]["reference_cop"] = 5
+    report = preflight(source, cfg)
+    assert report["ready"], report
+    assert report == preflight(source, cfg)
+    plan = report["plan"]
+    assert plan["impact"]["reference_capacity_w"] == 100000
+    assert plan["impact"]["capacity_edit"]["after_w"] == capacity
+    assert plan["parameters"]["settings"] == cfg["settings"]
+    result = apply(report, tmp_path)
+    assert result["validation"]["ok"] and result["translation"]["ok"]
+    saved = o.osversion.VersionTranslator().loadModel(result["output_model_path"]).get()
+    current = saved.getChillerElectricEIR(chiller.handle()).get()
+    assert chillers.sized(current, "ReferenceCapacity") == capacity
+    assert current.referenceCOP() == (5 if with_cop else 4)
+    assert chillers.connections(current) == chillers.connections(chiller)
+    assert source.read_bytes() == original
+
+
+@pytest.mark.parametrize(
+    "capacity",
+    [0, -1, True, float("nan"), float("inf"), "60000", "Autocalculate", None],
+)
+def test_invalid_reference_capacity(sdk, tmp_path, capacity):
+    source, _, _ = fixture(sdk[0], tmp_path)
+    cfg = config(tmp_path)
+    cfg["settings"] = dict(reference_capacity_w=capacity)
+    with pytest.raises(ValueError, match="Invalid chiller performance"):
+        preflight(source, cfg)
+    assert not (tmp_path / "edited.osm").exists()
+
+
+@pytest.mark.parametrize("capacity", [100000, "Autosize"])
+def test_capacity_noop_rejected(sdk, tmp_path, capacity):
+    source, model, chiller = fixture(sdk[0], tmp_path)
+    if capacity != "Autosize":
+        chiller.setReferenceCapacity(capacity)
+    model.save(str(source), True)
+    cfg = config(tmp_path)
+    cfg["settings"] = dict(reference_capacity_w=capacity)
+    report = preflight(source, cfg)
+    assert not report["ready"] and "must change" in " ".join(report["plan"]["errors"])
+
+
+def test_capacity_other_chillers_bounded(sdk, tmp_path):
+    o = sdk[0]
+    source, model, chiller = fixture(o, tmp_path)
+    loop = chiller.plantLoop().get()
+    for i in range(10):
+        other = o.model.ChillerElectricEIR(model)
+        other.setName(f"Other {i:02}")
+        other.setSizingFactor(0.5)
+        if i % 2 == 0:
+            other.setReferenceCapacity(50000)
+        loop.addSupplyBranchForComponent(other)
+    model.save(str(source), True)
+    cfg = config(tmp_path)
+    cfg["settings"] = dict(reference_capacity_w=60000)
+    report = preflight(source, cfg)
+    assert report["ready"], report
+    impact = report["plan"]["impact"]["capacity_edit"]
+    assert impact["other_chiller_count"] == 10
+    assert (
+        len(impact["other_chillers"]) == 8
+        and impact["omitted_other_chiller_count"] == 2
+    )
+    assert {x["sizing_factor"] for x in impact["other_chillers"]} == {0.5}
+    assert {x["reference_capacity_w"] for x in impact["other_chillers"]} == {
+        50000,
+        "Autosize",
+    }
+
+
+@pytest.mark.parametrize("field", ["cop", "flow", "factor", "curve", "capacity"])
+def test_capacity_unrequested_changes_fail_validation(sdk, tmp_path, field):
+    source, _, _ = fixture(sdk[0], tmp_path)
+    cfg = config(tmp_path)
+    cfg["settings"] = dict(reference_capacity_w=60000)
+    report = preflight(source, cfg)
+
+    def changed(model, o, planned):
+        result = chillers.edit(model, o, planned)
+        obj = chillers.chiller_object(model, o, planned["resolved_objects"]["chiller"])
+        if field == "cop":
+            obj.setReferenceCOP(9)
+        elif field == "flow":
+            obj.setReferenceChilledWaterFlowRate(0.01)
+        elif field == "factor":
+            obj.setSizingFactor(0.5)
+        elif field == "curve":
+            obj.coolingCapacityFunctionOfTemperature().setName("Changed Curve")
+        else:
+            obj.setReferenceCapacity(70000)
+        return result
+
+    with pytest.raises(ValueError, match="validation"):
+        apply(report, tmp_path, changed)
+    assert not (tmp_path / "edited.osm").exists()
+
+
+@pytest.mark.parametrize(
+    "kind,capacity",
+    [
+        ("AirCooled", 100000),
+        ("AirCooled", "Autosize"),
+        ("WaterCooled", 100000),
+        ("AirCooled", 1000),
+    ],
+)
+def test_native_reference_capacity_part_load_and_sizing(sdk, tmp_path, kind, capacity):
+    o = sdk[0]
+    source, model, chiller, _, _ = native_fixture(
+        sdk, tmp_path, kind, kind == "WaterCooled"
+    )
+    chiller.setReferenceCapacity(200000)
+    if capacity == 1000:
+        chiller.setChillerFlowMode("ConstantFlow")
+    assert model.save(str(source), True)
+    original = source.read_bytes()
+    request = config(tmp_path)
+    request.update(
+        plant_loop=dict(name="Fixture CHW"),
+        chiller=dict(name="Native Chiller"),
+        settings=dict(reference_capacity_w=capacity),
+    )
+    report = preflight(source, request)
+    assert report["ready"] and report["plan"]["simulation_ready"], report
+    result = apply(report, tmp_path)
+    before = native_run(o, source, tmp_path / "before_run", str(chiller.handle()))
+    after = native_run(
+        o,
+        Path(result["output_model_path"]),
+        tmp_path / "after_run",
+        str(chiller.handle()),
+    )
+    assert before["hours"] == after["hours"] == 72
+    assert before["cooling_j"] > 1e8
+    assert after["cooling_j"] > 0
+    # Capacity changes can change delivered cooling; this is not a savings test.
+    if capacity == 1000:
+        assert after["cooling_j"] < before["cooling_j"]
+        assert after["outlet_range_c"][1] > 6.666667 + 1
+    else:
+        assert after["outlet_range_c"] == pytest.approx([6.666667, 6.666667], abs=1e-5)
+    assert after["plr_range"][1] > before["plr_range"][1]
+    old_sizes, new_sizes = dict(before["sizes"]), dict(after["sizes"])
+    assert old_sizes["User-Specified Reference Capacity"] == 200000
+    if capacity == "Autosize":
+        actual = new_sizes["Design Size Reference Capacity"]
+        assert 10000 < actual < 200000
+    else:
+        actual = new_sizes["User-Specified Reference Capacity"]
+        assert actual == capacity
+    assert new_sizes["Design Size Reference Chilled Water Flow Rate"] == pytest.approx(
+        old_sizes["Design Size Reference Chilled Water Flow Rate"], rel=1e-6
+    )
+    if kind == "WaterCooled":
+        key = "Design Size Reference Condenser Fluid Flow Rate"
+        assert new_sizes[key] / old_sizes[key] == pytest.approx(
+            actual / 200000, rel=1e-6
+        )
+        for name, old in before["condenser_equipment"].items():
+            new = after["condenser_equipment"][name]
+            assert any(dict(new["sizes"])[key] < value for key, value in old["sizes"])
+    assert source.read_bytes() == original
+    (tmp_path / "native_capacity_evidence.json").write_text(
+        json.dumps(
+            dict(
+                kind=kind,
+                requested_capacity_w=capacity,
+                before=before,
+                after=after,
+                validation=result["validation"],
+                translation=result["translation"],
+                source_unchanged=True,
+            ),
+            indent=2,
+        )
+    )
+
+
+@pytest.mark.parametrize("fixed_flow", [False, True])
+def test_native_capacity_autosize_basis(sdk, tmp_path, fixed_flow):
+    import sqlite3
+
+    o = sdk[0]
+    source, model, chiller, _, _ = native_fixture(sdk, tmp_path)
+    chiller.setReferenceCapacity(200000)
+    loop = chiller.plantLoop().get()
+    if fixed_flow:
+        chiller.setReferenceChilledWaterFlowRate(0.004)
+        chiller.setSizingFactor(0.5)
+    else:
+        other = chiller.clone(model).to_ChillerElectricEIR().get()
+        other.setName("Second Chiller")
+        other.autosizeReferenceCapacity()
+        other.setSizingFactor(1)
+        assert loop.addSupplyBranchForComponent(other)
+    assert model.save(str(source), True)
+    cfg = config(tmp_path)
+    cfg.update(
+        plant_loop=dict(name="Fixture CHW"),
+        chiller=dict(name="Native Chiller"),
+        settings=dict(reference_capacity_w="Autosize"),
+    )
+    report = preflight(source, cfg)
+    assert report["ready"] and report["plan"]["simulation_ready"], report
+    basis = report["plan"]["impact"]["capacity_edit"]["autosize_flow_basis"]
+    assert basis == (
+        "retained_fixed_evaporator_flow"
+        if fixed_flow
+        else "plant_design_flow_times_sizing_factor"
+    )
+    result = apply(report, tmp_path)
+    observed = native_run(
+        o,
+        Path(result["output_model_path"]),
+        tmp_path / "after_run",
+        str(chiller.handle()),
+    )
+    capacity = dict(observed["sizes"])["Design Size Reference Capacity"]
+    evidence = dict(fixed_evaporator_flow=fixed_flow, basis=basis, observed=observed)
+    if fixed_flow:
+        expected = (
+            0.004 * 4180 * 1000 * loop.sizingPlant().loopDesignTemperatureDifference()
+        )
+        assert capacity == pytest.approx(expected, rel=0.01)
+        evidence["approximate_fluid_property_capacity_w"] = expected
+    else:
+        with sqlite3.connect(tmp_path / "after_run/run/eplusout.sql") as sql:
+            other_capacity = sql.execute(
+                "SELECT Value FROM ComponentSizes WHERE lower(CompName)=lower(?) AND Description=?",
+                ("Second Chiller", "Design Size Reference Capacity"),
+            ).fetchone()[0]
+        assert capacity == pytest.approx(other_capacity, rel=1e-6)
+        assert capacity > 10000
+        evidence["other_capacity_w"] = other_capacity
+    (tmp_path / "native_capacity_basis_evidence.json").write_text(
+        json.dumps(evidence, indent=2)
+    )
+
+
+@pytest.mark.parametrize("mode", ["stale", "tampered"])
+def test_reference_capacity_exact_source_and_plan_checks(sdk, tmp_path, mode):
+    source, _, _ = fixture(sdk[0], tmp_path)
+    request = config(tmp_path)
+    request["settings"] = dict(reference_capacity_w=60000)
+    report = preflight(source, request)
+    if mode == "stale":
+        source.write_bytes(source.read_bytes() + b"\n! changed\n")
+    else:
+        report["plan"]["parameters"]["settings"]["reference_capacity_w"] = 70000
+    with pytest.raises(ValueError):
+        apply(report, tmp_path)
+    assert not (tmp_path / "edited.osm").exists()
+
+
+@pytest.mark.parametrize("kind", ["AirCooled", "WaterCooled"])
+@pytest.mark.parametrize(
+    "before,after", [(50000, 100000), ("Autosize", 100000), (50000, "Autosize")]
+)
+@pytest.mark.parametrize("ratio", [0, 0.02])
+def test_capacity_condenser_fan_scaling_is_reviewed(
+    sdk, tmp_path, kind, before, after, ratio
+):
+    o = sdk[0]
+    source, model, chiller = fixture(o, tmp_path, kind)
+    if before != "Autosize":
+        chiller.setReferenceCapacity(before)
+    assert chiller.setCondenserFanPowerRatio(ratio)
+    assert model.save(str(source), True)
+    original = source.read_bytes()
+    cfg = config(tmp_path)
+    cfg["settings"] = dict(reference_capacity_w=after)
+    report = preflight(source, cfg)
+    assert report["ready"], report
+    assert report == preflight(source, cfg)
+    warnings = " ".join(report["warnings"])
+    assert ("condenser fan power ratio is positive" in warnings) is (ratio > 0)
+    impact = report["plan"]["impact"]["capacity_edit"]
+    if ratio:
+        assert impact["condenser_fan"] == dict(
+            power_ratio=ratio,
+            before_full_cycling_w=(
+                before * ratio
+                if isinstance(before, (int, float))
+                else "Requires sizing"
+            ),
+            after_full_cycling_w=(
+                after * ratio if isinstance(after, (int, float)) else "Requires sizing"
+            ),
+        )
+        assert "including WaterCooled" in warnings
+    else:
+        assert "condenser_fan" not in impact
+    assert apply(report, tmp_path)["validation"]["ok"]
+    assert source.read_bytes() == original
+
+
+@pytest.mark.parametrize("capacity", [100000, "Autosize"])
+def test_capacity_dispatch_numbers_exclude_temperature_curve(sdk, tmp_path, capacity):
+    o = sdk[0]
+    source, model, chiller = fixture(o, tmp_path)
+    chiller.setReferenceCapacity(50000)
+    chiller.setMinimumPartLoadRatio(0.1)
+    chiller.setMaximumPartLoadRatio(1.1)
+    chiller.setOptimumPartLoadRatio(0.7)
+    curve = chiller.coolingCapacityFunctionOfTemperature().to_CurveBiquadratic().get()
+    curve.setCoefficient1Constant(0.8)
+    assert model.save(str(source), True)
+    cfg = config(tmp_path)
+    cfg["settings"] = dict(reference_capacity_w=capacity)
+    report = preflight(source, cfg)
+    assert report["ready"], report
+    impact = report["plan"]["impact"]["capacity_edit"]
+    assert impact["dispatch_load_limits_w"] == {
+        key: (
+            capacity * fraction
+            if isinstance(capacity, (int, float))
+            else "Requires sizing"
+        )
+        for key, fraction in [("minimum", 0.1), ("maximum", 1.1), ("optimal", 0.7)]
+    }
+    assert impact["dispatch_limits_exclude_temperature_curve"] is True
+    assert (
+        impact["load_distribution_scheme"]
+        == chiller.plantLoop().get().loadDistributionScheme()
+    )
+    assert apply(report, tmp_path)["validation"]["ok"]
+
+
+def test_native_condenser_fan_scales_with_capacity_at_equal_cooling(sdk, tmp_path):
+    o = sdk[0]
+    source, model, chiller, _, _ = native_fixture(sdk, tmp_path)
+    chiller.setReferenceCapacity(50000)
+    chiller.setMinimumPartLoadRatio(0.001)
+    chiller.setMinimumUnloadingRatio(0.001)
+    chiller.setCondenserFanPowerRatio(0.02)
+    assert model.save(str(source), True)
+    original = source.read_bytes()
+    cfg = config(tmp_path)
+    cfg.update(
+        plant_loop=dict(name="Fixture CHW"),
+        chiller=dict(name="Native Chiller"),
+        settings=dict(reference_capacity_w=100000),
+    )
+    report = preflight(source, cfg)
+    assert report["ready"] and report["plan"]["simulation_ready"], report
+    assert "condenser fan power ratio is positive" in " ".join(report["warnings"])
+    result = apply(report, tmp_path)
+    extra = [
+        (chiller.nameString(), "Chiller Condenser Fan Electricity Energy"),
+        (chiller.nameString(), "Chiller Condenser Fan Electricity Rate"),
+    ]
+    before = native_run(
+        o, source, tmp_path / "before_run", str(chiller.handle()), extra
+    )
+    after = native_run(
+        o,
+        Path(result["output_model_path"]),
+        tmp_path / "after_run",
+        str(chiller.handle()),
+        extra,
+    )
+    assert before["hours"] == after["hours"] == 72
+    assert before["cooling_j"] > 1e8
+    assert after["cooling_j"] == pytest.approx(before["cooling_j"], rel=1e-5)
+    for observed, watts in [(before, 1000), (after, 2000)]:
+        assert observed["cycling_range"] == pytest.approx([1, 1])
+        outputs = observed["extra_outputs"][chiller.nameString()]
+        power = [row[3] for row in outputs["Chiller Condenser Fan Electricity Rate"]]
+        assert min(power) == pytest.approx(watts) and max(power) == pytest.approx(watts)
+        observed["condenser_fan_electricity_j"] = sum(
+            row[3] for row in outputs["Chiller Condenser Fan Electricity Energy"]
+        )
+    assert after["condenser_fan_electricity_j"] / before[
+        "condenser_fan_electricity_j"
+    ] == pytest.approx(2)
+    assert source.read_bytes() == original
+    (tmp_path / "native_condenser_fan_evidence.json").write_text(
+        json.dumps(
+            dict(
+                before=before,
+                after=after,
+                source_unchanged=True,
+                validation=result["validation"],
+                translation=result["translation"],
+            ),
+            indent=2,
+        )
+    )

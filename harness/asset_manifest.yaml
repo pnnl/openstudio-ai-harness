@@ -2029,6 +2029,9 @@ resources:
       - hosts: [claude, codex]
         skill: openstudio-district-capacity-editor
         path: scripts/common/plant_sizing.py
+      - hosts: [claude, codex]
+        skill: openstudio-chiller-performance-editor
+        path: scripts/common/plant_sizing.py
 
 skills:
   - id: openstudio-district-capacity-editor

@@ -119,7 +119,7 @@ def test_saved_values_identity_references_and_curve(sdk, tmp_path, fuel, curve):
         dict(off_cycle_parasitic_fuel_load_w=-1),
         dict(nominal_capacity_w=0),
         dict(fuel_type="Electricity"),
-        dict(minimum_part_load_ratio=0.2),
+        dict(minimum_part_load_ratio=-0.2),
         dict(flow_mode="ConstantFlow"),
         dict(normalized_efficiency_curve={"name": "curve"}),
     ],
@@ -477,7 +477,7 @@ def test_csv_companions_relocate_or_reject_changed_resource(
 
 
 @pytest.mark.parametrize("host", ["claude", "codex"])
-@pytest.mark.parametrize("capacity", [False, True])
+@pytest.mark.parametrize("capacity", [False, True, "part_load"])
 def test_native_relocated_exports(sdk, tmp_path, host, capacity):
     import shutil
     import subprocess
@@ -512,7 +512,14 @@ def test_native_relocated_exports(sdk, tmp_path, host, capacity):
     cfg = tmp_path / "request.json"
     cfg.write_text(
         json.dumps(
-            config(tmp_path, **({"nominal_capacity_w": 20000} if capacity else {}))
+            config(
+                tmp_path,
+                **(
+                    dict(minimum_part_load_ratio=0.2, optimum_part_load_ratio=0.8)
+                    if capacity == "part_load"
+                    else {"nominal_capacity_w": 20000} if capacity else {}
+                ),
+            )
         )
     )
     plan = tmp_path / "reviewed.json"
@@ -1303,3 +1310,280 @@ def test_capacity_review_exposes_retained_minimum_and_maximum_output(sdk, tmp_pa
     )
     assert "Increasing capacity raises that floor" in " ".join(report["warnings"])
     assert apply(report, tmp_path)["validation"]["ok"]
+
+
+@pytest.mark.parametrize(
+    "settings",
+    [
+        {"minimum_part_load_ratio": 0.2},
+        {"maximum_part_load_ratio": 0.7, "optimum_part_load_ratio": 0.6},
+        {"optimum_part_load_ratio": 0.8},
+        {
+            "minimum_part_load_ratio": 0.3,
+            "optimum_part_load_ratio": 0.5,
+            "maximum_part_load_ratio": 0.8,
+            "nominal_capacity_w": 20000,
+        },
+        {"maximum_part_load_ratio": 1.5},
+    ],
+)
+def test_part_load_edits_preserve_unrequested_state(sdk, tmp_path, settings):
+    o = sdk[0]
+    source, model, boiler = fixture(o, tmp_path)
+    original = source.read_bytes()
+    report = preflight(source, config(tmp_path, **settings))
+    assert report["ready"], report
+    assert report == preflight(source, config(tmp_path, **settings))
+    impact = report["plan"]["impact"]["part_load_edit"]
+    capacity = settings.get("nominal_capacity_w", "Autosize")
+    assert impact["dispatch_load_limits_after_w"] == boilers.dispatch_limits(
+        capacity, boilers.part_load_values(boiler, settings)
+    )
+    if "capacity_edit" in report["plan"]["impact"]:
+        assert (
+            report["plan"]["impact"]["capacity_edit"]["dispatch_load_limits_w"]
+            == impact["dispatch_load_limits_after_w"]
+        )
+    assert ("Effective maximum PLR exceeds 1" in " ".join(report["warnings"])) is (
+        settings.get("maximum_part_load_ratio", boiler.maximumPartLoadRatio()) > 1
+    )
+    result = apply(report, tmp_path)
+    assert result["validation"]["ok"] and result["translation"]["ok"]
+    saved = o.osversion.VersionTranslator().loadModel(result["output_model_path"]).get()
+    current = saved.getBoilerHotWater(boiler.handle()).get()
+    assert boilers.signature(current, settings) == boilers.signature(boiler, settings)
+    for key, value in settings.items():
+        assert (
+            boilers.values(current, "nominal_capacity_w" in settings, settings)[key]
+            == value
+        )
+    assert source.read_bytes() == original
+
+
+@pytest.mark.parametrize(
+    "settings",
+    [
+        {"minimum_part_load_ratio": -0.1},
+        {"maximum_part_load_ratio": 0},
+        {"optimum_part_load_ratio": True},
+        {"minimum_part_load_ratio": "Autosize"},
+        {"maximum_part_load_ratio": float("inf")},
+        {"optimum_part_load_ratio": float("nan")},
+    ],
+)
+def test_invalid_part_load_inputs_reject(sdk, tmp_path, settings):
+    source, _, _ = fixture(sdk[0], tmp_path)
+    with pytest.raises(ValueError, match="Invalid boiler performance"):
+        preflight(source, config(tmp_path, **settings))
+    assert not (tmp_path / "edited.osm").exists()
+
+
+@pytest.mark.parametrize(
+    "settings",
+    [
+        {"minimum_part_load_ratio": 1.1},
+        {"maximum_part_load_ratio": 0.5},
+        {"minimum_part_load_ratio": 0.8, "optimum_part_load_ratio": 0.7},
+        {"optimum_part_load_ratio": 1.3},
+    ],
+)
+def test_cross_field_part_load_choices_stay_unready(sdk, tmp_path, settings):
+    source, _, _ = fixture(sdk[0], tmp_path)
+    report = preflight(source, config(tmp_path, **settings))
+    assert not report["ready"] and "minimum <= optimum <= maximum" in " ".join(
+        report["plan"]["errors"]
+    )
+    assert not (tmp_path / "edited.osm").exists()
+
+
+@pytest.mark.parametrize("mutation", ["capacity", "other_plr", "curve", "requested"])
+def test_part_load_mutations_do_not_publish(sdk, tmp_path, mutation):
+    source, _, _ = fixture(sdk[0], tmp_path, curve=True)
+    report = preflight(source, config(tmp_path, minimum_part_load_ratio=0.2))
+
+    def altered(model, o, planned):
+        result = boilers.edit(model, o, planned)
+        b = boilers.boiler_object(model, o, planned["resolved_objects"]["boiler"])
+        if mutation == "capacity":
+            b.setNominalCapacity(10000)
+        elif mutation == "other_plr":
+            b.setOptimumPartLoadRatio(0.8)
+        elif mutation == "requested":
+            b.setMinimumPartLoadRatio(0.3)
+        else:
+            b.normalizedBoilerEfficiencyCurve().get().setName("Changed Curve")
+        return result
+
+    with pytest.raises(ValueError):
+        apply(report, tmp_path, altered)
+    assert not (tmp_path / "edited.osm").exists()
+
+
+@pytest.mark.parametrize("mode", ["stale", "tampered"])
+def test_part_load_exact_plan_source_checks(sdk, tmp_path, mode):
+    source, _, _ = fixture(sdk[0], tmp_path)
+    report = preflight(source, config(tmp_path, minimum_part_load_ratio=0.2))
+    if mode == "stale":
+        source.write_bytes(source.read_bytes() + b"\\n! changed\\n")
+    else:
+        report["plan"]["parameters"]["settings"]["minimum_part_load_ratio"] = 0.3
+    with pytest.raises(ValueError):
+        apply(report, tmp_path)
+    assert not (tmp_path / "edited.osm").exists()
+
+
+@pytest.mark.parametrize("mode", ["minimum", "maximum", "optimum"])
+def test_native_part_load_operation(sdk, tmp_path, mode):
+    from test_supply_fan_performance import native_cli
+
+    native_cli()
+    o = sdk[0]
+    source, model, boiler = parasitic_fixture(o, tmp_path, "NaturalGas")
+    boiler.setOnCycleParasiticElectricLoad(100)
+    boiler.setOffCycleParasiticFuelLoad(15)
+    settings = {
+        "minimum": dict(minimum_part_load_ratio=0.5),
+        "maximum": dict(maximum_part_load_ratio=0.4, optimum_part_load_ratio=0.4),
+        "optimum": dict(optimum_part_load_ratio=0.6),
+    }[mode]
+    if mode == "minimum":
+        loop = boiler.plantLoop().get()
+        supply = (
+            loop.supplyOutletNode()
+            .setpointManagers()[0]
+            .to_SetpointManagerScheduled()
+            .get()
+            .schedule()
+            .to_ScheduleConstant()
+            .get()
+            .value()
+        )
+        reservoir = o.model.PlantComponentTemperatureSource(model)
+        reservoir.setTemperatureSpecificationType("Constant")
+        # Keep the return below the target by ~3kW at fixed 0.001m3/s, isolating the floor without high-limit cycling.
+        reservoir.setSourceTemperature(supply - 3000 / (1000 * 4180 * 0.001))
+        reservoir.setDesignVolumeFlowRate(0.001)
+        assert reservoir.addToNode(loop.demandOutletNode())
+    if mode == "optimum":
+        boiler.plantLoop().get().setLoadDistributionScheme("SequentialLoad")
+    assert model.save(str(source), True)
+    original = source.read_bytes()
+    report = preflight(source, config(tmp_path, **settings))
+    assert report["ready"] and report["plan"]["simulation_ready"], report
+    result = apply(report, tmp_path)
+    extra = [
+        "Boiler Heating Rate",
+        "Boiler Ancillary Electricity Energy",
+        "Boiler Ancillary NaturalGas Energy",
+    ]
+    before = native_run(o, source, tmp_path / "before_run", str(boiler.handle()), extra)
+    after = native_run(
+        o,
+        Path(result["output_model_path"]),
+        tmp_path / "after_run",
+        str(boiler.handle()),
+        extra,
+    )
+    assert before["hours"] == after["hours"] == 72
+    old = json.loads((tmp_path / "before_run/hourly.json").read_text())
+    new = json.loads((tmp_path / "after_run/hourly.json").read_text())
+    active = [row[3] for row in new[extra[0]] if row[3] > 1]
+    if mode == "minimum":
+        assert min(active) == pytest.approx(5000, rel=1e-4)
+        assert after["heating_j"] > before["heating_j"]
+    elif mode == "maximum":
+        assert max(active) == pytest.approx(4000, rel=1e-4)
+        assert after["heating_j"] < before["heating_j"]
+    else:
+        assert after["heating_j"] == pytest.approx(before["heating_j"], rel=1e-6)
+        assert after["fuel_j"] == pytest.approx(before["fuel_j"], rel=1e-6)
+    assert source.read_bytes() == original
+    (tmp_path / "part_load_native.json").write_text(
+        json.dumps(
+            dict(
+                mode=mode,
+                settings=settings,
+                before=before,
+                after=after,
+                ancillary_before_j={
+                    name: sum(r[3] for r in old[name]) for name in extra[1:]
+                },
+                ancillary_after_j={
+                    name: sum(r[3] for r in new[name]) for name in extra[1:]
+                },
+                validation=result["validation"],
+                translation=result["translation"],
+                source_unchanged=True,
+            ),
+            indent=2,
+        )
+    )
+
+
+@pytest.mark.parametrize("field", list(boilers.PLR_FIELDS))
+def test_part_load_noops_reject(sdk, tmp_path, field):
+    source, _, boiler = fixture(sdk[0], tmp_path)
+    value = boilers.part_load_values(boiler, {})[field]
+    report = preflight(source, config(tmp_path, **{field: value}))
+    assert not report["ready"] and "must change" in " ".join(report["plan"]["errors"])
+
+
+@pytest.mark.parametrize("field", list(boilers.PLR_FIELDS))
+@pytest.mark.parametrize("problem", ["mismatch", "malformed"])
+def test_part_load_translation_errors_do_not_capture_failure(
+    sdk, tmp_path, monkeypatch, field, problem
+):
+    source, _, _ = fixture(sdk[0], tmp_path)
+    original = source.read_bytes()
+    translate = boilers.translated_workspace
+
+    def altered(model, o, label):
+        workspace = translate(model, o, label)
+        obj = workspace.getObjectsByType(o.IddObjectType("Boiler_HotWater"))[0]
+        index = obj.iddObject().getFieldIndex(boilers.PLR_FIELDS[field][1]).get()
+        assert (
+            obj.setString(index, "not-a-number")
+            if problem == "malformed"
+            else obj.setDouble(index, 0.123)
+        )
+        return workspace
+
+    monkeypatch.setattr(boilers, "translated_workspace", altered)
+    captured = []
+    monkeypatch.setattr(
+        tx, "capture_exception", lambda *args, **kwargs: captured.append(args) or {}
+    )
+    settings = dict(
+        minimum_part_load_ratio=0.2,
+        optimum_part_load_ratio=0.8,
+        maximum_part_load_ratio=1,
+    )
+    cfg = tmp_path / "request.json"
+    cfg.write_text(json.dumps(config(tmp_path, **settings)))
+    report_path = tmp_path / "blocked.json"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "edit_boiler_performance.py",
+            "--input",
+            str(source),
+            "--config",
+            str(cfg),
+            "--report",
+            str(report_path),
+        ],
+    )
+    assert (
+        tx.cli(
+            OPERATION,
+            boilers.plan,
+            boilers.edit,
+            boilers.validate_model,
+            boilers.inventory,
+        )
+        == 2
+    )
+    report = json.loads(report_path.read_text())
+    assert not report["ready"] and report["plan"]["errors"] and not captured
+    assert source.read_bytes() == original and not (tmp_path / "edited.osm").exists()

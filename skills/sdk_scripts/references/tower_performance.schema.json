@@ -1,5 +1,5 @@
 {
-  "title": "Variable-speed cooling tower design fan power",
+  "title": "Variable-speed cooling tower power and low-load controls",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -48,9 +48,6 @@
     "settings": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "design_fan_power_w"
-      ],
       "properties": {
         "design_fan_power_w": {
           "oneOf": [
@@ -66,6 +63,18 @@
             }
           ],
           "description": "Explicit total tower electrical watts at design airflow, or explicit Autosize. Autosized design airflow depends on this power; not per-cell watts or motor horsepower."
+        },
+        "minimum_air_flow_ratio": {
+          "type": "number",
+          "minimum": 0.2,
+          "maximum": 0.5,
+          "description": "Explicit fan-on minimum airflow ratio, not a minimum hourly average or direct minimum fan power."
+        },
+        "free_convection_capacity_fraction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 0.2,
+          "description": "Explicit fraction of current full-speed heat rejection available with fan off; manufacturer/performance assumption, not annual free-cooling fraction."
         }
       }
     },

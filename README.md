@@ -13,7 +13,9 @@ approved, as is phase 12a hot-water boiler efficiency/parasitic editing. Phase 1
 chiller reference-COP editing is approved, including the condenser-sizing follow-up.
 Phase 12c variable-speed cooling-tower fan-power editing is approved, including
 the airflow/water-use follow-up. Phase 12d district water-source capacity and E1–E3
-are approved. Phase 12e extends the boiler editor with explicit nominal capacity or Autosize for review.
+are approved. Phase 12e boiler nominal capacity and F1–F3 are approved.
+Phase 12f/G1–G3 and phase 12g tower low-load controls/H1 are approved. Phase 12h
+extends the boiler editor with explicit part-load limits for review.
 Reheat-terminal conversion remains separate. See the
 [resumed equipment sequence](docs/HVAC_MODULARIZATION_WORK.md#resumed-equipment-sequence--october-20-2026)
 for the next checkpoint and remaining equipment families.
@@ -59,25 +61,30 @@ for the next checkpoint and remaining equipment families.
   temperature protection (including at fraction 0). Capacity changes are not
   COP/efficiency or proportional pump-flow savings. Steam needs separate coverage.
 - `openstudio-tower-performance-editor` edits one condenser-loop variable-speed
-  cooling tower's total design fan electrical watts or explicit fan-power Autosize
-  in place. Curves, controls, water connections and other inputs stay unchanged;
-  plans flag autosized design airflow, airflow-based metrics and make-up water
-  effects. Native evidence covers fixed/autosized airflow and explicit power sizing,
-  with unchanged cooling/chiller/pump energy in the controlled comparisons.
+  cooling tower's total design fan watts/Autosize, minimum fan-airflow ratio or
+  free-convection capacity fraction in place. Curves, design conditions, water
+  connections and unrequested inputs stay unchanged. Plans flag airflow sizing,
+  cycling, fan-off cooling and water use. Native evidence separates power-only
+  behavior from low-load controls and reports pump/chiller energy alongside fan
+  electricity; fan-off does not mean pump-off or guaranteed whole-plant savings.
 - `openstudio-chiller-performance-editor` edits one air- or water-cooled electric
-  EIR chiller's explicit reference COP in place. Curves, sizing inputs/flags,
-  condenser circuits, controls and identities stay unchanged. Plans flag autosized
+  EIR chiller's explicit reference COP or cooling capacity (watts/Autosize) in
+  place. Curves, unrequested sizing/flow inputs, condenser circuits, controls and
+  identities stay unchanged. Capacity affects PLR, dispatch and delivered cooling;
+  plans report reference dispatch limits and flag separate condenser fan power
+  scaling when its retained power ratio is positive. Plans flag autosized
   condenser pumps/towers whose calculated sizes and energy may change. Heat recovery, thermosiphon and other
   classes need separate coverage. Reference COP is not seasonal or whole-plant
   efficiency; changed condenser heat can change calculated condenser sizing.
 - `openstudio-boiler-performance-editor` edits one heating-plant hot-water boiler's
-  explicit nominal thermal capacity/Autosize, HHV efficiency and electric/fuel
-  parasitics in place. Fuel, flow sizing policy, curves, sizing factor, controls and
+  explicit nominal thermal capacity/Autosize, minimum/maximum/optimum part-load
+  ratios, HHV efficiency and electric/fuel
+  parasitics in place. Fuel, flow sizing policy, curves, sizing factor, other controls and
   identities stay unchanged; unrequested capacity stays exact. Capacity affects
   dispatch, PLR, curve/parasitic energy and possibly unmet loads, not just a limit.
   Plans expose curve/EMS/dispatch dependencies and detect configured curves omitted
   by translation. See the [12a checkpoint](docs/HVAC_MODULARIZATION_WORK.md#phase-12a-boiler-performance-editor--october-21-2026).
-- Explicit Autosize in boiler, tower and district editors reports design-day/period
+- Explicit Autosize in boiler, chiller, tower and district editors reports design-day/period
   counts and the effective translated plant-sizing flag. Missing/off/unverified
   sizing keeps the edit available but marks simulation unready. This is conservative:
   some fixed-flow cases still size without a plant-sizing run. Multi-boiler Autosize

@@ -1,4 +1,4 @@
-"""Reference-COP edits preserve an EIR chiller and its complete model graph."""
+"""Reference rating edits preserve an EIR chiller and its complete model graph."""
 
 import json
 import math
@@ -11,6 +11,7 @@ from common.input_validation import validate
 from common.model_preservation import fingerprint, snapshot
 from common.temperature_control import translated_workspace, optional_string
 from common.water_coil import original_types
+from common.plant_sizing import sizing_context, require_plant_sizing
 
 
 def ref(obj):
@@ -63,20 +64,32 @@ def chiller_object(model, sdk, reference):
     return optional.get()
 
 
-def values(chiller):
-    return dict(reference_cop=chiller.referenceCOP())
+def values(chiller, include_capacity=False):
+    result = dict(reference_cop=chiller.referenceCOP())
+    if include_capacity:
+        result["reference_capacity_w"] = sized(chiller, "ReferenceCapacity")
+    return result
 
 
 def matches(actual, expected):
     return actual.keys() == expected.keys() and all(
-        type(actual[key]) in (int, float)
-        and math.isclose(actual[key], value, rel_tol=1e-9, abs_tol=1e-9)
+        (
+            actual[key] == value
+            if isinstance(value, str)
+            else type(actual[key]) in (int, float)
+            and math.isclose(actual[key], value, rel_tol=1e-9, abs_tol=1e-9)
+        )
         for key, value in expected.items()
     )
 
 
-def signature(chiller):
-    return fingerprint(chiller, ignored=["Reference COP"])
+def signature(chiller, patch=None):
+    fields = dict(
+        reference_cop="Reference COP", reference_capacity_w="Reference Capacity"
+    )
+    return fingerprint(
+        chiller, ignored=[fields[key] for key in (patch or {"reference_cop": None})]
+    )
 
 
 def sized(chiller, suffix):
@@ -102,7 +115,7 @@ def connections(chiller):
     return result
 
 
-def translated_state(model, sdk, chiller):
+def translated_state(model, sdk, chiller, include_capacity=False):
     workspace = translated_workspace(model, sdk, "Cannot verify translated chiller")
     objects = [
         obj
@@ -118,12 +131,34 @@ def translated_state(model, sdk, chiller):
     value = obj.getDouble(index.get())
     if not value.is_initialized():
         raise ValueError("Translated chiller Reference COP is not numeric")
+    settings = dict(reference_cop=value.get())
+    excluded = [index.get()]
+    if include_capacity:
+        capacity_index = obj.iddObject().getFieldIndex("Reference Capacity")
+        if not capacity_index.is_initialized():
+            raise ValueError("Translated chiller is missing Reference Capacity")
+        capacity = optional_string(obj, capacity_index.get())
+        if capacity.lower() == "autosize":
+            settings["reference_capacity_w"] = "Autosize"
+        else:
+            numeric = obj.getDouble(capacity_index.get())
+            if (
+                not numeric.is_initialized()
+                or not math.isfinite(numeric.get())
+                or numeric.get() <= 0
+            ):
+                raise ValueError(
+                    "Translated chiller Reference Capacity is not a finite positive number or Autosize"
+                )
+            settings["reference_capacity_w"] = numeric.get()
+        excluded.append(capacity_index.get())
     return dict(
-        settings=dict(reference_cop=value.get()),
+        settings=settings,
+        plant_sizing=sizing_context(model, sdk, workspace),
         preserved_fields=[
             [obj.iddObject().getField(i).get().name(), optional_string(obj, i)]
             for i in range(obj.numFields())
-            if i != index.get()
+            if i not in excluded
         ],
     )
 
@@ -227,18 +262,32 @@ def plan(model, sdk, config):
         or chiller.plantLoop().get().handle() != loop.handle()
     ):
         raise ValueError("Selected chiller chilled-water plant ownership differs")
-    before, after = values(chiller), dict(config["settings"])
-    if after["reference_cop"] < 2 or after["reference_cop"] > 10:
+    patch = dict(config["settings"])
+    include_capacity = "reference_capacity_w" in patch
+    before = values(chiller, include_capacity)
+    after = dict(before, **patch)
+    if include_capacity and before["reference_capacity_w"] is None:
+        planned["errors"].append(
+            "Source chiller reference capacity is missing; diagnose before editing"
+        )
+        return planned
+    if "reference_cop" in patch and (
+        after["reference_cop"] < 2 or after["reference_cop"] > 10
+    ):
         planned["warnings"].append(
             "Requested reference COP is outside the typical review range 2–10. Confirm units and rating conditions: COP = 3.517 / (kW per ton); COP = EER / 3.412. This is a non-blocking plausibility warning, not a standards limit; the explicit COP is retained without conversion"
         )
     if matches(before, after):
-        planned["errors"].append("Edit must change reference COP")
+        planned["errors"].append("Edit must change reference COP or capacity")
         return planned
-    translated = translated_state(model, sdk, chiller)
+    try:
+        translated = translated_state(model, sdk, chiller, include_capacity)
+    except ValueError as exc:
+        planned["errors"].append(str(exc))
+        return planned
     if not matches(translated["settings"], before):
         planned["errors"].append(
-            "Source chiller COP disagrees with EnergyPlus translation; diagnose the source model before editing"
+            "Source chiller COP disagrees with EnergyPlus translation or reference capacity differs; diagnose the source model before editing"
         )
         return planned
     condenser = chiller.secondaryPlantLoop()
@@ -278,7 +327,7 @@ def plan(model, sdk, config):
     planned.update(
         ready=True,
         simulation_ready=True,
-        parameters=dict(output_model_path=config["output_model_path"], settings=after),
+        parameters=dict(output_model_path=config["output_model_path"], settings=patch),
         resolved_objects=dict(
             plant_loop=ref(loop),
             chiller=ref(chiller),
@@ -287,7 +336,7 @@ def plan(model, sdk, config):
         ),
         before_values=before,
         after_values=after,
-        preserved_chiller=signature(chiller),
+        preserved_chiller=signature(chiller, patch),
         before_objects=original_types(model),
         protection=protection,
         protected_objects=protected,
@@ -327,9 +376,86 @@ def plan(model, sdk, config):
             ems_actuator_count=len(ems),
             ems_actuators=sorted(ems, key=lambda x: x["handle"])[:8],
             supply_chiller_count=len(loop_ref["chillers"]),
-            preservation_policy="Retain chiller, curves, sizing, all water circuits, plant controls, dispatch, references and identities; no Autosize reset",
+            preservation_policy="Retain chiller, curves, flow sizing, all water circuits, plant controls, dispatch, references and identities; only explicitly requested reference ratings change",
         ),
     )
+    if include_capacity:
+        others = []
+        for item in loop_ref["chillers"]:
+            if item["handle"] == selected["handle"]:
+                continue
+            obj = model.getModelObject(sdk.toUUID(item["handle"])).get()
+            typed = obj.to_ChillerElectricEIR()
+            others.append(
+                dict(
+                    item,
+                    reference_capacity_w=(
+                        sized(typed.get(), "ReferenceCapacity")
+                        if typed.is_initialized()
+                        else None
+                    ),
+                    sizing_factor=(
+                        typed.get().sizingFactor() if typed.is_initialized() else None
+                    ),
+                )
+            )
+        planned["impact"]["capacity_edit"] = dict(
+            before_w=before["reference_capacity_w"],
+            after_w=after["reference_capacity_w"],
+            load_distribution_scheme=loop.loadDistributionScheme(),
+            dispatch_load_limits_w={
+                key: (
+                    after["reference_capacity_w"] * fraction
+                    if isinstance(after["reference_capacity_w"], (int, float))
+                    else "Requires sizing"
+                )
+                for key, fraction in (
+                    ("minimum", chiller.minimumPartLoadRatio()),
+                    ("maximum", chiller.maximumPartLoadRatio()),
+                    ("optimal", chiller.optimumPartLoadRatio()),
+                )
+            },
+            dispatch_limits_exclude_temperature_curve=True,
+            autosize_flow_basis=(
+                "plant_design_flow_times_sizing_factor"
+                if chiller.isReferenceChilledWaterFlowRateAutosized()
+                else "retained_fixed_evaporator_flow"
+            ),
+            other_chiller_count=len(others),
+            other_chillers=others[:8],
+            omitted_other_chiller_count=max(0, len(others) - 8),
+        )
+        planned["warnings"].append(
+            "Reference capacity is cooling watts at retained rating conditions, not electric input. Retained temperature curves modify available capacity. Changing capacity changes part-load ratio, cycling, unloading/false loading and plant dispatch limits; unmet cooling and energy can change. Flow inputs, sizing factors and controls are retained; calculated autosized flows and condenser equipment sizes may change on sizing"
+        )
+        ratio = chiller.condenserFanPowerRatio()
+        if ratio > 0:
+            planned["impact"]["capacity_edit"]["condenser_fan"] = dict(
+                power_ratio=ratio,
+                before_full_cycling_w=(
+                    before["reference_capacity_w"] * ratio
+                    if isinstance(before["reference_capacity_w"], (int, float))
+                    else "Requires sizing"
+                ),
+                after_full_cycling_w=(
+                    after["reference_capacity_w"] * ratio
+                    if isinstance(after["reference_capacity_w"], (int, float))
+                    else "Requires sizing"
+                ),
+            )
+            planned["warnings"].append(
+                "Retained condenser fan power ratio is positive. EnergyPlus calculates separate condenser fan power as reference capacity times this ratio times cycling fraction for every condenser type, including WaterCooled. Capacity changes scale that fan power even at the same cooling load when cycling fraction is 1; below minimum PLR cycling also matters. Review full-cycling watts in the impact and separate condenser fan electricity, not just compressor electricity; this does not include external cooling-tower fan power"
+            )
+        if after["reference_capacity_w"] == "Autosize":
+            require_plant_sizing(planned, translated["plant_sizing"])
+            if chiller.isReferenceChilledWaterFlowRateAutosized():
+                planned["warnings"].append(
+                    "With autosized evaporator flow, each autosized electric EIR chiller uses the whole cooling plant design flow times its own sizing factor and plant design delta-T; EnergyPlus does not automatically divide capacity among chillers. Review the other chillers' capacities and factors before sizing"
+                )
+            else:
+                planned["warnings"].append(
+                    "With fixed evaporator flow, reference-capacity Autosize uses that retained flow and plant design delta-T; the sizing factor is not applied again. Review fixed flow and other chillers; capacity is not automatically divided among units"
+                )
     planned["warnings"].append(
         "Reference COP is cooling watts per electric watt at the retained reference conditions, not IPLV, seasonal or whole-plant COP. Retained temperature/part-load curves, cycling, condenser conditions and auxiliaries determine operating energy; this edit does not certify the curve envelope or savings"
     )
@@ -346,15 +472,15 @@ def plan(model, sdk, config):
         sizing = planned["impact"]["condenser_sizing"]
         if sizing["reference_condenser_flow_autosized"]:
             planned["warnings"].append(
-                "Condenser flow is autosized. Changing reference COP changes condenser heat rejection and can resize condenser flow, autosized pumps and cooling towers on the next sizing run. Review the listed autosized condenser equipment and its energy use; unchanged sizing inputs do not imply unchanged sizes, and chiller electricity savings are not whole-plant savings"
+                "Condenser flow is autosized. Changing reference COP or capacity changes condenser heat rejection and can resize condenser flow, autosized pumps and cooling towers on the next sizing run. Review the listed autosized condenser equipment and its energy use; unchanged sizing inputs do not imply unchanged sizes, and chiller electricity savings are not whole-plant savings"
             )
         elif sizing["autosized_equipment"]:
             planned["warnings"].append(
-                "Condenser pumps or cooling towers retain autosized fields listed in the impact. Changing COP changes heat rejection; calculated equipment sizes and plant energy can change after sizing even though sizing inputs are preserved. Chiller electricity savings are not whole-plant savings"
+                "Condenser pumps or cooling towers retain autosized fields listed in the impact. Changing reference ratings changes heat rejection; calculated equipment sizes and plant energy can change after sizing even though sizing inputs are preserved. Chiller electricity savings are not whole-plant savings"
             )
         if condenser is None:
             planned["warnings"].append(
-                "Water-cooled chiller lacks a connected condenser plant; COP edits do not repair heat rejection"
+                "Water-cooled chiller lacks a connected condenser plant; Reference rating edits do not repair heat rejection"
             )
             planned["simulation_ready"] = False
         else:
@@ -395,13 +521,25 @@ def plan(model, sdk, config):
 
 def edit(model, sdk, planned):
     chiller = chiller_object(model, sdk, planned["resolved_objects"]["chiller"])
-    before = values(chiller)
-    call(chiller, "setReferenceCOP", planned["after_values"]["reference_cop"])
-    return dict(chiller=ref(chiller), before=before, after=values(chiller))
+    patch = planned["parameters"]["settings"]
+    include_capacity = "reference_capacity_w" in patch
+    before = values(chiller, include_capacity)
+    if "reference_cop" in patch:
+        call(chiller, "setReferenceCOP", patch["reference_cop"])
+    if include_capacity:
+        if patch["reference_capacity_w"] == "Autosize":
+            chiller.autosizeReferenceCapacity()
+        else:
+            call(chiller, "setReferenceCapacity", patch["reference_capacity_w"])
+    return dict(
+        chiller=ref(chiller), before=before, after=values(chiller, include_capacity)
+    )
 
 
 def validate_model(model, sdk, planned, result):
     r = planned["resolved_objects"]
+    patch = planned["parameters"]["settings"]
+    include_capacity = "reference_capacity_w" in patch
     chiller = chiller_object(model, sdk, r["chiller"])
     condenser = chiller.secondaryPlantLoop()
     condenser_ref = ref(condenser.get()) if condenser.is_initialized() else None
@@ -413,8 +551,10 @@ def validate_model(model, sdk, planned, result):
             result["before"], planned["before_values"]
         )
         and matches(result["after"], planned["after_values"]),
-        "Saved chiller COP differs": matches(values(chiller), planned["after_values"]),
-        "Unrequested chiller fields changed": signature(chiller)
+        "Saved chiller ratings differ": matches(
+            values(chiller, include_capacity), planned["after_values"]
+        ),
+        "Unrequested chiller fields changed": signature(chiller, patch)
         == planned["preserved_chiller"],
         "Chiller circuit boundaries changed": connections(chiller) == r["ports"],
         "Chiller chilled-water plant changed": chiller.plantLoop().is_initialized()
@@ -427,8 +567,8 @@ def validate_model(model, sdk, planned, result):
         ),
     }
     if all(checks.values()):
-        translated = translated_state(model, sdk, chiller)
-        checks["Translated chiller COP differs"] = matches(
+        translated = translated_state(model, sdk, chiller, include_capacity)
+        checks["Translated chiller ratings differ"] = matches(
             translated["settings"], planned["after_values"]
         )
         checks["Unrequested translated chiller fields changed"] = (

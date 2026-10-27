@@ -1,4 +1,4 @@
-"""Inventory, preflight and apply reviewed in-place electric EIR chiller COP edits."""
+"""Inventory, preflight and apply reviewed in-place electric EIR chiller reference-rating edits."""
 
 from pathlib import Path
 import sys

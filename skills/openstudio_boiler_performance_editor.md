@@ -1,6 +1,6 @@
 ---
 name: openstudio-boiler-performance-editor
-description: Edit explicit nominal heating capacity or Autosize, HHV efficiency and electric/fuel parasitic loads on one existing hot-water boiler in place. Preserve identity, fuel, flow policy, curves, plant connections and controls; steam and replacement need separate coverage.
+description: Edit explicit nominal heating capacity or Autosize, minimum/maximum/optimum part-load ratios, HHV efficiency and electric/fuel parasitic loads on one existing hot-water boiler in place. Preserve identity, fuel, flow policy, curves, plant connections and controls; steam and replacement need separate coverage.
 metadata:
   version: 0.4.1
 ---
@@ -78,7 +78,20 @@ fields before publishing a new copy. Store the retained handle, before/after
 values and report/output paths in workflow state. Keep the OSM and `<stem>/`
 companions together; honor `requires_companion_workflow`.
 
-This skill does not change fuel, design flow, part-load ratios, curves,
+For part-load operation, accept explicit `minimum_part_load_ratio`,
+`maximum_part_load_ratio` and/or `optimum_part_load_ratio`. Resolve the combined
+choices so 0 ≤ minimum ≤ optimum ≤ maximum and maximum > 0; never silently
+change a companion limit. Review `impact.part_load_edit` before/after ratios and
+heat-output limits. Minimum PLR can force overproduction at low load rather than
+modeling burner cycling; maximum can cause unmet heating or permit above-nominal
+output when >1. Optimum is a dispatch hint, not an efficiency point or requested
+operating PLR. Preserve curves, capacity/flow policies and operation schemes unless
+a supported setting is explicitly requested. Verify heat delivered, fuel, outlet
+temperatures and ancillary energy before claiming savings; a lower cap is not an
+efficiency improvement. Positive off-cycle fuel can go negative above PLR1 under
+the pinned engine; discuss the warning without silently changing parasitics.
+
+This skill does not change fuel, design flow, unrequested part-load ratios, curves,
 temperature limits, schedules, plant sizing objects, operation-scheme inputs or
 topology. Capacity/Autosize changes occur only when explicitly requested; sizing
 results and actual dispatch can change. Steam

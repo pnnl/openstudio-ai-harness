@@ -176,3 +176,54 @@ total/omitted counts. Unsupported boiler classes have null sizing details. Revie
 factors and installed capacity explicitly; no division or factor reset is inferred.
 `impact.nominal_capacity_w` consistently means the current/source value; use
 `capacity_edit.before_w/after_w` for the proposed change.
+
+
+## Part-load limits (12h)
+
+`settings` additionally accepts finite nonnegative `minimum_part_load_ratio` and
+`optimum_part_load_ratio`, and positive `maximum_part_load_ratio`. Select one or
+more explicit inputs; the effective combination of requested and preserved values
+must satisfy 0 ≤ minimum ≤ optimum ≤ maximum, maximum > 0. Otherwise the plan is
+unready and asks for the necessary choices. No companion ratio is adjusted
+implicitly. Autosize is not a ratio. Above-one ratios are not clipped: the standards
+boiler recipe can set maximum1.2, so an arbitrary maximum1 schema limit would
+exclude that case. The plan warns when effective maximum exceeds1. Zero maximum
+is outside this operation; use a separately justified availability/removal workflow
+rather than treating it as an off switch. Default-equivalent/no-op edits reject.
+
+For example `{"maximum_part_load_ratio": 0.8, "optimum_part_load_ratio": 0.7}`
+requests both values, provided the preserved minimum is ≤0.7. These numbers are
+examples, not equipment defaults. Existing rating-only before/after report shape
+stays unchanged; requested PLR fields are added only when selected. The same
+existing object setters preserve unrequested raw fields, all other objects,
+identities, metadata and references. Independent translation checks the requested
+ratios and preserves the remaining fields. Malformed/mismatched source translation
+is a normal unready plan error, not an unexpected failure report.
+
+`impact.part_load_edit` includes all ratios before/after, retained load-distribution
+scheme and numerical dispatch limits before/after (capacity × minimum, maximum,
+optimum). Autosized capacity reports `Requires sizing` without inventing a fixed
+value or running a new sizing audit. Combined capacity edits use the proposed
+capacity and proposed PLRs in both this block and `capacity_edit` consistently.
+The existing top-level ratio context remains the source state. Explicit capacity
+Autosize alone triggers the existing sizing-setup guard.
+
+EnergyPlus boiler limits are not chiller unloading/cycling controls. In the
+locked-flow calculation minimum PLR imposes a useful-heat floor while firing;
+this can exceed assigned demand and raise water temperature or trip the retained
+high limit. Maximum PLR caps useful heat and can cause unmet load. Optimum PLR is
+returned as a plant-dispatch hint; it is not directly used as a runtime efficiency
+or setpoint. Actual effects depend on operation schemes, curves, parasitics,
+flow, water temperature and other equipment. On/off parasitic behavior retains
+the pinned engine's previously documented semantics. In particular maximum above1
+can make off-cycle ancillary fuel negative when PLR exceeds1; warning only, no
+silent fuel/ratio reset. Review heat, fuel and ancillary energy rather than
+mistaking unmet heating or lower output for savings.
+
+Source trace: `Prototype.BoilerHotWater.rb:98–113` sets minimum/maximum/optimum
+(its generic choices are 0/1.2/1); this editor does not apply that recipe.
+Pinned EnergyPlus25.2 `Boilers.cc::getDesignCapacities` returns reference capacity
+products, and its operating calculation clamps heat and PLR at the retained
+limits. Native evidence uses controlled demand and return conditions to isolate
+the minimum floor, maximum cap and single-boiler optimum-only behavior. These
+are design-day checks, not a guarantee across dispatch schemes or annual savings.

@@ -1,6 +1,6 @@
 ---
 name: openstudio-tower-performance-editor
-description: Edit total design fan electrical power, or explicitly autosize that power, on an existing CoolingTowerVariableSpeed in place. Preserve its connections, thermal/control inputs, curve and identity; flag coupled airflow sizing. Other tower classes and replacement need separate coverage.
+description: Edit total design fan power/Autosize, minimum fan-airflow ratio or free-convection capacity fraction on an existing CoolingTowerVariableSpeed in place. Preserve its connections, design conditions, unrequested inputs, curve and identity; flag airflow sizing and low-load effects. Other tower classes and replacement need separate coverage.
 metadata:
   version: 0.4.1
 ---
@@ -43,7 +43,22 @@ airflow follows fan power, changing reported airflow; recompute airflow-based me
 The supported thermal correlations use airflow ratios: changed design airflow
 alone does not imply changed cooling, condenser temperatures or chiller/pump energy.
 Under SaturatedExit, absolute airflow affects evaporation and make-up water.
-Review water use alongside fan electricity; this bundle preserves all other inputs.
+Review water use alongside fan electricity. Power-only edits preserve other inputs.
+
+For low-load operation, accept one or both explicit `minimum_air_flow_ratio`
+(0.2–0.5) and `free_convection_capacity_fraction` (0–0.2), optionally with power.
+Blank source controls use the pinned EnergyPlus defaults (0.2 minimum airflow,
+0.125 free convection), labeled in `source_control_defaults`; unrequested blanks
+remain untouched. An edit equal to the effective default remains a no-op.
+Require a justified equipment/performance assumption; do not select either from a
+savings target. Minimum airflow is the fan-on modulation floor; below it the fan
+cycles, so average reported airflow can be smaller. Free convection estimates
+fan-off heat rejection at current conditions, not annual free cooling or fan speed.
+Higher fractions can overcool water below setpoint, and fan-off operation retains
+condenser pumping. These changes affect thermal operation; review cooling, outlet
+temperature, tower/chiller/pump electricity and make-up water before claiming
+savings. Preserve curves, design conditions, flows, cells, staging and all
+unrequested values. Missing assumptions stay unready; use no ad hoc control script.
 
 Explicit fan power Autosize is 0.0105 × water density × water specific heat × tower
 design water volume flow × condenser-loop design ΔT, using sizing-condition fluid
@@ -63,8 +78,8 @@ Keep the new OSM with its companion directory and retain report/model lineage in
 active workflow state. Use `report-openstudio-failure` for unexpected execution
 failures before recovery, honoring the user's reporting preference; exclude private
 models and plan warnings. Source translation inconsistencies are ordinary unready
-plan errors. Single-/two-speed towers, user-defined thermal models, curve/thermal/
-control edits and replacement need their own contracts.
+plan errors. Single-/two-speed towers, user-defined thermal models, design-condition/curve/
+staging/other control edits and replacement need their own contracts.
 
 
 For an explicit Autosize request, review `impact.plant_sizing`: design-day/period

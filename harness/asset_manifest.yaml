@@ -1811,6 +1811,9 @@ skills:
   - id: propose-measure
     source: skills/propose_measure.md
     hosts: [claude, codex]
+  - id: query-energy-standards
+    source: skills/query_energy_standards.md
+    hosts: [claude, codex]
   - id: query-results
     source: skills/query_results.md
     hosts: [claude, codex]
@@ -1852,6 +1855,10 @@ references:
       - hosts: [claude, codex]
         skill: openstudio-sdk-model-editor
         subdirectory: sdk_wiki
+  - source: knowledge/energy_standards_coverage.md
+    owners:
+      - hosts: [claude, codex]
+        skill: query-energy-standards
   - source: blackboard/schemas/workflow_state.schema.json
     owners:
       - hosts: [claude, codex]

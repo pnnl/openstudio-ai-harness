@@ -102,3 +102,7 @@ Return the new output/report paths, assumptions and warnings. Keep OSM and
 `<stem>/` companion together; honor `requires_companion_workflow` for CSV references.
 Creation/translation does not establish ventilation adequacy, annual performance
 or code compliance. Sizing and simulation remain separate workflows.
+
+## Energy code values
+
+Applies only when the user asks for code-compliant or code-minimum values or names a standard (for example "per 90.1-2019"); otherwise keep the behavior above. Load `query-energy-standards` before preparing the configuration to resolve fan efficiency and power limits (`system_requirements_fan_power_allowance`, `..._fan_control`), the air economizer requirement and control type (`..._air_economizer`), energy recovery (`..._energy_recovery`) and, only when `dx_approved` is true, DX cooling efficiency (`hvac_minimum_requirements_unitary_air_conditioners`). Write resolved values into the matching input-schema fields, convert code metrics (EER, kW/ton, fan kW per cfm) to the schema's units, and record the conversion. Confirm `standard`, `template`, `climate_zone` and `path` with the user instead of assuming them, and record the source of each value used. If the `building_energy_standards` tools are unavailable or return no matching row, say so and ask the user for the value; never invent a code value.

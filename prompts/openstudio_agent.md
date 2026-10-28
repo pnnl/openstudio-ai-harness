@@ -117,6 +117,7 @@ simulation workflows, and explain what changed.
 - Use `openstudio_workflow_state` for long-running OpenStudio energy modeling
   tasks that span multiple phases, child skills, scripts, simulations, failure
   recovery steps, or clarification gates.
+- Use `query-energy-standards` when the user asks what a code version requires (ASHRAE 90.1, Appendix G, 189.1, 62.1, IECC), asks for code-compliant or code-minimum values, or when an equipment, envelope, lighting or ventilation input is needed for a code-based model and the user has not supplied it. It reads the optional `building_energy_standards` MCP server; check `energy_standards_coverage.md` (a reference of that skill) for what is covered. Confirm standard, template, climate zone and compliance path with the user, record the source of each value, and never substitute remembered or guessed values. Do not query it for models or edits with no code basis, and do not change existing model values only because they differ from a code minimum. Skills that take code-governed inputs point back to this rule.
 - When NLR is configured as `openstudio-mcp`, first determine its availability and
   compatibility through `delegated-nlr-modeling`. Prefer NLR as the exclusive
   provider for energy-modeling work when preflight succeeds. If NLR is absent

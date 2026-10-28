@@ -38,6 +38,9 @@ dev = [
     "playwright>=1.50.0",
     "twine>=5.0.0",
 ]
+standards = [
+    "building-energy-standards-data[mcp]>=0.3.3",
+]
 
 [project.urls]
 Homepage = "https://gitlab.pnnl.gov/building-energy-modeling/openstudio-ai-harness"

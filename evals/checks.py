@@ -70,10 +70,54 @@ def check_forbidden(calls: list[ToolCall], patterns: Iterable[str]) -> list[Chec
     return results
 
 
-def score_case(case: Mapping[str, Any], calls: list[ToolCall]) -> list[CheckResult]:
+def loaded_skills(calls: list[ToolCall]) -> list[str]:
+    """Skill names loaded through the host ``Skill`` tool, plugin prefix dropped
+    (``openstudio-ai:delegated-nlr-modeling`` -> ``delegated-nlr-modeling``)."""
+    names = []
+    for c in calls:
+        if c.name == "Skill" and c.provider == "agent" and isinstance(c.arguments, Mapping):
+            skill = c.arguments.get("skill")
+            if isinstance(skill, str):
+                names.append(skill.rpartition(":")[2])
+    return names
+
+
+def check_skills(
+    calls: list[ToolCall], required: Iterable[str] = (), forbidden: Iterable[str] = ()
+) -> list[CheckResult]:
+    """Each ``required`` skill must be loaded; no loaded skill may match a ``forbidden`` glob."""
+    skills = loaded_skills(calls)
+    results = []
+    for name in required:
+        n = skills.count(name)
+        results.append(CheckResult(f"required_skill:{name}", bool(n), f"loaded {n} time(s)" if n else "never loaded"))
+    for pattern in forbidden:
+        hits = sorted({s for s in skills if fnmatch(s, pattern)})
+        results.append(CheckResult(
+            f"forbidden_skill:{pattern}", not hits, f"loaded {', '.join(hits)}" if hits else "not loaded"
+        ))
+    return results
+
+
+ROUTING_KEYS = ("required_tools", "forbidden_tools", "required_skills", "forbidden_skills")
+
+
+def routing_spec(case: Mapping[str, Any], arm: str) -> dict[str, Any]:
+    """Routing expectations for one arm.
+
+    Top-level routing keys apply to the ``both`` arm. ``arm_routing`` maps an arm
+    name to the same keys, which replace the top-level ones for that arm.
+    """
+    spec = {k: case[k] for k in ROUTING_KEYS if k in case} if arm == "both" else {}
+    spec.update((case.get("arm_routing") or {}).get(arm, {}))
+    return spec
+
+
+def score_case(spec: Mapping[str, Any], calls: list[ToolCall]) -> list[CheckResult]:
     return [
-        *check_required(calls, case.get("required_tools", [])),
-        *check_forbidden(calls, case.get("forbidden_tools", [])),
+        *check_required(calls, spec.get("required_tools", [])),
+        *check_forbidden(calls, spec.get("forbidden_tools", [])),
+        *check_skills(calls, spec.get("required_skills", []), spec.get("forbidden_skills", [])),
     ]
 
 

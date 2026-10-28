@@ -184,6 +184,13 @@ Cases are JSON lists in `evals/cases/` (or `--cases-dir`):
   in your `--sut-config`, e.g. `openstudio-mcp`) for the server under test.
 - `required_tools`, `forbidden_tools` (globs) and `expected_tools_ordered` apply to
   the `both` arm only. `arms` is optional (default all three).
+- `required_skills` / `forbidden_skills` (globs) check skills loaded through the
+  host `Skill` tool, by exported name without the plugin prefix (for example
+  `delegated-nlr-modeling`). Like the tool keys they apply to `both`.
+- `arm_routing` sets routing keys for a single arm, replacing the top-level ones
+  for that arm, e.g.
+  `{"harness-only": {"required_skills": ["openstudio-sdk-model-editor"]}}`. Use it
+  to check which route the isolated arms took, not just their outcome.
 - `expected.metrics`: passes when a number within `tolerance_pct` of `value`
   appears on a line of the final answer containing `name`. `expected.artifacts`
   are file-name globs that must exist in the session sandbox. Metrics read the

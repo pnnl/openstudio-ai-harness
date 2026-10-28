@@ -38,6 +38,7 @@ from evals.checks import (
     check_model,
     deepeval_tool_correctness,
     find_output_model,
+    routing_spec,
     score_case,
 )
 from evals.report import write_report
@@ -216,8 +217,8 @@ def score_run(
     ))
     checks += check_expected(case.get("expected"), run.final_text, files)
     checks += check_model((case.get("expected") or {}).get("model"), output_model)
+    checks += score_case(routing_spec(case, arm), calls)
     if arm == "both":
-        checks += score_case(case, calls)
         if use_deepeval and case.get("expected_tools_ordered"):
             de = deepeval_tool_correctness(
                 calls, case["expected_tools_ordered"], prompt=prompt, answer=run.final_text

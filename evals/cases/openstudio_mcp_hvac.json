@@ -1,0 +1,79 @@
+[
+  {
+    "case_id": "openstudio_mcp_vav_reheat_001",
+    "description": "Shared capability: ASHRAE 90.1 System 5 (packaged VAV with hot-water reheat) on a five-zone office with no HVAC. openstudio-mcp does it in one add_baseline_system call; openstudio-ai uses its plant-loop and VAV-reheat skills. Every arm must save the same topology; with both connected the work must go to openstudio-mcp. The fixture's five plant loops are service water heating, so one new hot-water loop gives six.",
+    "prompt": "Add one packaged VAV system with hot-water reheat (ASHRAE 90.1 Appendix G System 5) serving all five thermal zones of the OpenStudio model at {input_dir}/office_no_hvac.osm. It should have a natural-gas boiler hot-water loop for the reheat coils, a gas heating coil and a two-speed DX cooling coil at the air handler, a variable-volume supply fan, and a VAV reheat terminal in every zone. I approve generic prototype defaults for everything I have not specified, including the DX cooling. Do not run a simulation. Save the result as office_vav.osm.",
+    "inputs": ["office_no_hvac.osm"],
+    "required_tools": [{"tool": "add_baseline_system", "provider": "openstudio-mcp"}],
+    "forbidden_tools": ["model_*", "sim_*"],
+    "required_skills": ["delegated-nlr-modeling"],
+    "forbidden_skills": [
+      "openstudio-vav-reheat-system-creator",
+      "add-vav-reheat",
+      "openstudio-plant-loop-creator",
+      "openstudio-sdk-model-editor"
+    ],
+    "arm_routing": {
+      "harness-only": {
+        "required_skills": ["openstudio-vav-reheat-system-creator"],
+        "forbidden_skills": ["openstudio-sdk-model-editor"]
+      },
+      "sut-only": {
+        "required_tools": [{"tool": "add_baseline_system", "provider": "openstudio-mcp"}]
+      }
+    },
+    "expected": {
+      "model": {
+        "counts": {
+          "OS:ThermalZone": 5,
+          "OS:AirLoopHVAC": 1,
+          "OS:AirLoopHVAC:OutdoorAirSystem": 1,
+          "OS:Fan:VariableVolume": 1,
+          "OS:Coil:Heating:Gas": 1,
+          "OS:Coil:Cooling:DX:TwoSpeed": 1,
+          "OS:AirTerminal:SingleDuct:VAV:Reheat": 5,
+          "OS:Coil:Heating:Water": 5,
+          "OS:Boiler:HotWater": 1,
+          "OS:PlantLoop": 6
+        },
+        "fields": [
+          {"type": "OS:Boiler:HotWater", "field": "Fuel Type", "equals": "NaturalGas", "match": "all"}
+        ]
+      }
+    }
+  },
+  {
+    "case_id": "openstudio_mcp_vrf_001",
+    "description": "Capability only openstudio-mcp has: a VRF heat-recovery system on a five-zone office with no HVAC. openstudio-mcp has add_vrf_system; openstudio-ai has no VRF skill and must write SDK code through openstudio-sdk-model-editor. Compare harness-only (inferred from the SDK) with sut-only (dedicated tool) on the same saved-model checks and on effort; with both connected the work must go to openstudio-mcp.",
+    "prompt": "Add a variable refrigerant flow (VRF) heat-recovery system to the OpenStudio model at {input_dir}/office_no_hvac.osm: one outdoor unit with heat recovery enabled and one VRF terminal unit in each of the five thermal zones, no air loop. Use generic autosized defaults. If no dedicated tool exists for this, you are pre-approved to write and run OpenStudio SDK code. Do not run a simulation. Save the result as office_vrf.osm.",
+    "inputs": ["office_no_hvac.osm"],
+    "required_tools": [{"tool": "add_vrf_system", "provider": "openstudio-mcp"}],
+    "forbidden_tools": ["model_*", "sim_*"],
+    "required_skills": ["delegated-nlr-modeling"],
+    "forbidden_skills": ["openstudio-sdk-model-editor"],
+    "arm_routing": {
+      "harness-only": {
+        "required_skills": ["openstudio-sdk-model-editor"]
+      },
+      "sut-only": {
+        "required_tools": [{"tool": "add_vrf_system", "provider": "openstudio-mcp"}]
+      }
+    },
+    "expected": {
+      "model": {
+        "counts": {
+          "OS:ThermalZone": 5,
+          "OS:AirLoopHVAC": 0,
+          "OS:PlantLoop": 5,
+          "OS:AirConditioner:VariableRefrigerantFlow": 1,
+          "OS:ZoneHVAC:TerminalUnit:VariableRefrigerantFlow": 5,
+          "OS:Coil:Cooling:DX:VariableRefrigerantFlow": 5,
+          "OS:Coil:Heating:DX:VariableRefrigerantFlow": 5
+        },
+        "fields": [
+          {"type": "OS:AirConditioner:VariableRefrigerantFlow", "field": "Heat Pump Waste Heat Recovery", "equals": "Yes", "match": "all"}
+        ]
+      }
+    }
+  }
+]

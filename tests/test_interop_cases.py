@@ -162,3 +162,45 @@ def test_report_renders_results_failures_and_collapsed_sequences(tmp_path) -> No
     assert "a(harness) x2 -> b(srv)" in text
     assert "| `c1` | sut-only | 5 | 3 | 1,000 | $0.50 | 20s |" in text  # single session
     assert "| `c1` | both | 6 | 3 | 1,000 | $0.50 | 20s |" in text  # median of 5 and 6 turns is 5.5, shown as 6
+
+
+def _skill(name: str):
+    from evals.checks import ToolCall
+
+    return ToolCall("Skill", "agent", {"skill": f"openstudio-ai:{name}"})
+
+
+def test_skill_checks_match_loaded_skill_names() -> None:
+    from evals.checks import ToolCall, score_case
+
+    calls = [_skill("delegated-nlr-modeling"), ToolCall("add_vrf_system", "openstudio-mcp")]
+    spec = {"required_skills": ["delegated-nlr-modeling"], "forbidden_skills": ["openstudio-sdk-*"]}
+    assert all(r.passed for r in score_case(spec, calls))
+    results = {r.check: r for r in score_case(spec, [_skill("openstudio-sdk-model-editor")])}
+    assert not results["required_skill:delegated-nlr-modeling"].passed
+    assert not results["forbidden_skill:openstudio-sdk-*"].passed
+
+
+def test_routing_spec_top_level_is_both_only_and_arm_routing_overrides() -> None:
+    from evals.checks import routing_spec
+
+    case = {
+        "required_tools": [{"tool": "add_vrf_system", "provider": "openstudio-mcp"}],
+        "forbidden_skills": ["openstudio-sdk-model-editor"],
+        "arm_routing": {"harness-only": {"required_skills": ["openstudio-sdk-model-editor"]}},
+    }
+    assert routing_spec(case, "both") == {
+        "required_tools": case["required_tools"], "forbidden_skills": ["openstudio-sdk-model-editor"],
+    }
+    assert routing_spec(case, "harness-only") == {"required_skills": ["openstudio-sdk-model-editor"]}
+    assert routing_spec(case, "sut-only") == {}
+
+
+def test_hvac_cases_use_the_no_hvac_office_fixture() -> None:
+    from evals.interop import FIXTURES_DIR
+
+    cases = load_cases(["openstudio_mcp_vav_reheat_001", "openstudio_mcp_vrf_001"])
+    for case in cases:
+        assert all((FIXTURES_DIR / name).is_file() for name in case["inputs"])
+        assert set(case["arm_routing"]) <= {"harness-only", "sut-only", "both"}
+        assert case["expected"]["model"]["counts"]["OS:ThermalZone"] == 5

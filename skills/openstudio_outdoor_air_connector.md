@@ -81,3 +81,7 @@ ventilation/economizer editors for controller changes, and the selected provider
 for sizing/simulation. Shared/dedicated OA, embedded equipment, replacing an
 existing exchanger, extra OA-stream coils/fans and air-balancing redesign need
 separate coverage. Report covered failures without substitute scripts.
+
+## Energy code values
+
+Applies only when the user asks for code-compliant or code-minimum values or names a standard (for example "per 90.1-2019"); otherwise keep the behavior above. Load `query-energy-standards` to check whether exhaust air energy recovery is required and its minimum effectiveness (`system_requirements_energy_recovery`), then use those values for the explicit effectiveness choices requested in the preview. The code value does not replace the user's choice of flow, power, frost and bypass settings. Confirm `standard`, `template`, `climate_zone` and `path` with the user instead of assuming them, and record the source of each value used. If the `building_energy_standards` tools are unavailable or return no matching row, say so and ask the user for the value; never invent a code value.

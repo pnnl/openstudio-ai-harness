@@ -166,6 +166,7 @@ task-specific skill before acting; do not recreate its procedure from memory.
   plant creation alone does not require removal or subsequent VAV creation.
   Each operation produces a reviewed model copy for the next selected operation.
   Do not generate ad hoc scripts for covered plant/removal work.
+- Use `query-energy-standards` when a task has a code basis (a named standard, "code minimum" or compliance) to resolve equipment efficiency, fan power, economizer, energy recovery, pump, ventilation, envelope or lighting values before the owning skill's configuration is prepared. The owning skill applies the values; the standards skill only looks them up.
 - Use bespoke SDK programming only when no specific energy-modeling skill covers
   the request. A failed covered workflow requires diagnosis, not a generated-code
   bypass.

@@ -101,3 +101,7 @@ its water-coil creation connects the coils to the selected plants. Plant buildin
 and air-side creation are separate reviewed transactions. Do not draft
 plant code as a workaround. Sizing, performance comparison and simulation use
 their separate workflows; creation/translation do not prove annual performance.
+
+## Energy code values
+
+Applies only when the user asks for code-compliant or code-minimum values or names a standard (for example "per 90.1-2019"); otherwise keep the behavior above. Load `query-energy-standards` to resolve `boiler_efficiency` (`hvac_minimum_requirements_boilers`), chiller COP (`..._chillers`; convert kW/ton, EER or IPLV to COP and record the conversion), cooling-tower requirements (`..._heat_rejection`) and pump motor efficiency (`..._motors`). Pass resolved values as explicit configuration fields instead of the `prototype_plants_v1` defaults, which remain a generic choice that needs explicit human approval. Confirm `standard`, `template`, `climate_zone` and `path` with the user instead of assuming them, and record the source of each value used. If the `building_energy_standards` tools are unavailable or return no matching row, say so and ask the user for the value; never invent a code value.

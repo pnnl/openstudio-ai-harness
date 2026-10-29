@@ -16,6 +16,8 @@ from common import version_guard as guard
 from common.diagnostics import failure_report, mismatch
 
 TRANSACTION_ENTRYPOINTS = [
+    "remove_unused_plants.py",
+    "replace_plant_equipment.py",
     "edit_boiler_performance.py",
     "edit_chiller_performance.py",
     "edit_district_capacity.py",

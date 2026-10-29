@@ -17,6 +17,8 @@ are approved. Phase 12e boiler nominal capacity and F1–F3 are approved.
 Phases 12a–12h and their review fixes are approved. Phase 12 plant-performance
 implementation is complete with final chiller part-load/unloading coverage (12i),
 awaiting final review. See [phase 12 closeout](docs/PHASE12_SUMMARY.md).
+Phase 13a unused-plant cleanup and 13b mechanical-to-district source conversion
+are implemented for review; see the [phase 13 contract and evidence](docs/PHASE13_WORK.md).
 Reheat-terminal conversion remains separate. See the
 [resumed equipment sequence](docs/HVAC_MODULARIZATION_WORK.md#resumed-equipment-sequence--october-20-2026)
 for the next checkpoint and remaining equipment families.

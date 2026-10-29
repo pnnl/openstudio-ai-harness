@@ -89,10 +89,20 @@ CONFIG_KEYS.update(
         "maximum_airflow_m3_s",
     }
 )
-SAFE_WORDS.update({"VAVNoReheat", "ConstantVolumeNoReheat", "None"})
+SAFE_WORDS.update(
+    {
+        "VAVNoReheat",
+        "ConstantVolumeNoReheat",
+        "None",
+        "DistrictHeatingWater",
+        "DistrictCooling",
+    }
+)
 CONFIG_KEYS.update(
     {
         "district_equipment",
+        "equipment",
+        "capacity_fraction_schedule",
         "nominal_capacity_w",
         "tower",
         "design_fan_power_w",

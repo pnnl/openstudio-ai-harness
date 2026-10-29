@@ -50,6 +50,15 @@ simulation workflows, and explain what changed.
   Review autosized design airflow/airflow-based metrics coupled to fan power,
   evaporation/make-up water and tower electricity;
   other tower classes, user-defined thermal models and replacement need coverage.
+- Use `openstudio-plant-equipment-replacer` for a selected hot-water boiler →
+  district heating or air/water-cooled EIR chiller → district cooling conversion.
+  Explicit capacity, fraction schedule and reference policy are required. Keep
+  same-class settings in performance editors. Condenser branch removal is shown
+  separately; the condenser plant remains.
+- Use `openstudio-hvac-remover`'s `remove_unused_plants.py` for explicitly selected
+  unused plant cleanup after fresh inventory. Zero coils alone is insufficient;
+  active demand, shared cross-loop equipment or external references block cleanup.
+  Never infer plant deletion from a coil migration or source conversion.
 - Use `openstudio-chiller-performance-editor` for one existing air- or water-cooled
   ChillerElectricEIR reference COP, cooling capacity (watts/Autosize) or explicit
   part-load/unloading edit on a

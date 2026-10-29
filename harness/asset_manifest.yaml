@@ -185,6 +185,10 @@ resources:
         skill: openstudio-tower-performance-editor
         path: scripts/doctor.py
 
+      - hosts: [claude, codex]
+        skill: openstudio-plant-equipment-replacer
+        path: scripts/doctor.py
+
   - source: skills/sdk_scripts/sdk_probe.py
     scope: plugin-sdk
     owners:
@@ -264,6 +268,10 @@ resources:
         path: scripts/sdk_probe.py
       - hosts: [claude, codex]
         skill: openstudio-tower-performance-editor
+        path: scripts/sdk_probe.py
+
+      - hosts: [claude, codex]
+        skill: openstudio-plant-equipment-replacer
         path: scripts/sdk_probe.py
 
   - source: skills/sdk_scripts/common/version_guard.py
@@ -1701,6 +1709,10 @@ resources:
         skill: openstudio-tower-performance-editor
         path: scripts/prepare_model.py
 
+      - hosts: [claude, codex]
+        skill: openstudio-plant-equipment-replacer
+        path: scripts/prepare_model.py
+
   - source: skills/sdk_scripts/schemas/preparation_report.schema.json
     scope: plugin-sdk
     owners:
@@ -1850,6 +1862,10 @@ resources:
         path: references/model_preparation.md
       - hosts: [claude, codex]
         skill: openstudio-tower-performance-editor
+        path: references/model_preparation.md
+
+      - hosts: [claude, codex]
+        skill: openstudio-plant-equipment-replacer
         path: references/model_preparation.md
 
   - source: skills/sdk_scripts/edit_terminal.py
@@ -2033,7 +2049,58 @@ resources:
         skill: openstudio-chiller-performance-editor
         path: scripts/common/plant_sizing.py
 
+  - source: skills/sdk_scripts/common/plant_operations.py
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-hvac-remover
+        path: scripts/common/plant_operations.py
+      - hosts: [claude, codex]
+        skill: openstudio-plant-equipment-replacer
+        path: scripts/common/plant_operations.py
+
+  - source: skills/sdk_scripts/remove_unused_plants.py
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-hvac-remover
+        path: scripts/remove_unused_plants.py
+
+  - source: skills/sdk_scripts/replace_plant_equipment.py
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-plant-equipment-replacer
+        path: scripts/replace_plant_equipment.py
+
+  - source: skills/sdk_scripts/references/plant_operations.md
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-hvac-remover
+        path: references/plant_operations.md
+      - hosts: [claude, codex]
+        skill: openstudio-plant-equipment-replacer
+        path: references/plant_operations.md
+
+  - source: skills/sdk_scripts/references/plant_removal.schema.json
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-hvac-remover
+        path: references/plant_removal.schema.json
+
+  - source: skills/sdk_scripts/references/plant_replacement.schema.json
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-plant-equipment-replacer
+        path: references/plant_replacement.schema.json
+
 skills:
+  - id: openstudio-plant-equipment-replacer
+    source: skills/openstudio_plant_equipment_replacer.md
+    hosts: [claude, codex]
   - id: openstudio-district-capacity-editor
     source: skills/openstudio_district_capacity_editor.md
     hosts: [claude, codex]

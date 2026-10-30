@@ -32,8 +32,18 @@ jobs:
       - name: Install browser test dependencies
         run: python -m playwright install --with-deps chromium
 
-      - name: Run unit tests
-        run: python -m pytest -q tests
+      - name: Run full test suite (including slow checks)
+        env:
+          OPENSTUDIO_AI_DATA_DIR: ${{ runner.temp }}/openstudio-ai-tests
+        run: python -m pytest -q tests --strict-markers --durations=25 --junitxml=test-results/full.xml
+
+      - name: Upload full test timing report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-test-results-python-${{ matrix.python-version }}
+          path: test-results/full.xml
+          if-no-files-found: warn
 
   standalone:
     name: Standalone tests (Python 3.10)

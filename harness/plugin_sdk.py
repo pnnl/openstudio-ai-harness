@@ -4,6 +4,7 @@ from collections import Counter
 import hashlib
 import json
 from pathlib import Path
+import re
 import shutil
 
 SDK_DIRECTORY = "sdk"
@@ -29,6 +30,48 @@ SDK_PACKAGING_GUIDANCE = (
 
 def encoded(value):
     return json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
+
+
+def reference_aliases(resources, workspace_root, host):
+    """Map declared skill-local SDK reference aliases to plugin-local files."""
+    sources = workspace_root.resolve() / "skills/sdk_scripts"
+    result = {}
+    for resource in resources:
+        source = (workspace_root / resource["source"]).resolve()
+        if resource.get("scope") != "plugin-sdk" or source.suffix == ".py":
+            continue
+        target = "../../sdk/" + source.relative_to(sources).as_posix()
+        for owner in resource["owners"]:
+            if host not in owner["hosts"]:
+                continue
+            aliases = {owner["path"]}
+            if owner["path"].startswith("scripts/references/"):
+                aliases.add(owner["path"].removeprefix("scripts/"))
+            elif owner["path"].startswith("references/"):
+                aliases.add("scripts/" + owner["path"])
+            aliases.update("./" + alias for alias in list(aliases))
+            mapping = result.setdefault(owner["skill"], {})
+            for alias in aliases:
+                if alias in mapping and mapping[alias] != target:
+                    raise ValueError("Conflicting shared SDK reference alias")
+                mapping[alias] = target
+    return result
+
+
+def _reference_pattern(aliases):
+    paths = "|".join(re.escape(x) for x in sorted(aliases, key=len, reverse=True))
+    # Do not rewrite substrings of another filename or an already shared path.
+    # A sentence-ending period is punctuation; .backup is a filename suffix.
+    return re.compile(r"(?<![\w./-])(?:" + paths + r")(?![\w/-]|\.\w)")
+
+
+def rewrite_reference_paths(content, aliases):
+    """Rewrite complete path tokens, including links and inline code, once."""
+    if not aliases:
+        return content
+    return _reference_pattern(aliases).sub(
+        lambda match: aliases[match.group()], content
+    )
 
 
 def launcher(entry, bundle_id):
@@ -79,7 +122,7 @@ def plan_resources(resources, workspace_root, plugin_dir, host, budget, factory)
             )
         baseline_copies += len(owners)
         baseline_bytes += source.stat().st_size * len(owners)
-        if source.suffix in {".py", ".json"}:
+        if source.suffix in {".py", ".json", ".md"}:
             payloads[source.relative_to(sources).as_posix()] = source
     if "compatibility.json" not in payloads:
         raise ValueError("Shared SDK library requires its compatibility contract")
@@ -98,9 +141,7 @@ def plan_resources(resources, workspace_root, plugin_dir, host, budget, factory)
         for owner in owners:
             relative = Path(owner["path"])
             target = plugin_dir / "skills" / owner["skill"] / relative
-            if relative.parts[0] == "references":
-                exports.append(factory(source, target, owner["skill"]))
-            elif len(relative.parts) == 2 and relative.suffix == ".py":
+            if len(relative.parts) == 2 and relative.suffix == ".py":
                 if source.parent != sources:
                     raise ValueError("Skill entrypoints must be top-level SDK scripts")
                 exports.append(
@@ -126,12 +167,29 @@ def plan_resources(resources, workspace_root, plugin_dir, host, budget, factory)
             json.dumps(marker, indent=2) + "\n",
         )
     )
-    current_bytes = sum(
-        len(x.content.encode()) if x.content is not None else x.source.stat().st_size
-        for x in exports
-    )
+    categories = {
+        key: dict(files=0, bytes=0)
+        for key in ("payload", "launchers", "references", "metadata")
+    }
+    for export in exports:
+        relative = export.target.relative_to(plugin_dir)
+        if relative.parts[0] != SDK_DIRECTORY:
+            category = "launchers"
+        elif relative.name == "bundle.json":
+            category = "metadata"
+        elif relative.parts[1] in {"references", "schemas"}:
+            category = "references"
+        else:
+            category = "payload"
+        categories[category]["files"] += 1
+        categories[category]["bytes"] += (
+            len(export.content.encode())
+            if export.content is not None
+            else export.source.stat().st_size
+        )
+    current_bytes = sum(x["bytes"] for x in categories.values())
     report = dict(
-        schema_version=1,
+        schema_version=2,
         scope="sdk_resources",
         bundle_id=bundle_id,
         baseline_copies=baseline_copies,
@@ -142,6 +200,7 @@ def plan_resources(resources, workspace_root, plugin_dir, host, budget, factory)
         saved_bytes=baseline_bytes - current_bytes,
         reduction_fraction=1 - current_bytes / baseline_bytes,
         max_bytes=budget,
+        categories=categories,
     )
     content = json.dumps(report, indent=2) + "\n"
     if current_bytes + len(content.encode()) > budget:
@@ -154,13 +213,31 @@ def plan_resources(resources, workspace_root, plugin_dir, host, budget, factory)
     return exports
 
 
-def write_resources(exports, plugin_dir):
+def write_resources(exports, plugin_dir, *, aliases=None):
+    # Adapters have already copied local skill files and host-specific references.
+    # Inspect those actual files too, rather than relying only on manifest paths.
+    for skill, mapping in (aliases or {}).items():
+        for alias in mapping:
+            target = plugin_dir / "skills" / skill / alias
+            if (
+                target.exists()
+                or target.is_symlink()
+                or any(target == export.target for export in exports)
+            ):
+                raise ValueError(f"SDK reference alias destination collision: {alias}")
     for export in exports:
         export.target.parent.mkdir(parents=True, exist_ok=True)
         if export.content is None:
             shutil.copy2(export.source, export.target)
         else:
             export.target.write_text(export.content, encoding="utf-8")
+    for skill, mapping in (aliases or {}).items():
+        path = plugin_dir / "skills" / skill / "SKILL.md"
+        content = path.read_text(encoding="utf-8")
+        rewritten = rewrite_reference_paths(content, mapping)
+        if mapping and _reference_pattern(mapping).search(rewritten):
+            raise ValueError(f"Unrewritten SDK reference alias in {skill}/SKILL.md")
+        path.write_text(rewritten, encoding="utf-8")
     report_path = plugin_dir / SDK_DIRECTORY / "PACKAGING.json"
     if not report_path.is_file():
         return

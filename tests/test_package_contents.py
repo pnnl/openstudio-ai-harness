@@ -55,6 +55,49 @@ def test_release_archives_exclude_local_openstudio_fixtures(tmp_path: Path) -> N
     with tarfile.open(sdist) as archive:
         sdist_names = [member.name.partition("/")[2] for member in archive.getmembers()]
 
+    terminal_sources = {
+        "skills/openstudio_plant_equipment_replacer.md",
+        "skills/sdk_scripts/common/plant_operations.py",
+        "skills/sdk_scripts/remove_unused_plants.py",
+        "skills/sdk_scripts/replace_plant_equipment.py",
+        "skills/sdk_scripts/references/plant_operations.md",
+        "skills/sdk_scripts/references/plant_removal.schema.json",
+        "skills/sdk_scripts/references/plant_replacement.schema.json",
+        "skills/sdk_scripts/common/plant_sizing.py",
+        "skills/openstudio_district_capacity_editor.md",
+        "skills/sdk_scripts/edit_district_capacity.py",
+        "skills/sdk_scripts/common/district_edit.py",
+        "skills/sdk_scripts/references/district_capacity.md",
+        "skills/sdk_scripts/references/district_capacity.schema.json",
+        "skills/openstudio_tower_performance_editor.md",
+        "skills/sdk_scripts/edit_tower_performance.py",
+        "skills/sdk_scripts/common/tower_edit.py",
+        "skills/sdk_scripts/references/tower_performance.md",
+        "skills/sdk_scripts/references/tower_performance.schema.json",
+        "skills/openstudio_chiller_performance_editor.md",
+        "skills/sdk_scripts/edit_chiller_performance.py",
+        "skills/sdk_scripts/common/chiller_edit.py",
+        "skills/sdk_scripts/references/chiller_performance.md",
+        "skills/sdk_scripts/references/chiller_performance.schema.json",
+        "skills/openstudio_boiler_performance_editor.md",
+        "skills/sdk_scripts/edit_boiler_performance.py",
+        "skills/sdk_scripts/common/boiler_edit.py",
+        "skills/sdk_scripts/references/boiler_performance.md",
+        "skills/sdk_scripts/references/boiler_performance.schema.json",
+        "skills/openstudio_terminal_replacer.md",
+        "skills/sdk_scripts/replace_terminal.py",
+        "skills/sdk_scripts/common/terminal_replacement.py",
+        "skills/sdk_scripts/references/terminal_replacement.md",
+        "skills/sdk_scripts/references/terminal_replacement.schema.json",
+        "skills/openstudio_terminal_editor.md",
+        "skills/sdk_scripts/edit_terminal.py",
+        "skills/sdk_scripts/common/terminal_edit.py",
+        "skills/sdk_scripts/references/terminal_edit.md",
+        "skills/sdk_scripts/references/terminal_edit.schema.json",
+    }
+    assert terminal_sources <= set(wheel_names)
+    assert terminal_sources <= set(sdist_names)
+
     sdist_blocked_prefixes = (
         "resource/",
         "tests/fixtures/",

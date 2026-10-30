@@ -578,7 +578,7 @@ def test_preparation_available_in_every_relocated_owning_bundle(sdk, tmp_path, h
         skill = moved / "skills" / owner["skill"]
         script = skill / "scripts/prepare_model.py"
         assert script.is_file()
-        assert (skill / "references/preparation_report.schema.json").is_file()
+        assert (skill / "../../sdk/schemas/preparation_report.schema.json").is_file()
         assert "requires_preparation" in (skill / "SKILL.md").read_text()
         run = subprocess.run(
             [sys.executable, "-I", "-S", str(script), "--help"],

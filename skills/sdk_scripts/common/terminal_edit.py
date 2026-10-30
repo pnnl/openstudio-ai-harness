@@ -4,9 +4,11 @@ from __future__ import annotations
 import json
 import math
 from pathlib import Path
+from common.coil_topology import protected_state
 from common.input_validation import validate
 from common.hvac_inventory import resolve
 from common.model_preservation import fingerprint, snapshot
+from common.water_coil import original_types, raw_fields
 from common.ventilation_context import (
     schedule_bounds,
     stable_evidence,
@@ -425,8 +427,15 @@ def plan(model, sdk, config):
                     warnings.append(
                         "Reheat temperature limit is at or below a retained zone heating setpoint; heating load may not be met"
                     )
+    protection = dict(excluded=[str(terminal.handle())], ignored={}, field_limits={})
+    protected = snapshot(model, **protection)
     planned.update(
         ready=True,
+        weather_was_empty=not any(
+            value
+            for name, value in raw_fields(model.getWeatherFile()).values()
+            if name not in ("Handle", "Url", "Checksum")
+        ),
         parameters=dict(output_model_path=config["output_model_path"], settings=patch),
         resolved_objects=dict(
             terminal=ref(terminal),
@@ -438,7 +447,9 @@ def plan(model, sdk, config):
         after_values=after,
         context=info,
         preserved_terminal=signature(terminal, patch),
-        protected_objects=snapshot(model, excluded={str(terminal.handle())}),
+        before_objects=original_types(model),
+        protection=protection,
+        protected_objects=protected,
         impact=dict(
             terminal=terminal.nameString(),
             zone=zone.nameString(),
@@ -536,10 +547,9 @@ def validate_model(model, sdk, planned, result):
             terminal, planned["parameters"]["settings"]
         )
         == planned["preserved_terminal"],
-        "Protected objects/references changed": snapshot(
-            model, excluded={str(terminal.handle())}
-        )
-        == planned["protected_objects"],
+        "Model objects/handles changed": original_types(model)
+        == planned["before_objects"],
+        "Protected objects/references changed": protected_state(model, sdk, planned),
     }
     if all(checks.values()):
         checks["Translated terminal settings differ from plan"] = translated_settings(

@@ -622,8 +622,8 @@ def test_native_relocated_exports(sdk, tmp_path, host, replace):
         "scripts/doctor.py",
         "scripts/sdk_probe.py",
         "scripts/prepare_model.py",
-        "references/model_preparation.md",
-        "references/plant_operations.md",
+        "../../sdk/references/model_preparation.md",
+        "../../sdk/references/plant_operations.md",
     ):
         assert (skill / relative).is_file()
     skill = copy_plugin_for_skill(skill, tmp_path / "relocated plugin")

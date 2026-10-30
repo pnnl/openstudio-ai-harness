@@ -10,7 +10,7 @@ from common.hvac_inventory import resolve
 from common.input_validation import validate
 from common.model_preservation import fingerprint, snapshot
 from common.temperature_control import translated_workspace, optional_string
-from common.water_coil import original_types
+from common.water_coil import original_types, raw_fields
 from common.plant_sizing import sizing_context, require_plant_sizing
 
 FIELD = "Nominal Capacity"
@@ -224,6 +224,11 @@ def plan(model, sdk, config):
     protection = dict(excluded=[str(obj.handle())], ignored={}, field_limits={})
     protected = snapshot(model, **protection)
     planned.update(
+        weather_was_empty=not any(
+            value
+            for name, value in raw_fields(model.getWeatherFile()).values()
+            if name not in ("Handle", "Url", "Checksum")
+        ),
         ready=True,
         simulation_ready=True,
         parameters=dict(output_model_path=config["output_model_path"], settings=after),

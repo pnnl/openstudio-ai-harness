@@ -299,6 +299,11 @@ def plan(model, sdk, config):
         retained_output_references=sorted(retained, key=lambda x: x["handle"]),
         before_translation=translated_signature(model, sdk, old),
     )
+    planned["weather_was_empty"] = not any(
+        value
+        for name, value in raw_fields(model.getWeatherFile()).values()
+        if name not in ("Handle", "Url", "Checksum")
+    )
     preview = sdk.model.Model(model.clone(True))
     result = replace(preview, sdk, planned)
     new = typed(preview, sdk, result["replacement_terminal"])

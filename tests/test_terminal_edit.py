@@ -777,9 +777,9 @@ def test_native_exported_editor_after_complete_relocation(
         "scripts/doctor.py",
         "scripts/sdk_probe.py",
         "scripts/prepare_model.py",
-        "references/model_preparation.md",
-        "references/terminal_edit.md",
-        "references/terminal_edit.schema.json",
+        "../../sdk/references/model_preparation.md",
+        "../../sdk/references/terminal_edit.md",
+        "../../sdk/references/terminal_edit.schema.json",
     ):
         assert (skill / relative).is_file(), relative
     skill = copy_plugin_for_skill(skill, tmp_path / "relocated")

@@ -25,6 +25,9 @@ for the next checkpoint and remaining equipment families.
 
 ## Current Capabilities
 
+- Boiler, district-capacity, terminal-control, terminal-replacement and tower edits
+  validate initially empty weather metadata against the reviewed companion EPW;
+  changed resources, weather metadata and plan tampering remain rejected.
 - OpenStudio MCP server for model lifecycle, simulation, results, SDK lookup,
   runtime storage, MCP-backed blackboard workflow state, and downloadable
   self-contained OSM geometry viewers.
@@ -215,7 +218,12 @@ for the next checkpoint and remaining equipment families.
 - Skill resource export for both hosts, with one plugin-local `sdk/` library
   and fixed launchers in owning skills. Install or move the complete plugin;
   no separate shared package is required. Export records size evidence and
-  enforces a 1,114,112-byte (1 MiB + 64 KiB) SDK-resource budget. See the [packaging contract and review commands](docs/SDK_INTEGRATION_SUMMARY.md#b--shared-sdk-packaging).
+  enforces a 1,114,112-byte (1 MiB + 64 KiB) SDK-resource budget. Shared guides
+  and schemas live once under `sdk/`; exported skill links stay inside the plugin.
+  Markdown participates in bundle integrity, so documentation edits require a
+  matching full export. See the [packaging review and size breakdown](docs/SDK_PACKAGING_REVIEW.md).
+  Earlier 0.4.1 exports omitted some declared HVAC guides; regenerate from the
+  updated harness and refresh the complete plugin to repair those links.
   This package pins OpenStudio 3.11.0 consistently in its dependency,
   lock metadata and exported compatibility contract. SDK skills include a
   grouped assumption review with editable inputs and visible fixed controls;

@@ -3,8 +3,9 @@ version: 3
 sdk_library:
   max_bytes: 1114112
 
-# Verbatim skill files with explicit destinations. Shared helpers may have
-# multiple owners; nested paths are preserved.
+# Resources with explicit owners. For plugin-sdk references, owner paths are
+# logical aliases rewritten in SKILL.md to a single plugin-local sdk/ file.
+# Other resource destinations retain their declared paths.
 resources:
   - source: skills/sdk_scripts/visualize_hvac.py
     scope: plugin-sdk

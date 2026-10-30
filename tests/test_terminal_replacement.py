@@ -654,9 +654,9 @@ def test_native_relocated_complete_exports(sdk, model_file, tmp_path, host):
         "scripts/doctor.py",
         "scripts/sdk_probe.py",
         "scripts/prepare_model.py",
-        "references/model_preparation.md",
-        "references/terminal_replacement.md",
-        "references/terminal_replacement.schema.json",
+        "../../sdk/references/model_preparation.md",
+        "../../sdk/references/terminal_replacement.md",
+        "../../sdk/references/terminal_replacement.schema.json",
     ):
         assert (skill / relative).is_file(), relative
     skill = copy_plugin_for_skill(skill, tmp_path / "relocated")

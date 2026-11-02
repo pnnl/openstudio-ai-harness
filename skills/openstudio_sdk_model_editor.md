@@ -84,6 +84,65 @@ Disallowed uses:
 - For prototype CAV construction, use `openstudio-cav-system-creator`; its parent
   composes shared equipment modules with a reviewed system-specific recipe.
   Confirm the requested CAV topology matches its supported arrangement.
+- Use `openstudio-district-capacity-editor` for an existing supply-side
+  DistrictHeatingWater or DistrictCooling nominal thermal capacity: explicit watts
+  or Autosize, preserving schedule, connections and identity. Review the retained
+  capacity-fraction schedule; a capacity limit is not an efficiency saving. Steam,
+  schedule changes and district production/loss modeling require separate coverage.
+- Use `openstudio-tower-performance-editor` for one existing condenser supply-side
+  CoolingTowerVariableSpeed design fan electrical power (watts/Autosize), minimum
+  airflow ratio or free-convection fraction edits. Require explicit performance
+  choices; retain design conditions, unrequested inputs, curves and identity.
+  Low-load controls affect fan cycling/fan-off heat rejection and coupled energy;
+  fan-off does not mean pumps off or guaranteed savings.
+  Review autosized design airflow/airflow-based metrics coupled to fan power,
+  evaporation/make-up water and tower electricity;
+  other tower classes, user-defined thermal models and replacement need coverage.
+- Use `openstudio-plant-equipment-replacer` for a selected hot-water boiler →
+  district heating or air/water-cooled EIR chiller → district cooling conversion.
+  Explicit capacity, fraction schedule and reference policy are required. Keep
+  same-class settings in performance editors. Condenser branch removal is shown
+  separately; the condenser plant remains.
+- Use `openstudio-hvac-remover`'s `remove_unused_plants.py` for explicitly selected
+  unused plant cleanup after fresh inventory. Zero coils alone is insufficient;
+  active demand, shared cross-loop equipment or external references block cleanup.
+  Never infer plant deletion from a coil migration or source conversion.
+- Use `openstudio-chiller-performance-editor` for one existing air- or water-cooled
+  ChillerElectricEIR reference COP, cooling capacity (watts/Autosize) or explicit
+  part-load/unloading edit on a
+  Cooling plant. Preserve curves, unrequested sizing/flow inputs, condenser
+  connections, controls and identities. Review effective plant-sizing readiness
+  for explicit Autosize and its retained evaporator-flow/factor sizing basis;
+  require minimum ≤ optimum ≤ maximum and minimum ≤ unloading ≤ maximum,
+  with optimum/maximum > 0; cycling and false loading affect energy. Review autosized
+  condenser pump/tower changes after sizing; chiller electricity is not plant
+  savings. No inferred standards minimum,
+  curve substitution or class conversion. Heat recovery, thermosiphon and other
+  chiller classes need separate coverage.
+- Use `openstudio-boiler-performance-editor` for explicit nominal thermal capacity
+  or capacity Autosize, minimum/maximum/optimum PLRs, HHV efficiency and
+  on-cycle electric/off-cycle fuel parasitics
+  on a heating-plant BoilerHotWater. Retain identity, fuel, design-flow policy,
+  curves, unrequested PLRs, sizing factor and controls. Explicit PLR choices must
+  satisfy minimum ≤ optimum ≤ maximum, maximum > 0; minimum can force
+  overproduction, and optimum is a dispatch hint. Capacity/PLR changes alter dispatch,
+  PLR/curve/parasitic energy or unmet loads; no inferred matching flow or savings.
+  Steam boilers, fuel conversion and replacement require separate coverage.
+- Use `openstudio-terminal-replacer` for one connected single-duct VAV no-reheat
+  ↔ constant-volume no-reheat terminal class change. Require explicit maximum-flow
+  policy, VAV target minimum fraction and preservation/reheat/reference policies.
+  Review new identity, changed airflow behavior, retained zone branch and sizing;
+  this is not a whole-system VAV/CAV conversion. Reheat and unsupported terminal
+  classes need separate coverage. Same-class VAV controls use the terminal editor.
+  Do not draft substitute scripts for covered terminal replacements.
+- Use `openstudio-terminal-editor` for one existing connected single-duct VAV
+  reheat/no-reheat terminal's explicit Constant-method minimum fraction or applicable
+  reheat controls, including terminals in prototype CAV systems. Preserve the
+  terminal/coil, connections, references, schedules and unrequested sizing. Review
+  supply-air versus OA, turndown/EMS overrides and flow/sizing warnings; honor
+  simulation readiness. Reverse/reheat-flow-limit edits require supported water
+  reheat controls. Terminal class/method changes, coil ratings and topology need
+  separate coverage. Do not generate substitute scripts for covered terminal edits.
 - Use `openstudio-economizer-editor` for explicit in-place economizer type,
   lockout and temperature/enthalpy cutoff edits on an existing direct OA controller.
   It preserves ventilation, DCV, schedules, sizing, topology and handles. Review

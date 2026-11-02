@@ -14,6 +14,7 @@ from harness.asset_manifest import (
     agent_source_for_host,
     reference_exports_for_host,
     resource_exports_for_host,
+    sdk_reference_aliases,
     skill_exports_for_host,
     skill_ids_for_host,
     skill_sources_for_host,
@@ -531,7 +532,9 @@ def _write_plugin_package(
         setup_scripts_dir = plugin_dir / "skills" / "setup-openstudio-ai" / "scripts"
         _write_installer_assets(setup_scripts_dir)
     write_resources(
-        resource_exports_for_host(workspace_root, plugin_dir, "claude"), plugin_dir
+        resource_exports_for_host(workspace_root, plugin_dir, "claude"),
+        plugin_dir,
+        aliases=sdk_reference_aliases(workspace_root, "claude"),
     )
 
 

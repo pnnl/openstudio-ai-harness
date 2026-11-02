@@ -109,6 +109,10 @@ def resource_exports_for_host(
             raise ValueError(f"Resource destination collision: {target}")
         reserved.add(target)
         exports.append(export)
+    for skill, aliases in sdk_reference_aliases(workspace_root, host).items():
+        for alias in aliases:
+            if plugin_dir / "skills" / skill / alias in reserved:
+                raise ValueError(f"SDK reference alias destination collision: {alias}")
     return sorted(exports, key=lambda export: str(export.target))
 
 
@@ -138,6 +142,16 @@ def skill_exports_for_host(
         )
 
     return sorted(exports, key=lambda export: export.skill)
+
+
+def sdk_reference_aliases(workspace_root: Path, host: str) -> dict:
+    """SDK owner paths are skill instruction aliases, not duplicate files."""
+    _validate_host(host)
+    from harness.plugin_sdk import reference_aliases
+
+    return reference_aliases(
+        _load_manifest().get("resources", []), workspace_root, host
+    )
 
 
 def skill_sources_for_host(workspace_root: Path, host: str) -> list[Path]:

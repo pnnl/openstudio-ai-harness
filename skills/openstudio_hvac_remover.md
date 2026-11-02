@@ -1,6 +1,6 @@
 ---
 name: openstudio-hvac-remover
-description: Remove selected air loops, VRF systems or zone HVAC equipment from a copied OSM before replacement, using a reviewed cascade plan.
+description: Remove selected air loops, VRF systems, zone HVAC equipment or explicitly unused plant loops from a copied OSM using a reviewed cascade plan.
 metadata:
   version: 0.4.1
 ---
@@ -85,3 +85,13 @@ Keep OSM and companion folder together, honoring `requires_companion_workflow`
 for portable CSV references. For replacement, pass this output to the plant/VAV
 skills and run fresh preflight. Do not remove additional equipment just because
 VAV preflight reports existing HVAC; return to the explicitly selected scope.
+
+For explicitly selected **unused plant loops**, use the separate bundled
+`scripts/remove_unused_plants.py` entrypoint with the same inventory → config →
+reviewed plan → apply command pattern. Read [plant cleanup](references/plant_operations.md)
+and its [schema](references/plant_removal.schema.json). The existing `remove_hvac.py`
+continues to preserve all plants. A plant with no coils can still serve other
+loads: cleanup requires no demand equipment beyond adiabatic plumbing and rejects
+cross-loop sources, service-water/advanced equipment and external references.
+Never infer deletion after coil migration or source conversion; show the full
+cascade and obtain explicit plant selection before apply.

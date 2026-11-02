@@ -3,13 +3,31 @@
 OpenStudio AI Harness packages a local MCP runtime, host adapters, skills,
 knowledge, and workflow-state tools for AI-assisted building-energy modeling.
 
-Release preparation: **0.4.1**, using MCP plugin/runtime contract **6.0** and
+Current release: **0.4.1**, using MCP plugin/runtime contract **6.0** and
 OpenStudio **3.11.0**. Refresh both the runtime and exported host plugin together;
 contract compatibility requires an exact match. See the
 [release guide](docs/RELEASE.md) for validation and publication steps.
 
+Phase 11a terminal editing and the initial 11b no-reheat terminal conversion are
+approved, as is phase 12a hot-water boiler efficiency/parasitic editing. Phase 12b
+chiller reference-COP editing is approved, including the condenser-sizing follow-up.
+Phase 12c variable-speed cooling-tower fan-power editing is approved, including
+the airflow/water-use follow-up. Phase 12d district water-source capacity and E1–E3
+are approved. Phase 12e boiler nominal capacity and F1–F3 are approved.
+Phases 12a–12h and their review fixes are approved. Phase 12 plant-performance
+implementation is complete with final chiller part-load/unloading coverage (12i),
+awaiting final review. See [phase 12 closeout](docs/PHASE12_SUMMARY.md).
+Phase 13a unused-plant cleanup and 13b mechanical-to-district source conversion
+are implemented for review; see the [phase 13 contract and evidence](docs/PHASE13_WORK.md).
+Reheat-terminal conversion remains separate. See the
+[resumed equipment sequence](docs/HVAC_MODULARIZATION_WORK.md#resumed-equipment-sequence--october-20-2026)
+for the next checkpoint and remaining equipment families.
+
 ## Current Capabilities
 
+- Boiler, district-capacity, terminal-control, terminal-replacement and tower edits
+  validate initially empty weather metadata against the reviewed companion EPW;
+  changed resources, weather metadata and plan tampering remain rejected.
 - OpenStudio MCP server for model lifecycle, simulation, results, SDK lookup,
   runtime storage, MCP-backed blackboard workflow state, and downloadable
   self-contained OSM geometry viewers.
@@ -42,6 +60,61 @@ contract compatibility requires an exact match. See the
   source trace, supported arrangements and verification. CAV requires
   an explicit outdoor-air choice and aligns 100% OA operation with coil sizing;
   approved CAV plans must be regenerated after this correction.
+- `openstudio-district-capacity-editor` edits one existing supply-side
+  DistrictHeatingWater or DistrictCooling nominal thermal watts or explicit Autosize
+  in place. Retain schedule, connections, controls and identity. Plans expose the
+  retained capacity-fraction schedule, dispatch sharing, loop conditions and
+  temperature protection (including at fraction 0). Capacity changes are not
+  COP/efficiency or proportional pump-flow savings. Steam needs separate coverage.
+- `openstudio-tower-performance-editor` edits one condenser-loop variable-speed
+  cooling tower's total design fan watts/Autosize, minimum fan-airflow ratio or
+  free-convection capacity fraction in place. Curves, design conditions, water
+  connections and unrequested inputs stay unchanged. Plans flag airflow sizing,
+  cycling, fan-off cooling and water use. Native evidence separates power-only
+  behavior from low-load controls and reports pump/chiller energy alongside fan
+  electricity; fan-off does not mean pump-off or guaranteed whole-plant savings.
+- `openstudio-chiller-performance-editor` edits one air- or water-cooled electric
+  EIR chiller's explicit COP, cooling capacity (watts/Autosize), part-load or
+  unloading limits in
+  place. Curves, unrequested sizing/flow inputs, condenser circuits, controls and
+  identities stay unchanged. Capacity affects PLR, dispatch and delivered cooling;
+  plans report reference dispatch limits and flag separate condenser fan power
+  scaling when its retained power ratio is positive. Plans flag autosized
+  condenser pumps/towers whose calculated sizes and energy may change. Heat recovery, thermosiphon and other
+  classes need separate coverage. Reference COP is not seasonal or whole-plant
+  efficiency; changed condenser heat can change calculated condenser sizing.
+- `openstudio-boiler-performance-editor` edits one heating-plant hot-water boiler's
+  explicit nominal thermal capacity/Autosize, minimum/maximum/optimum part-load
+  ratios, HHV efficiency and electric/fuel
+  parasitics in place. Fuel, flow sizing policy, curves, sizing factor, other controls and
+  identities stay unchanged; unrequested capacity stays exact. Capacity affects
+  dispatch, PLR, curve/parasitic energy and possibly unmet loads, not just a limit.
+  Plans expose curve/EMS/dispatch dependencies and detect configured curves omitted
+  by translation. See the [12a checkpoint](docs/HVAC_MODULARIZATION_WORK.md#phase-12a-boiler-performance-editor--october-21-2026).
+- Explicit Autosize in boiler, chiller, tower and district editors reports design-day/period
+  counts and the effective translated plant-sizing flag. Missing/off/unverified
+  sizing keeps the edit available but marks simulation unready. This is conservative:
+  some fixed-flow cases still size without a plant-sizing run. Multi-boiler Autosize
+  exposes other capacities/factors and warns that each boiler receives the whole
+  design load times its own factor, rather than an automatic share.
+- `openstudio-terminal-replacer` converts one connected single-duct VAV no-reheat
+  terminal to constant-volume no-reheat, or the reverse. Explicit maximum-flow
+  and VAV minimum-fraction choices accompany retained zone service, boundary
+  nodes, availability and zone/system sizing. The terminal gets a new identity;
+  direct references and unsupported controls block conversion. Review overcooling
+  and ventilation before simulation. Plans identify retained fan classes and VRP
+  sizing dependencies; preserved inputs do not promise unchanged calculated OA.
+  Reheat conversions remain separate. See the
+  [11b checkpoint](docs/HVAC_MODULARIZATION_WORK.md#phase-11b-no-reheat-terminal-replacement--october-21-2026).
+- `openstudio-terminal-editor` edits one connected VAV reheat/no-reheat terminal's
+  Constant-method minimum fraction or applicable reheat controls in place,
+  including terminals in the prototype CAV recipe. It preserves equipment,
+  references, schedules, connections and unrequested sizing; saved checks verify
+  the requested EnergyPlus fields. Plans expose ventilation, turndown/EMS and
+  sizing dependencies. At the pinned engine, fraction-limit edits require the
+  per-area field at Autocalculate; an Autosize reset must be explicitly chosen.
+  Numeric per-area limits are unsupported and retained ignored limits warn.
+  Terminal replacement and coil-rating changes are separate.
 - The independent `openstudio-supply-fan-performance-editor` skill edits explicit
   efficiency/pressure values on a selected air loop's direct constant- or
   variable-volume fan in place. Fan, connection, metadata and reference handles
@@ -145,7 +218,12 @@ contract compatibility requires an exact match. See the
 - Skill resource export for both hosts, with one plugin-local `sdk/` library
   and fixed launchers in owning skills. Install or move the complete plugin;
   no separate shared package is required. Export records size evidence and
-  enforces a 1 MiB SDK-resource budget. See the [packaging contract and review commands](docs/SDK_INTEGRATION_SUMMARY.md#b--shared-sdk-packaging).
+  enforces a 1,114,112-byte (1 MiB + 64 KiB) SDK-resource budget. Shared guides
+  and schemas live once under `sdk/`; exported skill links stay inside the plugin.
+  Markdown participates in bundle integrity, so documentation edits require a
+  matching full export. See the [packaging review and size breakdown](docs/SDK_PACKAGING_REVIEW.md).
+  Earlier 0.4.1 exports omitted some declared HVAC guides; regenerate from the
+  updated harness and refresh the complete plugin to repair those links.
   This package pins OpenStudio 3.11.0 consistently in its dependency,
   lock metadata and exported compatibility contract. SDK skills include a
   grouped assumption review with editable inputs and visible fixed controls;
@@ -204,6 +282,11 @@ python -m playwright install chromium
 
 The production harness supports Python 3.10 or newer. The `dev` extra installs
 its test and release tools.
+
+Publishing runs fast checks and one paired plugin-export smoke test. Full
+pull-request/manual CI retains the slower modeling, simulation, browser and
+packaging checks. See [test suite selections](tests/README.md) for commands and
+timing reports.
 
 Install the runtime package after it is published:
 

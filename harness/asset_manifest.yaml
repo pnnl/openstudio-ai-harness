@@ -1,10 +1,11 @@
 $schema: asset_manifest.schema.json
 version: 3
 sdk_library:
-  max_bytes: 1048576
+  max_bytes: 1114112
 
-# Verbatim skill files with explicit destinations. Shared helpers may have
-# multiple owners; nested paths are preserved.
+# Resources with explicit owners. For plugin-sdk references, owner paths are
+# logical aliases rewritten in SKILL.md to a single plugin-local sdk/ file.
+# Other resource destinations retain their declared paths.
 resources:
   - source: skills/sdk_scripts/visualize_hvac.py
     scope: plugin-sdk
@@ -164,6 +165,31 @@ resources:
       - hosts: [claude, codex]
         skill: openstudio-outdoor-air-connector
         path: scripts/doctor.py
+      - hosts: [claude, codex]
+        skill: openstudio-terminal-editor
+        path: scripts/doctor.py
+
+      - hosts: [claude, codex]
+        skill: openstudio-terminal-replacer
+        path: scripts/doctor.py
+
+      - hosts: [claude, codex]
+        skill: openstudio-boiler-performance-editor
+        path: scripts/doctor.py
+      - hosts: [claude, codex]
+        skill: openstudio-chiller-performance-editor
+        path: scripts/doctor.py
+      - hosts: [claude, codex]
+        skill: openstudio-district-capacity-editor
+        path: scripts/doctor.py
+      - hosts: [claude, codex]
+        skill: openstudio-tower-performance-editor
+        path: scripts/doctor.py
+
+      - hosts: [claude, codex]
+        skill: openstudio-plant-equipment-replacer
+        path: scripts/doctor.py
+
   - source: skills/sdk_scripts/sdk_probe.py
     scope: plugin-sdk
     owners:
@@ -224,6 +250,31 @@ resources:
       - hosts: [claude, codex]
         skill: openstudio-outdoor-air-connector
         path: scripts/sdk_probe.py
+      - hosts: [claude, codex]
+        skill: openstudio-terminal-editor
+        path: scripts/sdk_probe.py
+
+      - hosts: [claude, codex]
+        skill: openstudio-terminal-replacer
+        path: scripts/sdk_probe.py
+
+      - hosts: [claude, codex]
+        skill: openstudio-boiler-performance-editor
+        path: scripts/sdk_probe.py
+      - hosts: [claude, codex]
+        skill: openstudio-chiller-performance-editor
+        path: scripts/sdk_probe.py
+      - hosts: [claude, codex]
+        skill: openstudio-district-capacity-editor
+        path: scripts/sdk_probe.py
+      - hosts: [claude, codex]
+        skill: openstudio-tower-performance-editor
+        path: scripts/sdk_probe.py
+
+      - hosts: [claude, codex]
+        skill: openstudio-plant-equipment-replacer
+        path: scripts/sdk_probe.py
+
   - source: skills/sdk_scripts/common/version_guard.py
     scope: plugin-sdk
     owners:
@@ -341,6 +392,27 @@ resources:
       - hosts: [claude, codex]
         skill: openstudio-outdoor-air-connector
         path: scripts/compatibility.json
+      - hosts: [claude, codex]
+        skill: openstudio-terminal-editor
+        path: scripts/compatibility.json
+
+      - hosts: [claude, codex]
+        skill: openstudio-terminal-replacer
+        path: scripts/compatibility.json
+
+      - hosts: [claude, codex]
+        skill: openstudio-boiler-performance-editor
+        path: scripts/compatibility.json
+      - hosts: [claude, codex]
+        skill: openstudio-chiller-performance-editor
+        path: scripts/compatibility.json
+      - hosts: [claude, codex]
+        skill: openstudio-district-capacity-editor
+        path: scripts/compatibility.json
+      - hosts: [claude, codex]
+        skill: openstudio-tower-performance-editor
+        path: scripts/compatibility.json
+
   - source: skills/sdk_scripts/vav_preflight.py
     scope: plugin-sdk
     owners:
@@ -1617,6 +1689,31 @@ resources:
       - hosts: [claude, codex]
         skill: openstudio-outdoor-air-connector
         path: scripts/prepare_model.py
+      - hosts: [claude, codex]
+        skill: openstudio-terminal-editor
+        path: scripts/prepare_model.py
+
+      - hosts: [claude, codex]
+        skill: openstudio-terminal-replacer
+        path: scripts/prepare_model.py
+
+      - hosts: [claude, codex]
+        skill: openstudio-boiler-performance-editor
+        path: scripts/prepare_model.py
+      - hosts: [claude, codex]
+        skill: openstudio-chiller-performance-editor
+        path: scripts/prepare_model.py
+      - hosts: [claude, codex]
+        skill: openstudio-district-capacity-editor
+        path: scripts/prepare_model.py
+      - hosts: [claude, codex]
+        skill: openstudio-tower-performance-editor
+        path: scripts/prepare_model.py
+
+      - hosts: [claude, codex]
+        skill: openstudio-plant-equipment-replacer
+        path: scripts/prepare_model.py
+
   - source: skills/sdk_scripts/schemas/preparation_report.schema.json
     scope: plugin-sdk
     owners:
@@ -1671,6 +1768,27 @@ resources:
       - hosts: [claude, codex]
         skill: openstudio-outdoor-air-connector
         path: references/preparation_report.schema.json
+      - hosts: [claude, codex]
+        skill: openstudio-terminal-editor
+        path: references/preparation_report.schema.json
+
+      - hosts: [claude, codex]
+        skill: openstudio-terminal-replacer
+        path: references/preparation_report.schema.json
+
+      - hosts: [claude, codex]
+        skill: openstudio-boiler-performance-editor
+        path: references/preparation_report.schema.json
+      - hosts: [claude, codex]
+        skill: openstudio-chiller-performance-editor
+        path: references/preparation_report.schema.json
+      - hosts: [claude, codex]
+        skill: openstudio-district-capacity-editor
+        path: references/preparation_report.schema.json
+      - hosts: [claude, codex]
+        skill: openstudio-tower-performance-editor
+        path: references/preparation_report.schema.json
+
   - source: skills/sdk_scripts/references/model_preparation.md
     scope: plugin-sdk
     owners:
@@ -1726,7 +1844,282 @@ resources:
         skill: openstudio-outdoor-air-connector
         path: references/model_preparation.md
 
+      - hosts: [claude, codex]
+        skill: openstudio-terminal-editor
+        path: references/model_preparation.md
+
+      - hosts: [claude, codex]
+        skill: openstudio-terminal-replacer
+        path: references/model_preparation.md
+
+      - hosts: [claude, codex]
+        skill: openstudio-boiler-performance-editor
+        path: references/model_preparation.md
+      - hosts: [claude, codex]
+        skill: openstudio-chiller-performance-editor
+        path: references/model_preparation.md
+      - hosts: [claude, codex]
+        skill: openstudio-district-capacity-editor
+        path: references/model_preparation.md
+      - hosts: [claude, codex]
+        skill: openstudio-tower-performance-editor
+        path: references/model_preparation.md
+
+      - hosts: [claude, codex]
+        skill: openstudio-plant-equipment-replacer
+        path: references/model_preparation.md
+
+  - source: skills/sdk_scripts/edit_terminal.py
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-terminal-editor
+        path: scripts/edit_terminal.py
+  - source: skills/sdk_scripts/common/terminal_edit.py
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-terminal-editor
+        path: scripts/common/terminal_edit.py
+  - source: skills/sdk_scripts/references/terminal_edit.md
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-terminal-editor
+        path: references/terminal_edit.md
+  - source: skills/sdk_scripts/references/terminal_edit.schema.json
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-terminal-editor
+        path: references/terminal_edit.schema.json
+
+  - source: skills/sdk_scripts/replace_terminal.py
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-terminal-replacer
+        path: scripts/replace_terminal.py
+
+  - source: skills/sdk_scripts/common/terminal_replacement.py
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-terminal-replacer
+        path: scripts/common/terminal_replacement.py
+
+  - source: skills/sdk_scripts/references/terminal_replacement.md
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-terminal-replacer
+        path: references/terminal_replacement.md
+
+  - source: skills/sdk_scripts/references/terminal_replacement.schema.json
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-terminal-replacer
+        path: references/terminal_replacement.schema.json
+
+  - source: skills/sdk_scripts/edit_boiler_performance.py
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-boiler-performance-editor
+        path: scripts/edit_boiler_performance.py
+
+  - source: skills/sdk_scripts/common/boiler_edit.py
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-boiler-performance-editor
+        path: scripts/common/boiler_edit.py
+
+  - source: skills/sdk_scripts/references/boiler_performance.md
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-boiler-performance-editor
+        path: references/boiler_performance.md
+
+  - source: skills/sdk_scripts/references/boiler_performance.schema.json
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-boiler-performance-editor
+        path: references/boiler_performance.schema.json
+
+  - source: skills/sdk_scripts/edit_chiller_performance.py
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-chiller-performance-editor
+        path: scripts/edit_chiller_performance.py
+
+  - source: skills/sdk_scripts/common/chiller_edit.py
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-chiller-performance-editor
+        path: scripts/common/chiller_edit.py
+
+  - source: skills/sdk_scripts/references/chiller_performance.md
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-chiller-performance-editor
+        path: references/chiller_performance.md
+
+  - source: skills/sdk_scripts/references/chiller_performance.schema.json
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-chiller-performance-editor
+        path: references/chiller_performance.schema.json
+
+  - source: skills/sdk_scripts/edit_tower_performance.py
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-tower-performance-editor
+        path: scripts/edit_tower_performance.py
+
+  - source: skills/sdk_scripts/common/tower_edit.py
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-tower-performance-editor
+        path: scripts/common/tower_edit.py
+
+  - source: skills/sdk_scripts/references/tower_performance.md
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-tower-performance-editor
+        path: references/tower_performance.md
+
+  - source: skills/sdk_scripts/references/tower_performance.schema.json
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-tower-performance-editor
+        path: references/tower_performance.schema.json
+
+  - source: skills/sdk_scripts/edit_district_capacity.py
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-district-capacity-editor
+        path: scripts/edit_district_capacity.py
+
+  - source: skills/sdk_scripts/common/district_edit.py
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-district-capacity-editor
+        path: scripts/common/district_edit.py
+
+  - source: skills/sdk_scripts/references/district_capacity.md
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-district-capacity-editor
+        path: references/district_capacity.md
+
+  - source: skills/sdk_scripts/references/district_capacity.schema.json
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-district-capacity-editor
+        path: references/district_capacity.schema.json
+
+  - source: skills/sdk_scripts/common/plant_sizing.py
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-boiler-performance-editor
+        path: scripts/common/plant_sizing.py
+      - hosts: [claude, codex]
+        skill: openstudio-tower-performance-editor
+        path: scripts/common/plant_sizing.py
+      - hosts: [claude, codex]
+        skill: openstudio-district-capacity-editor
+        path: scripts/common/plant_sizing.py
+      - hosts: [claude, codex]
+        skill: openstudio-chiller-performance-editor
+        path: scripts/common/plant_sizing.py
+
+  - source: skills/sdk_scripts/common/plant_operations.py
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-hvac-remover
+        path: scripts/common/plant_operations.py
+      - hosts: [claude, codex]
+        skill: openstudio-plant-equipment-replacer
+        path: scripts/common/plant_operations.py
+
+  - source: skills/sdk_scripts/remove_unused_plants.py
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-hvac-remover
+        path: scripts/remove_unused_plants.py
+
+  - source: skills/sdk_scripts/replace_plant_equipment.py
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-plant-equipment-replacer
+        path: scripts/replace_plant_equipment.py
+
+  - source: skills/sdk_scripts/references/plant_operations.md
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-hvac-remover
+        path: references/plant_operations.md
+      - hosts: [claude, codex]
+        skill: openstudio-plant-equipment-replacer
+        path: references/plant_operations.md
+
+  - source: skills/sdk_scripts/references/plant_removal.schema.json
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-hvac-remover
+        path: references/plant_removal.schema.json
+
+  - source: skills/sdk_scripts/references/plant_replacement.schema.json
+    scope: plugin-sdk
+    owners:
+      - hosts: [claude, codex]
+        skill: openstudio-plant-equipment-replacer
+        path: references/plant_replacement.schema.json
+
 skills:
+  - id: openstudio-plant-equipment-replacer
+    source: skills/openstudio_plant_equipment_replacer.md
+    hosts: [claude, codex]
+  - id: openstudio-district-capacity-editor
+    source: skills/openstudio_district_capacity_editor.md
+    hosts: [claude, codex]
+  - id: openstudio-tower-performance-editor
+    source: skills/openstudio_tower_performance_editor.md
+    hosts: [claude, codex]
+  - id: openstudio-chiller-performance-editor
+    source: skills/openstudio_chiller_performance_editor.md
+    hosts: [claude, codex]
+  - id: openstudio-boiler-performance-editor
+    source: skills/openstudio_boiler_performance_editor.md
+    hosts: [claude, codex]
+  - id: openstudio-terminal-replacer
+    source: skills/openstudio_terminal_replacer.md
+    hosts: [claude, codex]
+  - id: openstudio-terminal-editor
+    source: skills/openstudio_terminal_editor.md
+    hosts: [claude, codex]
   - id: openstudio-outdoor-air-connector
     source: skills/openstudio_outdoor_air_connector.md
     hosts: [claude, codex]

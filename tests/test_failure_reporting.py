@@ -132,10 +132,21 @@ def test_input_schema_fields_and_fixed_options_survive_diagnostic_filter():
         "central_heating": {"type": "Water"},
         "target_zones": [{"name": "private zone"}],
         "fan_total_efficiency": 0.7,
+        "zone": {"name": "Acme Tower 123 Private Road contact@example.com"},
+        "terminal": {"name": "Acme Tower East Terminal"},
+        "settings": {
+            "damper_heating_action": "ReverseWithLimits",
+            "maximum_reheat_temperature_c": 30,
+        },
     }
     safe = reporting.sanitize({"settings": values})["settings"]
     assert safe["central_heating"]["type"] == "Water"
     assert safe["target_zones"][0]["name"].startswith("<value-")
+    assert safe["settings"]["damper_heating_action"] == "ReverseWithLimits"
+    assert safe["settings"]["maximum_reheat_temperature_c"] == 30
+    assert "Acme" not in json.dumps(safe) and "contact@example.com" not in json.dumps(
+        safe
+    )
 
 
 @pytest.mark.parametrize(

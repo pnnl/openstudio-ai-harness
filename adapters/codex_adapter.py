@@ -13,6 +13,7 @@ from adapters.runtime_helpers import optional_mcp_servers, write_runtime_helpers
 from harness.asset_manifest import (
     reference_exports_for_host,
     resource_exports_for_host,
+    sdk_reference_aliases,
     skill_exports_for_host,
     skill_ids_for_host,
     skill_sources_for_host,
@@ -317,7 +318,9 @@ def _write_plugin_package(
 
     _write_skill_references(plugin_dir / "skills", workspace_root)
     write_resources(
-        resource_exports_for_host(workspace_root, plugin_dir, "codex"), plugin_dir
+        resource_exports_for_host(workspace_root, plugin_dir, "codex"),
+        plugin_dir,
+        aliases=sdk_reference_aliases(workspace_root, "codex"),
     )
 
 

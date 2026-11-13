@@ -1,6 +1,6 @@
-# OpenStudio AI MCP
+# OpenStudio SI MCP
 
-This package contains the OpenStudio AI MCP server.
+This package contains the OpenStudio SI MCP server.
 
 Main surfaces:
 
@@ -12,7 +12,7 @@ Main surfaces:
   artifact tracking, job tracking, and measure registry support.
 - `sdk_docs/`: current SDK documentation lookup implementation.
 
-Imports should use `openstudio_ai_mcp`.
+Imports should use `openstudio_si_mcp`.
 
 ## Local Runtime Persistence
 
@@ -20,8 +20,8 @@ The MCP server stores runtime metadata in a lightweight SQLite database under
 the configured workspace root:
 
 ```text
-.openstudio_ai_mcp_workspace/
-├── openstudio_ai_runtime.sqlite
+.openstudio_si_mcp_workspace/
+├── openstudio_si_runtime.sqlite
 ├── measure-.../
 └── <simulation-job-id>/
 ```
@@ -85,7 +85,7 @@ models, EnergyPlus SQL files, or logs as blobs.
 
 ## MCP Blackboard Tools
 
-The OpenStudio AI harness now evaluates MCP-owned blackboard state instead of
+The OpenStudio SI harness now evaluates MCP-owned blackboard state instead of
 AUTOMA-AI native blackboard state. Workflow state is stored in the same local
 SQLite runtime registry as artifact/job/workspace metadata.
 

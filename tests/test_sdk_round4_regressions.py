@@ -6,15 +6,15 @@ import json
 import shutil
 import pytest
 from test_vav_preflight import sdk
-from openstudio_ai_mcp.server import OpenStudioService
-from openstudio_ai_mcp.tools.schemas import (
+from openstudio_si_mcp.server import OpenStudioService
+from openstudio_si_mcp.tools.schemas import (
     ModelLoadArgs,
     ModelCloneArgs,
     SessionCreateArgs,
     ModelApplyMeasureArgs,
     ModelSetWeatherArgs,
 )
-from openstudio_ai_mcp.model_resources import copy_model_resources
+from openstudio_si_mcp.model_resources import copy_model_resources
 
 
 def service(tmp_path):
@@ -179,7 +179,7 @@ def test_fatal_load_copy_failure_cleans_workspace(sdk, tmp_path):
 
 def test_native_load_measure_simulate_chain(sdk, tmp_path, monkeypatch):
     from vav_fixture import prepare_vav_fixture
-    from openstudio_ai_mcp.runtime.measure_registry import MeasureSpec
+    from openstudio_si_mcp.runtime.measure_registry import MeasureSpec
 
     exe = Path("/Applications/OpenStudio-3.11.0/bin/openstudio")
     if not exe.is_file():

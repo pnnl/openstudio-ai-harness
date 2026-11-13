@@ -178,7 +178,7 @@ Confirm with `get_unique_values`, but expect these patterns:
 
 ## Using the values in an OpenStudio model
 
-This skill only looks values up. It never edits a model; use the `openstudio_ai` MCP tools
+This skill only looks values up. It never edits a model; use the `openstudio_si` MCP tools
 and the HVAC skills for that. When a looked-up value feeds a model change:
 
 - Confirm the standard, code version and (for 90.1) prescriptive vs. Appendix G path with

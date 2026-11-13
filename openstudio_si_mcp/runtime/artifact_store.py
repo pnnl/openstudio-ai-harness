@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
-from openstudio_ai_mcp.runtime.state_store import RuntimeStateStore
+from openstudio_si_mcp.runtime.state_store import RuntimeStateStore
 
 
 @dataclass(frozen=True)

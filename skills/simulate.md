@@ -5,7 +5,7 @@ description: Run, poll, and collect artifacts from an OpenStudio simulation.
 
 # Simulate
 
-Use the `openstudio_ai` MCP simulation tools to run, poll, and collect artifacts
+Use the `openstudio_si` MCP simulation tools to run, poll, and collect artifacts
 from OpenStudio simulations. Do not run simulations through ad hoc shell
 commands when MCP tools are available.
 
@@ -15,7 +15,7 @@ Run model loading, simulation, and result retrieval only through `model_*`,
 `sim_*`, and `results_*` MCP tools. Never invoke `openstudio`, EnergyPlus, an
 `.osw`, or local SQL result extraction as a fallback. If the required MCP
 preflight tool is unavailable or the service cannot be reconnected, stop and
-ask the user to reload or refresh the OpenStudio AI plugin/runtime.
+ask the user to reload or refresh the OpenStudio SI plugin/runtime.
 
 ## Workflow
 

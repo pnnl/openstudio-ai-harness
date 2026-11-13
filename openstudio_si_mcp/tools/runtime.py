@@ -2,15 +2,15 @@ from __future__ import annotations
 
 from typing import Any
 
-from openstudio_ai_mcp.compatibility import evaluate_plugin_compatibility
-from openstudio_ai_mcp.tools.schemas import error_payload
+from openstudio_si_mcp.compatibility import evaluate_plugin_compatibility
+from openstudio_si_mcp.tools.schemas import error_payload
 
 
 def register_runtime_tools(mcp, service) -> None:
     @mcp.tool(
         name="runtime_plugin_compatibility",
         description=(
-            "Report whether the connected plugin targets the installed OpenStudio AI "
+            "Report whether the connected plugin targets the installed OpenStudio SI "
             "MCP interface version and how to refresh it when needed."
         ),
     )
@@ -36,7 +36,7 @@ def register_runtime_tools(mcp, service) -> None:
 
     @mcp.tool(
         name="runtime_storage_usage",
-        description="Report local OpenStudio AI MCP runtime workspace usage and registry state.",
+        description="Report local OpenStudio SI MCP runtime workspace usage and registry state.",
     )
     async def runtime_storage_usage() -> dict[str, Any]:
         try:

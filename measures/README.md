@@ -1,4 +1,4 @@
-# OpenStudio AI Measures
+# OpenStudio SI Measures
 
 Measures are deterministic automation artifacts that can be exposed through MCP.
 

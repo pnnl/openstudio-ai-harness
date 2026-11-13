@@ -3,16 +3,16 @@ services:
     build:
       context: .
       dockerfile: .devcontainer/Dockerfile
-    working_dir: /workspace/openstudio-ai-harness
+    working_dir: /workspace/openstudio-si-harness
     volumes:
-      - .:/workspace/openstudio-ai-harness:cached
+      - .:/workspace/openstudio-si-harness:cached
     ports:
       - "${STREAMLIT_HOST_PORT:-8504}:8504"
     environment:
       PYTHONUNBUFFERED: "1"
       OPENSTUDIO_MCP_HOST: 127.0.0.1
       OPENSTUDIO_MCP_PORT: "10210"
-      OPENSTUDIO_AI_DATA_DIR: /workspace/openstudio-ai-harness/.openstudio_ai_mcp_workspace/user_data
+      OPENSTUDIO_SI_DATA_DIR: /workspace/openstudio-si-harness/.openstudio_si_mcp_workspace/user_data
     command:
       - /bin/sh
       - -c

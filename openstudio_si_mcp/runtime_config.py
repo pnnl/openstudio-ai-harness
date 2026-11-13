@@ -22,26 +22,26 @@ def openstudio_version_from_output(output: str) -> str | None:
 
 
 def user_data_dir() -> Path:
-    """Return the platform-specific OpenStudio AI data directory."""
-    override = os.getenv("OPENSTUDIO_AI_DATA_DIR")
+    """Return the platform-specific OpenStudio SI data directory."""
+    override = os.getenv("OPENSTUDIO_SI_DATA_DIR")
     if override:
         return Path(override).expanduser()
     try:
         from platformdirs import user_data_path
 
         return Path(
-            user_data_path(appname="OpenStudioAI", appauthor="PNNL", roaming=False)
+            user_data_path(appname="OpenStudioSI", appauthor="PNNL", roaming=False)
         )
     except ImportError:
         pass
     if sys.platform == "darwin":
-        return Path.home() / "Library" / "Application Support" / "OpenStudioAI"
+        return Path.home() / "Library" / "Application Support" / "OpenStudioSI"
     if os.name == "nt":
         base = os.getenv("LOCALAPPDATA") or str(Path.home() / "AppData" / "Local")
-        return Path(base) / "PNNL" / "OpenStudioAI"
+        return Path(base) / "PNNL" / "OpenStudioSI"
     return (
         Path(os.getenv("XDG_DATA_HOME", Path.home() / ".local" / "share"))
-        / "openstudio-ai"
+        / "openstudio-si"
     )
 
 

@@ -3,9 +3,9 @@ from pathlib import Path
 
 import pytest
 
-from openstudio_ai_mcp.server import OpenStudioService
-from openstudio_ai_mcp.tools.session import register_session_tools
-from openstudio_ai_mcp.tools.schemas import (
+from openstudio_si_mcp.server import OpenStudioService
+from openstudio_si_mcp.tools.session import register_session_tools
+from openstudio_si_mcp.tools.schemas import (
     ModelCloneArgs,
     ModelLoadArgs,
     SessionCheckpointArgs,

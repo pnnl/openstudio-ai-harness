@@ -2,7 +2,7 @@
 
 This guide configures NLR's Docker-based OpenStudio-MCP server for the
 standalone Claude Desktop application. It is an optional provider alongside
-OpenStudio AI; it does not replace the OpenStudio AI plugin or runtime.
+OpenStudio SI; it does not replace the OpenStudio SI plugin or runtime.
 
 ## Important limitation: the configuration is global, but file access is not
 
@@ -12,8 +12,8 @@ listed in its `-v` mounts. NLR's sandbox then restricts its file operations to
 those mounted folders.
 
 As a result, a configuration that mounts
-`/Users/you/openstudio_ai/claude` cannot load a model stored only in
-`/Users/you/openstudio_ai_demo`. The active Claude chat's folder does **not**
+`/Users/you/openstudio_si/claude` cannot load a model stored only in
+`/Users/you/openstudio_si_demo`. The active Claude chat's folder does **not**
 automatically become available to the NLR container.
 
 This can be reported by Claude as a failure to transfer a file to a local
@@ -43,11 +43,11 @@ workspace instead.
    ```
 
 3. Create a dedicated shared workspace. This example uses
-   `/Users/you/openstudio_ai/claude`; replace it everywhere with a real
+   `/Users/you/openstudio_si/claude`; replace it everywhere with a real
    absolute path on your machine.
 
    ```bash
-   mkdir -p /Users/you/openstudio_ai/claude/{inputs,nlr_runs,nlr_measures}
+   mkdir -p /Users/you/openstudio_si/claude/{inputs,nlr_runs,nlr_measures}
    ```
 
 Put `.osm` files that NLR should load in `inputs`. NLR writes run artifacts to
@@ -70,11 +70,11 @@ Put `.osm` files that NLR should load in `inputs`. NLR writes run artifacts to
         "--rm",
         "-i",
         "-v",
-        "/Users/you/openstudio_ai/claude/inputs:/inputs:ro",
+        "/Users/you/openstudio_si/claude/inputs:/inputs:ro",
         "-v",
-        "/Users/you/openstudio_ai/claude/nlr_runs:/runs",
+        "/Users/you/openstudio_si/claude/nlr_runs:/runs",
         "-v",
-        "/Users/you/openstudio_ai/claude/nlr_measures:/measures",
+        "/Users/you/openstudio_si/claude/nlr_measures:/measures",
         "-e",
         "OPENSTUDIO_MCP_MODE=prod",
         "-e",
@@ -91,7 +91,7 @@ Put `.osm` files that NLR should load in `inputs`. NLR writes run artifacts to
 before each colon is the host path that must exist on your Mac. Keep `/inputs`
 read-only (`:ro`); use the writable run and measure mounts for NLR outputs.
 
-The OpenStudio AI integration recognizes the MCP connection name
+The OpenStudio SI integration recognizes the MCP connection name
 `openstudio-mcp`. `nlr_openstudio` is the name shown for its optional provider
 capability, but is not the supported Claude Desktop connection name.
 
@@ -102,25 +102,25 @@ capability, but is not the supported Claude Desktop connection name.
 
 ## Working with a different chat or project folder
 
-For a chat rooted at `/Users/you/openstudio_ai_demo`, choose one approach:
+For a chat rooted at `/Users/you/openstudio_si_demo`, choose one approach:
 
 - Copy or stage the model into
-  `/Users/you/openstudio_ai/claude/inputs`, then tell Claude to load it as
+  `/Users/you/openstudio_si/claude/inputs`, then tell Claude to load it as
   `/inputs/model.osm`. This leaves the configuration unchanged.
 - Or create
-  `/Users/you/openstudio_ai_demo/nlr-workspace/{inputs,nlr_runs,nlr_measures}`
+  `/Users/you/openstudio_si_demo/nlr-workspace/{inputs,nlr_runs,nlr_measures}`
   and replace all three host paths in `claude_desktop_config.json` with those
   paths. Quit and reopen Claude Desktop before starting the project chat.
 
 Example project-specific input mount:
 
 ```text
-/Users/you/openstudio_ai_demo/nlr-workspace/inputs:/inputs:ro
+/Users/you/openstudio_si_demo/nlr-workspace/inputs:/inputs:ro
 ```
 
 The host-side file path and the NLR path are intentionally different. Tell NLR
 to use `/inputs/model.osm`; do not give it an unmounted host path such as
-`/Users/you/openstudio_ai_demo/model.osm`.
+`/Users/you/openstudio_si_demo/model.osm`.
 
 ## Troubleshooting
 
@@ -129,7 +129,7 @@ to use `/inputs/model.osm`; do not give it an unmounted host path such as
 | Claude finds a model but cannot send it to the simulation server | The model's host directory is outside the configured Docker input mount. | Stage the model in the mounted `inputs` directory, or change the three project mounts and restart Claude Desktop. |
 | NLR cannot find `/inputs/model.osm` | The file is not in the host folder mounted to `/inputs`, or the filename differs. | Check the host `inputs` folder and use the exact container path `/inputs/<filename>`. |
 | Docker server fails to start | Docker Desktop is stopped or the image is absent. | Start Docker Desktop; run `docker pull nrel/openstudio-mcp:dev`; restart Claude Desktop. |
-| NLR is configured but OpenStudio AI does not select it | The server uses an unsupported connection name. | Rename the entry to `openstudio-mcp`, then restart Claude Desktop. |
+| NLR is configured but OpenStudio SI does not select it | The server uses an unsupported connection name. | Rename the entry to `openstudio-mcp`, then restart Claude Desktop. |
 | Changes to the JSON appear to have no effect | The current chat retained its old MCP server process. | Quit and relaunch Claude Desktop, then begin a new chat. |
 
 Before reporting a Docker or `localhost` error, record the model's absolute host

@@ -537,7 +537,7 @@ or statistical speedup claim.
 Focused checks from the repository root (native cases skip if CLI unavailable):
 
 ```bash
-OPENSTUDIO_AI_DATA_DIR=/tmp/openstudio-sdk-summary-check .venv/bin/python -m pytest -q \
+OPENSTUDIO_SI_DATA_DIR=/tmp/openstudio-sdk-summary-check .venv/bin/python -m pytest -q \
   tests/test_skill_vav_evaluation.py tests/test_sdk_review_regressions.py \
   tests/test_sdk_followup_regressions.py tests/test_sdk_round3_regressions.py \
   tests/test_sdk_round4_regressions.py --disable-warnings --maxfail=1

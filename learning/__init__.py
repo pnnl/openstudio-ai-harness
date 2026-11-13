@@ -1,2 +1,2 @@
-"""Learning pipeline contracts for OpenStudio AI."""
+"""Learning pipeline contracts for OpenStudio SI."""
 

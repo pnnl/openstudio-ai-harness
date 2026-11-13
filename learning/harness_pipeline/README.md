@@ -16,6 +16,6 @@ The host plugin must use the MCP learning tools for persistence. The helpers in
 this directory are not the persistence boundary. Capture requires explicit user
 approval; candidate approval creates only a user-local personal lesson.
 
-Candidate content never becomes trusted OpenStudio AI content automatically.
-Promotion to shared OpenStudio AI assets remains a developer review and
+Candidate content never becomes trusted OpenStudio SI content automatically.
+Promotion to shared OpenStudio SI assets remains a developer review and
 evaluation workflow.

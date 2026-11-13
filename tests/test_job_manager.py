@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from openstudio_ai_mcp.server import OpenStudioService
+from openstudio_si_mcp.server import OpenStudioService
 
 
 def test_fail_hydrates_a_persisted_job_before_marking_it_failed(tmp_path: Path) -> None:

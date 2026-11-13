@@ -1,24 +1,24 @@
-# OpenStudio AI: Advanced User Guide
+# OpenStudio SI: Advanced User Guide
 
-This guide is for advanced users who want to extend OpenStudio AI with custom
+This guide is for advanced users who want to extend OpenStudio SI with custom
 measures, policies, skills, and knowledge-base content.
 
 ## Who this is for
 
 - You can read/write Python.
 - You are comfortable with OpenStudio model concepts.
-- You want to customize behavior beyond the default OpenStudio AI workflow.
+- You want to customize behavior beyond the default OpenStudio SI workflow.
 
 ## Install Modes
 
-OpenStudio AI has two supported install shapes.
+OpenStudio SI has two supported install shapes.
 
 Marketplace or host-agent runtime:
 
 ```bash
-python -m pip install openstudio-ai
-openstudio-ai install-runtime
-openstudio-ai doctor
+python -m pip install openstudio-si
+openstudio-si install-runtime
+openstudio-si doctor
 ```
 
 Use this path for Claude Code, Codex, and other host integrations. It installs
@@ -26,12 +26,12 @@ the MCP runtime, skills, knowledge, OpenStudio Python SDK dependency, and CLI
 tools. It does not install AUTOMA-AI or Streamlit.
 
 The runtime resolves the OpenStudio executable in this order: `OPENSTUDIO_PATH`,
-the user-confirmed path saved by `openstudio-ai configure-openstudio`, then
+the user-confirmed path saved by `openstudio-si configure-openstudio`, then
 `openstudio` on the MCP server's `PATH`. Use `OPENSTUDIO_PATH` for a temporary
 or externally managed override; use `configure-openstudio` to persist a
 confirmed installation across Claude Code and Codex MCP launches.
 
-Standalone local AI app:
+Standalone local SI app:
 
 ```bash
 uv sync --project standalone
@@ -39,7 +39,7 @@ uv run --project standalone python standalone/agent.py
 uv run --project standalone streamlit run standalone/ui.py
 ```
 
-Use this path when you want OpenStudio AI to run as a local AUTOMA-AI-backed
+Use this path when you want OpenStudio SI to run as a local AUTOMA-AI-backed
 agent with the Streamlit UI. Standalone mode requires local LLM configuration,
 such as API keys or model endpoint settings, in your environment.
 
@@ -185,16 +185,16 @@ uv run --project standalone python -m pytest -q standalone/tests
 
 Check logs in the measure workspace:
 
-- `.openstudio_ai_mcp_workspace/measure-<id>/measure.stdout.log`
-- `.openstudio_ai_mcp_workspace/measure-<id>/measure.stderr.log`
+- `.openstudio_si_mcp_workspace/measure-<id>/measure.stdout.log`
+- `.openstudio_si_mcp_workspace/measure-<id>/measure.stderr.log`
 
 ### Simulation failures
 
 Check job workspace:
 
-- `.openstudio_ai_mcp_workspace/<job_id>/run/eplusout.err`
-- `.openstudio_ai_mcp_workspace/<job_id>/run/eplusout.end`
-- `.openstudio_ai_mcp_workspace/<job_id>/run/eplusout.sql`
+- `.openstudio_si_mcp_workspace/<job_id>/run/eplusout.err`
+- `.openstudio_si_mcp_workspace/<job_id>/run/eplusout.end`
+- `.openstudio_si_mcp_workspace/<job_id>/run/eplusout.sql`
 
 ### Common causes
 

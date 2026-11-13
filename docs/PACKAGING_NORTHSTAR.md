@@ -1,19 +1,19 @@
-# OpenStudio AI Packaging North Star
+# OpenStudio SI Packaging North Star
 
-This document defines the long-term packaging direction for OpenStudio AI. It
+This document defines the long-term packaging direction for OpenStudio SI. It
 should be reviewed before future packaging, adapter, MCP runtime, marketplace,
-or installer work. When OpenStudio AI moves to its own repository, move this
+or installer work. When OpenStudio SI moves to its own repository, move this
 document with it and keep it as the packaging roadmap.
 
 ## Goal
 
-OpenStudio AI should be usable by energy modelers through their preferred AI
+OpenStudio SI should be usable by energy modelers through their preferred SI
 assistant without requiring them to understand the internals of Python packages,
 MCP servers, or agent configuration.
 
 The product has two required pieces:
 
-1. OpenStudio AI MCP runtime
+1. OpenStudio SI MCP runtime
 2. Claude Code / Codex / future host plugin
 
 The plugin carries the agent-facing harness: skills, knowledge, instructions,
@@ -26,7 +26,7 @@ The harness does not work without the MCP runtime.
 
 ## Two Installation Paths
 
-OpenStudio AI should support two installation paths.
+OpenStudio SI should support two installation paths.
 
 ### Path 1: Stable Runtime Installation
 
@@ -35,11 +35,11 @@ This is the primary engineering and enterprise path.
 Target user flow:
 
 ```bash
-pip install openstudio-ai
-openstudio-ai doctor
-openstudio-ai export claude --output-dir ./openstudio-ai-claude-plugin
-openstudio-ai export codex --output-dir ./openstudio-ai-codex-plugin
-openstudio-ai install codex --target-dir ./my-codex-project
+pip install openstudio-si
+openstudio-si doctor
+openstudio-si export claude --output-dir ./openstudio-si-claude-plugin
+openstudio-si export codex --output-dir ./openstudio-si-codex-plugin
+openstudio-si install codex --target-dir ./my-codex-project
 ```
 
 The exported plugin `.mcp.json` should point to the installed runtime command:
@@ -47,8 +47,8 @@ The exported plugin `.mcp.json` should point to the installed runtime command:
 ```json
 {
   "mcpServers": {
-    "openstudio_ai": {
-      "command": "openstudio-ai-mcp",
+    "openstudio_si": {
+      "command": "openstudio-si-mcp",
       "args": ["--transport", "stdio"]
     }
   }
@@ -71,19 +71,19 @@ no programming experience.
 
 Target user flow:
 
-1. User installs OpenStudio AI from the Claude Code or Codex marketplace.
-2. User runs a setup command in the AI tool, such as:
+1. User installs OpenStudio SI from the Claude Code or Codex marketplace.
+2. User runs a setup command in the SI tool, such as:
 
    ```text
-   /openstudio-ai:setup
+   /openstudio-si:setup
    ```
 
-3. The agent checks whether the OpenStudio AI MCP runtime is installed.
+3. The agent checks whether the OpenStudio SI MCP runtime is installed.
 4. If missing, the agent guides or performs an approved runtime installation.
 5. The agent runs:
 
    ```bash
-   openstudio-ai doctor
+   openstudio-si doctor
    ```
 
 6. The agent confirms the MCP server can start and the plugin is ready.
@@ -99,7 +99,7 @@ plugin manifest
 agents/
 skills/
 skills/*/references/
-skills/setup-openstudio-ai/scripts/
+skills/setup-openstudio-si/scripts/
 monitors/
 bin/
 settings.json
@@ -121,14 +121,14 @@ This path is best for:
 
 The MCP runtime package should provide:
 
-- `openstudio-ai-mcp`
-- `openstudio-ai doctor`
-- `openstudio-ai export claude`
-- `openstudio-ai export codex`
-- `openstudio-ai install codex`
-- `openstudio-ai validate-export`
-- `openstudio-ai repair`
-- `openstudio-ai uninstall` where appropriate
+- `openstudio-si-mcp`
+- `openstudio-si doctor`
+- `openstudio-si export claude`
+- `openstudio-si export codex`
+- `openstudio-si install codex`
+- `openstudio-si validate-export`
+- `openstudio-si repair`
+- `openstudio-si uninstall` where appropriate
 
 Runtime responsibilities:
 
@@ -146,7 +146,7 @@ Runtime responsibilities:
 
 The host plugin package should provide:
 
-- `.mcp.json` connection to `openstudio-ai-mcp`;
+- `.mcp.json` connection to `openstudio-si-mcp`;
 - skills;
 - reviewed knowledge;
 - instructions;
@@ -178,12 +178,12 @@ Requirements:
 
 Target runtime data locations:
 
-- macOS: `~/Library/Application Support/OpenStudioAI/`
-- Windows: `%LOCALAPPDATA%/PNNL/OpenStudioAI/`
+- macOS: `~/Library/Application Support/OpenStudioSI/`
+- Windows: `%LOCALAPPDATA%/PNNL/OpenStudioSI/`
 
 ## Current Standalone-Repo Foundation Work
 
-OpenStudio AI currently lives under:
+OpenStudio SI currently lives under:
 
 ```text
 
@@ -199,13 +199,13 @@ project structure is stabilized.
    Required command:
 
    ```bash
-   openstudio-ai-mcp
+   openstudio-si-mcp
    ```
 
    Desired command:
 
    ```bash
-   openstudio-ai doctor
+   openstudio-si doctor
    ```
 
 2. Add adapter runtime modes.
@@ -219,7 +219,7 @@ project structure is stabilized.
    Meanings:
 
    - `local`: current source-checkout development mode.
-   - `installed`: plugin assumes `openstudio-ai-mcp` is already installed.
+   - `installed`: plugin assumes `openstudio-si-mcp` is already installed.
    - `marketplace`: plugin includes setup/doctor/repair commands and installer
      guidance for non-programmers.
 
@@ -227,23 +227,23 @@ project structure is stabilized.
 
    Required setup workflows:
 
-   - `setup-openstudio-ai`
-   - `doctor-openstudio-ai`
-   - `repair-openstudio-ai`
-   - future `uninstall-openstudio-ai`
+   - `setup-openstudio-si`
+   - `doctor-openstudio-si`
+   - `repair-openstudio-si`
+   - future `uninstall-openstudio-si`
 
 4. Add cross-platform installer scripts.
 
    ```text
-   Claude: skills/setup-openstudio-ai/scripts/install_runtime.py
-   Claude: skills/setup-openstudio-ai/scripts/doctor_runtime.py
-   Codex: skills/setup-openstudio-ai/scripts/install_runtime.py
-   Codex: skills/setup-openstudio-ai/scripts/doctor_runtime.py
+   Claude: skills/setup-openstudio-si/scripts/install_runtime.py
+   Claude: skills/setup-openstudio-si/scripts/doctor_runtime.py
+   Codex: skills/setup-openstudio-si/scripts/install_runtime.py
+   Codex: skills/setup-openstudio-si/scripts/doctor_runtime.py
    ```
 
    These should validate prerequisites, install or upgrade the runtime package
    after user approval, support pinned/internal package specs through
-   `OPENSTUDIO_AI_PACKAGE_SPEC`, initialize runtime storage, and explain
+   `OPENSTUDIO_SI_PACKAGE_SPEC`, initialize runtime storage, and explain
    failures in normal energy-modeler language.
 
 5. Add export tests.
@@ -251,7 +251,7 @@ project structure is stabilized.
    Tests should confirm:
 
    - marketplace exports include setup/doctor/repair skills;
-   - `.mcp.json` points to `openstudio-ai-mcp` in installed/marketplace mode;
+   - `.mcp.json` points to `openstudio-si-mcp` in installed/marketplace mode;
    - local mode still points to the source checkout;
    - exported instructions are cross-platform;
    - no hardcoded developer machine paths appear in marketplace mode;
@@ -263,13 +263,13 @@ project structure is stabilized.
 
 ## Future Separate Repository Work
 
-When OpenStudio AI moves to its own repository, the package should become a
+When OpenStudio SI moves to its own repository, the package should become a
 first-class installable product.
 
 Target repo shape:
 
 ```text
-openstudio-ai/
+openstudio-si/
 ├── pyproject.toml
 ├── 
 │   ├── cli.py
@@ -290,21 +290,21 @@ Required console scripts:
 
 ```toml
 [project.scripts]
-openstudio-ai = "cli:main"
-openstudio-ai-mcp = "mcp.server:main"
+openstudio-si = "cli:main"
+openstudio-si-mcp = "mcp.server:main"
 ```
 
 Required CLI commands:
 
 ```bash
-openstudio-ai doctor
-openstudio-ai export claude
-openstudio-ai export codex
-openstudio-ai install codex
-openstudio-ai validate-export
-openstudio-ai repair
-openstudio-ai version
-openstudio-ai paths
+openstudio-si doctor
+openstudio-si export claude
+openstudio-si export codex
+openstudio-si install codex
+openstudio-si validate-export
+openstudio-si repair
+openstudio-si version
+openstudio-si paths
 ```
 
 Package responsibilities after migration:
@@ -327,9 +327,9 @@ User runs setup command
 Agent checks Python availability
         |
         v
-Agent checks openstudio-ai-mcp command
+Agent checks openstudio-si-mcp command
         |
-        +-- found --> run openstudio-ai doctor
+        +-- found --> run openstudio-si doctor
         |
         +-- missing --> ask user approval to install runtime
                          |
@@ -337,7 +337,7 @@ Agent checks openstudio-ai-mcp command
                     install runtime
                          |
                          v
-                    run openstudio-ai doctor
+                    run openstudio-si doctor
         |
         v
 Agent confirms MCP starts and reports readiness
@@ -368,8 +368,8 @@ Use this checklist to estimate progress.
 ### Runtime Package After Repo Migration
 
 - [ ] Flattened runtime package directories exist at the repository root.
-- [x] `openstudio-ai-mcp` console script exists.
-- [x] `openstudio-ai` CLI exists.
+- [x] `openstudio-si-mcp` console script exists.
+- [x] `openstudio-si` CLI exists.
 - [ ] `doctor` command validates Python, OpenStudio, SDK index, measures,
       workspace, SQLite, and MCP startup.
 - [x] `export claude` command exists.
@@ -394,18 +394,18 @@ Use this checklist to estimate progress.
 
 ## North-Star Principle
 
-Do not let the host plugin become the runtime. The plugin should guide the AI
+Do not let the host plugin become the runtime. The plugin should guide the SI
 assistant and help install or connect to the runtime. The MCP runtime should own
 the deterministic engineering operations.
 
 The long-term architecture is:
 
 ```text
-Installed OpenStudio AI MCP runtime
+Installed OpenStudio SI MCP runtime
         ^
         |
 Claude/Codex marketplace plugin
         ^
         |
-Energy modeler workflow in preferred AI assistant
+Energy modeler workflow in preferred SI assistant
 ```

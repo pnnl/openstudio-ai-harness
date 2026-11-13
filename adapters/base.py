@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from adapters.contracts import HostAdapterConfig, HostLaunchPlan
 
 
-class OpenStudioAiHostAdapter(ABC):
+class OpenStudioSiHostAdapter(ABC):
     """Thin interface implemented by each supported agent host."""
 
     def __init__(self, config: HostAdapterConfig):

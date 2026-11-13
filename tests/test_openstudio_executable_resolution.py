@@ -6,13 +6,13 @@ import os
 import stat
 from pathlib import Path
 
-import openstudio_ai_mcp.server as mcp_server
-import openstudio_ai_mcp.runtime_config as runtime_config
-from openstudio_ai_mcp.runtime_config import (
+import openstudio_si_mcp.server as mcp_server
+import openstudio_si_mcp.runtime_config as runtime_config
+from openstudio_si_mcp.runtime_config import (
     configured_openstudio_path,
     openstudio_version_from_output,
 )
-from openstudio_ai_mcp.server import OpenStudioService
+from openstudio_si_mcp.server import OpenStudioService
 
 
 def _executable(path: Path) -> Path:
@@ -37,7 +37,7 @@ def test_openstudio_path_falls_back_to_path_discovery(
 ) -> None:
     discovered = _executable(tmp_path / "openstudio")
     monkeypatch.delenv("OPENSTUDIO_PATH", raising=False)
-    monkeypatch.setenv("OPENSTUDIO_AI_DATA_DIR", str(tmp_path / "runtime-data"))
+    monkeypatch.setenv("OPENSTUDIO_SI_DATA_DIR", str(tmp_path / "runtime-data"))
     monkeypatch.setattr(runtime_config.shutil, "which", lambda _: str(discovered))
 
     service = OpenStudioService(workspace_root=tmp_path / "workspace")
@@ -52,7 +52,7 @@ def test_openstudio_path_falls_back_to_path_discovery(
 
 def test_openstudio_status_explains_missing_cli(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.delenv("OPENSTUDIO_PATH", raising=False)
-    monkeypatch.setenv("OPENSTUDIO_AI_DATA_DIR", str(tmp_path / "runtime-data"))
+    monkeypatch.setenv("OPENSTUDIO_SI_DATA_DIR", str(tmp_path / "runtime-data"))
     monkeypatch.setattr(runtime_config.shutil, "which", lambda _: None)
 
     status = OpenStudioService(
@@ -84,8 +84,8 @@ def test_saved_openstudio_path_is_used_when_environment_is_unset(
 ) -> None:
     configured = _executable(tmp_path / "configured-openstudio")
     monkeypatch.delenv("OPENSTUDIO_PATH", raising=False)
-    monkeypatch.setenv("OPENSTUDIO_AI_DATA_DIR", str(tmp_path / "runtime-data"))
-    from openstudio_ai_mcp.runtime_config import set_openstudio_path
+    monkeypatch.setenv("OPENSTUDIO_SI_DATA_DIR", str(tmp_path / "runtime-data"))
+    from openstudio_si_mcp.runtime_config import set_openstudio_path
 
     set_openstudio_path(configured)
     monkeypatch.setattr(runtime_config.shutil, "which", lambda _: None)
@@ -102,7 +102,7 @@ def test_non_object_runtime_configuration_is_ignored(
     data_dir = tmp_path / "runtime-data"
     data_dir.mkdir()
     (data_dir / "runtime.json").write_text("null\n", encoding="utf-8")
-    monkeypatch.setenv("OPENSTUDIO_AI_DATA_DIR", str(data_dir))
+    monkeypatch.setenv("OPENSTUDIO_SI_DATA_DIR", str(data_dir))
 
     assert configured_openstudio_path() is None
 
@@ -123,7 +123,7 @@ def test_invalid_saved_path_falls_back_to_path_discovery(
         '{"openstudio_path": "/missing/openstudio"}\n', encoding="utf-8"
     )
     monkeypatch.delenv("OPENSTUDIO_PATH", raising=False)
-    monkeypatch.setenv("OPENSTUDIO_AI_DATA_DIR", str(data_dir))
+    monkeypatch.setenv("OPENSTUDIO_SI_DATA_DIR", str(data_dir))
     monkeypatch.setattr(runtime_config.shutil, "which", lambda _: str(discovered))
 
     assert runtime_config.resolve_openstudio_executable_with_source() == (

@@ -275,7 +275,7 @@ class OpenStudioSdkDocLookup:
         """Create a lookup helper with a safe fallback for a stale environment override.
 
         A custom directory is useful to test a newer documentation extraction,
-        but it must not disable the SDK bundle shipped with OpenStudio AI.  SDK
+        but it must not disable the SDK bundle shipped with OpenStudio SI.  SDK
         documentation is intentionally portable across compatible OpenStudio
         minor versions, so the bundled index remains a useful fallback even
         when the local OpenStudio installation differs from its version.

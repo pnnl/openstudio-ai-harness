@@ -1,6 +1,6 @@
-# OpenStudio AI Learning Pipelines
+# OpenStudio SI Learning Pipelines
 
-OpenStudio AI uses two separate learning pipelines.
+OpenStudio SI uses two separate learning pipelines.
 
 Developer pipeline:
 
@@ -18,11 +18,11 @@ Host learning workflow:
 - are exported under the relevant skill's `references/` directory;
 - use host-neutral MCP tools to capture opt-in evidence and retrieve approved
   personal lessons in Claude Code and Codex;
-- use `openstudio-ai learning curate` outside the primary modeling workflow to
+- use `openstudio-si learning curate` outside the primary modeling workflow to
   create unreviewed lesson and measure candidates;
 - never directly edit trusted assets.
 
-This separation keeps "AI learns" defensible: runtime observations can create
+This separation keeps "SI learns" defensible: runtime observations can create
 candidates, but trusted assets require review and validation.
 
 “Opt-in” means a host must explicitly invoke a learning MCP tool before any
@@ -54,12 +54,12 @@ add or update evals, and then promote them intentionally.
 Claude/Codex exports copy selected files from `learning/harness_pipeline/` into
 `propose-measure` and `capture-session-lesson` skill references. The shared MCP
 runtime persists opt-in evidence and approved personal lessons under the
-user-local OpenStudio AI data directory. The CLI reads the same SQLite store:
+user-local OpenStudio SI data directory. The CLI reads the same SQLite store:
 
 ```bash
-openstudio-ai learning curate
-openstudio-ai learning propose-measures
-openstudio-ai learning prune-preview
+openstudio-si learning curate
+openstudio-si learning propose-measures
+openstudio-si learning prune-preview
 ```
 
 The CLI never approves, promotes, or deletes candidates without explicit user

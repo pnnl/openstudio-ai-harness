@@ -1,1 +1,1 @@
-"""Developer and build scripts for OpenStudio AI."""
+"""Developer and build scripts for OpenStudio SI."""

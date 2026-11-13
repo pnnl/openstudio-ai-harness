@@ -1,6 +1,6 @@
-# OpenStudio AI Architecture Diagram (Sponsor View)
+# OpenStudio SI Architecture Diagram (Sponsor View)
 
-This diagram shows how a user request flows through OpenStudio AI.
+This diagram shows how a user request flows through OpenStudio SI.
 
 ## 1) Big Picture
 

@@ -91,7 +91,7 @@ def test_exported_resources_execute_after_relocation_without_runtime(
     shutil.move(str(result.plugin_dir), relocated)
     shutil.rmtree(resource_workspace)
     for skill in ("openstudio-sdk-model-editor", "add-vav-reheat"):
-        # -S excludes installed packages, including the OpenStudio AI runtime.
+        # -S excludes installed packages, including the OpenStudio SI runtime.
         completed = subprocess.run(
             [
                 sys.executable,
@@ -217,7 +217,7 @@ def test_reject_collision_with_generated_setup_helper(resource_workspace: Path) 
     manifest = yaml.safe_load(path.read_text())
     manifest["skills"].append(
         {
-            "id": "setup-openstudio-ai",
+            "id": "setup-openstudio-si",
             "source": "skills/add_vav_reheat.md",
             "hosts": ["codex"],
         }
@@ -225,7 +225,7 @@ def test_reject_collision_with_generated_setup_helper(resource_workspace: Path) 
     manifest["resources"][0]["owners"] = [
         {
             "hosts": ["codex"],
-            "skill": "setup-openstudio-ai",
+            "skill": "setup-openstudio-si",
             "path": "scripts/doctor_runtime.py",
         }
     ]

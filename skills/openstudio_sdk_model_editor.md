@@ -2,7 +2,7 @@
 name: openstudio_sdk_model_editor
 description: Route local OSM inspection and edits to bundled SDK skills, or guide bespoke SDK scripts when no bundled operation applies.
 metadata:
-  version: 0.4.1
+  version: 0.4.2
   output_format: markdown_with_json_summary
 ---
 
@@ -42,7 +42,7 @@ tools.
 
 Use host execution for bundled SDK scripts and scoped generated scripts against
 a local `.osm` file. Bundled SDK scripts run directly through the host, without
-the OpenStudio AI MCP runtime or measure registry. Host execution means the mechanism
+the OpenStudio SI MCP runtime or measure registry. Host execution means the mechanism
 available in the current agent host: AUTOMA-AI may expose `run_python`, Codex
 may use its shell/Python execution environment, Claude Code may use its
 approved command or script execution path, and some hosts may require asking the
@@ -239,7 +239,7 @@ usable interpreter to launch doctor. `OPENSTUDIO_PATH` selects the native
 OpenStudio executable, not this host Python interpreter.
 
 Doctor uses only the standard library; the host Python does not need OpenStudio
-or OpenStudio AI installed. For Claude Code resolve the
+or OpenStudio SI installed. For Claude Code resolve the
 script through `${CLAUDE_SKILL_DIR}`; for Codex resolve it relative to this
 `SKILL.md`'s actual directory, not the user's current working directory.
 

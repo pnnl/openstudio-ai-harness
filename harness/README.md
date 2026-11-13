@@ -1,6 +1,6 @@
-# OpenStudio AI Harness
+# OpenStudio SI Harness
 
-The harness is the host-agnostic package boundary for OpenStudio AI. It collects
+The harness is the host-agnostic package boundary for OpenStudio SI. It collects
 the assets needed by an agent host:
 
 - MCP server entrypoint;

@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 
 from automa_ai.common.mcp_registry import MCPServerManager
 
-from standalone.agent import build_openstudio_agent, build_openstudio_ai_mcp_config
+from standalone.agent import build_openstudio_agent, build_openstudio_si_mcp_config
 
 base_dir = Path(__file__).resolve().parent
 repo_root = base_dir.parent
@@ -201,7 +201,7 @@ class ChatbotRuntime:
         self._thread = Thread(target=self._run_loop, daemon=True)
         self._thread.start()
         self._mcp_manager = MCPServerManager()
-        self._mcp_manager.add_server(build_openstudio_ai_mcp_config())
+        self._mcp_manager.add_server(build_openstudio_si_mcp_config())
         try:
             started = asyncio.run_coroutine_threadsafe(
                 self._mcp_manager.start_all(), self._loop
@@ -874,7 +874,7 @@ def _render_telemetry_panel(
 
 
 def main() -> None:
-    st.set_page_config(page_title="OpenStudio AI", page_icon="🏗️", layout="wide")
+    st.set_page_config(page_title="OpenStudio SI", page_icon="🏗️", layout="wide")
     st.markdown(STATUS_PANEL_CSS, unsafe_allow_html=True)
 
     if "messages" not in st.session_state:
@@ -889,7 +889,7 @@ def main() -> None:
             context_id=st.session_state["session_id"],
         )
 
-    st.title("🏗️ OpenStudio AI")
+    st.title("🏗️ OpenStudio SI")
 
     for msg in st.session_state["messages"]:
         with st.chat_message(msg["role"]):

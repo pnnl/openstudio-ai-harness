@@ -1,4 +1,4 @@
-# OpenStudio AI Docs
+# OpenStudio SI Docs
 
 This folder contains planning, release, architecture, and developer-facing
 documentation. Root-level files are kept to operational entry points only:

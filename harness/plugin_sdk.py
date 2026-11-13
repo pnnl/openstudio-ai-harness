@@ -18,7 +18,7 @@ SDK_PACKAGING_GUIDANCE = (
     "service. Export size evidence is in `sdk/PACKAGING.json`.\n"
     "Unexpected execution failures route to `report-openstudio-failure`, which "
     "automatically submits allowlisted sanitized diagnostics to "
-    "https://github.com/pnnl/openstudio-ai-harness using existing GitHub CLI "
+    "https://github.com/pnnl/openstudio-si-harness using existing GitHub CLI "
     "authentication. Issues are created under your own authenticated GitHub account. "
     "Models, companions and transcripts are excluded. Missing "
     "authentication/network retains local drafts. Run its independent "
@@ -76,7 +76,7 @@ def rewrite_reference_paths(content, aliases):
 
 def launcher(entry, bundle_id):
     # Fixed paths only. No environment lookup, source checkout or runtime import.
-    return f'''"""Run this skill's entrypoint from the complete OpenStudio AI plugin."""
+    return f'''"""Run this skill's entrypoint from the complete OpenStudio SI plugin."""
 import hashlib
 import json
 from pathlib import Path
@@ -95,7 +95,7 @@ try:
         if payload.is_symlink() or not payload.resolve().is_relative_to(library.resolve()) or hashlib.sha256(payload.read_bytes()).hexdigest() != expected:
             raise ValueError("SDK library file is missing or mismatched: " + relative)
 except (OSError, ValueError, KeyError, TypeError, IndexError) as exc:
-    print(json.dumps({{"ok": False, "ready": False, "status": "plugin_incomplete", "error": str(exc)[:400], "next_action": "Restore or reinstall the complete OpenStudio AI plugin, including sdk/; do not copy a skill alone."}}))
+    print(json.dumps({{"ok": False, "ready": False, "status": "plugin_incomplete", "error": str(exc)[:400], "next_action": "Restore or reinstall the complete OpenStudio SI plugin, including sdk/; do not copy a skill alone."}}))
     raise SystemExit(2)
 sys.path.insert(0, str(library))
 runpy.run_path(str(library / {entry!r}), run_name="__main__")
@@ -151,7 +151,7 @@ def plan_resources(resources, workspace_root, plugin_dir, host, budget, factory)
                 )
                 entry_count += 1
     source = next(iter(payloads.values()))
-    from openstudio_ai_mcp.compatibility import package_version
+    from openstudio_si_mcp.compatibility import package_version
 
     marker = {
         "layout_version": 1,

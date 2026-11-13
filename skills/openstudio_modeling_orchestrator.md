@@ -15,7 +15,7 @@ task-specific skill before acting; do not recreate its procedure from memory.
   performs preflight and selects NLR as the preferred exclusive provider for
   model, measure, simulation, and result work when compatible. It also owns
   the explicit NLR-to-SDK fallback boundary. If NLR is unavailable or
-  unsuitable, continue with the OpenStudio AI routes below. This priority applies
+  unsuitable, continue with the OpenStudio SI routes below. This priority applies
   to VAV and requests mentioning local bundled scripts. If NLR cannot cover the
   operation, record the evidence and provider transition before local SDK work.
 - Use `hvac-sizing-assistant` for deterministic sizing workflows.
@@ -185,7 +185,7 @@ task-specific skill before acting; do not recreate its procedure from memory.
 
 ## Runtime Boundaries
 
-- When `delegated-nlr-modeling` is active, do not call OpenStudio AI
+- When `delegated-nlr-modeling` is active, do not call OpenStudio SI
   `model_*`, `sim_*`, `results_*`, measure, or SDK tools until it records a
   provider transition. Do not call an NLR critical mutation before the skill's
   required blackboard checkpoint.
@@ -226,14 +226,14 @@ bundled `failure_receipt`; if absent (MCP error, crash, doctor/probe failure or
 broken plugin), use that skill's independent host-Python collector to capture
 minimal configuration, versions, expected/actual behavior, publication state and
 reproduction evidence. The selected policy automatically submits allowlisted,
-sanitized diagnostics to `pnnl/openstudio-ai-harness`; no per-incident approval is
+sanitized diagnostics to `pnnl/openstudio-si-harness`; no per-incident approval is
 required. Issues are created under the user's own authenticated GitHub account.
 Do not upload models, companions, transcripts or credentials. Security-
 sensitive incidents remain local for private reporting. Explicit user bug reports
 qualify; ordinary missing inputs, scope refusals, cancellation, version readiness
 and `requires_preparation` do not automatically create issues.
 
-Use the project root as CWD, or set the same absolute `OPENSTUDIO_AI_FAILURE_DIR`
+Use the project root as CWD, or set the same absolute `OPENSTUDIO_SI_FAILURE_DIR`
 and reporter `--state-dir`. On resume, run its `pending` command and process
 pending receipts before new modeling work. Preserve the original incident across
 successful workarounds and repeated retries. Store receipt/issue under

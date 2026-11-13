@@ -108,8 +108,8 @@ def test_harness_native_simulation_preserves_schedule_files(
     sdk, apply_module, tmp_path, monkeypatch
 ):
     from vav_fixture import prepare_vav_fixture
-    from openstudio_ai_mcp.server import OpenStudioService
-    from openstudio_ai_mcp.tools.schemas import ModelLoadArgs
+    from openstudio_si_mcp.server import OpenStudioService
+    from openstudio_si_mcp.tools.schemas import ModelLoadArgs
 
     exe = Path("/Applications/OpenStudio-3.11.0/bin/openstudio")
     if not exe.is_file():

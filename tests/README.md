@@ -1,4 +1,4 @@
-# OpenStudio AI tests
+# OpenStudio SI tests
 
 ## Publishing and full CI
 
@@ -50,7 +50,7 @@ runner duration. Evidence is under `outputs/test-suite-split-20261014/` locally.
 ## Agent evaluation cases
 
 `agent_eval_cases.json` contains conversation-style test cases for evaluating
-the OpenStudio AI Model Workspace Agent.
+the OpenStudio SI Model Workspace Agent.
 
 The cases are intentionally simple and focused on realistic building energy
 modeling questions. They are designed to evaluate:

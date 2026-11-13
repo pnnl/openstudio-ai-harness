@@ -1,6 +1,6 @@
-# OpenStudio AI Host Adapters
+# OpenStudio SI Host Adapters
 
-`adapters/` is release tooling. It translates trusted OpenStudio AI assets into
+`adapters/` is release tooling. It translates trusted OpenStudio SI assets into
 the native plugin layouts required by Claude Code and Codex. It must not own
 modeling behavior, OpenStudio operations, or durable workflow state.
 
@@ -15,15 +15,15 @@ The adapters render product skills, agents, and references from
 `harness/asset_manifest.yaml`. They own only host infrastructure such as
 marketplace setup/doctor/repair skills, installer scripts, and MCP configuration.
 Durable workflow state is owned by the MCP runtime in
-`openstudio_ai_mcp/runtime/state_store.py`, not by an adapter.
+`openstudio_si_mcp/runtime/state_store.py`, not by an adapter.
 
 ## Runtime Modes
 
 | Mode | MCP command in the export | Use |
 | --- | --- | --- |
-| `local` | Current virtualenv Python running `openstudio_ai_mcp.server` | Source-checkout development. |
-| `installed` | `openstudio-ai-mcp` | An already installed runtime. |
-| `marketplace` | `openstudio-ai-mcp` | Marketplace package with setup, doctor, and repair skills. |
+| `local` | Current virtualenv Python running `openstudio_si_mcp.server` | Source-checkout development. |
+| `installed` | `openstudio-si-mcp` | An already installed runtime. |
+| `marketplace` | `openstudio-si-mcp` | Marketplace package with setup, doctor, and repair skills. |
 
 Use `local` while changing this repository. Use `marketplace` only after the
 runtime is installed in the environment that will load the plugin.
@@ -32,23 +32,23 @@ runtime is installed in the environment that will load the plugin.
 
 ```bash
 .venv/bin/python -m cli export claude \
-  --output-dir /tmp/openstudio-ai-claude \
+  --output-dir /tmp/openstudio-si-claude \
   --workspace-root "$PWD" \
   --runtime-mode local \
   --force
 
 .venv/bin/python -m cli validate-export \
-  /tmp/openstudio-ai-claude/openstudio-ai \
+  /tmp/openstudio-si-claude/openstudio-si \
   --runtime-mode local
 ```
 
 The marketplace export has this shape:
 
 ```text
-openstudio-ai-claude/
+openstudio-si-claude/
 ├── .claude-plugin/marketplace.json
 ├── INSTALL.md
-└── openstudio-ai/
+└── openstudio-si/
     ├── .claude-plugin/plugin.json
     ├── .mcp.json
     ├── README.md
@@ -56,14 +56,14 @@ openstudio-ai-claude/
     ├── settings.json
     ├── agents/openstudio-modeler.md
     ├── monitors/monitors.json
-    ├── bin/openstudio-ai-learning-monitor
+    ├── bin/openstudio-si-learning-monitor
     └── skills/
         ├── add-vav-reheat/
         ├── simulate/
         ├── query-results/
-        ├── setup-openstudio-ai/
-        ├── doctor-openstudio-ai/
-        ├── repair-openstudio-ai/
+        ├── setup-openstudio-si/
+        ├── doctor-openstudio-si/
+        ├── repair-openstudio-si/
         ├── openstudio-sdk-model-editor/
         ├── openstudio-workflow-state/
         ├── propose-measure/
@@ -78,42 +78,42 @@ folders.
 For development, add the marketplace and reload it in Claude Code:
 
 ```text
-/plugin marketplace add /tmp/openstudio-ai-claude
-/plugin install openstudio-ai@openstudio-ai-local
+/plugin marketplace add /tmp/openstudio-si-claude
+/plugin install openstudio-si@openstudio-si-local
 /reload-plugins
 ```
 
 The `install` subcommand remains a project-local debugging path. It writes a
-managed OpenStudio AI block to `.claude/CLAUDE.md` and a project `.mcp.json`; it
+managed OpenStudio SI block to `.claude/CLAUDE.md` and a project `.mcp.json`; it
 is not the distributable plugin format.
 
 ## Codex Export
 
 ```bash
 .venv/bin/python -m cli export codex \
-  --output-dir /tmp/openstudio-ai-codex \
+  --output-dir /tmp/openstudio-si-codex \
   --workspace-root "$PWD" \
   --runtime-mode local \
   --force
 
 .venv/bin/python -m cli validate-export \
-  /tmp/openstudio-ai-codex/plugins/openstudio-ai \
+  /tmp/openstudio-si-codex/plugins/openstudio-si \
   --runtime-mode local
 ```
 
 The export has this shape:
 
 ```text
-openstudio-ai-codex/
+openstudio-si-codex/
 ├── .agents/plugins/marketplace.json
 ├── INSTALL.md
-└── plugins/openstudio-ai/
+└── plugins/openstudio-si/
     ├── .codex-plugin/plugin.json
     ├── .mcp.json
     ├── README.md
     ├── CONNECTORS.md
     └── skills/
-        ├── setup-openstudio-ai/
+        ├── setup-openstudio-si/
         ├── openstudio-modeling-orchestrator/
         ├── openstudio-sdk-model-editor/
         ├── openstudio-workflow-state/
@@ -124,7 +124,7 @@ openstudio-ai-codex/
 Add the exported marketplace with:
 
 ```bash
-codex plugin marketplace add /tmp/openstudio-ai-codex
+codex plugin marketplace add /tmp/openstudio-si-codex
 ```
 
 Codex references also live under the relevant skill. Do not add root plugin
@@ -135,7 +135,7 @@ After installing or enabling the Codex plugin, install the project-level
 modeler policy with the public CLI:
 
 ```bash
-openstudio-ai install codex --target-dir /path/to/codex-project
+openstudio-si install codex --target-dir /path/to/codex-project
 ```
 
 The command creates `AGENTS.md` if it is absent. It otherwise updates only its

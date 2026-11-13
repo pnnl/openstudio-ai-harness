@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "OpenStudio AI Runtime Candidate Measure",
+  "title": "OpenStudio SI Runtime Candidate Measure",
   "type": "object",
   "required": ["name", "status", "source", "review_required"],
   "properties": {

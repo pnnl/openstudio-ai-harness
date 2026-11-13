@@ -1,9 +1,9 @@
 spec_version: v1
 
 agent:
-  name: OpenStudio AI Model Workspace Agent
-  description: Local OpenStudio AI agent wired to MCP tools and bounded OpenStudio SDK model editing.
-  version: 0.4.1
+  name: OpenStudio SI Model Workspace Agent
+  description: Local OpenStudio SI agent wired to MCP tools and bounded OpenStudio SDK model editing.
+  version: 0.4.2
 
 instructions:
   path: ../prompts/openstudio_agent.md
@@ -63,8 +63,8 @@ skills:
 
 mcp:
   servers:
-    openstudio_ai_mcp:
-      name: openstudio_ai_mcp
+    openstudio_si_mcp:
+      name: openstudio_si_mcp
       host: 127.0.0.1
       port: 10210
       transport: sse

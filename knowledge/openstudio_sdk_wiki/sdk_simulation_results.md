@@ -6,7 +6,7 @@ version: 0.2.0
 
 # SDK Simulation and Results Context
 
-This pack documents source-observed simulation and SQL idioms. In OpenStudio AI,
+This pack documents source-observed simulation and SQL idioms. In OpenStudio SI,
 actual simulation execution, polling, artifact retrieval, and result summaries
 belong to MCP `sim_*` and `results_*` tools. Do not use host Python execution
 to launch OpenStudio CLI, shell commands, or subprocesses.
@@ -16,7 +16,7 @@ or drafting a non-executed review plan.
 
 ## Attach User-Supplied Weather and Design Days
 
-Weather and design-day assets are model inputs. OpenStudio AI does not package
+Weather and design-day assets are model inputs. OpenStudio SI does not package
 sample EPW or DDY files: require user-supplied paths, verify they exist, and
 record their paths in the edit summary. Prefer a relevant MCP `model_*` tool
 when it supports the requested model setup; use these SDK idioms only for a
@@ -57,7 +57,7 @@ model.save(openstudio.path(f"{run_dir}/in.osm"), True)
 ```
 
 This translates an OpenStudio model to EnergyPlus IDF and saves both model and
-IDF inputs. In OpenStudio AI, prefer MCP simulation workflows instead of doing
+IDF inputs. In OpenStudio SI, prefer MCP simulation workflows instead of doing
 this inside host Python execution.
 
 ## Prepare WorkflowJSON

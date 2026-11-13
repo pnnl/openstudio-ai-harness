@@ -2081,7 +2081,7 @@ The [increment B review guide](SDK_INTEGRATION_SUMMARY.md#b--shared-sdk-packagin
 manifest scope, distribution contract, 1 MiB budget, measured byte accounting and
 exact reviewer commands. SDK resources decrease from 2,445,693 comparable
 owner-copy bytes to 686,836 bytes before the small size report: **71.9%**.
-This is a packaging measurement, not measured AI-token savings.
+This is a packaging measurement, not measured SI-token savings.
 
 **272 unique targeted checks passed**: 236 packaging/manifest/import/doctor/
 preparation/adapter/CLI/archive checks and 36 native relocated modeling checks.
@@ -2102,7 +2102,7 @@ plugin installation or release; user files under `docs/reviews/` are untouched.
 
 Increment B is approved. Both hosts now export `report-openstudio-failure` with
 an independent stdlib helper and event schema. The selected policy automatically
-submits sanitized, allowlisted diagnostics to `pnnl/openstudio-ai-harness` using
+submits sanitized, allowlisted diagnostics to `pnnl/openstudio-si-harness` using
 existing GitHub CLI authentication. Issues are created under your own
 authenticated GitHub account. Models/companions/transcripts are excluded;
 uncertain, offline, disabled or security-sensitive incidents retain local state.
@@ -2255,3 +2255,30 @@ Current gallery: outputs/hvac-visual-review-d1-d3-20261012/review/inspection.htm
 No pin, NLR priority, transaction or preparation contract changes; no commits,
 pushes, installations, releases, live issues or edits under docs/reviews/.
 Stop for visual approval before resuming equipment development.
+
+## Resumed equipment sequence
+
+Phases 11–13 cover terminal editing and conversion, plant equipment performance,
+unused-plant cleanup, and mechanical-to-district replacement.
+See the [release review summary](reviews/SUMMARY.md) for scope and limits.
+
+### Packaged VAV
+
+`prototype_pvav_v1` is the first packaged-system profile. The existing VAV
+preflight and apply scripts compose a variable-volume fan, gas central heat,
+two-speed DX cooling, electric VAV terminal reheat, and an outdoor-air intake.
+Preflight requires explicit coil selections and DX approval. It exposes the
+fan ratings, supply and reheat temperatures, terminal minimum airflow,
+availability and outdoor-air schedules, and optional return plenum for review.
+
+Source trace at OpenStudio Standards `8bad404ef` uses
+`Prototype.hvac_systems.rb:2214–2402` for `model_add_pvav` and
+`Prototype.SizingSystem.rb:9–45` for system sizing. The generic profile uses
+Normal terminal damper action, a 50 °C zone heating design temperature, and a
+minimum outdoor-air flow schedule. The terminal minimum airflow fraction is a
+reviewed input with a 0.30 default. The harness retains its shared fan power
+curve and does not apply Standards template or building-specific adjustments.
+
+PSZ-AC follows with a single-speed DX coil, an on/off fan, and a unitary
+assembly with single-zone controls. Packaged DOAS requires a separate
+ventilation and exhaust contract.

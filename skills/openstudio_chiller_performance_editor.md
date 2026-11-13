@@ -2,7 +2,7 @@
 name: openstudio-chiller-performance-editor
 description: Edit explicit reference COP, cooling capacity (watts/Autosize) or part-load/unloading limits on one existing air- or water-cooled ChillerElectricEIR in place, preserving curves, unrequested sizing inputs, water circuits, controls and identities. Use for reference-rating changes; other chiller classes, heat recovery, thermosiphon and replacement need separate coverage.
 metadata:
-  version: 0.4.1
+  version: 0.4.2
 ---
 
 Prefer configured, compatible NLR through `delegated-nlr-modeling`. After selecting

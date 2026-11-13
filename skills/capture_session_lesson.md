@@ -1,12 +1,12 @@
 ---
 name: capture-session-lesson
-description: Draft a candidate OpenStudio AI session lesson for later review.
+description: Draft a candidate OpenStudio SI session lesson for later review.
 ---
 
 # Capture Session Lesson
 
 Capture a candidate lesson from the current session only after the user confirms
-they want it saved for future OpenStudio AI sessions. Record only reviewable
+they want it saved for future OpenStudio SI sessions. Record only reviewable
 observations, assumptions, failure modes, or reusable workflow notes.
 
 1. Call `learning_capture_observation` with concise evidence and the applicable

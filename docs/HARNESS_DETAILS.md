@@ -1,6 +1,6 @@
-# OpenStudio AI
+# OpenStudio SI
 
-OpenStudio AI is a deployable agent harness for building-energy modeling
+OpenStudio SI is a deployable agent harness for building-energy modeling
 workflows. The project packages a trusted MCP runtime, reviewed knowledge,
 workflow skills, SDK lookup, runtime learning contracts, and host adapters for
 Claude Code, Codex, and future agent shells.
@@ -8,8 +8,8 @@ Claude Code, Codex, and future agent shells.
 The current direction is:
 
 ```text
-OpenStudio AI runtime kernel
-  openstudio_ai_mcp + SDK index + approved measures + future blackboard tools
+OpenStudio SI runtime kernel
+  openstudio_si_mcp + SDK index + approved measures + future blackboard tools
         |
         v
 Host adapters
@@ -28,9 +28,9 @@ For developer ownership and roadmap details, see:
 
 ## Current Baseline
 
-OpenStudio AI currently includes:
+OpenStudio SI currently includes:
 
-- `openstudio_ai_mcp/`, a real MCP server for model lifecycle, simulation,
+- `openstudio_si_mcp/`, a real MCP server for model lifecycle, simulation,
   results, SDK docs, and approved measures;
 - Claude Code plugin export;
 - Codex plugin export;
@@ -47,14 +47,14 @@ OpenStudio AI currently includes:
   smoke behavior.
 
 The first runtime packaging phase is complete: the package exposes
-`openstudio-ai-mcp`, and Claude/Codex exports support local, installed, and
+`openstudio-si-mcp`, and Claude/Codex exports support local, installed, and
 marketplace runtime modes. The main deployment gap is now clean-install proof
 and runtime readiness validation across real environments, including stronger
-`openstudio-ai doctor` checks and OpenStudio-installed MCP verification.
+`openstudio-si doctor` checks and OpenStudio-installed MCP verification.
 
 ## Product Boundary
 
-OpenStudio AI has two surfaces.
+OpenStudio SI has two surfaces.
 
 Runtime harness:
 
@@ -74,7 +74,7 @@ Developer workbench:
 
 ### MCP Runtime Kernel
 
-`openstudio_ai_mcp/` is the deterministic runtime surface. It owns operations that
+`openstudio_si_mcp/` is the deterministic runtime surface. It owns operations that
 should not be left to free-form agent scripting:
 
 - `model_*`: model lifecycle, weather/design-day setup, measure application,
@@ -85,7 +85,7 @@ should not be left to free-form agent scripting:
 - approved measures: reviewed deterministic workflows exposed through policy.
 
 Near-term runtime work should prove the installed command path end to end and
-make `openstudio-ai doctor` validate SDK index, approved measures, runtime
+make `openstudio-si doctor` validate SDK index, approved measures, runtime
 storage, SQLite registry creation, MCP startup, and OpenStudio readiness.
 
 The MCP server now maintains a lightweight local SQLite registry under the
@@ -96,7 +96,7 @@ workspace files without storing OSM/SQL/log blobs in SQLite.
 Storage pruning is not automatic. The user or agent must initiate cleanup by
 calling `runtime_storage_usage`, reviewing `runtime_prune_preview`, and then
 calling `runtime_prune` only after approval. The detailed process diagrams live
-in `openstudio_ai_mcp/README.md`.
+in `openstudio_si_mcp/README.md`.
 
 ### Host Adapters
 
@@ -106,36 +106,36 @@ Claude Code export:
 
 ```bash
 .venv/bin/python -m adapters.claude_code_adapter export-plugin \
-  --output-dir /tmp/openstudio-ai-plugin
+  --output-dir /tmp/openstudio-si-plugin
 ```
 
 Claude Code install flow:
 
 ```text
-/plugin marketplace add /tmp/openstudio-ai-plugin
-/plugin install openstudio-ai@openstudio-ai-local
+/plugin marketplace add /tmp/openstudio-si-plugin
+/plugin install openstudio-si@openstudio-si-local
 /reload-plugins
 ```
 
 Codex export:
 
 ```bash
-openstudio-ai export codex \
-  --output-dir /tmp/openstudio-ai-codex-plugin \
+openstudio-si export codex \
+  --output-dir /tmp/openstudio-si-codex-plugin \
   --runtime-mode marketplace
 ```
 
 Codex install flow:
 
 ```bash
-codex plugin marketplace add /tmp/openstudio-ai-codex-plugin
+codex plugin marketplace add /tmp/openstudio-si-codex-plugin
 ```
 
 After enabling the plugin, add the managed OpenStudio modeler policy to the
 Codex project that will use it:
 
 ```bash
-openstudio-ai install codex --target-dir /path/to/codex-project
+openstudio-si install codex --target-dir /path/to/codex-project
 ```
 
 This creates `AGENTS.md` when it is absent. Use `--dry-run` to preview; an
@@ -186,7 +186,7 @@ The target pattern is targeted retrieval:
 
 ### Learning
 
-OpenStudio AI has two learning paths.
+OpenStudio SI has two learning paths.
 
 Developer learning:
 
@@ -207,7 +207,7 @@ Host learning contracts:
 - exported to Claude/Codex as skill-local instructions and schemas;
 - let host agents draft candidate recipes, session lessons, or measures without
   claiming that the candidate was persisted;
-- never directly updates trusted `knowledge/`, `skills/`, `openstudio_ai_mcp/`, or
+- never directly updates trusted `knowledge/`, `skills/`, `openstudio_si_mcp/`, or
   `measures/approved/`.
 
 Host learning contracts can guide drafting. Developer learning can promote.
@@ -267,7 +267,7 @@ bash standalone/run_all.sh
 ## SDK Documentation Tools
 
 The `sdk_docs_*` tools look up OpenStudio SDK class and method information from
-bundled YAML files at `openstudio_ai_mcp/sdk_docs/docs/api/`. Set
+bundled YAML files at `openstudio_si_mcp/sdk_docs/docs/api/`. Set
 `OPENSTUDIO_SDK_DOCS_DIR` to override the bundled directory with a custom one.
 
 Available MCP tools include:
@@ -282,7 +282,7 @@ Build an optional local cache summary:
 
 ```bash
 python3 scripts/build_sdk_doc_index.py \
-  --docs-dir openstudio_ai_mcp/sdk_docs/docs \
+  --docs-dir openstudio_si_mcp/sdk_docs/docs \
   --output .sdk_doc_index.json
 ```
 
@@ -299,14 +299,14 @@ Key files:
 - `policy/measure_registry.yaml`
 - `measures/approved/`
 - `measures/candidates/`
-- `openstudio_ai_mcp/runtime/measure_registry.py`
+- `openstudio_si_mcp/runtime/measure_registry.py`
 
 Runtime proposal is allowed through learning candidates, but publication into
 approved measures requires review and validation.
 
 ## Verification
 
-Focused test set for the current OpenStudio AI harness:
+Focused test set for the current OpenStudio SI harness:
 
 ```bash
 .venv/bin/python -m pytest -q \
@@ -327,11 +327,11 @@ Focused test set for the current OpenStudio AI harness:
   executable and the model has a valid weather file or one is supplied through
   MCP setup.
 - Simulation runtime files are generated under
-  `.openstudio_ai_mcp_workspace/<job_id>/`.
+  `.openstudio_si_mcp_workspace/<job_id>/`.
 - If SDK lookup fails, verify `OPENSTUDIO_SDK_DOCS_DIR` points to a directory
   containing `api/classes-<version>.yaml.gz` (or the legacy
   `api/classes.yaml.gz`), or that the bundled docs at
-  `openstudio_ai_mcp/sdk_docs/docs/` are present. `openstudio-ai doctor --json`
+  `openstudio_si_mcp/sdk_docs/docs/` are present. `openstudio-si doctor --json`
   reports the resolved path and selected documentation version.
 - If measure application fails, verify `policy/measure_registry.yaml` and the
   approved measure entrypoint.
@@ -346,9 +346,9 @@ Focused test set for the current OpenStudio AI harness:
 - `standalone/openstudio_agent.yaml`: local AUTOMA-AI agent spec.
 - `prompts/`: system prompt and harness, blackboard, learning, and promotion
   contracts.
-- `openstudio_ai_mcp/`: MCP runtime kernel.
-- `openstudio_ai_mcp/tools/`: model, simulation, results, and SDK docs tools.
-- `openstudio_ai_mcp/runtime/`: workspace, artifact, job, and measure registry
+- `openstudio_si_mcp/`: MCP runtime kernel.
+- `openstudio_si_mcp/tools/`: model, simulation, results, and SDK docs tools.
+- `openstudio_si_mcp/runtime/`: workspace, artifact, job, and measure registry
   managers.
 - `skills/`: parent skills, generated child skills, specs, and templates.
 - `knowledge/`: reviewed knowledge base and SDK wiki packs.
@@ -368,7 +368,7 @@ Focused test set for the current OpenStudio AI harness:
 
 Runtime distribution:
 
-- harden `openstudio-ai doctor` into the primary runtime readiness check;
+- harden `openstudio-si doctor` into the primary runtime readiness check;
 - validate source, editable install, wheel install, and marketplace exports in
   fresh environments;
 - add CI for package, CLI, and adapter export checks;

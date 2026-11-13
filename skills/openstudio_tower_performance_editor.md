@@ -2,7 +2,7 @@
 name: openstudio-tower-performance-editor
 description: Edit total design fan power/Autosize, minimum fan-airflow ratio or free-convection capacity fraction on an existing CoolingTowerVariableSpeed in place. Preserve its connections, design conditions, unrequested inputs, curve and identity; flag airflow sizing and low-load effects. Other tower classes and replacement need separate coverage.
 metadata:
-  version: 0.4.1
+  version: 0.4.2
 ---
 
 Prefer compatible, configured NLR through `delegated-nlr-modeling`. After selecting

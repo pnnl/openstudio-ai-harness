@@ -13,7 +13,7 @@ from adapters.runtime_helpers import (
     render_doctor_runtime_script,
     render_install_runtime_script,
 )
-from openstudio_ai_mcp.compatibility import PLUGIN_CONTRACT_VERSION, package_version
+from openstudio_si_mcp.compatibility import PLUGIN_CONTRACT_VERSION, package_version
 
 
 def _compile_script(tmp_path: Path, filename: str, content: str) -> None:
@@ -38,21 +38,21 @@ def test_rendered_runtime_helpers_are_executable_python(tmp_path: Path) -> None:
     assert "return 2" in doctor
     assert "core_ready" in doctor
     assert "plugin_ready" in doctor
-    assert "newer OpenStudio AI MCP interface" in doctor
+    assert "newer OpenStudio SI MCP interface" in doctor
     assert "ready for energy modeling" in doctor
     assert 'runtime_cli, "install-runtime"' in installer
     assert "def runtime_command_path(command: str)" in installer
     assert "def runtime_cli_path" in installer
     assert 'scripts_dir / f"{command}.exe"' in installer
-    assert 'runtime_mcp = runtime_command_path("openstudio-ai-mcp")' in installer
+    assert 'runtime_mcp = runtime_command_path("openstudio-si-mcp")' in installer
     assert "requires Python 3.10 or newer" in installer
-    assert f"openstudio-ai=={package_version()}" in installer
+    assert f"openstudio-si=={package_version()}" in installer
     assert "def is_pipx_managed_runtime" in installer
-    assert '["pipx", "upgrade", "--install", "openstudio-ai"]' in installer
+    assert '["pipx", "upgrade", "--install", "openstudio-si"]' in installer
     assert "do not replace it with this absolute path" in installer
     assert '"-m", "cli"' not in installer
     assert (
-        'print("\\nOpenStudio AI runtime installation completed.")\n    return 0'
+        'print("\\nOpenStudio SI runtime installation completed.")\n    return 0'
         in installer
     )
 
@@ -73,7 +73,7 @@ def test_exported_helpers_keep_project_venv_commands_separate_from_path(
     venv = tmp_path / ".venv"
     scripts = venv / "bin"
     scripts.mkdir(parents=True)
-    local_cli = scripts / "openstudio-ai"
+    local_cli = scripts / "openstudio-si"
     local_cli.touch()
     selected_python = SimpleNamespace(prefix=str(venv), base_prefix="/machine")
 
@@ -83,10 +83,10 @@ def test_exported_helpers_keep_project_venv_commands_separate_from_path(
     doctor_namespace["shutil"] = SimpleNamespace(
         which=lambda command: f"/global/bin/{command}"
     )
-    assert doctor_namespace["command_status"]("openstudio-ai")["path"] == str(
+    assert doctor_namespace["command_status"]("openstudio-si")["path"] == str(
         local_cli
     )
-    assert doctor_namespace["command_status"]("openstudio-ai-mcp")["path"] is None
+    assert doctor_namespace["command_status"]("openstudio-si-mcp")["path"] is None
 
     installer_namespace = {"__name__": "test_installer"}
     exec(render_install_runtime_script(), installer_namespace)
@@ -95,7 +95,7 @@ def test_exported_helpers_keep_project_venv_commands_separate_from_path(
         which=lambda command: f"/global/bin/{command}"
     )
     assert installer_namespace["runtime_cli_path"]() == str(local_cli)
-    assert installer_namespace["runtime_command_path"]("openstudio-ai-mcp") is None
+    assert installer_namespace["runtime_command_path"]("openstudio-si-mcp") is None
     assert installer_namespace["is_pipx_managed_runtime"]() is False
 
 

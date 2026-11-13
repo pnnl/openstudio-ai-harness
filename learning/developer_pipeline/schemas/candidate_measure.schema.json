@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "OpenStudio AI Candidate Measure",
+  "title": "OpenStudio SI Candidate Measure",
   "type": "object",
   "required": ["name", "status", "summary", "review_required"],
   "properties": {

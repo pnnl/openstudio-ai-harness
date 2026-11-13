@@ -1,18 +1,18 @@
 ---
 name: delegated-nlr-modeling
-description: Use NLR OpenStudio-MCP as the preferred exclusive energy-modeling provider while OpenStudio AI owns workflow state, artifacts, and learning.
+description: Use NLR OpenStudio-MCP as the preferred exclusive energy-modeling provider while OpenStudio SI owns workflow state, artifacts, and learning.
 ---
 
 # Delegated NLR Modeling Workflow
 
 Use this skill when NLR is configured as `openstudio-mcp` and passes preflight. NLR is
 the preferred provider for model creation, model edits, measures, simulation,
-and result retrieval. OpenStudio AI remains mandatory for blackboard state,
+and result retrieval. OpenStudio SI remains mandatory for blackboard state,
 artifact provenance, provider decisions, and learning capture.
 
 If NLR is not configured, unavailable, incompatible, or rejected by preflight,
-do not attempt NLR operations. Record the reason in the OpenStudio AI
-blackboard and use the normal OpenStudio AI-only skill route.
+do not attempt NLR operations. Record the reason in the OpenStudio SI
+blackboard and use the normal OpenStudio SI-only skill route.
 
 ## Mandatory Start
 
@@ -72,7 +72,7 @@ automatically native Claude Code or Codex skills. Before a non-trivial NLR task,
 call NLR `list_skills` and retrieve only the task-relevant guide with
 `get_skill`. Record the NLR skill name and version/source in the blackboard.
 
-Use the retrieved NLR guide as provider-specific procedure. The OpenStudio AI
+Use the retrieved NLR guide as provider-specific procedure. The OpenStudio SI
 plugin remains the parent orchestrator and retains ownership of blackboard,
 artifact, and learning calls. Do not bulk-load or blindly reproduce NLR skill
 content.
@@ -93,7 +93,7 @@ replace engineering review, unit checks, or before/after validation.
 
 ## NLR Execution And Blackboard Records
 
-- Use only NLR tools for the selected modeling phase. Do not call OpenStudio AI
+- Use only NLR tools for the selected modeling phase. Do not call OpenStudio SI
   `model_*`, `sim_*`, `results_*`, or measure tools against the same unstaged
   model.
 - After each NLR action, call the relevant blackboard operation: record the
@@ -106,7 +106,7 @@ replace engineering review, unit checks, or before/after validation.
 
 ## SDK Fallback Boundary
 
-Switch to the OpenStudio AI SDK route only when the model has evidence that NLR
+Switch to the OpenStudio SI SDK route only when the model has evidence that NLR
 cannot express the requested operation after consulting the relevant NLR skill
 and capability/API lookup. Record the unsupported operation, NLR evidence,
 reason for the transition, input model artifact, and selected local SDK in
@@ -118,21 +118,21 @@ For the demo topology, a provider path `/runs/<suffix>` maps to
 valid in host-side source code. Choose a specific energy-modeling skill first:
 supported VAV creation uses `openstudio-vav-reheat-system-creator` and its bundled
 doctor/preflight/apply workflow. This local bundle executes through host tools,
-without the OpenStudio AI modeling runtime. Only when no specific skill covers
+without the OpenStudio SI modeling runtime. Only when no specific skill covers
 the request, load `openstudio-sdk-model-editor` and its bespoke-edit reference,
 retrieve the required API documentation and draft scoped code. In either route,
 verify the exact local OpenStudio release recorded in the package compatibility contract and
 write a new output model rather than overwriting the delegated artifact.
 
 The SDK edit is a new provider phase. After it completes, validate and record
-the output. A later simulation may use OpenStudio AI or may be explicitly
+the output. A later simulation may use OpenStudio SI or may be explicitly
 handed back to NLR through a recorded staging/import boundary; never allow both
 providers to mutate the same unstaged model.
 
 ## Learning And Handoff
 
 Capture NLR capability gaps, failures, and successful patterns as candidate
-learning evidence through OpenStudio AI. Do not promote NLR guidance, generated
+learning evidence through OpenStudio SI. Do not promote NLR guidance, generated
 measure code, or runtime observations into trusted plugin assets without review.
 At handoff, record the provider history, final model, run IDs, artifacts,
 results, assumptions, warnings, failures, and next recommended action; mark

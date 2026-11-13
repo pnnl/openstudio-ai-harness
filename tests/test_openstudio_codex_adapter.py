@@ -7,7 +7,7 @@ import pytest
 
 from adapters.codex_adapter import AGENTS_GENERATED_START, CodexAdapter
 from adapters.contracts import HostAdapterConfig
-from openstudio_ai_mcp.compatibility import plugin_mcp_environment
+from openstudio_si_mcp.compatibility import plugin_mcp_environment
 
 
 def _adapter() -> CodexAdapter:
@@ -37,7 +37,7 @@ def test_codex_adapter_export_plugin_dry_run_does_not_write(tmp_path: Path) -> N
         result.marketplace_path
         == (tmp_path / ".agents" / "plugins" / "marketplace.json").resolve()
     )
-    assert result.plugin_dir == (tmp_path / "plugins" / "openstudio-ai").resolve()
+    assert result.plugin_dir == (tmp_path / "plugins" / "openstudio-si").resolve()
     assert result.marketplace_path in result.files
     assert not result.plugin_dir.exists()
 
@@ -102,12 +102,12 @@ def test_codex_adapter_updates_only_its_managed_agents_block(tmp_path: Path) -> 
 def test_codex_adapter_exports_plugin_package(tmp_path: Path) -> None:
     result = _adapter().export_plugin(tmp_path, dry_run=False)
 
-    plugin_dir = tmp_path / "plugins" / "openstudio-ai"
+    plugin_dir = tmp_path / "plugins" / "openstudio-si"
     assert result.plugin_dir == plugin_dir.resolve()
     assert (tmp_path / ".agents" / "plugins" / "marketplace.json").exists()
     assert (tmp_path / "INSTALL.md").exists()
     assert (plugin_dir / ".codex-plugin" / "plugin.json").exists()
-    assert (plugin_dir / "assets" / "openstudio-ai-icon.png").exists()
+    assert (plugin_dir / "assets" / "openstudio-si-icon.png").exists()
     assert (plugin_dir / ".mcp.json").exists()
     assert (plugin_dir / "README.md").exists()
     assert (plugin_dir / "CONNECTORS.md").exists()
@@ -255,40 +255,40 @@ def test_codex_adapter_exports_plugin_package(tmp_path: Path) -> None:
     assert not (plugin_dir / "learning").exists()
     install_doc = (tmp_path / "INSTALL.md").read_text(encoding="utf-8")
     assert f"codex plugin marketplace add {tmp_path}" in install_doc
-    assert "openstudio-ai install codex --target-dir <path-to-project>" in install_doc
-    assert "$setup-openstudio-ai" in install_doc
-    assert "/setup-openstudio-ai` is not a Codex CLI skill command" in install_doc
-    assert "openstudio-ai-codex-export install" not in install_doc
+    assert "openstudio-si install codex --target-dir <path-to-project>" in install_doc
+    assert "$setup-openstudio-si" in install_doc
+    assert "/setup-openstudio-si` is not a Codex CLI skill command" in install_doc
+    assert "openstudio-si-codex-export install" not in install_doc
 
 
 def test_codex_adapter_exports_valid_manifest_and_marketplace(tmp_path: Path) -> None:
     _adapter().export_plugin(tmp_path, dry_run=False)
 
-    plugin_dir = tmp_path / "plugins" / "openstudio-ai"
+    plugin_dir = tmp_path / "plugins" / "openstudio-si"
     plugin_json = json.loads(
         (plugin_dir / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8")
     )
-    assert plugin_json["name"] == "openstudio-ai"
+    assert plugin_json["name"] == "openstudio-si"
     assert "model" not in plugin_json
     assert plugin_json["skills"] == "./skills/"
     assert plugin_json["mcpServers"] == "./.mcp.json"
-    assert plugin_json["interface"]["displayName"] == "OpenStudio AI"
+    assert plugin_json["interface"]["displayName"] == "OpenStudio SI"
     assert plugin_json["interface"]["defaultPrompt"]
     issue_submitter = (
         plugin_dir / "skills" / "github-issue-submitter" / "SKILL.md"
     ).read_text(encoding="utf-8")
-    assert "pnnl/openstudio-ai-plugins" in issue_submitter
+    assert "pnnl/openstudio-si-plugins" in issue_submitter
     assert "obtain explicit" in issue_submitter
-    assert plugin_json["interface"]["composerIcon"] == "./assets/openstudio-ai-icon.png"
-    assert plugin_json["interface"]["logo"] == "./assets/openstudio-ai-icon.png"
+    assert plugin_json["interface"]["composerIcon"] == "./assets/openstudio-si-icon.png"
+    assert plugin_json["interface"]["logo"] == "./assets/openstudio-si-icon.png"
 
     marketplace_json = json.loads(
         (tmp_path / ".agents" / "plugins" / "marketplace.json").read_text(
             encoding="utf-8"
         )
     )
-    assert marketplace_json["name"] == "openstudio-ai-local"
-    assert marketplace_json["plugins"][0]["source"]["path"] == "./plugins/openstudio-ai"
+    assert marketplace_json["name"] == "openstudio-si-local"
+    assert marketplace_json["plugins"][0]["source"]["path"] == "./plugins/openstudio-si"
     assert marketplace_json["plugins"][0]["policy"]["installation"] == "AVAILABLE"
 
 
@@ -296,57 +296,57 @@ def test_codex_adapter_exports_mcp_config(tmp_path: Path) -> None:
     _adapter().export_plugin(tmp_path, dry_run=False)
 
     mcp_json = json.loads(
-        (tmp_path / "plugins" / "openstudio-ai" / ".mcp.json").read_text(
+        (tmp_path / "plugins" / "openstudio-si" / ".mcp.json").read_text(
             encoding="utf-8"
         )
     )
-    server = mcp_json["mcpServers"]["openstudio_ai"]
-    assert server["args"][:3] == ["-m", "openstudio_ai_mcp.server", "--transport"]
+    server = mcp_json["mcpServers"]["openstudio_si"]
+    assert server["args"][:3] == ["-m", "openstudio_si_mcp.server", "--transport"]
     assert server["args"][3] == "stdio"
-    assert "OPENSTUDIO_AI_ROOT" in server["env"]
+    assert "OPENSTUDIO_SI_ROOT" in server["env"]
 
 
 def test_codex_adapter_installed_mode_uses_runtime_command(tmp_path: Path) -> None:
     _adapter_with_runtime_mode("installed").export_plugin(tmp_path, dry_run=False)
 
     mcp_json = json.loads(
-        (tmp_path / "plugins" / "openstudio-ai" / ".mcp.json").read_text(
+        (tmp_path / "plugins" / "openstudio-si" / ".mcp.json").read_text(
             encoding="utf-8"
         )
     )
-    server = mcp_json["mcpServers"]["openstudio_ai"]
-    assert server["command"] == "openstudio-ai-mcp"
+    server = mcp_json["mcpServers"]["openstudio_si"]
+    assert server["command"] == "openstudio-si-mcp"
     assert server["args"] == ["--transport", "stdio"]
     assert server["env"] == plugin_mcp_environment()
     assert not (
-        tmp_path / "plugins" / "openstudio-ai" / "skills" / "setup-openstudio-ai"
+        tmp_path / "plugins" / "openstudio-si" / "skills" / "setup-openstudio-si"
     ).exists()
 
 
 def test_codex_adapter_marketplace_mode_exports_runtime_setup(tmp_path: Path) -> None:
     _adapter_with_runtime_mode("marketplace").export_plugin(tmp_path, dry_run=False)
 
-    plugin_dir = tmp_path / "plugins" / "openstudio-ai"
+    plugin_dir = tmp_path / "plugins" / "openstudio-si"
     mcp_json = json.loads((plugin_dir / ".mcp.json").read_text(encoding="utf-8"))
-    server = mcp_json["mcpServers"]["openstudio_ai"]
+    server = mcp_json["mcpServers"]["openstudio_si"]
     assert server == {
-        "command": "openstudio-ai-mcp",
+        "command": "openstudio-si-mcp",
         "args": ["--transport", "stdio"],
         "env": plugin_mcp_environment(),
     }
-    assert (plugin_dir / "skills" / "setup-openstudio-ai" / "SKILL.md").exists()
-    assert (plugin_dir / "skills" / "doctor-openstudio-ai" / "SKILL.md").exists()
-    assert (plugin_dir / "skills" / "repair-openstudio-ai" / "SKILL.md").exists()
+    assert (plugin_dir / "skills" / "setup-openstudio-si" / "SKILL.md").exists()
+    assert (plugin_dir / "skills" / "doctor-openstudio-si" / "SKILL.md").exists()
+    assert (plugin_dir / "skills" / "repair-openstudio-si" / "SKILL.md").exists()
     assert (
-        plugin_dir / "skills" / "setup-openstudio-ai" / "scripts" / "install_runtime.py"
+        plugin_dir / "skills" / "setup-openstudio-si" / "scripts" / "install_runtime.py"
     ).exists()
     assert (
-        plugin_dir / "skills" / "setup-openstudio-ai" / "scripts" / "doctor_runtime.py"
+        plugin_dir / "skills" / "setup-openstudio-si" / "scripts" / "doctor_runtime.py"
     ).exists()
     assert not (plugin_dir / "commands").exists()
     assert not (plugin_dir / "installers").exists()
 
-    setup = (plugin_dir / "skills" / "setup-openstudio-ai" / "SKILL.md").read_text(
+    setup = (plugin_dir / "skills" / "setup-openstudio-si" / "SKILL.md").read_text(
         encoding="utf-8"
     )
     assert "python --version" in setup
@@ -359,26 +359,26 @@ def test_codex_adapter_marketplace_mode_exports_runtime_setup(tmp_path: Path) ->
     assert "restart Codex" in setup
     assert "plugin_ready: false" in setup
     assert "new tool cannot appear in the current session" in setup
-    repair = (plugin_dir / "skills" / "repair-openstudio-ai" / "SKILL.md").read_text(
+    repair = (plugin_dir / "skills" / "repair-openstudio-si" / "SKILL.md").read_text(
         encoding="utf-8"
     )
     assert "plugin_ready: false" in repair
     assert "restart Codex or reconnect the MCP server" in repair
     assert "current project's `AGENTS.md`" in setup
     assert "required part of setup" in setup
-    assert "openstudio-ai install codex --target-dir . --dry-run --force" in setup
-    assert "openstudio-ai install codex --target-dir . --force" in setup
+    assert "openstudio-si install codex --target-dir . --dry-run --force" in setup
+    assert "openstudio-si install codex --target-dir . --force" in setup
     assert "unmanaged" in setup
     installer = (
-        plugin_dir / "skills" / "setup-openstudio-ai" / "scripts" / "install_runtime.py"
+        plugin_dir / "skills" / "setup-openstudio-si" / "scripts" / "install_runtime.py"
     ).read_text(encoding="utf-8")
-    assert "OPENSTUDIO_AI_PACKAGE_SPEC" in installer
+    assert "OPENSTUDIO_SI_PACKAGE_SPEC" in installer
     assert '"pip", "install", "--upgrade"' in installer
-    assert '["pipx", "upgrade", "--install", "openstudio-ai"]' in installer
+    assert '["pipx", "upgrade", "--install", "openstudio-si"]' in installer
     assert 'runtime_cli, "install-runtime"' in installer
     assert "Placeholder installer" not in installer
     doctor = (
-        plugin_dir / "skills" / "setup-openstudio-ai" / "scripts" / "doctor_runtime.py"
+        plugin_dir / "skills" / "setup-openstudio-si" / "scripts" / "doctor_runtime.py"
     ).read_text(encoding="utf-8")
     assert '"--plugin-contract-version"' in doctor
 
@@ -393,7 +393,7 @@ def test_codex_adapter_marketplace_mode_exports_runtime_setup(tmp_path: Path) ->
 def test_codex_adapter_export_requires_force_for_existing_plugin(
     tmp_path: Path,
 ) -> None:
-    plugin_dir = tmp_path / "plugins" / "openstudio-ai"
+    plugin_dir = tmp_path / "plugins" / "openstudio-si"
     plugin_dir.mkdir(parents=True)
 
     with pytest.raises(FileExistsError):

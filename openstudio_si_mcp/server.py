@@ -35,37 +35,37 @@ from blackboard.operations import (
     record_assumption,
     record_failure,
 )
-from openstudio_ai_mcp.compatibility import evaluate_plugin_compatibility
-from openstudio_ai_mcp.model_resources import copy_model_resources
-from openstudio_ai_mcp.runtime_config import (
+from openstudio_si_mcp.compatibility import evaluate_plugin_compatibility
+from openstudio_si_mcp.model_resources import copy_model_resources
+from openstudio_si_mcp.runtime_config import (
     openstudio_version_from_output,
     resolve_openstudio_executable_with_source,
     user_data_dir,
 )
 from blackboard.snapshot import snapshot_workflow
-from openstudio_ai_mcp.runtime.artifact_store import ArtifactStore
-from openstudio_ai_mcp.runtime.job_manager import JobManager, JobRecord
-from openstudio_ai_mcp.runtime.learning_store import LearningStore
-from openstudio_ai_mcp.runtime.measure_registry import (
+from openstudio_si_mcp.runtime.artifact_store import ArtifactStore
+from openstudio_si_mcp.runtime.job_manager import JobManager, JobRecord
+from openstudio_si_mcp.runtime.learning_store import LearningStore
+from openstudio_si_mcp.runtime.measure_registry import (
     MeasureRegistry,
 )
-from openstudio_ai_mcp.runtime.state_store import RuntimeStateStore
-from openstudio_ai_mcp.runtime.workspace_manager import (
+from openstudio_si_mcp.runtime.state_store import RuntimeStateStore
+from openstudio_si_mcp.runtime.workspace_manager import (
     WorkspaceManager,
 )
-from openstudio_ai_mcp.geometry_viewer import (
+from openstudio_si_mcp.geometry_viewer import (
     build_geometry_scene,
     render_geometry_viewer_html,
 )
-from openstudio_ai_mcp.sdk_docs import OpenStudioSdkDocLookup
-from openstudio_ai_mcp.tools.model import register_model_tools
-from openstudio_ai_mcp.tools.blackboard import (
+from openstudio_si_mcp.sdk_docs import OpenStudioSdkDocLookup
+from openstudio_si_mcp.tools.model import register_model_tools
+from openstudio_si_mcp.tools.blackboard import (
     register_blackboard_tools,
 )
-from openstudio_ai_mcp.tools.results import register_results_tools
-from openstudio_ai_mcp.tools.runtime import register_runtime_tools
-from openstudio_ai_mcp.tools.learning import register_learning_tools
-from openstudio_ai_mcp.tools.schemas import (
+from openstudio_si_mcp.tools.results import register_results_tools
+from openstudio_si_mcp.tools.runtime import register_runtime_tools
+from openstudio_si_mcp.tools.learning import register_learning_tools
+from openstudio_si_mcp.tools.schemas import (
     ModelApplyMeasureArgs,
     ModelCloneArgs,
     ModelExportGeometryViewerArgs,
@@ -83,9 +83,9 @@ from openstudio_ai_mcp.tools.schemas import (
     error_payload,
     success_payload,
 )
-from openstudio_ai_mcp.tools.sdk_docs import register_sdk_doc_tools
-from openstudio_ai_mcp.tools.sim import register_sim_tools
-from openstudio_ai_mcp.tools.session import register_session_tools
+from openstudio_si_mcp.tools.sdk_docs import register_sdk_doc_tools
+from openstudio_si_mcp.tools.sim import register_sim_tools
+from openstudio_si_mcp.tools.session import register_session_tools
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 load_dotenv(BASE_DIR / ".env")
@@ -168,7 +168,7 @@ class OpenStudioService:
     ):
         self.workspace_root = Path(workspace_root).resolve()
         self.state_store = RuntimeStateStore(
-            self.workspace_root / "openstudio_ai_runtime.sqlite"
+            self.workspace_root / "openstudio_si_runtime.sqlite"
         )
         self.artifacts = ArtifactStore(self.state_store)
         self.workspace_manager = WorkspaceManager(self.workspace_root)
@@ -782,7 +782,7 @@ class OpenStudioService:
                 "recommendation": (
                     "No native OpenStudio CLI is visible to this MCP server. "
                     "First perform read-only platform-specific discovery. If no "
-                    "executable is found, save it with `openstudio-ai configure-openstudio "
+                    "executable is found, save it with `openstudio-si configure-openstudio "
                     "--path <confirmed-executable>` or set OPENSTUDIO_PATH, then reconnect."
                 ),
             }
@@ -807,7 +807,7 @@ class OpenStudioService:
                 None
                 if available
                 else "An executable was found, but it did not return a recognized "
-                "OpenStudio version. Run the OpenStudio AI doctor workflow before simulation."
+                "OpenStudio version. Run the OpenStudio SI doctor workflow before simulation."
             ),
         }
 
@@ -854,7 +854,7 @@ class OpenStudioService:
                 "OPENSTUDIO_PATH and the saved runtime configuration did not resolve "
                 "an executable, and shutil.which('openstudio') found no executable on "
                 "the server PATH. Install the OpenStudio CLI, save a confirmed path with "
-                "`openstudio-ai configure-openstudio --path <executable>`, or "
+                "`openstudio-si configure-openstudio --path <executable>`, or "
                 "start/reconnect the MCP server with OPENSTUDIO_PATH set or with "
                 "`openstudio` on PATH."
             )
@@ -1956,7 +1956,7 @@ def create_server(
     service: OpenStudioService | None = None,
     subscription_bus: SubscriptionBus | None = None,
 ) -> MCPServer:
-    workspace = Path(workspace_root or ".openstudio_ai_mcp_workspace")
+    workspace = Path(workspace_root or ".openstudio_si_mcp_workspace")
     bus = subscription_bus or InMemorySubscriptionBus()
     if service is None:
         service = OpenStudioService(
@@ -1966,7 +1966,7 @@ def create_server(
         )
     elif service.subscription_bus is not bus:
         raise ValueError("service and MCPServer must share a subscription bus")
-    mcp = MCPServer("openstudio-ai-mcp", subscriptions=bus)
+    mcp = MCPServer("openstudio-si-mcp", subscriptions=bus)
 
     register_blackboard_tools(mcp, service)
     register_session_tools(mcp, service)
@@ -1989,7 +1989,7 @@ def serve(
     compatibility = evaluate_plugin_compatibility()
     if not compatibility.ok:
         print(
-            "OpenStudio AI plugin/runtime compatibility notice: "
+            "OpenStudio SI plugin/runtime compatibility notice: "
             f"{compatibility.message}\nNext step: {compatibility.remediation}",
             file=sys.stderr,
         )

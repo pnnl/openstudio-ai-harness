@@ -62,7 +62,7 @@ def test_asset_manifest_registers_every_product_skill() -> None:
 
 def test_asset_manifest_routes_references_by_owning_skill(tmp_path: Path) -> None:
     workspace_root = Path(".").resolve()
-    plugin_dir = tmp_path / "openstudio-ai"
+    plugin_dir = tmp_path / "openstudio-si"
 
     exports = reference_exports_for_host(workspace_root, plugin_dir, "codex")
     by_target = {export.target.relative_to(plugin_dir): export for export in exports}
@@ -77,7 +77,7 @@ def test_asset_manifest_routes_references_by_owning_skill(tmp_path: Path) -> Non
 
 def test_asset_manifest_resolves_claude_agent(tmp_path: Path) -> None:
     workspace_root = Path(".").resolve()
-    plugin_dir = tmp_path / "openstudio-ai"
+    plugin_dir = tmp_path / "openstudio-si"
 
     agent_source = agent_source_for_host(workspace_root, "claude", "openstudio-modeler")
     exports = reference_exports_for_host(workspace_root, plugin_dir, "claude")

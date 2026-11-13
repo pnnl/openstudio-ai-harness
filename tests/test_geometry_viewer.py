@@ -5,12 +5,12 @@ from pathlib import Path
 import openstudio
 import pytest
 
-from openstudio_ai_mcp.geometry_viewer import build_geometry_scene
-from openstudio_ai_mcp.geometry_viewer import render_geometry_viewer_html
-import openstudio_ai_mcp.server as mcp_server
-from openstudio_ai_mcp.server import OpenStudioService
-from openstudio_ai_mcp.runtime.state_store import RuntimeStateStore
-from openstudio_ai_mcp.tools.schemas import (
+from openstudio_si_mcp.geometry_viewer import build_geometry_scene
+from openstudio_si_mcp.geometry_viewer import render_geometry_viewer_html
+import openstudio_si_mcp.server as mcp_server
+from openstudio_si_mcp.server import OpenStudioService
+from openstudio_si_mcp.runtime.state_store import RuntimeStateStore
+from openstudio_si_mcp.tools.schemas import (
     ModelExportGeometryViewerArgs,
     ModelLoadArgs,
 )

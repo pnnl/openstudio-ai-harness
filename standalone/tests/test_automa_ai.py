@@ -4,7 +4,7 @@ from automa_ai.config.agent_spec import YamlAgentSpec
 from automa_ai.skills.manager import SkillManager
 
 from standalone.agent import (
-    build_openstudio_ai_mcp_config,
+    build_openstudio_si_mcp_config,
     env_path as agent_env_path,
     load_openstudio_agent_spec,
     repo_root,
@@ -27,18 +27,18 @@ def test_standalone_uses_repository_environment_and_telemetry_paths(
 
 def test_openstudio_agent_yaml_loads_as_a_local_agent(monkeypatch) -> None:
     monkeypatch.setenv("OSSTD_LLM_API", "test-api-key")
-    mcp_config = build_openstudio_ai_mcp_config()
+    mcp_config = build_openstudio_si_mcp_config()
     spec = load_openstudio_agent_spec(mcp_config)
     factory_kwargs = spec.to_factory_kwargs()
 
     assert spec.agent is not None
-    assert spec.agent.name == "OpenStudio AI Model Workspace Agent"
+    assert spec.agent.name == "OpenStudio SI Model Workspace Agent"
     assert spec.agent_card is None
     assert spec.a2a is None
     assert spec.instructions.path == "../prompts/openstudio_agent.md"
     assert spec.mcp is not None
-    assert spec.mcp.servers["openstudio_ai_mcp"].host == mcp_config.host
-    assert spec.mcp.servers["openstudio_ai_mcp"].port == mcp_config.port
+    assert spec.mcp.servers["openstudio_si_mcp"].host == mcp_config.host
+    assert spec.mcp.servers["openstudio_si_mcp"].port == mcp_config.port
     assert factory_kwargs["tools_config"]["tools"][0]["type"] == "run_python"
     assert Path(factory_kwargs["tools_config"]["tools"][0]["config"]["workspace_root"]).resolve() == Path(".").resolve()
     skill_manager = SkillManager.from_config(factory_kwargs["skills_config"])
@@ -56,7 +56,7 @@ def test_openstudio_agent_yaml_loads_as_a_local_agent(monkeypatch) -> None:
 
 def test_openstudio_agent_uses_mcp_blackboard(monkeypatch) -> None:
     monkeypatch.setenv("OSSTD_LLM_API", "test-api-key")
-    spec = load_openstudio_agent_spec(build_openstudio_ai_mcp_config())
+    spec = load_openstudio_agent_spec(build_openstudio_si_mcp_config())
     factory_kwargs = spec.to_factory_kwargs()
 
     assert factory_kwargs["blackboard_config"] is None

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "OpenStudio AI Candidate Skill",
+  "title": "OpenStudio SI Candidate Skill",
   "type": "object",
   "required": ["name", "status", "scope", "source_event_ids"],
   "properties": {

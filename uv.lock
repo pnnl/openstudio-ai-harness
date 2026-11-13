@@ -1578,8 +1578,8 @@ wheels = [
 ]
 
 [[package]]
-name = "openstudio-ai"
-version = "0.4.1"
+name = "openstudio-si"
+version = "0.4.2"
 source = { editable = "." }
 dependencies = [
     { name = "jinja2" },

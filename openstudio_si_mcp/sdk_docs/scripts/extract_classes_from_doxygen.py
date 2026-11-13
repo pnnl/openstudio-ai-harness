@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Extract class information from Doxygen HTML documentation.
-Generates classes.yaml (and a gzip-compressed classes.yaml.gz) for AI-friendly documentation.
+Generates classes.yaml (and a gzip-compressed classes.yaml.gz) for SI-friendly documentation.
 
 Usage:
     python extract_classes_from_doxygen.py <doxygen_html_dir> [--output-dir <dir>]

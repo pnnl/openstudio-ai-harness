@@ -2,7 +2,7 @@
 name: openstudio-district-capacity-editor
 description: Edit nominal purchased-thermal capacity or explicit Autosize on an existing supply-side DistrictHeatingWater or DistrictCooling in place. Preserve schedule, plant connections and identity. Use plant creator for new sources; steam and efficiency changes need separate coverage.
 metadata:
-  version: 0.4.1
+  version: 0.4.2
 ---
 
 Prefer compatible, configured NLR through `delegated-nlr-modeling`. After selecting

@@ -1,46 +1,46 @@
 ---
-title: OpenStudio AI Harness
-description: A deployable AI-agent harness for reliable OpenStudio building-energy modeling workflows.
+title: OpenStudio SI Harness
+description: A deployable SI-agent harness for reliable OpenStudio building-energy modeling workflows.
 ---
 
-# OpenStudio AI Harness
+# OpenStudio SI Harness
 
-OpenStudio AI Harness is a deployable AI-agent harness for building-energy
+OpenStudio SI Harness is a deployable SI-agent harness for building-energy
 modeling with OpenStudio. It pairs a local, deterministic MCP runtime with
 agent-facing skills, reviewed knowledge, and host adapters for Codex, Claude
-Code, and future AI assistant environments.
+Code, and future SI assistant environments.
 
-![OpenStudio AI Harness architecture](openstudio_ai_harness_simple.png)
+![OpenStudio SI Harness architecture](openstudio_si_harness_simple.png)
 
 ## The problem
 
 OpenStudio modeling, HVAC configuration, simulation, and results analysis are
-specialized, multi-step tasks. A general-purpose AI assistant does not by
+specialized, multi-step tasks. A general-purpose SI assistant does not by
 itself have reliable procedures for using the OpenStudio SDK, preserving
 assumptions across a long workflow, validating model changes, or running a
 simulation and interpreting the resulting artifacts.
 
-Energy modelers also need an approach that works in their preferred AI host
+Energy modelers also need an approach that works in their preferred SI host
 without maintaining a separate, divergent implementation for every host or
 requiring users to understand Python environments, MCP servers, and command
 paths before they can begin.
 
 ## What this repository provides
 
-This repository is the source of truth for OpenStudio AI. It contains three
+This repository is the source of truth for OpenStudio SI. It contains three
 connected layers:
 
 1. **MCP runtime:** controlled tools for model lifecycle operations, approved
    measures, asynchronous simulation, SQL-backed results, SDK documentation
    lookup, and local workflow state.
 2. **Trusted agent harness:** reviewed skills, prompts, knowledge packs,
-   policies, and workflow-state contracts that guide an AI assistant through
+   policies, and workflow-state contracts that guide an SI assistant through
    OpenStudio tasks.
 3. **Host adapters:** exporters that package the shared harness into native
    Claude Code and Codex plugins, including portable MCP configuration and
    marketplace setup guidance.
 
-The runtime executes engineering operations; the plugin tells the AI assistant
+The runtime executes engineering operations; the plugin tells the SI assistant
 which workflow to follow and which runtime tools to use. Generated plugin
 exports are release artifacts—update the source assets in this repository and
 regenerate exports rather than editing generated plugin files directly.
@@ -54,7 +54,7 @@ For standalone Claude Desktop configuration, including the global Docker-mount
 limitation and project handoff procedure, see
 [NLR OpenStudio-MCP in Claude Desktop](CLAUDE_DESKTOP_NLR_OPENSTUDIO_MCP.md).
 
-## How to use OpenStudio AI
+## How to use OpenStudio SI
 
 ### Install the runtime
 
@@ -62,9 +62,9 @@ The published runtime is intended for users of Codex, Claude Code, and other
 supported hosts:
 
 ```bash
-python -m pip install openstudio-ai
-openstudio-ai install-runtime
-openstudio-ai doctor
+python -m pip install openstudio-si
+openstudio-si install-runtime
+openstudio-si doctor
 ```
 
 Real model editing and simulation additionally require the native OpenStudio
@@ -76,8 +76,8 @@ specific executable.
 From a source checkout, export a marketplace-oriented plugin package:
 
 ```bash
-openstudio-ai export codex \
-  --output-dir /tmp/openstudio-ai-codex-plugin \
+openstudio-si export codex \
+  --output-dir /tmp/openstudio-si-codex-plugin \
   --runtime-mode marketplace
 ```
 
@@ -93,7 +93,7 @@ After installing the Codex plugin, add the managed OpenStudio workflow policy
 to the project where natural-language OpenStudio requests should be routed:
 
 ```bash
-openstudio-ai install codex --target-dir /path/to/codex-project
+openstudio-si install codex --target-dir /path/to/codex-project
 ```
 
 Use `--dry-run` before `--force` when the target already has an unmanaged
@@ -101,14 +101,14 @@ Use `--dry-run` before `--force` when the target already has an unmanaged
 
 ### Optional: connect the NLR OpenStudio-MCP provider
 
-The OpenStudio AI plugin supports
+The OpenStudio SI plugin supports
 [NLR OpenStudio-MCP](https://github.com/NatLabRockies/openstudio-mcp) as an
-optional local modeling provider. Keep the OpenStudio AI plugin installed and
+optional local modeling provider. Keep the OpenStudio SI plugin installed and
 configure NLR as a second MCP server named `nlr_openstudio`. When the provider
 is available and compatible, the plugin loads its delegated NLR workflow and
-uses NLR for model, measure, simulation, and result operations. OpenStudio AI
+uses NLR for model, measure, simulation, and result operations. OpenStudio SI
 continues to manage workflow state, artifact provenance, learning evidence,
-and the final handoff. If NLR is unavailable, the normal OpenStudio AI workflow
+and the final handoff. If NLR is unavailable, the normal OpenStudio SI workflow
 continues without it.
 
 #### 1. Install and start Docker
@@ -161,7 +161,7 @@ docker build -t openstudio-mcp:dev -f docker/Dockerfile .
 Add the following to `~/.codex/config.toml`. Replace
 `/absolute/path/to/openstudio-mcp` in every mount with the absolute path to the
 checkout created above. The `nlr_openstudio` name is required for the
-OpenStudio AI plugin to select the NLR provider.
+OpenStudio SI plugin to select the NLR provider.
 
 ```toml
 [mcp_servers.nlr_openstudio]
@@ -186,14 +186,14 @@ Codex after saving the configuration. On Windows, write host paths with forward
 slashes in Docker arguments, for example
 `C:/Users/you/src/openstudio-mcp/nlr-workspace/inputs:/inputs:ro`.
 
-#### 4. Use NLR through the OpenStudio AI plugin
+#### 4. Use NLR through the OpenStudio SI plugin
 
-Open the project where OpenStudio AI routing is enabled and ask for the usual
+Open the project where OpenStudio SI routing is enabled and ask for the usual
 modeling task. For example, after copying `Office.osm` to
 `nlr-workspace/inputs`:
 
 ```text
-Using the OpenStudio AI workflow, load /inputs/Office.osm, apply a baseline
+Using the OpenStudio SI workflow, load /inputs/Office.osm, apply a baseline
 HVAC system, run an annual simulation, and summarize EUI and unmet hours.
 ```
 
@@ -226,8 +226,8 @@ Run focused checks for the runtime and plugin exporters:
 Export both marketplace packages for a local release-artifact check:
 
 ```bash
-openstudio-ai export marketplace \
-  --output-dir /tmp/openstudio-ai-plugins \
+openstudio-si export marketplace \
+  --output-dir /tmp/openstudio-si-plugins \
   --runtime-mode marketplace \
   --force
 ```
@@ -243,10 +243,10 @@ OPENSTUDIO_PATH=/path/to/openstudio \
 
 | If you are changing… | Start here |
 | --- | --- |
-| MCP tools or runtime behavior | `openstudio_ai_mcp/` and [Harness Details](HARNESS_DETAILS.md) |
+| MCP tools or runtime behavior | `openstudio_si_mcp/` and [Harness Details](HARNESS_DETAILS.md) |
 | Skills, prompts, or reviewed knowledge | `skills/`, `prompts/`, and `knowledge/` |
 | Plugin package layout or export logic | `adapters/` and `harness/asset_manifest.yaml` |
-| Long-running workflow state | `blackboard/` and `openstudio_ai_mcp/runtime/` |
+| Long-running workflow state | `blackboard/` and `openstudio_si_mcp/runtime/` |
 | Candidate learning or promotion | `learning/`, `evals/`, and `policy/` |
 
 Read the [Developer Guide](DEVELOPER_GUIDANCE.md) before changing boundaries or

@@ -180,14 +180,14 @@ simulation workflows, and explain what changed.
 - When NLR is configured as `openstudio-mcp`, first determine its availability and
   compatibility through `delegated-nlr-modeling`. Prefer NLR as the exclusive
   provider for energy-modeling work when preflight succeeds. If NLR is absent
-  or unsuitable, use the normal OpenStudio AI-only route.
+  or unsuitable, use the normal OpenStudio SI-only route.
 
 ## NLR Provider Gate
 
 When NLR is selected, load `delegated-nlr-modeling` before calling any NLR
-tool, including status/version preflight. Initialize the OpenStudio AI
+tool, including status/version preflight. Initialize the OpenStudio SI
 blackboard and record the provider/mount assumption before NLR work. NLR owns
-model, measure, simulation, and result actions for that phase; OpenStudio AI
+model, measure, simulation, and result actions for that phase; OpenStudio SI
 remains mandatory for blackboard, artifact provenance, and learning evidence.
 
 Before a non-trivial NLR task, retrieve the applicable NLR guide via NLR's
@@ -195,9 +195,9 @@ Before a non-trivial NLR task, retrieve the applicable NLR guide via NLR's
 automatically installed native host skills. Use only the relevant guide and
 record it in the blackboard.
 
-Do not use OpenStudio AI modeling tools against an NLR-owned unstaged model.
+Do not use OpenStudio SI modeling tools against an NLR-owned unstaged model.
 When NLR cannot express a complex operation, record the evidence and create a
-new, explicit OpenStudio AI SDK phase as directed by `delegated-nlr-modeling`.
+new, explicit OpenStudio SI SDK phase as directed by `delegated-nlr-modeling`.
 
 ### NLR Mount-Access Recovery
 
@@ -238,7 +238,7 @@ package-required OpenStudio release through its standalone doctor and shared
 guard. Follow that skill's project-first host Python selection to launch doctor,
 then use the returned native executable. Explicit incompatible paths block; do
 not probe a different project virtualenv or SDK release as recovery. Doctor and bundled execution do not need
-SDK docs/wiki packs or an OpenStudio AI modeling-runtime connection.
+SDK docs/wiki packs or an OpenStudio SI modeling-runtime connection.
 
 For an operation outside bundled scope, use the SDK editor's conditional
 bespoke-edit reference and respect its required inputs and review rules. Bespoke
@@ -272,14 +272,14 @@ for bespoke development/repair, not routine execution of a reviewed bundle.
 
 ## MCP Contract Lifecycle
 
-MCP tools are discovered when the host starts its OpenStudio AI server
+MCP tools are discovered when the host starts its OpenStudio SI server
 connection; an existing conversation cannot dynamically acquire a tool added by
 a plugin or runtime update. Before a workflow whose loaded skill declares a
 required MCP interface contract, call `runtime_plugin_compatibility` and verify
 that the reported runtime contract satisfies that requirement. If the tool is
 unavailable or the contract is stale, do not substitute host scripting or an
 unrelated tool. Run the setup/repair workflow with user approval to upgrade the
-runtime, then restart or reconnect the host's OpenStudio AI MCP server and
+runtime, then restart or reconnect the host's OpenStudio SI MCP server and
 retry in the refreshed session. In Claude Code, use `/reload-plugins` when that
 is the available reload path; in Codex, restart Codex or reconnect the MCP
 server.
@@ -360,14 +360,14 @@ bundled `failure_receipt`; if absent (MCP error, crash, doctor/probe failure or
 broken plugin), use that skill's independent host-Python collector to capture
 minimal configuration, versions, expected/actual behavior, publication state and
 reproduction evidence. The selected policy automatically submits allowlisted,
-sanitized diagnostics to `pnnl/openstudio-ai-harness`; no per-incident approval is
+sanitized diagnostics to `pnnl/openstudio-si-harness`; no per-incident approval is
 required. Issues are created under the user's own authenticated GitHub account.
 Do not upload models, companions, transcripts or credentials. Security-
 sensitive incidents remain local for private reporting. Explicit user bug reports
 qualify; ordinary missing inputs, scope refusals, cancellation, version readiness
 and `requires_preparation` do not automatically create issues.
 
-Use the project root as CWD, or set the same absolute `OPENSTUDIO_AI_FAILURE_DIR`
+Use the project root as CWD, or set the same absolute `OPENSTUDIO_SI_FAILURE_DIR`
 and reporter `--state-dir`. On resume, run its `pending` command and process
 pending receipts before new modeling work. Preserve the original incident across
 successful workarounds and repeated retries. Store receipt/issue under

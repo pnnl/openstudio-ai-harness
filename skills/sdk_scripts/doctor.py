@@ -166,7 +166,7 @@ def main() -> int:
     try:
         report["failure_reporting"] = readiness(
             os.environ.get(
-                "OPENSTUDIO_AI_FAILURE_DIR", str(Path.cwd() / ".openstudio_ai_failures")
+                "OPENSTUDIO_SI_FAILURE_DIR", str(Path.cwd() / ".openstudio_si_failures")
             )
         )
     except Exception:

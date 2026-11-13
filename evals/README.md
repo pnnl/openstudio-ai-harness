@@ -1,4 +1,4 @@
-# OpenStudio AI Evals
+# OpenStudio SI Evals
 
 Evals measure agent behavior, not just Python code correctness.
 

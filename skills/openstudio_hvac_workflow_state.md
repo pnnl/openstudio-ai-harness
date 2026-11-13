@@ -1,7 +1,7 @@
 ---
 name: openstudio_workflow_state
 description: Maintain persistent task-global workflow state for long-running OpenStudio energy modeling tasks.
-version: 0.4.1
+version: 0.4.2
 output_format: markdown_with_json_state
 ---
 
@@ -11,7 +11,7 @@ Use this skill whenever an OpenStudio energy modeling workflow spans multiple
 phases, child skills, scripts, simulations, failure recovery steps, or
 clarification gates.
 
-OpenStudio AI persists workflow state through MCP blackboard tools. The parent
+OpenStudio SI persists workflow state through MCP blackboard tools. The parent
 workflow skill owns all writes. Child skills and script phases return narrow
 `state_patch` objects only.
 

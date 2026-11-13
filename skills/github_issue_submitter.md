@@ -1,11 +1,11 @@
 ---
 name: github-issue-submitter
-description: Draft and, after confirmation, submit template-driven issues to pnnl/openstudio-ai-plugins. Use for bug reports, feature requests, and documentation issues; do not use for security disclosures.
+description: Draft and, after confirmation, submit template-driven issues to pnnl/openstudio-si-plugins. Use for bug reports, feature requests, and documentation issues; do not use for security disclosures.
 ---
 
 # GitHub Issue Submitter
 
-Create clear, reproducible issues for `pnnl/openstudio-ai-plugins` while keeping
+Create clear, reproducible issues for `pnnl/openstudio-si-plugins` while keeping
 the user in control of the public submission.
 
 ## Intake and public-data safety
@@ -98,7 +98,7 @@ official repository template.
 4. After confirmation, use the available authenticated GitHub capability to
    create the issue. Use the repository's actual issue form when required; when
    a Markdown body is appropriate, `gh issue create --repo
-   pnnl/openstudio-ai-plugins` is suitable. Apply only labels or metadata that
+   pnnl/openstudio-si-plugins` is suitable. Apply only labels or metadata that
    the user requested or the selected template requires.
 5. Return the issue URL and number. If authentication, permissions, or a
    template-only interface prevents submission, provide the final copy-ready

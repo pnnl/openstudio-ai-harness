@@ -1,12 +1,12 @@
 ---
 name: report-openstudio-failure
-description: Capture and automatically submit sanitized unexpected OpenStudio AI execution failures to pnnl/openstudio-ai-harness, retaining local drafts and reproduction gaps when submission is unavailable. Use before recovery and on resume; exclude expected readiness questions and general feature requests.
+description: Capture and automatically submit sanitized unexpected OpenStudio SI execution failures to pnnl/openstudio-si-harness, retaining local drafts and reproduction gaps when submission is unavailable. Use before recovery and on resume; exclude expected readiness questions and general feature requests.
 ---
 
 # Report OpenStudio Failure
 
 The selected policy automatically submits qualifying failures to
-`https://github.com/pnnl/openstudio-ai-harness`. No additional per-incident
+`https://github.com/pnnl/openstudio-si-harness`. No additional per-incident
 confirmation is needed for the sanitized diagnostic payload.
 Issues are created under your own authenticated GitHub account.
 The helper uses your existing GitHub CLI login. This authorization does not include
@@ -25,8 +25,8 @@ if a supported workaround succeeds; do not repeat a mutation to obtain evidence.
 
 Run from the project root with host Python. The standalone stdlib helper at
 `scripts/report_failure.py` works without OpenStudio, MCP or the plugin's `sdk/`.
-State defaults to `.openstudio_ai_failures/`. Use the same absolute `--state-dir`
-and `OPENSTUDIO_AI_FAILURE_DIR` for SDK commands if work runs from another CWD.
+State defaults to `.openstudio_si_failures/`. Use the same absolute `--state-dir`
+and `OPENSTUDIO_SI_FAILURE_DIR` for SDK commands if work runs from another CWD.
 The helper never reads a user model or attachment for submission.
 
 1. Reuse `failure_receipt` from the failed bundled command. For MCP errors,
@@ -41,8 +41,8 @@ The helper never reads a user model or attachment for submission.
 2. Capture the event and submit the returned receipt:
 
    ```bash
-   python /absolute/skill/scripts/report_failure.py --state-dir /project/.openstudio_ai_failures capture --event /project/work/failure-event.json
-   python /absolute/skill/scripts/report_failure.py --state-dir /project/.openstudio_ai_failures submit --receipt /project/.openstudio_ai_failures/<fingerprint>/receipt.json
+   python /absolute/skill/scripts/report_failure.py --state-dir /project/.openstudio_si_failures capture --event /project/work/failure-event.json
+   python /absolute/skill/scripts/report_failure.py --state-dir /project/.openstudio_si_failures submit --receipt /project/.openstudio_si_failures/<fingerprint>/receipt.json
    ```
 
    Capture creates a sanitized receipt and a separate private `private.json`

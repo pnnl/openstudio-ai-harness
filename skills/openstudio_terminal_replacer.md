@@ -2,7 +2,7 @@
 name: openstudio-terminal-replacer
 description: Replace one connected single-duct VAV no-reheat terminal with a constant-volume no-reheat terminal, or the reverse, in a reviewed model copy. Use the terminal editor for same-class VAV controls; reheat, plant, zone reassignment and whole-system conversions need separate coverage.
 metadata:
-  version: 0.4.1
+  version: 0.4.2
 ---
 
 Prefer configured, compatible NLR through `delegated-nlr-modeling`. After local

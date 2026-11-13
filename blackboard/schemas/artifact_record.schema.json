@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "OpenStudio AI Artifact Record",
+  "title": "OpenStudio SI Artifact Record",
   "type": "object",
   "required": ["artifact_id", "kind", "path"],
   "properties": {

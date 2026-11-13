@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "OpenStudio AI Eval Case",
+  "title": "OpenStudio SI Eval Case",
   "type": "object",
   "required": ["eval_case_id", "category", "prompt", "expected_behavior"],
   "properties": {

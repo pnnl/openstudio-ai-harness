@@ -2,21 +2,21 @@
 
 ## Product Decision
 
-OpenStudio AI is the single user-facing plugin and mandatory workflow harness.
+OpenStudio SI is the single user-facing plugin and mandatory workflow harness.
 NLR OpenStudio-MCP is an optional, preferred execution provider when it is
 installed locally and passes preflight. The plugin continues to work without
-NLR by using OpenStudio AI's existing MCP tools and skills.
+NLR by using OpenStudio SI's existing MCP tools and skills.
 
 This is a provider integration, not a merger of repositories or a second
 unfiltered tool catalog in Claude Code or Codex.
 
 ## Provider Selection Policy
 
-| Condition | Modeling provider | OpenStudio AI responsibility |
+| Condition | Modeling provider | OpenStudio SI responsibility |
 | --- | --- | --- |
 | NLR is configured, healthy, and version-compatible | NLR exclusively for model, measure, simulation, and results operations in that phase | Mandatory blackboard, artifact provenance, learning evidence, and user handoff |
-| NLR is not configured, unavailable, or incompatible | OpenStudio AI only | Existing model, simulation, result, SDK, blackboard, and learning workflow |
-| NLR cannot express a complex requested operation | Explicit OpenStudio AI SDK phase after recorded evidence and model handoff | SDK documentation, runtime verification, script provenance, validation, and subsequent provider handoff |
+| NLR is not configured, unavailable, or incompatible | OpenStudio SI only | Existing model, simulation, result, SDK, blackboard, and learning workflow |
+| NLR cannot express a complex requested operation | Explicit OpenStudio SI SDK phase after recorded evidence and model handoff | SDK documentation, runtime verification, script provenance, validation, and subsequent provider handoff |
 
 The selected provider is recorded before mutation. Two providers must never
 modify the same unstaged model. A provider transition creates a new phase and
@@ -25,7 +25,7 @@ version information, and blackboard record.
 
 ## End-User Experience
 
-The energy modeler uses the OpenStudio AI plugin normally. They do not need to
+The energy modeler uses the OpenStudio SI plugin normally. They do not need to
 choose raw MCP tools or understand container paths. On each workflow, the
 plugin determines whether NLR is available:
 
@@ -33,17 +33,17 @@ plugin determines whether NLR is available:
    blackboard, records the configured shared workspace, and performs NLR
    preflight.
 2. If preflight succeeds, NLR performs the requested energy-modeling actions.
-   OpenStudio AI records every material decision, NLR run ID, model/result
+   OpenStudio SI records every material decision, NLR run ID, model/result
    artifact, warning, failure, and handoff.
-3. If NLR is unavailable, the existing OpenStudio AI workflow proceeds without
+3. If NLR is unavailable, the existing OpenStudio SI workflow proceeds without
    an NLR dependency.
 4. If NLR cannot perform a requested complex operation, the plugin records the
    limitation, stages the model at a host-visible path, and uses the reviewed
-   OpenStudio AI SDK route. It does not silently mix providers.
+   OpenStudio SI SDK route. It does not silently mix providers.
 
 ## Docker and File Boundary
 
-NLR's Docker image contains its OpenStudio runtime. The OpenStudio AI plugin
+NLR's Docker image contains its OpenStudio runtime. The OpenStudio SI plugin
 does not need to install or execute that runtime for an NLR-owned phase.
 
 NLR provider paths such as `/inputs`, `/runs`, and `/measures` are container
@@ -69,7 +69,7 @@ or Codex skills.
 ### Near-term behavior
 
 The delegated workflow retrieves only the task-relevant NLR guide after
-preflight and records the guide name/version in the blackboard. OpenStudio AI
+preflight and records the guide name/version in the blackboard. OpenStudio SI
 remains the parent workflow and does not bulk-copy NLR guide content into an
 agent prompt.
 
@@ -80,7 +80,7 @@ agent prompt.
    - reusable modeling procedure suitable for a curated plugin skill;
    - reference knowledge that can be summarized with source attribution; or
    - unsafe/unbounded authoring guidance requiring a separate approval gate.
-2. Map a curated guide to one OpenStudio AI native skill with a stable plugin
+2. Map a curated guide to one OpenStudio SI native skill with a stable plugin
    name, explicit provider applicability, NLR source/version attribution, and
    acceptance tests. Do not migrate whole directories wholesale.
 3. Keep provider-only details in NLR and retrieve them dynamically. Migrate
@@ -90,12 +90,12 @@ agent prompt.
    run, and model validation. Generated code remains untrusted candidate
    material until reviewed.
 5. Re-evaluate every migrated skill against pinned NLR releases and the
-   OpenStudio AI-only fallback workflow.
+   OpenStudio SI-only fallback workflow.
 
 ## Production Adapter Design
 
 The dual-MCP configuration is a development compatibility mode. Production
-should add a narrow NLR provider adapter inside OpenStudio AI rather than
+should add a narrow NLR provider adapter inside OpenStudio SI rather than
 registering NLR's entire tool catalog with every host.
 
 Initial adapter operations:
@@ -125,7 +125,7 @@ Before remote or multi-user deployment:
   resolving symlinks;
 - add authentication, authorization, tenant isolation, and TLS for any HTTP
   deployment;
-- recover provider runs after OpenStudio AI restart instead of relying on
+- recover provider runs after OpenStudio SI restart instead of relying on
   in-memory task state;
 - enforce blackboard/artifact checkpoints in the adapter, not only in prompts;
 - add contract tests for successful work, NLR unavailability, incompatibility,
@@ -147,7 +147,7 @@ Before remote or multi-user deployment:
 
 ## Non-goals
 
-- Replacing the OpenStudio AI plugin or blackboard with NLR.
-- Reimplementing NLR tools in OpenStudio AI.
+- Replacing the OpenStudio SI plugin or blackboard with NLR.
+- Reimplementing NLR tools in OpenStudio SI.
 - Exposing raw NLR authoring/code-execution tools to all users by default.
 - Assuming a shared in-memory model across processes or providers.

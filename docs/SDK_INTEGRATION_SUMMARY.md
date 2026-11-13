@@ -14,7 +14,7 @@ probes that deliberately asserted a defect.
 | B | One plugin-local SDK library and fixed skill launchers | Implemented and verified; complete-plugin relocation covered on both hosts |
 | C | Automatic sanitized failure reporting with durable receipts | Implemented and verified; C1/C2 addressed before automatic use |
 | D | Read-only equipment/zone HVAC topology views | Implemented and verified; D1–D3 addressed |
-| E | Resume independent equipment development | Ready to begin; proposed next operation is in-place terminal airflow/reheat editing |
+| E | Resume independent equipment development | Phases 11–13 reviewed. See the [release review summary](reviews/SUMMARY.md) |
 
 OpenStudio remains pinned package-wide to **3.11.0**. Compatible configured NLR
 remains the preferred modeling provider; local scripts follow the existing
@@ -118,7 +118,7 @@ CLI availability before importing optional `jsonschema`.
 Canonical source remains `skills/sdk_scripts/`. Both exports contain:
 
 ```text
-openstudio-ai/
+openstudio-si/
   sdk/
     compatibility.json
     common/, references/, schemas/
@@ -128,7 +128,7 @@ openstudio-ai/
   skills/<owning-skill>/
     SKILL.md
     scripts/<entrypoint>.py   # fixed launcher
-    references/              # progressive skill-facing instructions
+    references/              # other skill-owned references, when present
 ```
 
 The **complete plugin** is the distribution, installation and relocation unit.
@@ -142,11 +142,14 @@ not software signing. Individually standalone skill exports are future scope.
 
 Manifest `scope: plugin-sdk` remains restricted to canonical sources and safe
 paths with collision checks. No filesystem links or `..` destination shortcuts
-are used. Execution code/data are copied once; skill-facing references remain
-local. The independent failure reporter's small recovery copy is intentional.
+are used. Execution code/data and shared SDK guides/schemas are copied once.
+SDK reference aliases in exported SKILL.md become `../../sdk/references/...`
+or `../../sdk/schemas/...` links; other skill references stay local. Shared
+Markdown is hashed with Python/JSON, so doc-only changes change bundle identity.
+The independent failure reporter's small recovery copy is intentional.
 
 `PACKAGING.json` records comparable former owner-copy bytes, shared payloads,
-launchers, total/unique/duplicate whole-plugin bytes and a **1 MiB** SDK-resource
+launchers, total/unique/duplicate whole-plugin bytes and a **1,114,112-byte (1 MiB + 64 KiB)** SDK-resource
 budget enforced at export, including the report. Its own bytes are excluded from
 reported totals to avoid self-reference. Fixtures, caches and native evidence
 are not shipped. At initial B verification, resources fell from a comparable
@@ -154,6 +157,10 @@ are not shipped. At initial B verification, resources fell from a comparable
 66 launchers served 16 owning skills. The final D export uses **816,079 bytes**
 excluding its size report, still under budget. These are packaging measurements,
 not agent-token measurements.
+
+The subsequent phase-13 packaging review adds disjoint payload, launcher,
+reference and metadata categories to report schema 2, without changing the
+bundle layout or launcher verification. The [release review summary](reviews/SUMMARY.md) records the measured size.
 
 Both hosts are tested after moving the whole plugin into paths with spaces,
 deleting the original export and running from unrelated working directories.
@@ -163,7 +170,7 @@ representative native operations are covered. Archive builds may require the
 
 ## C — automatic failure reporting
 
-`report-openstudio-failure` targets **pnnl/openstudio-ai-harness on GitHub**.
+`report-openstudio-failure` targets **pnnl/openstudio-si-harness on GitHub**.
 The earlier GitLab wording is superseded. Automatic submission was explicitly
 selected by the user. **Issues are created under the user's own authenticated
 GitHub account**, using existing `gh` authentication on the fixed host. Setup,
@@ -213,10 +220,10 @@ conditional on the C1 defect; C1 is fixed and the user's automatic policy remain
 
 ### Receipts, deduplication and recovery
 
-Default project state is `.openstudio_ai_failures/`, containing an ignore file,
+Default project state is `.openstudio_si_failures/`, containing an ignore file,
 optional `policy.json`, and per-fingerprint `receipt.json`, private evidence,
 exact sanitized `issue.json` and an exclusive submission lock. Use one absolute
-`OPENSTUDIO_AI_FAILURE_DIR` / `--state-dir` across working-directory changes.
+`OPENSTUDIO_SI_FAILURE_DIR` / `--state-dir` across working-directory changes.
 The reporter is stdlib-only and runs without SDK, MCP, harness installation or
 a healthy plugin library. Store incident/status/issue in the workflow blackboard.
 
@@ -409,7 +416,7 @@ Its directory contains native logs, both exports/reports, full graphs, SVG/PNG,
 layout evidence and the synthetic stress fixture. Ignored `outputs/` artifacts
 are machine-local evidence, not shipped dependencies or portable reproducers.
 Older gallery paths are historical. Fixture-based tests do not depend on the
-user's building. No live GitHub issue, live AI-agent token measurement, annual
+user's building. No live GitHub issue, live SI-agent token measurement, annual
 simulation or native Linux/Windows run is claimed by these increments.
 
 ## Reproduction commands
@@ -439,11 +446,11 @@ Native public-launcher preparation and visualization, without installation:
 ```sh
 REVIEW="$(mktemp -d /tmp/openstudio-sdk-review.XXXXXX)"
 .venv/bin/python cli.py export marketplace --runtime-mode marketplace --output-dir "$REVIEW/marketplace"
-.venv/bin/python cli.py validate-export "$REVIEW/marketplace/openstudio-ai" --runtime-mode marketplace
-.venv/bin/python cli.py validate-export "$REVIEW/marketplace/plugins/openstudio-ai" --runtime-mode marketplace
+.venv/bin/python cli.py validate-export "$REVIEW/marketplace/openstudio-si" --runtime-mode marketplace
+.venv/bin/python cli.py validate-export "$REVIEW/marketplace/plugins/openstudio-si" --runtime-mode marketplace
 OSCLI=/Applications/OpenStudio-3.11.0/bin/openstudio
-CLAUDE_PLUGIN="$REVIEW/marketplace/openstudio-ai"
-CODEX_PLUGIN="$REVIEW/marketplace/plugins/openstudio-ai"
+CLAUDE_PLUGIN="$REVIEW/marketplace/openstudio-si"
+CODEX_PLUGIN="$REVIEW/marketplace/plugins/openstudio-si"
 CLAUDE_SKILL="$CLAUDE_PLUGIN/skills/openstudio-hvac-visualizer"
 CODEX_SKILL="$CODEX_PLUGIN/skills/openstudio-hvac-visualizer"
 "$OSCLI" execute_python_script "$CLAUDE_SKILL/scripts/prepare_model.py" --input "$PWD/tests/fixtures/openstudio-legacy-multiloop.osm" --output "$REVIEW/prepared.osm" --report "$REVIEW/preparation.json"

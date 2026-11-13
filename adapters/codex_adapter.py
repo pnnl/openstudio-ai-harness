@@ -7,7 +7,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-from adapters.base import OpenStudioAiHostAdapter
+from adapters.base import OpenStudioSiHostAdapter
 from adapters.contracts import RUNTIME_MODES, HostAdapterConfig, HostLaunchPlan
 from adapters.runtime_helpers import optional_mcp_servers, write_runtime_helpers
 from harness.asset_manifest import (
@@ -20,14 +20,14 @@ from harness.asset_manifest import (
 )
 from harness.plugin_sdk import SDK_PACKAGING_GUIDANCE, write_resources
 from harness.registry import discover_harness_assets
-from openstudio_ai_mcp.compatibility import package_version, plugin_mcp_environment
+from openstudio_si_mcp.compatibility import package_version, plugin_mcp_environment
 
-DEFAULT_PLUGIN_NAME = "openstudio-ai"
-MARKETPLACE_NAME = "openstudio-ai-local"
-SERVER_NAME = "openstudio_ai"
-PLUGIN_ICON_PATH = Path(__file__).with_name("assets") / "openstudio-ai-icon.png"
-AGENTS_GENERATED_START = "<!-- BEGIN OPENSTUDIO_AI_HARNESS -->"
-AGENTS_GENERATED_END = "<!-- END OPENSTUDIO_AI_HARNESS -->"
+DEFAULT_PLUGIN_NAME = "openstudio-si"
+MARKETPLACE_NAME = "openstudio-si-local"
+SERVER_NAME = "openstudio_si"
+PLUGIN_ICON_PATH = Path(__file__).with_name("assets") / "openstudio-si-icon.png"
+AGENTS_GENERATED_START = "<!-- BEGIN OPENSTUDIO_SI_HARNESS -->"
+AGENTS_GENERATED_END = "<!-- END OPENSTUDIO_SI_HARNESS -->"
 
 
 @dataclass(frozen=True)
@@ -58,11 +58,11 @@ class CodexPluginExportResult:
     files: list[Path]
 
 
-class CodexAdapter(OpenStudioAiHostAdapter):
-    """Adapter contract for exporting OpenStudio AI into Codex plugin format."""
+class CodexAdapter(OpenStudioSiHostAdapter):
+    """Adapter contract for exporting OpenStudio SI into Codex plugin format."""
 
     def build_launch_plan(self) -> HostLaunchPlan:
-        """Resolve the host-facing assets from the OpenStudio AI harness registry."""
+        """Resolve the host-facing assets from the OpenStudio SI harness registry."""
         assets = discover_harness_assets(self.config.workspace_root)
         return HostLaunchPlan(
             host_name="codex",
@@ -188,8 +188,8 @@ def _render_codex_agents_instructions(
 
     if not force:
         raise FileExistsError(
-            f"{existing_path} already exists and is not managed by OpenStudio AI. "
-            "Use --force to append the generated OpenStudio AI block."
+            f"{existing_path} already exists and is not managed by OpenStudio SI. "
+            "Use --force to append the generated OpenStudio SI block."
         )
 
     return existing.rstrip() + "\n\n" + generated
@@ -204,7 +204,7 @@ def _generated_codex_agents_block(workspace_root: Path) -> str:
     )
     return (
         f"{AGENTS_GENERATED_START}\n"
-        "# OpenStudio AI Modeler Policy\n\n"
+        "# OpenStudio SI Modeler Policy\n\n"
         "For every OpenStudio request, first load `openstudio-modeling-orchestrator`, "
         "then load the specialized OpenStudio skill that it routes to before taking "
         "action. This applies even when the user asks in plain language rather than "
@@ -227,7 +227,7 @@ def _planned_export_files(
         marketplace_path,
         export_root / "INSTALL.md",
         plugin_dir / ".codex-plugin" / "plugin.json",
-        plugin_dir / "assets" / "openstudio-ai-icon.png",
+        plugin_dir / "assets" / "openstudio-si-icon.png",
         plugin_dir / ".mcp.json",
         plugin_dir / "README.md",
         plugin_dir / "CONNECTORS.md",
@@ -241,12 +241,12 @@ def _planned_export_files(
             [
                 plugin_dir
                 / "skills"
-                / "setup-openstudio-ai"
+                / "setup-openstudio-si"
                 / "scripts"
                 / "install_runtime.py",
                 plugin_dir
                 / "skills"
-                / "setup-openstudio-ai"
+                / "setup-openstudio-si"
                 / "scripts"
                 / "doctor_runtime.py",
             ]
@@ -277,7 +277,7 @@ def _write_plugin_package(
     (plugin_dir / "assets").mkdir(parents=True, exist_ok=True)
     (plugin_dir / "skills").mkdir(parents=True, exist_ok=True)
 
-    shutil.copy2(PLUGIN_ICON_PATH, plugin_dir / "assets" / "openstudio-ai-icon.png")
+    shutil.copy2(PLUGIN_ICON_PATH, plugin_dir / "assets" / "openstudio-si-icon.png")
 
     (plugin_dir / ".codex-plugin" / "plugin.json").write_text(
         _render_plugin_json(),
@@ -313,7 +313,7 @@ def _write_plugin_package(
 
     if runtime_mode == "marketplace":
         _write_installer_assets(
-            plugin_dir / "skills" / "setup-openstudio-ai" / "scripts"
+            plugin_dir / "skills" / "setup-openstudio-si" / "scripts"
         )
 
     _write_skill_references(plugin_dir / "skills", workspace_root)
@@ -332,11 +332,11 @@ def _render_plugin_json() -> str:
                 "name": DEFAULT_PLUGIN_NAME,
                 "version": package_version(),
                 "description": (
-                    "OpenStudio AI harness for OpenStudio model editing, simulation, "
+                    "OpenStudio SI harness for OpenStudio model editing, simulation, "
                     "results, SDK lookup, and reusable workflow skills."
                 ),
                 "author": {
-                    "name": "OpenStudio AI",
+                    "name": "OpenStudio SI",
                 },
                 "license": "BSD-3-Clause",
                 "keywords": [
@@ -348,13 +348,13 @@ def _render_plugin_json() -> str:
                 "skills": "./skills/",
                 "mcpServers": "./.mcp.json",
                 "interface": {
-                    "displayName": "OpenStudio AI",
+                    "displayName": "OpenStudio SI",
                     "shortDescription": "OpenStudio modeling, simulation, SDK lookup, and workflow skills.",
                     "longDescription": (
-                        "OpenStudio AI packages MCP tools, reusable skills, reviewed knowledge, "
+                        "OpenStudio SI packages MCP tools, reusable skills, reviewed knowledge, "
                         "and blackboard contracts for building-energy modeling workflows."
                     ),
-                    "developerName": "OpenStudio AI",
+                    "developerName": "OpenStudio SI",
                     "category": "Engineering",
                     "capabilities": ["MCP", "Skills", "Workflow Automation"],
                     "defaultPrompt": [
@@ -363,8 +363,8 @@ def _render_plugin_json() -> str:
                         "Run simulation and summarize results.",
                     ],
                     "brandColor": "#2563EB",
-                    "composerIcon": "./assets/openstudio-ai-icon.png",
-                    "logo": "./assets/openstudio-ai-icon.png",
+                    "composerIcon": "./assets/openstudio-si-icon.png",
+                    "logo": "./assets/openstudio-si-icon.png",
                 },
             },
             indent=2,
@@ -398,21 +398,21 @@ def _mcp_server_config(workspace_root: Path, runtime_mode: str) -> dict[str, obj
             "command": sys.executable,
             "args": [
                 "-m",
-                "openstudio_ai_mcp.server",
+                "openstudio_si_mcp.server",
                 "--transport",
                 "stdio",
                 "--workspace-root",
-                str(workspace_root / ".openstudio_ai_mcp_workspace"),
+                str(workspace_root / ".openstudio_si_mcp_workspace"),
             ],
             "env": {
                 "PYTHONPATH": str(workspace_root),
-                "OPENSTUDIO_AI_ROOT": str(workspace_root),
+                "OPENSTUDIO_SI_ROOT": str(workspace_root),
                 **plugin_mcp_environment(),
             },
         }
     if runtime_mode in {"installed", "marketplace"}:
         return {
-            "command": "openstudio-ai-mcp",
+            "command": "openstudio-si-mcp",
             "args": ["--transport", "stdio"],
             "env": plugin_mcp_environment(),
         }
@@ -426,7 +426,7 @@ def _render_marketplace_json(plugin_name: str) -> str:
             {
                 "name": MARKETPLACE_NAME,
                 "interface": {
-                    "displayName": "OpenStudio AI Local",
+                    "displayName": "OpenStudio SI Local",
                 },
                 "plugins": [
                     {
@@ -465,10 +465,10 @@ def _render_install_doc(
             export_root / "plugins" / plugin_name / ".codex-plugin" / "plugin.json"
         )
     return (
-        "# Install OpenStudio AI In Codex\n\n"
-        "This export is a Codex marketplace containing the OpenStudio AI plugin.\n\n"
+        "# Install OpenStudio SI In Codex\n\n"
+        "This export is a Codex marketplace containing the OpenStudio SI plugin.\n\n"
         "## 1. Validate The Plugin\n\n"
-        "From the OpenStudio AI harness repository:\n\n"
+        "From the OpenStudio SI harness repository:\n\n"
         "```bash\n"
         f"python -m json.tool {validate_ref}\n"
         "```\n\n"
@@ -478,23 +478,23 @@ def _render_install_doc(
         f"codex plugin marketplace add {export_ref}\n"
         "```\n\n"
         "## 3. Install Or View The Plugin\n\n"
-        "Open the Codex plugin UI and install `openstudio-ai` from `openstudio-ai-local`.\n\n"
+        "Open the Codex plugin UI and install `openstudio-si` from `openstudio-si-local`.\n\n"
         "## 4. Add The Modeler Policy To A Project\n\n"
         "Codex plugins load skills and MCP tools, but they do not activate a plugin "
         "agent prompt as the main thread. In each project where plain-language "
         "OpenStudio requests should consistently enter the workflow router, install "
         "the managed OpenStudio block into `AGENTS.md`:\n\n"
         "```bash\n"
-        "openstudio-ai install codex --target-dir <path-to-project>\n"
+        "openstudio-si install codex --target-dir <path-to-project>\n"
         "```\n\n"
         "Use `--dry-run` to preview. If the project already has an unmanaged "
         "`AGENTS.md`, use `--force` only after reviewing the proposed append. "
         "Later runs update only the marked OpenStudio block.\n\n"
         "## Runtime Setup\n\n"
-        "After installation, invoke the setup skill with `$setup-openstudio-ai` (or ask "
-        "Codex in plain language to set up OpenStudio AI). `/setup-openstudio-ai` is not "
+        "After installation, invoke the setup skill with `$setup-openstudio-si` (or ask "
+        "Codex in plain language to set up OpenStudio SI). `/setup-openstudio-si` is not "
         "a Codex CLI skill command. The setup skill checks Python, checks "
-        "`openstudio-ai-mcp`, and explains any missing installation steps in "
+        "`openstudio-si-mcp`, and explains any missing installation steps in "
         "energy-modeler language.\n"
     )
 
@@ -507,22 +507,22 @@ def _render_plugin_readme(
         f"- `{skill}`" for skill in skill_ids_for_host(workspace_root, "codex")
     )
     return (
-        "# OpenStudio AI\n\n"
-        "OpenStudio AI is a Codex plugin package for building-energy modeling workflows "
+        "# OpenStudio SI\n\n"
+        "OpenStudio SI is a Codex plugin package for building-energy modeling workflows "
         "using OpenStudio, MCP tools, reusable skills, and reviewed knowledge.\n\n"
         "## What It Includes\n\n"
-        "- `.mcp.json`: registers the `openstudio_ai` MCP server.\n"
+        "- `.mcp.json`: registers the `openstudio_si` MCP server.\n"
         "- `skills/`: Codex-native workflows for orchestration, setup, model editing, "
         "simulation, results, learning capture, and HVAC workflows.\n"
         "- `skills/*/references/`: reviewed SDK context packs, prompt contracts, "
         "blackboard schemas, and learning schemas used by the owning skills.\n"
-        "- `skills/setup-openstudio-ai/scripts/`: marketplace runtime setup helpers.\n\n"
+        "- `skills/setup-openstudio-si/scripts/`: marketplace runtime setup helpers.\n\n"
         "## Skills\n\n"
         f"{skill_names}\n\n"
         "## Runtime Note\n\n"
         f"Runtime mode: `{runtime_mode}`.\n\n"
         "In `local` mode, this plugin references a source checkout. In `installed` "
-        "and `marketplace` mode, it expects the `openstudio-ai-mcp` command to be "
+        "and `marketplace` mode, it expects the `openstudio-si-mcp` command to be "
         "available on the user's machine.\n"
     )
 
@@ -537,14 +537,14 @@ def _render_connectors_doc(workspace_root: Path, runtime_mode: str) -> str:
     else:
         runtime_text = (
             "The current `.mcp.json` points to the installed runtime command:\n\n"
-            "- `openstudio-ai-mcp --transport stdio`\n"
+            "- `openstudio-si-mcp --transport stdio`\n"
         )
     return (
-        "# OpenStudio AI Connectors\n\n"
+        "# OpenStudio SI Connectors\n\n"
         "This plugin uses one local MCP server.\n\n"
         "| Connector | Type | Purpose |\n"
         "| --- | --- | --- |\n"
-        "| `openstudio_ai` | local stdio MCP | OpenStudio model lifecycle, simulation, "
+        "| `openstudio_si` | local stdio MCP | OpenStudio model lifecycle, simulation, "
         "results, approved measures, and SDK documentation lookup |\n\n"
         f"{runtime_text}"
     )
@@ -553,15 +553,15 @@ def _render_connectors_doc(workspace_root: Path, runtime_mode: str) -> str:
 def _marketplace_setup_skill_docs() -> dict[str, str]:
     """Return marketplace setup skills for no-code runtime onboarding."""
     return {
-        "setup-openstudio-ai": _skill_markdown(
-            name="setup-openstudio-ai",
-            description="Check and prepare the OpenStudio AI runtime for energy modeling.",
+        "setup-openstudio-si": _skill_markdown(
+            name="setup-openstudio-si",
+            description="Check and prepare the OpenStudio SI runtime for energy modeling.",
             body=(
-                "# Setup OpenStudio AI\n\n"
-                "Help the user get OpenStudio AI ready without assuming programming experience.\n\n"
-                "1. Explain that OpenStudio AI needs a local runtime command named "
-                "`openstudio-ai-mcp` so the AI assistant can safely run OpenStudio tools. "
-                "Also explain that setup includes adding or updating the OpenStudio AI "
+                "# Setup OpenStudio SI\n\n"
+                "Help the user get OpenStudio SI ready without assuming programming experience.\n\n"
+                "1. Explain that OpenStudio SI needs a local runtime command named "
+                "`openstudio-si-mcp` so the SI assistant can safely run OpenStudio tools. "
+                "Also explain that setup includes adding or updating the OpenStudio SI "
                 "marked block in the current project's `AGENTS.md`; it preserves all "
                 "unrelated project instructions.\n"
                 "2. Resolve Python before checking runtime commands. Check the current "
@@ -575,7 +575,7 @@ def _marketplace_setup_skill_docs() -> dict[str, str]:
                 "supported Python exists, explain how to install Python 3.10 or newer "
                 "and stop until it is available. Do not create or install an environment "
                 "during this discovery step.\n"
-                "3. Check whether `openstudio-ai-mcp` is available beside the selected "
+                "3. Check whether `openstudio-si-mcp` is available beside the selected "
                 "interpreter, and run that command's `--help`. A command on `PATH` from "
                 "another Python environment does not count.\n"
                 "4. Run the script beside this skill at `scripts/doctor_runtime.py` "
@@ -583,41 +583,41 @@ def _marketplace_setup_skill_docs() -> dict[str, str]:
                 "5. Treat `core_ready: true` from the doctor as the only successful core "
                 "setup result. If OpenStudio is missing, perform read-only platform discovery, "
                 "show the candidate executable to the user, and after approval run "
-                "`openstudio-ai configure-openstudio --path <confirmed-executable>`. Then "
+                "`openstudio-si configure-openstudio --path <confirmed-executable>`. Then "
                 "restart Codex and rerun doctor. Do not edit a versioned plugin cache file.\n"
                 "6. Review the doctor's optional `nlr_openstudio` capability. NLR OpenStudio-MCP "
                 "is optional: a missing Docker installation or unconfigured NLR must not block "
                 "core readiness. If Docker is available and the user wants NLR, offer its "
                 "Docker Quick Start without installing it automatically: "
-                "https://pnnl.github.io/openstudio-ai-plugins/#quick-start. Explain that "
+                "https://pnnl.github.io/openstudio-si-plugins/#quick-start. Explain that "
                 "Docker Desktop must be installed and running, then the user follows that "
                 "page to configure the MCP server as `openstudio-mcp` and restarts Codex.\n"
                 "7. If the runtime is missing or the doctor reports `plugin_ready: false`, "
                 "explain in normal energy-modeler language that the installed plugin needs "
                 "a newer runtime interface and ask before running "
                 "`scripts/install_runtime.py` with the same Python command.\n"
-                "8. If installation succeeds but `openstudio-ai-mcp` is still missing, "
+                "8. If installation succeeds but `openstudio-si-mcp` is still missing, "
                 "diagnose command discovery before editing plugin files. Run "
                 '`-c "import sys, sysconfig; print(sys.executable); '
                 "print(sysconfig.get_path('scripts'))\"` with the selected Python, then check "
                 "whether that scripts directory is on the PATH used to launch Codex. For "
                 "a marketplace plugin, keep `.mcp.json` set to the portable command "
-                "`openstudio-ai-mcp`; do not replace it with an absolute `.venv/bin` path. "
+                "`openstudio-si-mcp`; do not replace it with an absolute `.venv/bin` path. "
                 "After the user approves a PATH update, restart Codex from that environment.\n"
                 "9. If this is intentionally a repository checkout with a project virtual "
                 "environment, explain that it is local development: re-export with "
                 "`--runtime-mode local` instead of modifying a marketplace export.\n"
-                "10. When `openstudio-ai` is available beside the selected Python, run "
+                "10. When `openstudio-si` is available beside the selected Python, run "
                 "that command's `doctor`.\n"
                 "11. If installation changed runtime command availability or repaired a "
                 "contract mismatch, tell the user to restart Codex or reconnect the failed "
                 "MCP server. Codex discovers MCP tools only when it starts the server, so a "
                 "new tool cannot appear in the current session.\n"
                 "12. Complete project routing as a required part of setup. Preview the managed "
-                "project guidance with `openstudio-ai install codex --target-dir . --dry-run "
-                "--force`, then run `openstudio-ai install codex --target-dir . --force` "
-                "using the selected environment's `openstudio-ai` command. "
-                "This creates `AGENTS.md` when absent, updates only the OpenStudio AI marked "
+                "project guidance with `openstudio-si install codex --target-dir . --dry-run "
+                "--force`, then run `openstudio-si install codex --target-dir . --force` "
+                "using the selected environment's `openstudio-si` command. "
+                "This creates `AGENTS.md` when absent, updates only the OpenStudio SI marked "
                 "block when it already exists, or appends that block to an unmanaged file "
                 "without replacing existing instructions. Do not present this as a separate "
                 "optional setup process.\n"
@@ -626,22 +626,22 @@ def _marketplace_setup_skill_docs() -> dict[str, str]:
                 "results, SDK lookup, workflow state tracking, and project routing.\n"
             ),
         ),
-        "doctor-openstudio-ai": _skill_markdown(
-            name="doctor-openstudio-ai",
-            description="Diagnose OpenStudio AI runtime readiness.",
+        "doctor-openstudio-si": _skill_markdown(
+            name="doctor-openstudio-si",
+            description="Diagnose OpenStudio SI runtime readiness.",
             body=(
-                "# Doctor OpenStudio AI\n\n"
+                "# Doctor OpenStudio SI\n\n"
                 "Run the setup skill's `scripts/doctor_runtime.py`, then run "
-                "`openstudio-ai doctor` if the command exists. Explain missing Python, "
+                "`openstudio-si doctor` if the command exists. Explain missing Python, "
                 "missing runtime, missing OpenStudio, or path problems as setup items, "
                 "not programming failures.\n"
             ),
         ),
-        "repair-openstudio-ai": _skill_markdown(
-            name="repair-openstudio-ai",
-            description="Guide non-destructive repair of the OpenStudio AI runtime.",
+        "repair-openstudio-si": _skill_markdown(
+            name="repair-openstudio-si",
+            description="Guide non-destructive repair of the OpenStudio SI runtime.",
             body=(
-                "# Repair OpenStudio AI\n\n"
+                "# Repair OpenStudio SI\n\n"
                 "First run the doctor command. If the runtime is missing or it reports "
                 "`plugin_ready: false`, ask for approval before running the setup skill's "
                 "`scripts/install_runtime.py`, then restart Codex or reconnect the MCP "
@@ -728,14 +728,14 @@ def _write_installer_assets(installers_dir: Path) -> None:
 
 
 def _default_workspace_root() -> Path:
-    """Return the OpenStudio AI example root from this adapter module."""
+    """Return the OpenStudio SI example root from this adapter module."""
     return Path(__file__).resolve().parents[1]
 
 
 def _parse_args() -> argparse.Namespace:
     """Parse CLI arguments for Codex plugin and project guidance operations."""
     parser = argparse.ArgumentParser(
-        description="Export the OpenStudio AI harness as a Codex plugin."
+        description="Export the OpenStudio SI harness as a Codex plugin."
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -752,7 +752,7 @@ def _parse_args() -> argparse.Namespace:
         "--workspace-root",
         type=Path,
         default=_default_workspace_root(),
-        help="OpenStudio AI harness root containing the shared modeler policy.",
+        help="OpenStudio SI harness root containing the shared modeler policy.",
     )
     install.add_argument(
         "--dry-run", action="store_true", help="Preview guidance without writing it."
@@ -781,7 +781,7 @@ def _parse_args() -> argparse.Namespace:
         "--workspace-root",
         type=Path,
         default=_default_workspace_root(),
-        help="OpenStudio AI harness root.",
+        help="OpenStudio SI harness root.",
     )
     export.add_argument(
         "--dry-run",

@@ -16,7 +16,7 @@ from standalone.ui import (
 
 class _FakeMcpManager:
     def __init__(self, *, started: dict[str, bool] | None = None) -> None:
-        self.started = started or {"openstudio_ai_mcp": True}
+        self.started = started or {"openstudio_si_mcp": True}
         self.configs = []
         self.stopped = False
 
@@ -49,7 +49,7 @@ def test_chatbot_runtime_streams_and_closes_local_resources(monkeypatch) -> None
     manager = _FakeMcpManager()
     agent = _FakeAgent()
     monkeypatch.setattr(ui, "MCPServerManager", lambda: manager)
-    monkeypatch.setattr(ui, "build_openstudio_ai_mcp_config", lambda: object())
+    monkeypatch.setattr(ui, "build_openstudio_si_mcp_config", lambda: object())
     monkeypatch.setattr(ui, "build_openstudio_agent", lambda: agent)
 
     runtime = ChatbotRuntime()
@@ -64,9 +64,9 @@ def test_chatbot_runtime_streams_and_closes_local_resources(monkeypatch) -> None
 
 
 def test_chatbot_runtime_cleans_up_partial_mcp_startup(monkeypatch) -> None:
-    manager = _FakeMcpManager(started={"openstudio_ai_mcp": False})
+    manager = _FakeMcpManager(started={"openstudio_si_mcp": False})
     monkeypatch.setattr(ui, "MCPServerManager", lambda: manager)
-    monkeypatch.setattr(ui, "build_openstudio_ai_mcp_config", lambda: object())
+    monkeypatch.setattr(ui, "build_openstudio_si_mcp_config", lambda: object())
 
     with pytest.raises(RuntimeError, match="failed to start"):
         ChatbotRuntime()
@@ -210,7 +210,7 @@ def test_openstudio_ui_suppresses_load_skill_status_by_prefix() -> None:
 def test_openstudio_ui_suppresses_openstudio_skill_response() -> None:
     assert _should_suppress_status_text(
         "Tool load_skill responded: SKILL: openstudio_sdk_model_editor\n"
-        "SOURCE: /tmp/openstudio-ai-harness/"
+        "SOURCE: /tmp/openstudio-si-harness/"
         "skills/openstudio_sdk_model_editor.md\n\nScope\n\nUse this skill only..."
     )
 

@@ -360,7 +360,7 @@ def test_model_named_plan_warnings_never_enter_failure_issue(
     plan = tmp_path / "reviewed.json"
     plan.write_text(json.dumps(report))
     state = tmp_path / "incidents"
-    monkeypatch.setenv("OPENSTUDIO_AI_FAILURE_DIR", str(state))
+    monkeypatch.setenv("OPENSTUDIO_SI_FAILURE_DIR", str(state))
     captured = reporting.capture_exception(
         RuntimeError("Saved validation failed"),
         OPERATION,

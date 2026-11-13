@@ -6,7 +6,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from openstudio_ai_mcp.tools.schemas import (
+from openstudio_si_mcp.tools.schemas import (
     LearningCandidateArgs,
     LearningCaptureArgs,
     LearningReviewArgs,

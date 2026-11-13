@@ -34,7 +34,7 @@ jobs:
 
       - name: Run full test suite (including slow checks)
         env:
-          OPENSTUDIO_AI_DATA_DIR: ${{ runner.temp }}/openstudio-ai-tests
+          OPENSTUDIO_SI_DATA_DIR: ${{ runner.temp }}/openstudio-si-tests
         run: python -m pytest -q tests --strict-markers --durations=25 --junitxml=test-results/full.xml
 
       - name: Upload full test timing report

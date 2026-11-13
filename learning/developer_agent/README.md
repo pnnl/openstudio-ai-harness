@@ -1,6 +1,6 @@
 # Developer Learning Agent
 
-This folder defines the agent-assisted curation workflow for OpenStudio AI
+This folder defines the agent-assisted curation workflow for OpenStudio SI
 developer learning.
 
 The current runner is deterministic:

@@ -1,2 +1,2 @@
-"""Blackboard contracts and local JSON state helpers for OpenStudio AI."""
+"""Blackboard contracts and local JSON state helpers for OpenStudio SI."""
 

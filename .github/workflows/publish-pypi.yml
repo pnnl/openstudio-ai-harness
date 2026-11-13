@@ -31,12 +31,12 @@ jobs:
 
       - name: Run fast release checks
         env:
-          OPENSTUDIO_AI_DATA_DIR: ${{ runner.temp }}/openstudio-ai-tests
+          OPENSTUDIO_SI_DATA_DIR: ${{ runner.temp }}/openstudio-si-tests
         run: python -m pytest -q tests -m "not slow" --strict-markers --durations=10
 
       - name: Verify release tag matches package version
         if: github.event_name == 'release'
-        run: test "v$(python -c 'from openstudio_ai_mcp.compatibility import package_version; print(package_version())')" = "${{ github.event.release.tag_name }}"
+        run: test "v$(python -c 'from openstudio_si_mcp.compatibility import package_version; print(package_version())')" = "${{ github.event.release.tag_name }}"
 
       - name: Build distribution
         run: python -m build
@@ -58,7 +58,7 @@ jobs:
     if: github.event_name == 'release'
     environment:
       name: pypi
-      url: https://pypi.org/p/openstudio-ai
+      url: https://pypi.org/p/openstudio-si
     permissions:
       contents: read
 

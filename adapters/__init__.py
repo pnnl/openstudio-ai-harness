@@ -1,2 +1,2 @@
-"""Host adapter contracts for the OpenStudio AI harness."""
+"""Host adapter contracts for the OpenStudio SI harness."""
 

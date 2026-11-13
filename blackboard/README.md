@@ -1,10 +1,10 @@
-# OpenStudio AI Blackboard
+# OpenStudio SI Blackboard
 
-The active OpenStudio AI harness stores workflow state through MCP blackboard
+The active OpenStudio SI harness stores workflow state through MCP blackboard
 tools backed by the local MCP SQLite runtime registry. This folder contains the
 shared operation helpers and schemas used by that MCP implementation.
 
-Do not use AUTOMA-AI native blackboard tools for OpenStudio AI harness state
+Do not use AUTOMA-AI native blackboard tools for OpenStudio SI harness state
 while evaluating the MCP blackboard path.
 
 The parent workflow owns all state mutations. Child skills and runtime tools

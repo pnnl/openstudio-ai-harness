@@ -1,4 +1,4 @@
-"""User-local, review-gated learning records for OpenStudio AI."""
+"""User-local, review-gated learning records for OpenStudio SI."""
 
 from __future__ import annotations
 

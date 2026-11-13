@@ -2,7 +2,7 @@
 name: openstudio_vav_reheat_system_creator
 description: Create a multi-zone VAV system in an OSM using bundled, version-pinned scripts and saved-model topology validation.
 metadata:
-  version: 0.4.1
+  version: 0.4.2
   output_format: markdown_with_json_summary
 ---
 
@@ -37,7 +37,7 @@ bundle applies when NLR is absent/unavailable/incompatible or its documented
 fallback records that it cannot cover the request. Preserve the provider
 transition and host-visible model path before local SDK execution.
 
-Run this skill's scripts through host tools, independently of OpenStudio AI's
+Run this skill's scripts through host tools, independently of OpenStudio SI's
 runtime or measure registry. Claude Code resolves `${CLAUDE_SKILL_DIR}`; Codex
 uses this `SKILL.md`'s actual directory. Run implementation files without reading
 them into context. Do not load SDK wiki packs for this supported workflow.

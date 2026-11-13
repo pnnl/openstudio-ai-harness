@@ -17,7 +17,7 @@ Required operations:
 - `blackboard_record_failure`: record failures;
 - `blackboard_snapshot_workflow`: snapshot workflow state.
 
-Do not use AUTOMA-AI native blackboard tools for OpenStudio AI harness state
+Do not use AUTOMA-AI native blackboard tools for OpenStudio SI harness state
 while evaluating the MCP blackboard path.
 
 Workflow patches preserve top-level history: `completed_steps` and `assumptions`

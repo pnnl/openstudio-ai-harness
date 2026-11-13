@@ -32,7 +32,7 @@ Python script. Load only the context packs relevant to the task.
   inspection.
 - `sdk_simulation_results`: load for weather/design-day model inputs and for
   understanding OpenStudio simulation-file, OSW, SQL, and result-query idioms.
-  In OpenStudio AI, use MCP `sim_*` and `results_*` tools for actual simulation
+  In OpenStudio SI, use MCP `sim_*` and `results_*` tools for actual simulation
   and result retrieval; do not use this pack as permission to run simulations
   with host Python execution.
 - `sdk_review_prompts`: load only when testing or reviewing the knowledge-base

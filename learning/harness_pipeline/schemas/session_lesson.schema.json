@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "OpenStudio AI Session Lesson",
+  "title": "OpenStudio SI Session Lesson",
   "type": "object",
   "required": ["status", "summary", "source"],
   "properties": {

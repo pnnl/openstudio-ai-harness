@@ -2,7 +2,7 @@
 name: openstudio-plant-equipment-replacer
 description: Replace a heating-supply hot-water boiler with district heating, or an air/water-cooled EIR chiller with district cooling, using a reviewed copied model. Same-class ratings use performance editors; new plants use the plant creator.
 metadata:
-  version: 0.4.1
+  version: 0.4.2
 ---
 
 Prefer configured compatible NLR through `delegated-nlr-modeling`. After choosing

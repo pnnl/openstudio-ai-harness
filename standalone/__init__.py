@@ -1,1 +1,1 @@
-"""Development-only AUTOMA-AI entrypoints for OpenStudio AI."""
+"""Development-only AUTOMA-AI entrypoints for OpenStudio SI."""

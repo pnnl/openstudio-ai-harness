@@ -16,7 +16,7 @@ record it as learning evidence. If approved, call `learning_capture_observation`
 with `event_type: "script_execution"`, `evidence.outcome: "success"`, and a
 stable `evidence.script_fingerprint`. Record only a concise logic summary and
 safe provenance, not secrets or full transcripts. The background command
-`openstudio-ai learning propose-measures` creates an unreviewed measure candidate
+`openstudio-si learning propose-measures` creates an unreviewed measure candidate
 after the configured number of matching successful runs.
 
 Do not edit trusted skills, knowledge, approved measures, or MCP tools directly.

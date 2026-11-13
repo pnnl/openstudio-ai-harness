@@ -1,6 +1,6 @@
-# OpenStudio AI Developer Guide
+# OpenStudio SI Developer Guide
 
-This guide is for developers joining the OpenStudio AI harness work. It explains
+This guide is for developers joining the OpenStudio SI harness work. It explains
 what each repository folder is for, what can be changed safely, how assets move
 from candidate work into trusted runtime content, and how to test the harness
 locally, in Claude Code, and in Codex.
@@ -40,7 +40,7 @@ locally, in Claude Code, and in Codex.
 
 ## Mental Model
 
-OpenStudio AI has three layers:
+OpenStudio SI has three layers:
 
 1. Developer workbench: source specs, candidates, evals, review queues, and
    tools used to build the product.
@@ -58,7 +58,7 @@ Developer workbench
         |
         v
 Trusted runtime harness
-  openstudio_ai_mcp, skills/*.md, prompts, knowledge, measures/approved, schemas
+  openstudio_si_mcp, skills/*.md, prompts, knowledge, measures/approved, schemas
         |
         v
 Host-specific export
@@ -215,9 +215,9 @@ commands apply. If the full check needs a native OpenStudio executable, set
 Base runtime setup:
 
 ```bash
-python -m pip install openstudio-ai
-openstudio-ai install-runtime
-openstudio-ai doctor
+python -m pip install openstudio-si
+openstudio-si install-runtime
+openstudio-si doctor
 ```
 
 The base runtime is what Claude Code and Codex marketplace users should need. It
@@ -228,7 +228,7 @@ OpenStudio has two requirements:
 
 - Python package: `openstudio>=3.10.0`.
 - Native OpenStudio application or CLI resolved through `OPENSTUDIO_PATH`, a
-  user-confirmed path saved by `openstudio-ai configure-openstudio`, or `PATH`.
+  user-confirmed path saved by `openstudio-si configure-openstudio`, or `PATH`.
 
 The runtime resolves `OPENSTUDIO_PATH` first, the saved runtime configuration
 second, and `openstudio` from `PATH` last.
@@ -239,12 +239,12 @@ Use this table when deciding where a change belongs.
 
 | Path | Purpose | Put Here | Do Not Put Here | Export Behavior |
 | --- | --- | --- | --- | --- |
-| `openstudio_ai_mcp/` | MCP server and tool runtime | Model lifecycle, simulation, results, SDK doc, approved measure, runtime state tools | Host-specific plugin layout, markdown-only instructions | Shipped in the package and used by `.mcp.json` |
-| `openstudio_ai_mcp/compatibility.py` | Plugin-to-MCP interface contract | Package/contract metadata and compatibility checks | Host-specific rendering rules or individual skill content | Used by adapters, `doctor`, and MCP startup |
+| `openstudio_si_mcp/` | MCP server and tool runtime | Model lifecycle, simulation, results, SDK doc, approved measure, runtime state tools | Host-specific plugin layout, markdown-only instructions | Shipped in the package and used by `.mcp.json` |
+| `openstudio_si_mcp/compatibility.py` | Plugin-to-MCP interface contract | Package/contract metadata and compatibility checks | Host-specific rendering rules or individual skill content | Used by adapters, `doctor`, and MCP startup |
 | `adapters/runtime_helpers.py` | Shared marketplace setup helper rendering | Cross-host `doctor_runtime.py` and `install_runtime.py` content | Claude/Codex-specific plugin layout or reload guidance | Called by both adapters; exports identical helpers except host reload text |
-| `openstudio_ai_mcp/runtime/` | Runtime registry and SQLite-backed state | Durable job/artifact/storage/blackboard persistence code | Source knowledge or skill content | Used by MCP tools at runtime |
-| `openstudio_ai_mcp/tools/` | MCP tool registration | Tool wrappers that expose service behavior | Business logic that belongs in services | Used by MCP server |
-| `openstudio_ai_mcp/simulation/`, `results/`, `sdk_docs/`, `measures/` | Runtime service modules | Deterministic runtime operations | Host adapter behavior | Used by MCP tools |
+| `openstudio_si_mcp/runtime/` | Runtime registry and SQLite-backed state | Durable job/artifact/storage/blackboard persistence code | Source knowledge or skill content | Used by MCP tools at runtime |
+| `openstudio_si_mcp/tools/` | MCP tool registration | Tool wrappers that expose service behavior | Business logic that belongs in services | Used by MCP server |
+| `openstudio_si_mcp/simulation/`, `results/`, `sdk_docs/`, `measures/` | Runtime service modules | Deterministic runtime operations | Host adapter behavior | Used by MCP tools |
 | `skills/*.md` | Trusted runtime skills | Hand-authored parent skills and generated child skill outputs | Draft notes, unreviewed lessons, specs | Exported as host skills |
 | `skills/specs/` | Source specs for generated skills | YAML definitions for generated HVAC child skills | Runtime-only skill markdown edits | Not exported directly |
 | `skills/templates/` | Skill generation templates | Shared Jinja templates | One-off skill content | Not exported directly |
@@ -267,11 +267,11 @@ Use this table when deciding where a change belongs.
 | `tests/` | Automated tests | Focused unit, adapter, MCP, CLI, and integration tests | Runtime assets | Developer only |
 | `docs/` | Developer and user documentation | Stable guides, release notes, architecture docs | Runtime state | Shipped as package docs |
 | `state/`, `logs/`, `outputs/` | Local working artifacts | Local sessions, snapshots, logs, generated outputs | Trusted assets or source specs | Not trusted; do not promote without review |
-| `.openstudio_ai_mcp_workspace/` | Local MCP runtime workspace | Local test jobs/artifacts created by MCP | Source code | Excluded from package/export |
+| `.openstudio_si_mcp_workspace/` | Local MCP runtime workspace | Local test jobs/artifacts created by MCP | Source code | Excluded from package/export |
 | `tests/fixtures/` | Local OpenStudio test fixtures | OSM and EPW files required by explicit test cases | Runtime assets, user models, or marketplace payload | Excluded from wheels and plugin exports |
 | `standalone/agent.py` | Local AUTOMA-AI bootstrap | Standalone local agent entrypoint | Claude/Codex-specific logic | Used only in standalone mode |
 | `standalone/ui.py` | Local Streamlit UI | Standalone UI code | Host plugin logic | Used only in standalone mode |
-| `cli.py` | Package CLI | `doctor`, `install-runtime`, `repair`, `export`, `validate-export` | Host-specific implementation details beyond command routing | Shipped as `openstudio-ai` |
+| `cli.py` | Package CLI | `doctor`, `install-runtime`, `repair`, `export`, `validate-export` | Host-specific implementation details beyond command routing | Shipped as `openstudio-si` |
 | `pyproject.toml` | Package metadata | Dependencies, extras, scripts, build include/exclude rules | Runtime state | Defines release package |
 | `README.md`, `HANDOFF.md` | Top-level orientation | Stable overview and current status | Deep implementation docs | Shipped/read by developers |
 
@@ -517,7 +517,7 @@ Allowed promotion targets:
 - `skills/*.md`
 - `knowledge/`
 - `sdk_index/`
-- `openstudio_ai_mcp/`
+- `openstudio_si_mcp/`
 - `measures/approved/`
 - `evals/`
 - `docs/`
@@ -568,7 +568,7 @@ Persistence happens through MCP blackboard tools:
 - `blackboard_record_issue`
 - `blackboard_snapshot_workflow`
 
-The SQLite table is managed by `openstudio_ai_mcp/runtime/state_store.py`. Plugin
+The SQLite table is managed by `openstudio_si_mcp/runtime/state_store.py`. Plugin
 exports include `workflow_state.schema.json`, `state_patch.schema.json`, and
 `blackboard_contract.md` as references so host agents know how to call the MCP
 tools. They do not create rows unless the tools are invoked.
@@ -643,17 +643,17 @@ installation; otherwise ensure `openstudio` is on `PATH`.
 
 Use `--runtime-mode local` when testing from a source checkout. Local mode writes
 an MCP config that starts the server with the repo virtualenv Python and
-`python -m openstudio_ai_mcp.server`.
+`python -m openstudio_si_mcp.server`.
 
 Use `--runtime-mode marketplace` only when testing an installed package where
-`openstudio-ai-mcp` is already visible on Claude Code's PATH.
+`openstudio-si-mcp` is already visible on Claude Code's PATH.
 
 1. Export:
 
    ```bash
-   rm -rf /tmp/openstudio-ai-claude-test
+   rm -rf /tmp/openstudio-si-claude-test
    .venv/bin/python -m cli export claude \
-     --output-dir /tmp/openstudio-ai-claude-test \
+     --output-dir /tmp/openstudio-si-claude-test \
      --workspace-root "$PWD" \
      --runtime-mode local \
      --force
@@ -665,17 +665,17 @@ Use `--runtime-mode marketplace` only when testing an installed package where
 
    ```bash
    .venv/bin/python -m cli validate-export \
-     /tmp/openstudio-ai-claude-test/openstudio-ai \
+     /tmp/openstudio-si-claude-test/openstudio-si \
      --runtime-mode local
 
-   claude plugin validate /tmp/openstudio-ai-claude-test/openstudio-ai
+   claude plugin validate /tmp/openstudio-si-claude-test/openstudio-si
    ```
 
 3. Install in Claude Code:
 
    ```text
-   /plugin marketplace add /tmp/openstudio-ai-claude-test
-   /plugin install openstudio-ai@openstudio-ai-local
+   /plugin marketplace add /tmp/openstudio-si-claude-test
+   /plugin install openstudio-si@openstudio-si-local
    /reload-plugins
    ```
 
@@ -686,14 +686,14 @@ Use `--runtime-mode marketplace` only when testing an installed package where
 
    ```text
    /plugin list
-   /plugin details openstudio-ai@openstudio-ai-local
-   /openstudio-ai:doctor-openstudio-ai
+   /plugin details openstudio-si@openstudio-si-local
+   /openstudio-si:doctor-openstudio-si
    ```
 
 Expected Claude plugin shape:
 
 ```text
-openstudio-ai/
+openstudio-si/
 ├── .claude-plugin/plugin.json
 ├── .mcp.json
 ├── README.md
@@ -702,7 +702,7 @@ openstudio-ai/
 ├── monitors/monitors.json
 ├── bin/
 └── skills/
-    ├── setup-openstudio-ai/
+    ├── setup-openstudio-si/
     │   ├── SKILL.md
     │   └── scripts/
     ├── openstudio-sdk-model-editor/
@@ -731,10 +731,10 @@ export directory does not necessarily update the installed copy.
 Clean reinstall:
 
 ```bash
-claude plugin uninstall openstudio-ai@openstudio-ai-local --scope local --keep-data
-rm -rf /tmp/openstudio-ai-claude-test
+claude plugin uninstall openstudio-si@openstudio-si-local --scope local --keep-data
+rm -rf /tmp/openstudio-si-claude-test
 .venv/bin/python -m cli export claude \
-  --output-dir /tmp/openstudio-ai-claude-test \
+  --output-dir /tmp/openstudio-si-claude-test \
   --workspace-root "$PWD" \
   --runtime-mode local \
   --force
@@ -743,8 +743,8 @@ rm -rf /tmp/openstudio-ai-claude-test
 Then in Claude Code:
 
 ```text
-/plugin marketplace add /tmp/openstudio-ai-claude-test
-/plugin install openstudio-ai@openstudio-ai-local
+/plugin marketplace add /tmp/openstudio-si-claude-test
+/plugin install openstudio-si@openstudio-si-local
 /reload-plugins
 ```
 
@@ -752,10 +752,10 @@ If an old version remains, inspect scopes:
 
 ```bash
 claude plugin list --json
-claude plugin details openstudio-ai@openstudio-ai-local
-claude plugin uninstall openstudio-ai@openstudio-ai-local --scope local --keep-data
-claude plugin uninstall openstudio-ai@openstudio-ai-local --scope project --keep-data
-claude plugin uninstall openstudio-ai@openstudio-ai-local --scope user --keep-data
+claude plugin details openstudio-si@openstudio-si-local
+claude plugin uninstall openstudio-si@openstudio-si-local --scope local --keep-data
+claude plugin uninstall openstudio-si@openstudio-si-local --scope project --keep-data
+claude plugin uninstall openstudio-si@openstudio-si-local --scope user --keep-data
 ```
 
 Ignore "not installed" messages for scopes you did not use.
@@ -763,31 +763,31 @@ Ignore "not installed" messages for scopes you did not use.
 ## Codex Plugin Testing
 
 Codex export creates a local marketplace folder with `.agents/plugins` metadata
-and a plugin under `plugins/openstudio-ai/`.
+and a plugin under `plugins/openstudio-si/`.
 
 1. Export:
 
    ```bash
-   rm -rf /tmp/openstudio-ai-codex-test
+   rm -rf /tmp/openstudio-si-codex-test
    .venv/bin/python -m cli export codex \
-     --output-dir /tmp/openstudio-ai-codex-test \
+     --output-dir /tmp/openstudio-si-codex-test \
      --workspace-root "$PWD" \
      --runtime-mode local \
      --force
    ```
 
    Use `--runtime-mode local` for source-checkout MCP testing. Use
-   `marketplace` only when `openstudio-ai-mcp` is installed and visible to Codex.
+   `marketplace` only when `openstudio-si-mcp` is installed and visible to Codex.
 
 2. Validate:
 
    ```bash
    .venv/bin/python -m cli validate-export \
-     /tmp/openstudio-ai-codex-test/plugins/openstudio-ai \
+     /tmp/openstudio-si-codex-test/plugins/openstudio-si \
      --runtime-mode local
 
    .venv/bin/python /path/to/codex/plugin-creator/scripts/validate_plugin.py \
-     /tmp/openstudio-ai-codex-test/plugins/openstudio-ai
+     /tmp/openstudio-si-codex-test/plugins/openstudio-si
    ```
 
    The second command is optional and depends on where the Codex plugin validator
@@ -797,10 +797,10 @@ and a plugin under `plugins/openstudio-ai/`.
 3. Add the marketplace in Codex:
 
    ```bash
-   codex plugin marketplace add /tmp/openstudio-ai-codex-test
+   codex plugin marketplace add /tmp/openstudio-si-codex-test
    ```
 
-4. Install or enable `openstudio-ai` from the `openstudio-ai-local` marketplace
+4. Install or enable `openstudio-si` from the `openstudio-si-local` marketplace
    in Codex.
 
 5. Add the managed modeler policy to the project used for the test:
@@ -818,16 +818,16 @@ and a plugin under `plugins/openstudio-ai/`.
 Expected Codex plugin shape:
 
 ```text
-openstudio-ai-codex-test/
+openstudio-si-codex-test/
 ├── .agents/plugins/marketplace.json
 ├── INSTALL.md
-└── plugins/openstudio-ai/
+└── plugins/openstudio-si/
     ├── .codex-plugin/plugin.json
     ├── .mcp.json
     ├── README.md
     ├── CONNECTORS.md
     └── skills/
-        ├── setup-openstudio-ai/
+        ├── setup-openstudio-si/
         │   ├── SKILL.md
         │   └── scripts/
         ├── openstudio-modeling-orchestrator/
@@ -882,13 +882,13 @@ Before a release candidate:
 .venv/bin/python -m pytest -q tests
 rm -rf dist build
 .venv/bin/python -m build --wheel
-.venv/bin/python -m cli export claude --output-dir /tmp/openstudio-ai-claude --runtime-mode marketplace --force
-.venv/bin/python -m cli export codex --output-dir /tmp/openstudio-ai-codex --runtime-mode marketplace --force
-.venv/bin/python -m cli validate-export /tmp/openstudio-ai-claude/openstudio-ai --runtime-mode marketplace
-.venv/bin/python -m cli validate-export /tmp/openstudio-ai-codex/plugins/openstudio-ai --runtime-mode marketplace
+.venv/bin/python -m cli export claude --output-dir /tmp/openstudio-si-claude --runtime-mode marketplace --force
+.venv/bin/python -m cli export codex --output-dir /tmp/openstudio-si-codex --runtime-mode marketplace --force
+.venv/bin/python -m cli validate-export /tmp/openstudio-si-claude/openstudio-si --runtime-mode marketplace
+.venv/bin/python -m cli validate-export /tmp/openstudio-si-codex/plugins/openstudio-si --runtime-mode marketplace
 ```
 
-Also run `openstudio-ai doctor` in an environment with the native OpenStudio CLI
+Also run `openstudio-si doctor` in an environment with the native OpenStudio CLI
 installed before claiming simulation readiness.
 
 ## Common Mistakes
@@ -897,7 +897,7 @@ installed before claiming simulation readiness.
 - Editing generated HVAC child skills without updating specs/templates.
 - Treating candidate learning output as trusted knowledge.
 - Assuming `run_python` exists in Claude Code or Codex instructions.
-- Testing marketplace mode before `openstudio-ai-mcp` is on the host PATH.
+- Testing marketplace mode before `openstudio-si-mcp` is on the host PATH.
 - Expecting blackboard schema files to create SQLite state without MCP tool
   calls.
 - Shipping local paths such as `/Users/...` in marketplace exports.

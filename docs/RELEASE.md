@@ -1,9 +1,9 @@
-# OpenStudio AI PyPI Release Guide
+# OpenStudio SI PyPI Release Guide
 
-This guide describes how to build and publish the `openstudio-ai` Python
+This guide describes how to build and publish the `openstudio-si` Python
 package.
 
-Current release preparation targets **0.4.1** with MCP interface contract **6.0**.
+Current release preparation targets **0.4.2** with MCP interface contract **6.0**.
 The OpenStudio Python SDK and bundled modeling scripts remain pinned to **3.11.0**.
 This version update prepares local metadata and exports; publishing packages,
 tags and the generated marketplace repository are separate release steps.
@@ -13,7 +13,7 @@ tags and the generated marketplace repository are separate release steps.
 1. Confirm the package name is available on PyPI.
 
    ```bash
-   python -m pip index versions openstudio-ai
+   python -m pip index versions openstudio-si
    ```
 
    If the name is already owned by another project, change `project.name` in
@@ -41,7 +41,7 @@ tags and the generated marketplace repository are separate release steps.
 
 Before building, update the release version consistently in the root and
 `standalone/` `pyproject.toml` files, `harness/package_manifest.yaml`,
-`openstudio_ai_mcp/compatibility.py`, versioned agent/skill metadata, evaluation
+`openstudio_si_mcp/compatibility.py`, versioned agent/skill metadata, evaluation
 metadata, and both `uv.lock` files. Keep independent schema, SDK and third-party
 dependency versions unchanged. Update explicit contract checks in skills and
 tests to match `PLUGIN_CONTRACT_VERSION`. Confirm that both exported marketplace
@@ -69,6 +69,19 @@ python -m py_compile $(find . -path './.venv' -prune -o -name '*.py' -print)
 python -m pytest -q tests
 ```
 
+Full pull-request/manual CI retains every test, including the `slow` selection.
+Review its result before releasing. The publishing workflow runs only the fast
+checks below, then builds and validates the distribution; it does not install
+Chromium or repeat modeling, simulation, browser and repeated-export checks.
+The release-tag/version check and PyPI publication gate remain in place.
+
+```bash
+python -m pytest -q tests -m "not slow" --strict-markers --durations=10
+```
+
+Run the slow selection separately with `-m slow`. Full CI uploads its JUnit
+timing report with the workflow artifacts.
+
 The OpenStudio simulation tests require `OPENSTUDIO_PATH`. If it is not set,
 those tests should be skipped and reported in the release notes.
 
@@ -79,7 +92,7 @@ python -m cli version
 python -m cli paths --json
 python -m cli install-runtime
 python -m cli doctor --json
-python -m openstudio_ai_mcp.server --help
+python -m openstudio_si_mcp.server --help
 ```
 
 `doctor` may return a non-zero code if runtime pieces such as the OpenStudio
@@ -92,14 +105,14 @@ Create the generated repository tree for the Claude Code and Codex marketplace
 release:
 
 ```bash
-openstudio-ai export marketplace \
-  --output-dir /tmp/openstudio-ai-plugins \
+openstudio-si export marketplace \
+  --output-dir /tmp/openstudio-si-plugins \
   --runtime-mode marketplace \
   --force
 ```
 
 The command validates both plugin packages before completing. Review
-`/tmp/openstudio-ai-plugins/.generated.json` and confirm its package version,
+`/tmp/openstudio-si-plugins/.generated.json` and confirm its package version,
 MCP interface contract, and source revision match the release being published.
 The tree includes separate `INSTALL.claude.md` and `INSTALL.codex.md` files;
 do not edit generated plugin files directly in the marketplace repository.
@@ -158,7 +171,7 @@ if blocked:
 
 required = [
     "cli.py",
-    "openstudio_ai_mcp/server.py",
+    "openstudio_si_mcp/server.py",
     "adapters/claude_code_adapter.py",
     "adapters/codex_adapter.py",
     "skills/openstudio_vav_reheat_system_creator.md",
@@ -224,43 +237,43 @@ python -m twine upload --repository testpypi dist/*
 Create a clean virtual environment and install from TestPyPI:
 
 ```bash
-python -m venv /tmp/openstudio-ai-testpypi
-/tmp/openstudio-ai-testpypi/bin/python -m pip install --upgrade pip
-/tmp/openstudio-ai-testpypi/bin/python -m pip install \
+python -m venv /tmp/openstudio-si-testpypi
+/tmp/openstudio-si-testpypi/bin/python -m pip install --upgrade pip
+/tmp/openstudio-si-testpypi/bin/python -m pip install \
   --index-url https://test.pypi.org/simple/ \
   --extra-index-url https://pypi.org/simple/ \
-  openstudio-ai
+  openstudio-si
 ```
 
 Windows PowerShell equivalent:
 
 ```powershell
-py -m venv $env:TEMP\openstudio-ai-testpypi
-& $env:TEMP\openstudio-ai-testpypi\Scripts\python -m pip install --upgrade pip
-& $env:TEMP\openstudio-ai-testpypi\Scripts\python -m pip install `
+py -m venv $env:TEMP\openstudio-si-testpypi
+& $env:TEMP\openstudio-si-testpypi\Scripts\python -m pip install --upgrade pip
+& $env:TEMP\openstudio-si-testpypi\Scripts\python -m pip install `
   --index-url https://test.pypi.org/simple/ `
   --extra-index-url https://pypi.org/simple/ `
-  openstudio-ai
+  openstudio-si
 ```
 
 Smoke test the installed commands:
 
 ```bash
-openstudio-ai version
-openstudio-ai paths
-openstudio-ai install-runtime
-openstudio-ai doctor
-openstudio-ai-mcp --help
-openstudio-ai export claude --output-dir /tmp/openstudio-ai-claude --runtime-mode marketplace
-openstudio-ai export codex --output-dir /tmp/openstudio-ai-codex --runtime-mode marketplace
-openstudio-ai install codex --target-dir /tmp/openstudio-ai-codex-project
+openstudio-si version
+openstudio-si paths
+openstudio-si install-runtime
+openstudio-si doctor
+openstudio-si-mcp --help
+openstudio-si export claude --output-dir /tmp/openstudio-si-claude --runtime-mode marketplace
+openstudio-si export codex --output-dir /tmp/openstudio-si-codex --runtime-mode marketplace
+openstudio-si install codex --target-dir /tmp/openstudio-si-codex-project
 ```
 
 Model editing, measure execution, and simulation readiness require two
 OpenStudio pieces:
 
 - the PyPI `openstudio` Python package, installed as a required dependency of
-  `openstudio-ai`;
+  `openstudio-si`;
 - the native OpenStudio application/CLI, visible through `OPENSTUDIO_PATH` or
   `PATH`.
 
@@ -275,11 +288,11 @@ python -m twine upload dist/*
 Then verify from a clean environment:
 
 ```bash
-python -m venv /tmp/openstudio-ai-pypi
-/tmp/openstudio-ai-pypi/bin/python -m pip install --upgrade pip
-/tmp/openstudio-ai-pypi/bin/python -m pip install openstudio-ai
-/tmp/openstudio-ai-pypi/bin/openstudio-ai version
-/tmp/openstudio-ai-pypi/bin/openstudio-ai doctor
+python -m venv /tmp/openstudio-si-pypi
+/tmp/openstudio-si-pypi/bin/python -m pip install --upgrade pip
+/tmp/openstudio-si-pypi/bin/python -m pip install openstudio-si
+/tmp/openstudio-si-pypi/bin/openstudio-si version
+/tmp/openstudio-si-pypi/bin/openstudio-si doctor
 ```
 
 ## Release Notes
@@ -290,7 +303,7 @@ For every release, call out:
 - Supported Python versions.
 - Whether OpenStudio simulation tests were run or skipped.
 - Whether TestPyPI install succeeded on macOS and Windows.
-- Known limitation: `openstudio-ai doctor` validates runtime scaffolding, but
+- Known limitation: `openstudio-si doctor` validates runtime scaffolding, but
   full simulation readiness still depends on the user installing OpenStudio.
 
 For 0.2.3, also call out:

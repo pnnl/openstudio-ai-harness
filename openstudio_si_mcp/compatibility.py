@@ -1,4 +1,4 @@
-"""Shared plugin-to-runtime compatibility contract for OpenStudio AI."""
+"""Shared plugin-to-runtime compatibility contract for OpenStudio SI."""
 
 from __future__ import annotations
 
@@ -12,11 +12,11 @@ try:
 except ModuleNotFoundError:  # Python 3.10
     import tomli as tomllib
 
-PACKAGE_NAME = "openstudio-ai"
-PACKAGE_VERSION_FALLBACK = "0.4.1"
-PLUGIN_VERSION_ENV = "OPENSTUDIO_AI_PLUGIN_VERSION"
-PLUGIN_CONTRACT_ENV = "OPENSTUDIO_AI_PLUGIN_CONTRACT_VERSION"
-# Contract 6.0 is the release 0.4.1 plugin/runtime interface baseline.
+PACKAGE_NAME = "openstudio-si"
+PACKAGE_VERSION_FALLBACK = "0.4.2"
+PLUGIN_VERSION_ENV = "OPENSTUDIO_SI_PLUGIN_VERSION"
+PLUGIN_CONTRACT_ENV = "OPENSTUDIO_SI_PLUGIN_CONTRACT_VERSION"
+# Contract 6.0 is the release 0.4.2 plugin/runtime interface baseline.
 # Contract 5 adds durable engineering-session, finding, and checkpoint MCP
 # surfaces.
 # Contract 4 adds the personal-learning MCP tools required by the curated
@@ -96,7 +96,7 @@ def evaluate_plugin_compatibility(
                 "The plugin did not declare an MCP interface contract. "
                 "Compatibility cannot be verified."
             ),
-            remediation="Re-export or reinstall the OpenStudio AI plugin.",
+            remediation="Re-export or reinstall the OpenStudio SI plugin.",
         )
 
     if plugin_contract_version != PLUGIN_CONTRACT_VERSION:
@@ -108,11 +108,11 @@ def evaluate_plugin_compatibility(
             runtime_version=runtime_version,
             runtime_contract_version=PLUGIN_CONTRACT_VERSION,
             message=(
-                "The installed OpenStudio AI runtime does not support the MCP "
+                "The installed OpenStudio SI runtime does not support the MCP "
                 f"interface contract required by this plugin ({plugin_contract_version})."
             ),
             remediation=(
-                "Run the OpenStudio AI setup workflow to upgrade the runtime, "
+                "Run the OpenStudio SI setup workflow to upgrade the runtime, "
                 "then reload or reconnect the plugin."
             ),
         )

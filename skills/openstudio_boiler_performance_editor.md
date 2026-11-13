@@ -2,7 +2,7 @@
 name: openstudio-boiler-performance-editor
 description: Edit explicit nominal heating capacity or Autosize, minimum/maximum/optimum part-load ratios, HHV efficiency and electric/fuel parasitic loads on one existing hot-water boiler in place. Preserve identity, fuel, flow policy, curves, plant connections and controls; steam and replacement need separate coverage.
 metadata:
-  version: 0.4.1
+  version: 0.4.2
 ---
 
 Prefer configured, compatible NLR through `delegated-nlr-modeling`. After local

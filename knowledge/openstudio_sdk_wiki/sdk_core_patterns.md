@@ -78,7 +78,7 @@ if not model_optional.is_initialized():
 model = model_optional.get()
 ```
 
-Use a version-translator compatibility helper as the default in OpenStudio AI
+Use a version-translator compatibility helper as the default in OpenStudio SI
 generated scripts unless a project-specific reason requires
 `openstudio.model.Model.load(...)`. Some bindings expose
 `openstudio.openstudioosversion.VersionTranslator()` and others expose

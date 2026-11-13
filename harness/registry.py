@@ -13,7 +13,7 @@ def discover_harness_assets(root: Path) -> HarnessAssets:
         root=root,
         prompt_contracts=sorted(prompts_dir.glob("*.md")),
         skill_files=sorted(skills_dir.glob("*.md")),
-        mcp_entrypoint=root / "openstudio_ai_mcp" / "server.py",
+        mcp_entrypoint=root / "openstudio_si_mcp" / "server.py",
         blackboard_schema=root
         / "blackboard"
         / "schemas"

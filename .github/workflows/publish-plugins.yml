@@ -14,10 +14,10 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  PLUGINS_REPO: pnnl/openstudio-ai-plugins
+  PLUGINS_REPO: pnnl/openstudio-si-plugins
   EXPORT_BRANCH: automated/plugin-export
   BASE_BRANCH: main
-  EXPORT_COMMAND: openstudio-ai export marketplace --runtime-mode marketplace
+  EXPORT_COMMAND: openstudio-si export marketplace --runtime-mode marketplace
 
 jobs:
   export:
@@ -65,7 +65,10 @@ jobs:
           set -euo pipefail
           src="${RUNNER_TEMP}/marketplace"
 
-          for dir in openstudio-ai plugins .claude-plugin .agents; do
+          # Retire the old top-level Claude export during the marketplace rename.
+          git -C plugins-repo rm -r --ignore-unmatch -- openstudio-ai
+
+          for dir in openstudio-si plugins .claude-plugin .agents; do
             rsync -a --delete "${src}/${dir}/" "plugins-repo/${dir}/"
           done
 
@@ -105,7 +108,7 @@ jobs:
           body=$(cat <<EOF
           Automated re-export of the plugin marketplace tree. Do not edit these files manually.
 
-          - Package version: [openstudio-ai ${version}](https://pypi.org/project/openstudio-ai/${version}/)
+          - Package version: [openstudio-si ${version}](https://pypi.org/project/openstudio-si/${version}/)
           - Harness commit: ${HARNESS_SERVER}/${HARNESS_REPO}/commit/${HARNESS_SHA}
           - Command: \`${EXPORT_COMMAND}\`
           EOF

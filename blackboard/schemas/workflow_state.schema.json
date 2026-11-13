@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "OpenStudio AI Workflow State",
+  "title": "OpenStudio SI Workflow State",
   "type": "object",
   "required": ["workflow_id", "goal", "status", "completed_steps", "pending_steps"],
   "properties": {

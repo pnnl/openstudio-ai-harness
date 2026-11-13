@@ -56,13 +56,13 @@ def resource_exports_for_host(
     reserved.update(
         plugin_dir / "skills" / skill / target
         for skill, targets in {
-            "setup-openstudio-ai": [
+            "setup-openstudio-si": [
                 "SKILL.md",
                 "scripts/doctor_runtime.py",
                 "scripts/install_runtime.py",
             ],
-            "doctor-openstudio-ai": ["SKILL.md"],
-            "repair-openstudio-ai": ["SKILL.md"],
+            "doctor-openstudio-si": ["SKILL.md"],
+            "repair-openstudio-si": ["SKILL.md"],
         }.items()
         for target in targets
     )

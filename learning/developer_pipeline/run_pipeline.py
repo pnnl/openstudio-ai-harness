@@ -27,7 +27,7 @@ def run_developer_learning_pipeline(
     review_queue: Path = DEFAULT_REVIEW_QUEUE,
     limit: int = 10,
 ) -> list[CandidateWrite]:
-    """Read raw OpenStudio AI logs and write review-queue candidate lessons.
+    """Read raw OpenStudio SI logs and write review-queue candidate lessons.
 
     This is the deterministic implementation of the developer learning curation
     pass. It does not promote assets. It converts raw evidence into candidate
@@ -47,7 +47,7 @@ def run_developer_learning_pipeline(
 
 
 def _collect_learning_events(*, logs_dir: Path, limit: int) -> list[dict[str, Any]]:
-    """Collect candidate-worthy events from known OpenStudio AI log files."""
+    """Collect candidate-worthy events from known OpenStudio SI log files."""
     events: list[dict[str, Any]] = []
     for path in [
         logs_dir / "python_script_failure_experience.jsonl",
@@ -147,7 +147,7 @@ def _build_candidate_lesson(event: dict[str, Any]) -> dict[str, Any]:
         "target": _suggest_target(event),
         "recommended_eval": _suggest_eval(event),
         "reviewer_checklist": [
-            "Confirm the event reflects a repeatable OpenStudio AI lesson.",
+            "Confirm the event reflects a repeatable OpenStudio SI lesson.",
             "Confirm target asset is correct.",
             "Add or update an eval before promotion.",
             "Promote only after modeler/developer review.",
@@ -195,7 +195,7 @@ def _candidate_id(event: dict[str, Any]) -> str:
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Create OpenStudio AI learning candidates from logs.")
+    parser = argparse.ArgumentParser(description="Create OpenStudio SI learning candidates from logs.")
     parser.add_argument("--logs-dir", type=Path, default=DEFAULT_LOGS_DIR)
     parser.add_argument("--review-queue", type=Path, default=DEFAULT_REVIEW_QUEUE)
     parser.add_argument("--limit", type=int, default=10)

@@ -1,8 +1,8 @@
-# OpenStudio AI Harness Handoff
+# OpenStudio SI Harness Handoff
 
 ## Product Direction
 
-OpenStudio AI is the durable, host-neutral foundation that enables LLMs to do
+OpenStudio SI is the durable, host-neutral foundation that enables LLMs to do
 reliable building-energy engineering work. It must support more than model
 creation and simulation: an agent should be able to preserve a model's lineage
 and evidence, inspect the model and run artifacts, diagnose errors and
@@ -21,6 +21,14 @@ and approval model.
 
 ## Current Status
 
+- The first packaged VAV recipe is implemented as `prototype_pvav_v1` in the
+  existing VAV creator. It covers gas central heat, approved two-speed DX cooling,
+  and electric terminal reheat. Both exported hosts passed native preflight and
+  apply, and the five-zone design-day run produced positive fan, coil, and terminal
+  sizes with OpenStudio 3.11.0. The 65 preflight tests and 94 apply, sizing,
+  CAV, and packaging checks passed. Evidence is in `outputs/pvav-verification-final/`.
+  The [packaged VAV work guide](docs/HVAC_MODULARIZATION_WORK.md#packaged-vav)
+  records the source trace and the PSZ-AC equipment gaps.
 - The user reports release `0.4.1` is published (October 20, 2026), with exact MCP
   plugin interface contract `6.0`. Package, agent/skill metadata and both lockfiles
   are coordinated; hosts
@@ -29,11 +37,10 @@ and approval model.
 - The diagnostic MVP (`model_inspect`, `sim_diagnose`, and
   `results_plausibility`) and its curated fixtures remain future development;
   this metadata bump does not implement those MCP tools.
-- Equipment through phase 10c and requested follow-ups are implemented. Integration
-  A–D and their review fixes are complete. Phase 11a's in-place terminal
-  airflow/reheat-control editor is now implemented for review. Terminal replacement
-  remains a separate 11b checkpoint. The work guide and consolidated integration summary
-  record scope, source trace, native evidence and remaining limitations.
+- Terminal and plant equipment work through phase 13 is reviewed. Supported
+  operations and remaining limits are in the [release review summary](docs/reviews/SUMMARY.md).
+- PR #47 companion weather fixes are in `6e8fd8f`. The focused SDK suites
+  passed 378 checks, with 53 native cases deselected.
 - Current checkout branch: `prepare_410_release`; release metadata is
   `0.4.1`, with OpenStudio SDK/CLI still pinned to `3.11.0`.
 - The current foundation is a Python 3.10+ package with an MCP 2.x runtime,
@@ -48,7 +55,7 @@ and approval model.
 - The runtime uses per-job workspaces. A run can retain the source model,
   EnergyPlus logs (including `eplusout.err`), SQL output, reports, and metadata
   needed for later diagnosis, subject to runtime retention policy.
-- Host adapters distinguish PNNL's `openstudio-ai-mcp` / `openstudio_ai` from
+- Host adapters distinguish PNNL's `openstudio-si-mcp` / `openstudio_si` from
   NLR's optional `openstudio-mcp` connection. NLR discovery is configuration
   detection, not a verified live connection.
 - The base package intentionally excludes AUTOMA-AI and Streamlit. The
@@ -955,7 +962,7 @@ No plugin installation, commit, push or release.
 
 Added planned increment C, `report-openstudio-failure`, before visualizer D and
 backlog E. The user explicitly selected automatic submission to the confirmed
-GitHub destination `pnnl/openstudio-ai-harness`; the earlier GitLab mention is
+GitHub destination `pnnl/openstudio-si-harness`; the earlier GitLab mention is
 resolved by that answer. Existing `github-issue-submitter` targets the plugin repo
 and retains its separate preview-approved general-reporting contract.
 
@@ -1043,7 +1050,7 @@ size metadata, and 66 launchers across 16 owners. SDK resources: 2,445,693
 comparable former owner-copy bytes vs 686,836 shared-resource bytes excluding the
 size report (71.9% reduction). Whole-plugin totals excluding that report: Claude
 934,236 bytes / 239 files; Codex 1,655,433 bytes / 237 files. These are fresh
-marketplace exports, not compressed-download or AI-token measurements.
+marketplace exports, not compressed-download or SI-token measurements.
 
 Verification: 272 unique targeted checks passed (236 packaging/manifest/import/
 doctor/preparation/adapters/CLI/archive; 36 native relocated modeling). Complete
@@ -1062,14 +1069,14 @@ outputs/shared-sdk-increment-b/. No commit, push, plugin installation or release
 docs/reviews/ untouched and all preexisting changes retained.
 
 Stop for B review. Next increment C is automatic sanitized failure reporting to
-pnnl/openstudio-ai-harness, then D read-only HVAC visualization, then equipment E.
+pnnl/openstudio-si-harness, then D read-only HVAC visualization, then equipment E.
 Neither C nor D is implemented by this turn.
 
 
 ## Integration increment C ready for review — October 9, 2026
 
 B is approved. Implemented report-openstudio-failure for both hosts, automatic
-sanitized submissions to fixed pnnl/openstudio-ai-harness, durable local receipts,
+sanitized submissions to fixed pnnl/openstudio-si-harness, durable local receipts,
 copy-ready drafts, duplicate lookup and one-POST uncertain-state handling. Uses
 existing gh authentication; no reporting package/service or OpenStudio import.
 A verbatim independent recovery helper intentionally works even if sdk/ is lost.
@@ -1101,7 +1108,7 @@ pinned build dependencies and does not install a plugin or publish artifacts.
 Review guide: docs/SDK_INTEGRATION_SUMMARY.md. Logs/exports/native receipts
 and evidence: outputs/failure-reporting-increment-c/. Full unrelated equipment,
 annual-energy, MCP/live-provider and native Linux/Windows suites were not rerun.
-No live AI host session. New manifest sources are staged for the existing tracking
+No live SI host session. New manifest sources are staged for the existing tracking
 check, without commit/push/plugin installation/release. docs/reviews/ untouched;
 all preexisting changes preserved. Stop for C review; next D is read-only HVAC
 visualization, then remaining equipment E. D has not been implemented.
@@ -1178,7 +1185,7 @@ are 795,050 bytes excluding size report, within the 1 MiB budget.
 
 Review guide: docs/SDK_INTEGRATION_SUMMARY.md. Logs/exports/private evidence:
 outputs/hvac-visualizer-increment-d/; final native evidence in native-final/.
-No live AI-host session, SVG/HTML rendering, annual simulation, full unrelated
+No live SI-host session, SVG/HTML rendering, annual simulation, full unrelated
 MCP/equipment or native Linux/Windows run. No commit, push, plugin installation,
 release or live issue submission. New manifest sources are staged for the tracking
 check; docs/reviews/ and preexisting user changes are preserved. Stop for D review.
@@ -1547,3 +1554,7 @@ review; terminal replacement remains unstarted.
 Also addressed the review's tracking-only T4 note: tests/conftest.py and
 tests/test_test_suites.py now have intent-to-add entries alongside the six phase
 files. Contents are not staged and no release-workflow policy was changed.
+
+## OpenStudio SI rename release
+
+The first OpenStudio SI release targets `0.4.2`, MCP contract `6.0`, and OpenStudio SDK `3.11.0`. The maintainer confirmed that the PyPI name is available and the publishing credential is ready. Release OpenStudio SI as a fresh install. Use clean projects for host smoke tests and leave existing OpenStudio AI data intact. After the runtime and marketplace are live, post the announcement on the GitLab page for `openstudio-si-plugins`. Follow the [rename phase](docs/CORE_AND_AGENTS_PLAN.md#1-complete-and-verify-the-openstudio-si-rename) for cutover checks.

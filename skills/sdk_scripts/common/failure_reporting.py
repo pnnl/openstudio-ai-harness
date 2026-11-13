@@ -23,7 +23,7 @@ import tempfile
 import traceback
 from urllib.parse import urlencode
 
-REPOSITORY = "pnnl/openstudio-ai-harness"
+REPOSITORY = "pnnl/openstudio-si-harness"
 ISSUE_ROOT = f"https://github.com/{REPOSITORY}/issues/"
 MAX_INPUT = 131072
 RECEIPT_VERSION = 2
@@ -977,7 +977,7 @@ def capture_exception(exc, operation, stage, args=None, report=None):
                 "unpublished; read-only operation completed but report writing failed"
             )
         state = os.environ.get(
-            "OPENSTUDIO_AI_FAILURE_DIR", str(Path.cwd() / ".openstudio_ai_failures")
+            "OPENSTUDIO_SI_FAILURE_DIR", str(Path.cwd() / ".openstudio_si_failures")
         )
         result = capture(event, state)
         return {"failure_receipt": result["receipt"]}
@@ -1034,7 +1034,7 @@ def issue_identity(value):
 
 
 def find_existing(transport, identity):
-    marker = "openstudio-ai-incident:" + identity
+    marker = "openstudio-si-incident:" + identity
     result = transport.request(
         "GET",
         "search/issues?"
@@ -1078,7 +1078,7 @@ def render_issue(record):
             "",
             "Sanitized allowlisted diagnostics only. No model, companion files, credentials or transcript is attached. Attribution remains provisional.",
             "",
-            f"<!-- openstudio-ai-incident:{identity} -->",
+            f"<!-- openstudio-si-incident:{identity} -->",
             "",
         ]
     )
@@ -1322,7 +1322,7 @@ def main():
         type=Path,
         default=Path(
             os.environ.get(
-                "OPENSTUDIO_AI_FAILURE_DIR", str(Path.cwd() / ".openstudio_ai_failures")
+                "OPENSTUDIO_SI_FAILURE_DIR", str(Path.cwd() / ".openstudio_si_failures")
             )
         ),
     )

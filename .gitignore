@@ -20,8 +20,10 @@ venv/
 .idea/
 .vscode/
 
-# OpenStudio AI runtime state
+# OpenStudio SI runtime state
 .openstudio_mcp_workspace/
+.openstudio_si_mcp_workspace/
+.openstudio_si_blackboards/
 .openstudio_ai_mcp_workspace/
 .openstudio_ai_blackboards/
 .sdk_doc_index.json
@@ -35,6 +37,7 @@ state/snapshots/*
 state/workflow_runs/*
 
 # Generated local package exports
+.openstudio_si_failures/
 .openstudio_ai_failures/
-openstudio-ai-claude-plugin/
-openstudio-ai-codex-plugin/
+openstudio-si-claude-plugin/
+openstudio-si-codex-plugin/

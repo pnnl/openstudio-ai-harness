@@ -4,7 +4,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from openstudio_ai_mcp.tools.schemas import (
+from openstudio_si_mcp.tools.schemas import (
     BlackboardGetPhaseStateArgs,
     BlackboardInitializeWorkflowArgs,
     BlackboardMarkStepCompleteArgs,
@@ -22,7 +22,7 @@ from openstudio_ai_mcp.tools.schemas import (
 def register_blackboard_tools(mcp, service) -> None:
     @mcp.tool(
         name="blackboard_initialize_workflow",
-        description="Create a persistent OpenStudio AI workflow state in the MCP blackboard.",
+        description="Create a persistent OpenStudio SI workflow state in the MCP blackboard.",
     )
     async def blackboard_initialize_workflow(
         goal: str,

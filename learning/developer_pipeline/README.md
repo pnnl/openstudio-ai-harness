@@ -1,7 +1,7 @@
 # Developer Learning Pipeline
 
-The developer pipeline turns raw AI/modeling experience into trusted OpenStudio
-AI assets.
+The developer pipeline turns raw SI/modeling experience into trusted OpenStudio
+SI assets.
 
 Stages:
 
@@ -20,7 +20,7 @@ Trusted assets should only change through this pipeline.
 .venv/bin/python -m learning.developer_pipeline.run_pipeline
 ```
 
-The runner scans OpenStudio AI logs and writes candidate lesson JSON files to
+The runner scans OpenStudio SI logs and writes candidate lesson JSON files to
 `learning/review_queue/`. It is deterministic so it can be tested and reviewed;
 the `developer_agent/` folder defines the agent-assisted version of the same
 workflow.

@@ -74,7 +74,7 @@ class FakeGitHub:
         if endpoint.endswith("contents/.github/ISSUE_TEMPLATE"):
             return self.templates
         assert (
-            method == "POST" and endpoint == "repos/pnnl/openstudio-ai-harness/issues"
+            method == "POST" and endpoint == "repos/pnnl/openstudio-si-harness/issues"
         )
         issue = dict(number=1, html_url=reporting.ISSUE_ROOT + "1", **payload)
         self.created.append(issue)
@@ -212,7 +212,7 @@ def test_remote_duplicate_links_closed_or_open_issue_without_edit(event, tmp_pat
         {
             "number": 7,
             "html_url": reporting.ISSUE_ROOT + "7",
-            "body": f"<!-- openstudio-ai-incident:{captured['fingerprint']} -->",
+            "body": f"<!-- openstudio-si-incident:{captured['fingerprint']} -->",
             "state": "closed",
         }
     ]
@@ -349,7 +349,7 @@ def test_capture_and_pending_work_without_site_packages_or_sdk(event, tmp_path):
 def test_unexpected_sdk_exception_preserves_numeric_config_and_receipt(
     tmp_path, monkeypatch
 ):
-    monkeypatch.setenv("OPENSTUDIO_AI_FAILURE_DIR", str(tmp_path / "incidents"))
+    monkeypatch.setenv("OPENSTUDIO_SI_FAILURE_DIR", str(tmp_path / "incidents"))
     config = tmp_path / "config.json"
     config.write_text(json.dumps({"name": "Private Building", "pressure_rise_pa": 650}))
     result = reporting.capture_exception(
@@ -372,7 +372,7 @@ def test_unexpected_sdk_exception_preserves_numeric_config_and_receipt(
     ],
 )
 def test_expected_errors_do_not_create_incidents(error, tmp_path, monkeypatch):
-    monkeypatch.setenv("OPENSTUDIO_AI_FAILURE_DIR", str(tmp_path))
+    monkeypatch.setenv("OPENSTUDIO_SI_FAILURE_DIR", str(tmp_path))
     assert reporting.capture_exception(error, "remove_hvac", "preflight") == {}
     assert list(tmp_path.iterdir()) == []
 
@@ -421,7 +421,7 @@ def test_shared_cli_captures_failure_before_report_and_keeps_original_error(
 ):
     from common import model_transaction as tx
 
-    monkeypatch.setenv("OPENSTUDIO_AI_FAILURE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("OPENSTUDIO_SI_FAILURE_DIR", str(tmp_path / "state"))
     monkeypatch.setattr(tx, "require_sdk", lambda: object())
     monkeypatch.setattr(
         tx, "load_model", lambda *a: (object(), SimpleNamespace(warnings=lambda: []))
@@ -463,7 +463,7 @@ def test_preparation_and_stale_model_diagnostics_do_not_submit(
         "stale": mismatch({"input_sha256": "a"}, {"input_sha256": "b"}),
         "invalid_model": DiagnosticError("Missing list", status="invalid_model"),
     }
-    monkeypatch.setenv("OPENSTUDIO_AI_FAILURE_DIR", str(tmp_path))
+    monkeypatch.setenv("OPENSTUDIO_SI_FAILURE_DIR", str(tmp_path))
     assert (
         reporting.capture_exception(errors[error_kind], "remove_hvac", "preflight")
         == {}
@@ -474,7 +474,7 @@ def test_preparation_and_stale_model_diagnostics_do_not_submit(
 def test_handle_churn_is_captured_and_aliased(tmp_path, monkeypatch):
     from common.diagnostics import mismatch
 
-    monkeypatch.setenv("OPENSTUDIO_AI_FAILURE_DIR", str(tmp_path))
+    monkeypatch.setenv("OPENSTUDIO_SI_FAILURE_DIR", str(tmp_path))
     error = mismatch(
         {"handle": "{11111111-1111-1111-1111-111111111111}"},
         {"handle": "{22222222-2222-2222-2222-222222222222}"},
@@ -549,8 +549,8 @@ def test_reporter_survives_missing_shared_sdk_and_relocation(event, tmp_path, ho
     account = "Issues are created under your own authenticated GitHub account."
     for document in (
         moved / "README.md",
-        moved / "skills/setup-openstudio-ai/SKILL.md",
-        moved / "skills/doctor-openstudio-ai/SKILL.md",
+        moved / "skills/setup-openstudio-si/SKILL.md",
+        moved / "skills/doctor-openstudio-si/SKILL.md",
         moved / "skills/report-openstudio-failure/SKILL.md",
         (
             result.plugin_dir.parent / "INSTALL.md"
@@ -582,7 +582,7 @@ def test_github_transport_uses_fixed_host_json_stdin_and_bounded_errors(monkeypa
     with pytest.raises(reporting.TransportError) as error:
         reporting.GitHub().request(
             "POST",
-            "repos/pnnl/openstudio-ai-harness/issues",
+            "repos/pnnl/openstudio-si-harness/issues",
             {"title": "test", "body": "safe"},
         )
     assert str(error.value) == "github_request_failed"
@@ -632,7 +632,7 @@ def test_native_public_remover_failure_saves_receipt_and_preserves_source(
         f"runpy.run_path({str(launcher)!r}, run_name='__main__')\n"
     )
     env = os.environ.copy()
-    env["OPENSTUDIO_AI_FAILURE_DIR"] = str(tmp_path / "incidents")
+    env["OPENSTUDIO_SI_FAILURE_DIR"] = str(tmp_path / "incidents")
     run = subprocess.run(
         [str(cli), "execute_python_script", str(driver)],
         cwd=tmp_path,
@@ -679,7 +679,7 @@ def test_reporter_and_sdk_capture_share_environment_selected_policy(tmp_path):
     state = tmp_path / "shared state"
     reporting.write_json(state / "policy.json", {"mode": "disabled"})
     env = os.environ.copy()
-    env["OPENSTUDIO_AI_FAILURE_DIR"] = str(state)
+    env["OPENSTUDIO_SI_FAILURE_DIR"] = str(state)
     env["PATH"] = ""
     script = ROOT / "skills/sdk_scripts/common/failure_reporting.py"
     run = subprocess.run(
@@ -697,7 +697,7 @@ def test_reporter_and_sdk_capture_share_environment_selected_policy(tmp_path):
 def test_report_failure_distinguishes_read_only_from_published_output(
     tmp_path, monkeypatch, mode
 ):
-    monkeypatch.setenv("OPENSTUDIO_AI_FAILURE_DIR", str(tmp_path))
+    monkeypatch.setenv("OPENSTUDIO_SI_FAILURE_DIR", str(tmp_path))
     error = (
         PermissionError("report destination denied")
         if mode == "edit_model"
@@ -849,7 +849,7 @@ def test_model_values_stay_local_across_real_bundled_error_paths(
 def test_exception_capture_does_not_depend_on_private_name_hints(
     message, tmp_path, monkeypatch
 ):
-    monkeypatch.setenv("OPENSTUDIO_AI_FAILURE_DIR", str(tmp_path))
+    monkeypatch.setenv("OPENSTUDIO_SI_FAILURE_DIR", str(tmp_path))
     result = reporting.capture_exception(RuntimeError(message), "remove_hvac", "apply")
     receipt = Path(result["failure_receipt"])
     public = reporting.read_json(receipt)["public"]

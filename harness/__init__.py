@@ -1,2 +1,2 @@
-"""Host-agnostic OpenStudio AI harness package."""
+"""Host-agnostic OpenStudio SI harness package."""
 

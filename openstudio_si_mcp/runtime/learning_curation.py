@@ -1,11 +1,11 @@
-"""Deterministic background curation of local OpenStudio AI learning evidence."""
+"""Deterministic background curation of local OpenStudio SI learning evidence."""
 
 from __future__ import annotations
 
 from collections import defaultdict
 from typing import Any
 
-from openstudio_ai_mcp.runtime.learning_store import LearningStore
+from openstudio_si_mcp.runtime.learning_store import LearningStore
 
 _LESSON_EVENT_TYPES = {"user_correction", "script_failure", "workflow_note"}
 

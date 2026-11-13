@@ -1,7 +1,7 @@
 ---
 name: view-openstudio-geometry
 description: Generate a downloadable, self-contained HTML page for inspecting OpenStudio model geometry by space, story, and name.
-version: 0.4.1
+version: 0.4.2
 ---
 
 # View OpenStudio Geometry
@@ -17,7 +17,7 @@ for geometry inspection; it does not edit the model or run a simulation.
    `compatibility.runtime_contract_version` is `6.0` and `compatibility.ok` is
    true. If the tool is absent, reports another contract, or reports an
    incompatibility, explain that this conversation is connected to a stale
-   runtime. Run the OpenStudio AI setup workflow to upgrade the runtime with
+   runtime. Run the OpenStudio SI setup workflow to upgrade the runtime with
    user approval, then restart or reconnect the host MCP server and retry in
    the refreshed session. In Claude Code use `/reload-plugins` when available;
    in Codex restart Codex or reconnect the MCP server.

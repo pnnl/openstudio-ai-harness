@@ -1,8 +1,8 @@
-# Contributing to OpenStudio AI
+# Contributing to OpenStudio SI
 
-Use this repository, `openstudio-ai-harness`, for OpenStudio AI source changes.
+Use this repository, `openstudio-si-harness`, for OpenStudio SI source changes.
 Ask the PNNL repository maintainers for access before creating a branch or pull
-request. The separate `openstudio-ai-plugins` repository contains generated
+request. The separate `openstudio-si-plugins` repository contains generated
 distribution artifacts: make source changes here, then export and review the
 plugins rather than editing generated files directly.
 
@@ -10,19 +10,19 @@ plugins rather than editing generated files directly.
 
 | If you are changing… | Start in… |
 | --- | --- |
-| MCP tools or runtime behavior | `openstudio_ai_mcp/` |
+| MCP tools or runtime behavior | `openstudio_si_mcp/` |
 | Plugin export or host setup behavior | `adapters/` |
 | Skills, prompts, or reviewed knowledge | `skills/`, `prompts/`, or `knowledge/` |
 | Plugin asset registration | `harness/asset_manifest.yaml` |
 | Tests | `tests/` |
-| Workflow state or learning | `blackboard/`, `learning/`, or `openstudio_ai_mcp/runtime/` |
+| Workflow state or learning | `blackboard/`, `learning/`, or `openstudio_si_mcp/runtime/` |
 
 Read the [Developer Guide](docs/DEVELOPER_GUIDANCE.md) for setup details,
 folder ownership, promotion rules, and validation guidance.
 
 ## Python versions
 
-The shipped OpenStudio AI runtime supports Python 3.10 and newer. Keep runtime,
+The shipped OpenStudio SI runtime supports Python 3.10 and newer. Keep runtime,
 adapter, plugin-export, and packaging changes compatible with Python 3.10.
 
 `standalone/` is a separate development application for AUTOMA-AI and Streamlit.
@@ -46,11 +46,11 @@ its own optional development dependencies.
 4. Generate a temporary paired plugin export for review:
 
    ```bash
-   .venv/bin/openstudio-ai export marketplace \
-     --output-dir /tmp/openstudio-ai-plugins \
+   .venv/bin/openstudio-si export marketplace \
+     --output-dir /tmp/openstudio-si-plugins \
      --runtime-mode marketplace
    ```
 
-Use the repository's `.venv/bin/openstudio-ai` for development exports so the
+Use the repository's `.venv/bin/openstudio-si` for development exports so the
 command uses the current source. For other types of work and full environment
 setup, follow the [Developer Guide](docs/DEVELOPER_GUIDANCE.md).

@@ -2,7 +2,7 @@
 name: openstudio-terminal-editor
 description: Edit minimum airflow and reheat controls on one existing single-duct VAV reheat or no-reheat terminal in place, preserving equipment and connections. Use for terminal controls in VAV or prototype CAV systems; terminal replacement and coil ratings need separate coverage.
 metadata:
-  version: 0.4.1
+  version: 0.4.2
 ---
 
 Prefer configured, compatible NLR through `delegated-nlr-modeling`. After a local

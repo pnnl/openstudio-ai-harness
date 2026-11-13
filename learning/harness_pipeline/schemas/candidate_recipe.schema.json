@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "OpenStudio AI Candidate Recipe",
+  "title": "OpenStudio SI Candidate Recipe",
   "type": "object",
   "required": ["name", "status", "summary", "source"],
   "properties": {

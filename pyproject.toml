@@ -1,12 +1,12 @@
 [project]
-name = "openstudio-ai"
-version = "0.4.1"
-description = "OpenStudio AI harness with MCP runtime, host adapters, skills, and knowledge."
+name = "openstudio-si"
+version = "0.4.2"
+description = "OpenStudio SI harness with MCP runtime, host adapters, skills, and knowledge."
 requires-python = ">=3.10"
 authors = [{ name = "PNNL" }]
 readme = "README.md"
 license = "BSD-3-Clause"
-keywords = ["openstudio", "building-energy-modeling", "mcp", "simulation", "ai"]
+keywords = ["openstudio", "building-energy-modeling", "mcp", "simulation", "si"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
@@ -43,15 +43,15 @@ standards = [
 ]
 
 [project.urls]
-Homepage = "https://gitlab.pnnl.gov/building-energy-modeling/openstudio-ai-harness"
-Repository = "https://gitlab.pnnl.gov/building-energy-modeling/openstudio-ai-harness"
-Documentation = "https://gitlab.pnnl.gov/building-energy-modeling/openstudio-ai-harness"
+Homepage = "https://github.com/pnnl/openstudio-si-harness"
+Repository = "https://github.com/pnnl/openstudio-si-harness"
+Documentation = "https://github.com/pnnl/openstudio-si-harness"
 
 [project.scripts]
-openstudio-ai = "cli:main"
-openstudio-ai-mcp = "openstudio_ai_mcp.server:main"
-openstudio-ai-claude-export = "adapters.claude_code_adapter:main"
-openstudio-ai-codex-export = "adapters.codex_adapter:main"
+openstudio-si = "cli:main"
+openstudio-si-mcp = "openstudio_si_mcp.server:main"
+openstudio-si-claude-export = "adapters.claude_code_adapter:main"
+openstudio-si-codex-export = "adapters.codex_adapter:main"
 
 [build-system]
 # Hatchling 1.29.0 emits Core Metadata 2.4, which Twine 6.2 validates.
@@ -71,7 +71,7 @@ packages = [
     "blackboard",
     "harness",
     "learning",
-    "openstudio_ai_mcp",
+    "openstudio_si_mcp",
     "scripts",
     "sdk_index",
 ]
@@ -80,7 +80,7 @@ only-include = [
     "blackboard",
     "harness",
     "learning",
-    "openstudio_ai_mcp",
+    "openstudio_si_mcp",
     "scripts",
     "sdk_index",
     "cli.py",
@@ -104,7 +104,7 @@ exclude = [
     "dist",
     "build",
     ".pytest_cache",
-    ".openstudio_ai_mcp_workspace",
+    ".openstudio_si_mcp_workspace",
     "resource",
     "tests",
     "scripts/evaluate_skill_vav.py",
@@ -118,7 +118,7 @@ include = [
     "blackboard/**",
     "harness/**",
     "learning/**",
-    "openstudio_ai_mcp/**",
+    "openstudio_si_mcp/**",
     "scripts/**",
     "sdk_index/**",
     "skills/**",
@@ -147,7 +147,7 @@ exclude = [
     "dist",
     "build",
     ".pytest_cache",
-    ".openstudio_ai_mcp_workspace",
+    ".openstudio_si_mcp_workspace",
     "measures/candidates/**",
     "standalone/**",
     "tests/fixtures/**",

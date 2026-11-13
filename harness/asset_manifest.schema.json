@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "OpenStudio AI Plugin Manifest",
+  "title": "OpenStudio SI Plugin Manifest",
   "type": "object",
   "required": ["version", "skills", "agents", "references"],
   "additionalProperties": false,

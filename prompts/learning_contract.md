@@ -1,6 +1,6 @@
 # Learning Contract
 
-OpenStudio AI learning follows this progression:
+OpenStudio SI learning follows this progression:
 
 1. Capture raw events.
 2. Distill candidate lessons or assets.

@@ -6,7 +6,7 @@ from pathlib import Path
 from learning.developer_pipeline.run_pipeline import (
     run_developer_learning_pipeline,
 )
-from openstudio_ai_mcp.server import OpenStudioService
+from openstudio_si_mcp.server import OpenStudioService
 
 
 def test_developer_learning_pipeline_writes_candidate_lesson(tmp_path: Path) -> None:

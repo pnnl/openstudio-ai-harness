@@ -38,9 +38,14 @@ dev = [
     "playwright>=1.50.0",
     "twine>=5.0.0",
 ]
+
 # Optional LLM-judge metrics for the interop evals in evals/.
 eval = [
     "deepeval>=4.0.0",
+]
+
+standards = [
+    "building-energy-standards-data[mcp]>=0.3.3",
 ]
 
 [project.urls]
@@ -59,6 +64,12 @@ openstudio-ai-codex-export = "adapters.codex_adapter:main"
 # Keep this release-backend pin until the checker supports Core Metadata 2.5.
 requires = ["hatchling==1.29.0"]
 build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "slow: SDK modeling, native/simulation/browser execution, repeated full exports, archive builds, or large bundled-doc parsing; run in full CI, outside the publishing gate",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = [

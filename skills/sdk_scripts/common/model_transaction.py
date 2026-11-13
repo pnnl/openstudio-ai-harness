@@ -40,6 +40,13 @@ def preflight(source, config, operation, planner):
         planned["companions"] = inspect(model, source, output, sdk)
         if planned.get("simulation_ready") is False:
             planned["companions"]["simulation_ready"] = False
+        if planned.get("simulation_readiness_scope") == "operation_and_companions":
+            # Existing planners use operation-only readiness. Combining companion
+            # blockers requires an explicit opt-in, independent of flag presence.
+            planned["simulation_ready"] = bool(
+                planned["simulation_ready"]
+                and planned["companions"]["simulation_ready"]
+            )
     if digest(source) != original:
         raise ValueError("Input changed during preflight")
     return dict(

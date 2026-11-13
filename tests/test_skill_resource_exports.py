@@ -248,3 +248,94 @@ def test_reject_unknown_or_unsupported_owner(
         asset_manifest.resource_exports_for_host(
             resource_workspace, Path("/tmp/plugin"), "claude"
         )
+
+
+def test_sdk_reference_paths_rewrite_both_alias_forms_without_touching_other_paths():
+    from harness.plugin_sdk import rewrite_reference_paths
+
+    target = "../../sdk/references/guide.md"
+    aliases = {
+        "references/guide.md": target,
+        "scripts/references/guide.md": target,
+        "./references/guide.md": target,
+    }
+    before = "[guide](scripts/references/guide.md#section)\n[ref]: ./references/guide.md\n`references/guide.md`"
+    after = rewrite_reference_paths(before, aliases)
+    assert after == f"[guide]({target}#section)\n[ref]: {target}\n`{target}`"
+    assert rewrite_reference_paths(after, aliases) == after
+    untouched = "other/references/guide.md references/guide.md.backup https://x/references/guide.md"
+    assert rewrite_reference_paths(untouched, aliases) == untouched
+
+
+def test_sdk_reference_aliases_reject_conflicting_sources_and_respect_hosts(tmp_path):
+    from harness.plugin_sdk import reference_aliases
+
+    resources = [
+        {
+            "scope": "plugin-sdk",
+            "source": f"skills/sdk_scripts/references/{name}.md",
+            "owners": [
+                {"hosts": ["codex"], "skill": "fixture", "path": "references/guide.md"}
+            ],
+        }
+        for name in ("first", "second")
+    ]
+    assert reference_aliases(resources, tmp_path, "claude") == {}
+    aliases = reference_aliases(resources[:1], tmp_path, "codex")["fixture"]
+    assert set(aliases.values()) == {"../../sdk/references/first.md"}
+    assert "scripts/references/guide.md" in aliases
+    with pytest.raises(ValueError, match="Conflicting shared SDK reference alias"):
+        reference_aliases(resources, tmp_path, "codex")
+
+
+@pytest.mark.parametrize("suffix", [".", ",", ";", ":", "!", "?", "...", "\n"])
+def test_sdk_reference_sentence_punctuation_is_rewritten(suffix):
+    from harness.plugin_sdk import rewrite_reference_paths
+
+    aliases = {"references/x.md": "../../sdk/references/x.md"}
+    assert rewrite_reference_paths(f"See references/x.md{suffix}", aliases) == (
+        f"See ../../sdk/references/x.md{suffix}"
+    )
+
+
+def test_export_rejects_unrewritten_bare_reference(tmp_path, monkeypatch):
+    from harness import plugin_sdk
+
+    skill = tmp_path / "skills/example/SKILL.md"
+    skill.parent.mkdir(parents=True)
+    skill.write_text("See references/x.md.")
+    monkeypatch.setattr(plugin_sdk, "rewrite_reference_paths", lambda text, _: text)
+    with pytest.raises(ValueError, match="Unrewritten SDK reference alias"):
+        plugin_sdk.write_resources(
+            [],
+            tmp_path,
+            aliases={"example": {"references/x.md": "../../sdk/references/x.md"}},
+        )
+    assert skill.read_text() == "See references/x.md."
+
+
+@pytest.mark.parametrize("host", ["claude", "codex"])
+@pytest.mark.slow
+def test_export_rejects_alias_collision_in_adapter_copied_files(
+    tmp_path, monkeypatch, host
+):
+    from adapters import claude_code_adapter, codex_adapter
+
+    module = claude_code_adapter if host == "claude" else codex_adapter
+    original = module._write_skill_references
+
+    def copy_extra_reference(skills_dir, workspace_root):
+        original(skills_dir, workspace_root)
+        # Simulate a local skill file / host-specific reference not in the manifest.
+        path = skills_dir / "openstudio-economizer-editor/references/economizer.md"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("Distinct local reference; must not be silently shadowed.")
+
+    monkeypatch.setattr(module, "_write_skill_references", copy_extra_reference)
+    adapter = (ClaudeCodeAdapter if host == "claude" else CodexAdapter)(
+        HostAdapterConfig(
+            host_name=host, workspace_root=Path.cwd(), runtime_mode="marketplace"
+        )
+    )
+    with pytest.raises(ValueError, match="SDK reference alias destination collision"):
+        adapter.export_plugin(tmp_path / "export with spaces", dry_run=False)

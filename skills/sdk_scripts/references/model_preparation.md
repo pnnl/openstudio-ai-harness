@@ -13,6 +13,12 @@ the complete plugin together, including `sdk/` and `skills/`. The launcher check
 the shared bundle before execution; `plugin_incomplete` means restore that full
 plugin. It never searches another checkout or installs a package.
 
+Shared guides and schemas live under `sdk/references/` and `sdk/schemas/`.
+Links in the owning `SKILL.md` resolve relative to that skill, outside its folder
+but inside the complete plugin. Run commands through the owning skill's scripts.
+Shared Markdown is hashed with the executable payload; documentation-only edits
+change the bundle ID and require exporting the matching library and launchers.
+
 Run `scripts/prepare_model.py --input <absolute-original.osm> --output
 <absolute-new.osm> --report <absolute-new.json>` through the doctor-verified CLI.
 Preparation alone may translate an older OSM. It resolves companions against the

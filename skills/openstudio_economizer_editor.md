@@ -84,3 +84,7 @@ not establish annual performance or ventilation compliance.
 
 Use `openstudio-outdoor-air-connector` for direct OA/recovery attachment and
 `openstudio-heat-recovery-editor` for existing recovery performance/control edits.
+
+## Energy code values
+
+Applies only when the user asks for code-compliant or code-minimum values or names a standard (for example "per 90.1-2019"); otherwise keep the behavior above. Load `query-energy-standards` to check whether an air economizer is required for the climate zone, which control types are allowed and the high-limit cutoffs (`system_requirements_air_economizer`). Use the result to choose the edit the user asked for; do not change existing economizer settings merely because they differ from the code. Confirm `standard`, `template`, `climate_zone` and `path` with the user instead of assuming them, and record the source of each value used. If the `building_energy_standards` tools are unavailable or return no matching row, say so and ask the user for the value; never invent a code value.

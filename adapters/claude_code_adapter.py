@@ -9,11 +9,12 @@ from pathlib import Path
 
 from adapters.base import OpenStudioAiHostAdapter
 from adapters.contracts import RUNTIME_MODES, HostAdapterConfig, HostLaunchPlan
-from adapters.runtime_helpers import write_runtime_helpers
+from adapters.runtime_helpers import optional_mcp_servers, write_runtime_helpers
 from harness.asset_manifest import (
     agent_source_for_host,
     reference_exports_for_host,
     resource_exports_for_host,
+    sdk_reference_aliases,
     skill_exports_for_host,
     skill_ids_for_host,
     skill_sources_for_host,
@@ -196,6 +197,7 @@ def _render_mcp_config(
         else {}
     )
     mcp_servers[SERVER_NAME] = _mcp_server_config(workspace_root, runtime_mode)
+    mcp_servers.update(optional_mcp_servers(runtime_mode))
     existing["mcpServers"] = mcp_servers
     return json.dumps(existing, indent=2, ensure_ascii=True) + "\n"
 
@@ -206,7 +208,8 @@ def _render_plugin_mcp_config(workspace_root: Path, runtime_mode: str) -> str:
         json.dumps(
             {
                 "mcpServers": {
-                    SERVER_NAME: _mcp_server_config(workspace_root, runtime_mode)
+                    SERVER_NAME: _mcp_server_config(workspace_root, runtime_mode),
+                    **optional_mcp_servers(runtime_mode),
                 }
             },
             indent=2,
@@ -529,7 +532,9 @@ def _write_plugin_package(
         setup_scripts_dir = plugin_dir / "skills" / "setup-openstudio-ai" / "scripts"
         _write_installer_assets(setup_scripts_dir)
     write_resources(
-        resource_exports_for_host(workspace_root, plugin_dir, "claude"), plugin_dir
+        resource_exports_for_host(workspace_root, plugin_dir, "claude"),
+        plugin_dir,
+        aliases=sdk_reference_aliases(workspace_root, "claude"),
     )
 
 

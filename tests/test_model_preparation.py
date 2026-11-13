@@ -16,6 +16,14 @@ from common import version_guard as guard
 from common.diagnostics import failure_report, mismatch
 
 TRANSACTION_ENTRYPOINTS = [
+    "remove_unused_plants.py",
+    "replace_plant_equipment.py",
+    "edit_boiler_performance.py",
+    "edit_chiller_performance.py",
+    "edit_district_capacity.py",
+    "edit_tower_performance.py",
+    "edit_terminal.py",
+    "replace_terminal.py",
     "remove_hvac.py",
     "edit_supply_fan_performance.py",
     "edit_water_coil.py",
@@ -570,7 +578,7 @@ def test_preparation_available_in_every_relocated_owning_bundle(sdk, tmp_path, h
         skill = moved / "skills" / owner["skill"]
         script = skill / "scripts/prepare_model.py"
         assert script.is_file()
-        assert (skill / "references/preparation_report.schema.json").is_file()
+        assert (skill / "../../sdk/schemas/preparation_report.schema.json").is_file()
         assert "requires_preparation" in (skill / "SKILL.md").read_text()
         run = subprocess.run(
             [sys.executable, "-I", "-S", str(script), "--help"],

@@ -75,3 +75,7 @@ without writing a substitute or broadening the edit.
 Return output/report paths, the retained pump handle and before/after settings.
 Keep the OSM and `<stem>/` companion together; honor `requires_companion_workflow`.
 Hand sizing and performance assessment to the selected simulation provider.
+
+## Energy code values
+
+Applies only when the user asks for code-compliant or code-minimum values or names a standard (for example "per 90.1-2019"); otherwise keep the behavior above. Load `query-energy-standards` to resolve pump motor efficiency (`hvac_minimum_requirements_motors`) and variable-flow or variable-speed drive requirements (`system_requirements_hydronic_variable_flow`) for the edit the user asked for. Do not change a pump's mode or class from a code lookup; route class changes to `openstudio-pump-replacer`. Confirm `standard`, `template`, `climate_zone` and `path` with the user instead of assuming them, and record the source of each value used. If the `building_energy_standards` tools are unavailable or return no matching row, say so and ask the user for the value; never invent a code value.

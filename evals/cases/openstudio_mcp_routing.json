@@ -1,0 +1,52 @@
+[
+  {
+    "case_id": "openstudio_mcp_inspect_001",
+    "description": "Read-only model inspection. Both servers can load and summarize a model; with both connected the work must go through openstudio-mcp, not the openstudio-ai model_*/sim_*/results_* tools. Routing-only: a read-only task saves no model, so there is no outcome to inspect.",
+    "prompt": "Load the OpenStudio model at {input_dir}/sample.osm and summarize what is in it: how many thermal zones, air loops and plant loops. Do not run a simulation and do not modify the model.",
+    "inputs": ["sample.osm"],
+    "required_tools": [
+      {"tool": "load_osm_model", "provider": "openstudio-mcp"}
+    ],
+    "forbidden_tools": ["model_*", "sim_*", "results_*"]
+  },
+  {
+    "case_id": "openstudio_mcp_legacy_load_001",
+    "description": "Loading a model from an old OpenStudio release (2.2.2) requires version translation. The saved model must be upgraded (OpenStudio 3.x) with the building intact, and the work must go through openstudio-mcp's load_osm_model.",
+    "prompt": "The model at {input_dir}/openstudio-legacy-multiloop.osm was saved by an old OpenStudio release. Load it, upgrading it to the current OpenStudio version, and save the upgraded model as legacy_upgraded.osm. Do not run a simulation.",
+    "inputs": ["openstudio-legacy-multiloop.osm"],
+    "required_tools": [
+      {"tool": "load_osm_model", "provider": "openstudio-mcp"}
+    ],
+    "forbidden_tools": ["model_*", "sim_*", "results_*"],
+    "expected": {
+      "model": {
+        "version_min": "3.0.0",
+        "counts": {"OS:ThermalZone": 10, "OS:AirLoopHVAC": 10}
+      }
+    }
+  },
+  {
+    "case_id": "openstudio_mcp_location_001",
+    "description": "Setting weather and design days. openstudio-mcp does it in one step with change_building_location; openstudio-ai splits it into model_set_weather and model_set_design_days. The saved model must carry the Tampa International weather file and design days (the input has Tampa-MacDill), and the work must go through openstudio-mcp.",
+    "prompt": "Load {input_dir}/sample.osm, set its location to the Tampa weather file {input_dir}/USA_FL_Tampa.Intl.AP.722110_TMY3.epw (including the matching design days), and save the result as sample_tampa.osm. Do not run a simulation.",
+    "inputs": [
+      "sample.osm",
+      "USA_FL_Tampa.Intl.AP.722110_TMY3.epw",
+      "USA_FL_Tampa.Intl.AP.722110_TMY3.stat",
+      "USA_FL_Tampa.Intl.AP.722110_TMY3.ddy"
+    ],
+    "required_tools": [
+      {"tool": "change_building_location", "provider": "openstudio-mcp"}
+    ],
+    "forbidden_tools": ["model_*", "sim_*", "results_*"],
+    "expected": {
+      "model": {
+        "counts": {"OS:ThermalZone": 6, "OS:AirLoopHVAC": 5},
+        "fields": [
+          {"type": "OS:WeatherFile", "field": "City", "contains": "International"},
+          {"type": "OS:SizingPeriod:DesignDay", "field": "Name", "contains": "International", "match": "all"}
+        ]
+      }
+    }
+  }
+]

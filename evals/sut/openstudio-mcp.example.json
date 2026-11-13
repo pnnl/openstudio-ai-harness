@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "openstudio-mcp": {
+      "command": "bash",
+      "args": ["/ABS/PATH/TO/openstudio-ai-harness/scripts/start_openstudio_mcp.sh"],
+      "env": {
+        "OPENSTUDIO_MCP_ROOT": "/ABS/PATH/TO/openstudio-mcp",
+        "OPENSTUDIO_MCP_SANDBOX": "{sandbox}"
+      }
+    }
+  }
+}

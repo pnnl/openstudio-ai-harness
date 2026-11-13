@@ -29,3 +29,14 @@ RUN rm -f /etc/apt/sources.list.d/yarn.list \
 # needs access only to the Python package index after the base image is pulled.
 ARG UV_VERSION=0.12.5
 RUN python -m pip install --no-cache-dir "uv==${UV_VERSION}"
+
+# Mount points for the container-only venv volumes in compose.yaml. Docker copies
+# this ownership into each named volume when it is first created, so the
+# non-root user can write to them.
+RUN mkdir -p /workspace/openstudio-ai-harness/.venv \
+        /workspace/openstudio-ai-harness/standalone/.venv \
+    && chown -R vscode:vscode /workspace
+
+# Run as the image's non-root user (UID 1000) so files written to the bind-mounted
+# repo are owned by the host developer instead of root.
+USER vscode

@@ -357,7 +357,7 @@ Focused test set for the current OpenStudio AI harness:
   blackboard implementation.
 - `learning/`: developer pipeline, developer agent contract, runtime pipeline,
   schemas, and review queue.
-- `evals/`: workflow, planning, promotion, and regression eval area.
+- `evals/`: interop evals that run the exported plugin next to another MCP server in Claude Code (see `evals/README.md`).
 - `measures/approved/`: reviewed deterministic measures.
 - `measures/candidates/`: proposed measures pending review.
 - `policy/`: allowlists, run gates, measure registry, and promotion policy.
